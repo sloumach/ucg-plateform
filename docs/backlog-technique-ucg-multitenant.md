@@ -60,7 +60,7 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 ### UCG-ARC-001 — Initialiser la stack applicative
 
 - **Priorité / taille** : P0 / M
-- **Périmètre** : Laravel 13, PHP 8.5, React, TypeScript, Inertia, Tailwind CSS, Vite et PostgreSQL ; conventions de configuration par environnement.
+- **Périmètre** : Laravel 13, PHP 8.5, API HTTP versionnée avec Sanctum, React, TypeScript, Tailwind CSS, Vite et PostgreSQL ; conventions de configuration par environnement. Le frontend SPA et le backend sont séparés, Inertia n’est donc pas utilisé.
 - **Acceptation** : installation reproductible, page authentifiée minimale, connexion PostgreSQL fonctionnelle et aucun secret versionné.
 - **Dépendances** : décisions de stack validées.
 
