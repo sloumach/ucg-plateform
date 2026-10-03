@@ -44,7 +44,6 @@ app/Modules/<Module>/
 │   ├── Exceptions/      erreurs métier ciblées
 │   └── Models/          modèles et règles appartenant au domaine
 ├── Infrastructure/
-│   ├── Database/        migrations et persistance technique
 │   └── Persistence/     implémentations des repositories
 ├── Presentation/
 │   ├── Http/            Controllers, Form Requests et Resources
@@ -67,9 +66,10 @@ matérialise la frontière même avant l’arrivée des premières fonctionnalit
 4. À l’intérieur d’un module, les dépendances pointent vers le cœur :
    `Presentation → Application → Domain` et `Infrastructure → Application/Domain`.
 5. Le provider du module est la racine de composition autorisée à relier les couches, charger
-   les routes, migrations, policies et bindings.
-6. Chaque table et migration possède un module propriétaire. Une relation inter-module stocke
-   l’identifiant nécessaire, mais ne crée pas un accès implicite au modèle Eloquent voisin.
+   les routes, policies et bindings.
+6. Les migrations restent centralisées dans `database/migrations` conformément à la convention
+   Laravel. Chaque table conserve toutefois un module propriétaire. Une relation inter-module
+   stocke l’identifiant nécessaire, mais ne crée pas un accès implicite au modèle Eloquent voisin.
 7. Les écritures cohérentes sont orchestrées dans un Service et protégées par une transaction.
    Les événements externes sont publiés après validation de la transaction.
 8. Les controllers restent minces : validation par Form Request, autorisation par Policy,
@@ -94,7 +94,7 @@ Presentation/Routes/api.php
 ```
 
 `IdentityServiceProvider` lie le contrat au repository Eloquent, enregistre la Policy, le rate
-limiter, les migrations et les routes. Aucun de ces détails n’est exposé aux futurs modules.
+limiter et les routes. Aucun de ces détails n’est exposé aux futurs modules.
 
 ## Ajouter une fonctionnalité
 

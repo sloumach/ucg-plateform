@@ -28,8 +28,6 @@ final class IdentityServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        $this->loadMigrationsFrom(__DIR__.'/../Infrastructure/Database/Migrations');
-
         Gate::policy(User::class, UserPolicy::class);
 
         RateLimiter::for('login', static fn (Request $request): Limit => Limit::perMinute(5)->by(
