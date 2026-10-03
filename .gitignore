@@ -1,0 +1,16 @@
+# Operating systems and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local environment and build artifacts
+*.log
+back/.env
+back/vendor/
+back/storage/*.key
+front/.env*
+!front/.env.example
+front/node_modules/
+front/dist/
+
