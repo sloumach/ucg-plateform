@@ -74,9 +74,12 @@ function App() {
     setSubmitting(true)
 
     try {
-      await logout()
+      const notification = await logout()
       setUser(null)
-      setToast({ message: 'Déconnexion effectuée.', tone: 'success' })
+      setToast({
+        message: notification?.message ?? 'Déconnexion effectuée.',
+        tone: 'success',
+      })
     } catch {
       setToast({ message: 'La déconnexion a échoué.', tone: 'error' })
     } finally {

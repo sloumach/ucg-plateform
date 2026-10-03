@@ -1,6 +1,7 @@
 <?php
 
-use App\Modules\Identity\Domain\Exceptions\InvalidCredentialsException;
+use App\Http\Api\ApiExceptionRenderer;
+use App\Http\Middleware\AssignRequestId;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -15,16 +16,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend(AssignRequestId::class);
         $middleware->statefulApi();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(
-            fn (InvalidCredentialsException $exception): JsonResponse => response()->json([
-                'message' => $exception->getMessage(),
-                'errors' => [
-                    'email' => [$exception->getMessage()],
-                ],
-            ], 422),
+            fn (Throwable $exception, Request $request): ?JsonResponse => app(ApiExceptionRenderer::class)
+                ->render($exception, $request),
         );
 
         $exceptions->shouldRenderJsonWhen(

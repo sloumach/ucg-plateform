@@ -68,3 +68,4 @@ npm run build
 - `docs/cahier-des-charges-ucg-multitenant.md`
 - `docs/backlog-technique-ucg-multitenant.md`
 - `docs/architecture-modulaire.md`
+- `docs/conventions-api.md`

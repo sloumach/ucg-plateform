@@ -2,6 +2,7 @@
 
 namespace App\Modules\Identity\Presentation\Http\Controllers\Api\V1;
 
+use App\Http\Api\ApiResponseFactory;
 use App\Http\Controllers\Controller;
 use App\Modules\Identity\Application\Services\AuthenticationService;
 use App\Modules\Identity\Domain\Models\User;
@@ -16,6 +17,7 @@ class AuthController extends Controller
     public function __construct(
         private readonly AuthenticationService $authentication,
         private readonly Gate $gate,
+        private readonly ApiResponseFactory $responses,
     ) {}
 
     public function login(LoginRequest $request): UserResource
@@ -39,9 +41,13 @@ class AuthController extends Controller
         $this->gate->authorize('view', $user);
         $this->authentication->logout($request);
 
-        return response()->json([
-            'message' => 'Déconnexion effectuée.',
-        ]);
+        return $this->responses->success(
+            request: $request,
+            notification: [
+                'type' => 'success',
+                'message' => 'Déconnexion effectuée.',
+            ],
+        );
     }
 
     private function authenticatedUser(Request $request): User

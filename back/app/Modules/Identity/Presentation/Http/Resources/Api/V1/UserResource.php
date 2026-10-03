@@ -2,12 +2,12 @@
 
 namespace App\Modules\Identity\Presentation\Http\Resources\Api\V1;
 
+use App\Http\Api\ApiResource;
 use App\Modules\Identity\Domain\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
 /** @mixin User */
-class UserResource extends JsonResource
+class UserResource extends ApiResource
 {
     /**
      * Transform the resource into an array.

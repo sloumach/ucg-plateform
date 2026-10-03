@@ -1,0 +1,21 @@
+export type ApiMeta = {
+  request_id: string
+}
+
+export type ApiNotification = {
+  type: 'success' | 'error' | 'info' | 'warning'
+  message: string
+}
+
+export type ApiSuccessResponse<T> = {
+  data: T
+  meta: ApiMeta
+  notification?: ApiNotification
+}
+
+export type ApiErrorResponse = {
+  message: string
+  code: string
+  errors: Record<string, string[]>
+  meta: ApiMeta
+}

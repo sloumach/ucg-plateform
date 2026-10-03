@@ -1,23 +1,33 @@
+import type {
+  ApiErrorResponse,
+  ApiNotification,
+  ApiSuccessResponse,
+} from './contracts'
+
 export type AuthenticatedUser = {
   id: number
   name: string
   email: string
 }
 
-type UserResponse = {
-  data: AuthenticatedUser
-}
-
-type ValidationErrorResponse = {
-  message?: string
-  errors?: Record<string, string[]>
-}
-
 const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1'
 const backendOrigin = new URL(apiBaseUrl).origin
 
-export class AuthenticationError extends Error {}
+export class AuthenticationError extends Error {
+  readonly code?: string
+  readonly requestId?: string
+
+  constructor(
+    message: string,
+    code?: string,
+    requestId?: string,
+  ) {
+    super(message)
+    this.code = code
+    this.requestId = requestId
+  }
+}
 
 export async function getCurrentUser(
   signal?: AbortSignal,
@@ -36,7 +46,7 @@ export async function getCurrentUser(
     throw new Error(`Current user request failed with status ${response.status}`)
   }
 
-  return ((await response.json()) as UserResponse).data
+  return ((await response.json()) as ApiSuccessResponse<AuthenticatedUser>).data
 }
 
 export async function login(email: string, password: string): Promise<AuthenticatedUser> {
@@ -50,18 +60,20 @@ export async function login(email: string, password: string): Promise<Authentica
   })
 
   if (!response.ok) {
-    const payload = (await response.json()) as ValidationErrorResponse
+    const payload = (await response.json()) as ApiErrorResponse
     const firstFieldError = Object.values(payload.errors ?? {}).flat()[0]
 
     throw new AuthenticationError(
       firstFieldError ?? payload.message ?? 'Connexion impossible.',
+      payload.code,
+      payload.meta?.request_id,
     )
   }
 
-  return ((await response.json()) as UserResponse).data
+  return ((await response.json()) as ApiSuccessResponse<AuthenticatedUser>).data
 }
 
-export async function logout(): Promise<void> {
+export async function logout(): Promise<ApiNotification | null> {
   await prepareCsrfCookie()
 
   const response = await fetch(`${apiBaseUrl}/auth/logout`, {
@@ -73,6 +85,10 @@ export async function logout(): Promise<void> {
   if (!response.ok) {
     throw new Error(`Logout request failed with status ${response.status}`)
   }
+
+  const payload = (await response.json()) as ApiSuccessResponse<null>
+
+  return payload.notification ?? null
 }
 
 async function prepareCsrfCookie(): Promise<void> {

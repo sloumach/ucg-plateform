@@ -1,15 +1,15 @@
+import type { ApiSuccessResponse } from './contracts'
+
 export type SystemStatus = {
   apiVersion: string
   name: string
   status: 'operational'
 }
 
-type SystemStatusResponse = {
-  data: {
-    api_version: string
-    name: string
-    status: 'operational'
-  }
+type SystemStatusData = {
+  api_version: string
+  name: string
+  status: 'operational'
 }
 
 const apiBaseUrl =
@@ -28,7 +28,7 @@ export async function getSystemStatus(signal?: AbortSignal): Promise<SystemStatu
     throw new Error(`API request failed with status ${response.status}`)
   }
 
-  const payload = (await response.json()) as SystemStatusResponse
+  const payload = (await response.json()) as ApiSuccessResponse<SystemStatusData>
 
   return {
     apiVersion: payload.data.api_version,

@@ -2,12 +2,20 @@
 
 namespace App\Modules\Identity\Domain\Exceptions;
 
-use Exception;
+use App\Contracts\Exceptions\ValidationDomainExceptionContract;
+use App\Exceptions\DomainException;
 
-class InvalidCredentialsException extends Exception
+final class InvalidCredentialsException extends DomainException implements ValidationDomainExceptionContract
 {
     public function __construct()
     {
-        parent::__construct(__('auth.failed'));
+        parent::__construct(__('auth.failed'), 'INVALID_CREDENTIALS');
+    }
+
+    public function errors(): array
+    {
+        return [
+            'email' => [$this->getMessage()],
+        ];
     }
 }

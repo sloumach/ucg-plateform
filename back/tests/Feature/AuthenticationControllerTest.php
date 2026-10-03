@@ -81,7 +81,12 @@ class AuthenticationControllerTest extends TestCase
 
         $this->postJson('/api/v1/auth/logout')
             ->assertOk()
-            ->assertJsonPath('message', 'Déconnexion effectuée.');
+            ->assertJsonPath('notification.message', 'Déconnexion effectuée.')
+            ->assertJsonStructure([
+                'data',
+                'meta' => ['request_id'],
+                'notification' => ['type', 'message'],
+            ]);
 
         Auth::forgetGuards();
 
