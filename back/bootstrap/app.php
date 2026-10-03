@@ -1,6 +1,6 @@
 <?php
 
-use App\Exceptions\InvalidCredentialsException;
+use App\Modules\Identity\Domain\Exceptions\InvalidCredentialsException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
