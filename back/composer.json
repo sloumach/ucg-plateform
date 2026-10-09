@@ -8,8 +8,12 @@
     "require": {
         "php": "^8.3",
         "laravel/framework": "^13.17",
+        "laravel/horizon": "~5.50.0",
+        "laravel/reverb": "~1.12.0",
         "laravel/sanctum": "^4.0",
-        "laravel/tinker": "^3.0"
+        "laravel/tinker": "^3.0",
+        "league/flysystem-aws-s3-v3": "~3.35.0",
+        "predis/predis": "~3.7.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -52,6 +56,7 @@
             "@php artisan config:clear --ansi @no_additional_args",
             "@php artisan test"
         ],
+        "queue:work:local": "@php artisan queue:work database --queue=critical,default,notifications,broadcasts,reports --sleep=1 --tries=3 --timeout=300",
         "test:ci": [
             "@php -r \"is_dir('reports') || mkdir('reports', 0777, true);\"",
             "@php artisan config:clear --ansi",

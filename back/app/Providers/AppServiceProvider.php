@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Contracts\Storage\ArtifactStorage;
+use App\Support\Storage\LaravelArtifactStorage;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -11,7 +13,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // Application-wide bindings belong here. Module bindings stay in their provider.
+        $this->app->bind(ArtifactStorage::class, LaravelArtifactStorage::class);
     }
 
     /**

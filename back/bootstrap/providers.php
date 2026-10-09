@@ -2,8 +2,10 @@
 
 use App\Modules\Identity\Providers\IdentityServiceProvider;
 use App\Providers\AppServiceProvider;
+use App\Providers\HorizonServiceProvider;
 
 return [
-    AppServiceProvider::class,
     IdentityServiceProvider::class,
+    AppServiceProvider::class,
+    HorizonServiceProvider::class,
 ];

@@ -5,10 +5,10 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 9 octobre 2026.
+- Dernière mise à jour : 10 octobre 2026.
 - Branche de travail : `staging`.
-- Dernier ticket terminé : `UCG-ARC-004` — qualité, tests automatisés et CI.
-- Prochain ticket : `UCG-ARC-005` — Redis, queues, temps réel et stockage.
+- Dernier ticket terminé : `UCG-ARC-005` — Redis, queues, temps réel et stockage.
+- Prochain ticket : `UCG-ARC-006` — interface partagée et traductions.
 - Aucun blocage fonctionnel connu.
 - Au démarrage, vérifier l'état réel avec `git status --short --branch` et
   `git log -8 --oneline --decorate`.
@@ -86,8 +86,38 @@ Commit :
   20 tests backend et 151 assertions réussis, lint frontend réussi, 2 tests
   Vitest réussis, build Vite réussi et 1 test Playwright réussi.
 
-L’implémentation est présente dans l’arbre de travail et n’a pas été commitée,
-conformément à la demande.
+Commit :
+
+- `8309cb9 feat(ARC-004): add automated quality and testing workflows`
+
+Les workflows `Backend quality` et `Frontend quality` associés à ce commit ont
+été validés sur GitHub Actions.
+
+### UCG-ARC-005 — Redis, queues, temps réel et stockage
+
+- Predis, Horizon 5.50, Reverb 1.12 et l’adaptateur Flysystem S3 installés.
+- Mode local sans Redis conservé : queue/cache en base, broadcasting en log et
+  fichiers privés sur disque local.
+- Queues `critical`, `default`, `notifications`, `broadcasts` et `reports`
+  séparées, avec supervisors Horizon et timeouts cohérents avec `retry_after`.
+- Client Echo React paresseux configuré pour Reverb et l’autorisation Sanctum.
+- Canal privé utilisateur protégé ; un utilisateur ne peut pas autoriser le
+  canal d’un autre utilisateur.
+- Tableau Horizon fermé par défaut hors environnement local et limité à une
+  liste d’adresses e-mail configurée.
+- Contrat `ArtifactStorage` indépendant du fournisseur, implémentation Laravel
+  compatible disque local/S3 et préfixage obligatoire par tenant.
+- `JobContext` ajouté pour transporter explicitement les identifiants de
+  requête et de tenant dans les jobs concernés.
+- Cache de repli Redis vers base configuré ; aucun artefact durable n’est
+  stocké uniquement dans Redis.
+- Validation locale : Composer valide et sans avis de sécurité, Pint réussi,
+  Larastan sans erreur, 27 tests backend et 167 assertions réussis, npm sans
+  vulnérabilité, lint frontend réussi, 3 tests Vitest réussis, build Vite
+  réussi et 1 test Playwright réussi.
+
+L’implémentation ARC-005 est présente dans l’arbre de travail et n’a pas encore
+été commitée.
 
 ## Décisions à préserver
 
@@ -104,18 +134,24 @@ conformément à la demande.
   lorsque le volume le justifie.
 - Ne pas déplacer les migrations dans `Modules/` sans nouvelle décision
   d'architecture documentée.
+- Exécuter Horizon sur Linux/WSL ou en production ; sous Windows, conserver le
+  worker `database` et ignorer uniquement `ext-pcntl`/`ext-posix` à
+  l’installation Composer.
+- Garder Redis comme transport/cache remplaçable et la base ou le stockage
+  local/S3 comme source durable.
+- Conserver l’autorisation des canaux privés sous `auth:sanctum`. Les canaux
+  tenant-aware complets seront ajoutés après les modèles et policies Tenancy.
 
-## Prochaine étape : UCG-ARC-005
+## Prochaine étape : UCG-ARC-006
 
-Préparer Redis, les queues, le temps réel et le stockage conformément au backlog :
+Centraliser l’interface et les traductions conformément au backlog :
 
-- Redis et Horizon ;
-- Reverb et Echo ;
-- abstraction de stockage compatible S3 ;
-- files de jobs séparées et configuration locale de remplacement ;
-- propagation explicite du contexte tenant dans les traitements concernés ;
-- vérifications garantissant qu’aucun artefact critique ne dépend uniquement
-  de Redis.
+- composants accessibles communs ;
+- formulaires, tableaux, pagination et états vide/chargement/erreur ;
+- notifications Flasher ;
+- catalogue de traductions français ;
+- navigation clavier et contrastes vérifiés ;
+- aucun texte métier important dispersé dans les composants React.
 
 ## Documents de référence
 

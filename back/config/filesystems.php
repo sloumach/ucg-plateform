@@ -2,6 +2,10 @@
 
 $applicationUrl = env('APP_URL', 'http://localhost');
 $applicationUrl = is_string($applicationUrl) ? $applicationUrl : 'http://localhost';
+$defaultDisk = env('FILESYSTEM_DISK', 'local');
+$defaultDisk = is_string($defaultDisk) ? $defaultDisk : 'local';
+$artifactDisk = env('ARTIFACTS_DISK', $defaultDisk);
+$artifactDisk = is_string($artifactDisk) ? $artifactDisk : $defaultDisk;
 
 return [
 
@@ -16,7 +20,9 @@ return [
     |
     */
 
-    'default' => env('FILESYSTEM_DISK', 'local'),
+    'default' => $defaultDisk,
+
+    'artifacts' => $artifactDisk,
 
     /*
     |--------------------------------------------------------------------------
