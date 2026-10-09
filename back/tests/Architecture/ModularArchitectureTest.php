@@ -6,7 +6,7 @@ use App\Architecture\Modules\ModuleDependencyMap;
 use App\Architecture\Modules\ModuleName;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
-use SplFileInfo;
+use Symfony\Component\Finder\SplFileInfo;
 use Tests\TestCase;
 
 class ModularArchitectureTest extends TestCase
@@ -93,9 +93,9 @@ class ModularArchitectureTest extends TestCase
 
         foreach ($this->moduleFiles() as $file) {
             $relativePath = str_replace('\\', '/', $file->getRelativePathname());
-            [, $sourceLayer] = array_pad(explode('/', $relativePath), 2, null);
+            $sourceLayer = explode('/', $relativePath)[1] ?? null;
 
-            if (! isset($allowedLayers[$sourceLayer])) {
+            if ($sourceLayer === null || ! isset($allowedLayers[$sourceLayer])) {
                 continue;
             }
 
@@ -145,7 +145,7 @@ class ModularArchitectureTest extends TestCase
     /** @return list<SplFileInfo> */
     private function moduleFiles(): array
     {
-        return File::allFiles(app_path('Modules'));
+        return array_values(File::allFiles(app_path('Modules')));
     }
 
     private function sourceModule(SplFileInfo $file): ModuleName

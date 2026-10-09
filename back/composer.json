@@ -13,6 +13,7 @@
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
+        "larastan/larastan": "^3.13",
         "laravel/boost": "^2.10",
         "laravel/pail": "^1.2.5",
         "laravel/pao": "^1.0.6",
@@ -34,6 +35,9 @@
         }
     },
     "scripts": {
+        "analyse": "phpstan analyse --memory-limit=1G",
+        "format": "pint",
+        "format:check": "pint --test",
         "setup": [
             "composer install",
         "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
@@ -47,6 +51,11 @@
         "test": [
             "@php artisan config:clear --ansi @no_additional_args",
             "@php artisan test"
+        ],
+        "test:ci": [
+            "@php -r \"is_dir('reports') || mkdir('reports', 0777, true);\"",
+            "@php artisan config:clear --ansi",
+            "@php artisan test --log-junit=reports/phpunit.xml"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",

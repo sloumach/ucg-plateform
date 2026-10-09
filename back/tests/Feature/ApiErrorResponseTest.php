@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Testing\TestResponse;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
 
 class ApiErrorResponseTest extends TestCase
@@ -99,6 +100,7 @@ class ApiErrorResponseTest extends TestCase
             ->assertJsonMissing(['message' => 'Sensitive implementation detail.']);
     }
 
+    /** @param TestResponse<Response> $response */
     private function assertStandardError(TestResponse $response, int $status, string $code): void
     {
         $response

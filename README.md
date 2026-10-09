@@ -53,15 +53,46 @@ Le frontend est disponible sur `http://localhost:5173`.
 
 ## Vérifications
 
+Installer une fois les dépendances et le navigateur Playwright :
+
 ```powershell
 cd back
-php artisan test
-vendor\bin\pint --test
+composer install
 
 cd ..\front
-npm run lint
-npm run build
+npm install
+npx playwright install chromium
 ```
+
+Exécuter la chaîne de qualité backend :
+
+```powershell
+cd back
+composer validate --strict
+composer format:check
+composer analyse
+composer test:ci
+```
+
+`composer test:ci` conserve le rapport PHPUnit dans `back/reports/phpunit.xml`.
+
+Exécuter la chaîne frontend et le parcours navigateur :
+
+```powershell
+cd front
+npm run lint
+npm run test:ci
+npm run build
+npm run test:e2e
+```
+
+Les rapports Vitest et Playwright sont générés dans `front/reports/`. Le test
+Playwright démarre Laravel et Vite automatiquement sur les ports `8000` et `5173`.
+
+Les workflows GitHub Actions `.github/workflows/backend-quality.yml` et
+`.github/workflows/frontend-quality.yml` exécutent ces contrôles à chaque push et
+pull request. Tout échec de formatage, d’analyse statique, de test ou de build
+bloque le pipeline ; les rapports sont conservés comme artefacts pendant 14 jours.
 
 ## Documentation
 
