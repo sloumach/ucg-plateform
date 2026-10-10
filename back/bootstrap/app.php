@@ -2,6 +2,7 @@
 
 use App\Http\Api\ApiExceptionRenderer;
 use App\Http\Middleware\AssignRequestId;
+use App\Modules\Tenancy\Presentation\Http\Middleware\RequireTenantConfirmation;
 use App\Modules\Tenancy\Presentation\Http\Middleware\ResolveTenantContext;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -24,8 +25,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(AssignRequestId::class);
         $middleware->statefulApi();
-        $middleware->alias(['tenant' => ResolveTenantContext::class]);
+        $middleware->alias(['tenant' => ResolveTenantContext::class, 'tenant.confirmed' => RequireTenantConfirmation::class]);
         $middleware->prependToPriorityList(SubstituteBindings::class, ResolveTenantContext::class);
+        $middleware->appendToPriorityList(ResolveTenantContext::class, RequireTenantConfirmation::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(

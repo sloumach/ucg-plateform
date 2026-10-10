@@ -103,9 +103,9 @@ limiter et les routes. Aucun de ces détails n’est exposé aux futurs modules.
 Les modules autorisés à dépendre de Tenancy consomment
 `Tenancy\Application\Contracts\TenantContext`, un DTO public `readonly`.
 Le middleware `tenant` le résout depuis un UUID de route ou un hôte exact
-approuvé, vérifie le propriétaire et le statut actif, puis l’attache à la
+approuvé, vérifie le propriétaire ou une adhésion active datée et le statut actif, puis l’attache à la
 requête. Il s’exécute après l’authentification et avant les bindings de ressources.
-Les adhésions ne seront prises en compte qu’en `TEN-003`.
+Les adhésions, rôles et permissions minimales sont pris en compte depuis `TEN-003`.
 
 Injecter le contexte dans la méthode d’action, pas dans le constructeur du
 controller : Laravel peut instancier celui-ci avant l’exécution du middleware.
@@ -126,6 +126,27 @@ avant la fin de la requête ; `toJobContext()` fournit le transport existant.
 La restauration contrôlée des jobs sera réalisée dans `TEN-006`.
 
 ### Flux d’ajout
+
+La sélection `TEN-003` est un marqueur de session avec révision, pas un DTO
+persisté ni une preuve d’autorisation. Les mutations tenant exigent cette
+révision et une confirmation après changement de sélection. Les routes
+globales d’invitation/départ conservent leur autorisation propre et un contrôle
+de révision lorsqu’une sélection existe. Les verrous de session empêchent
+qu’un changement de sélection s’intercale pendant une requête sensible.
+Ne pas injecter `TenantContext` dans un constructeur de middleware : Laravel
+peut réinstancier ce middleware à la terminaison, une fois le contexte nettoyé.
+
+Les admissions et réactivations verrouillent d’abord le compte vérifié via le
+contrat public Identity, puis l’organisation, puis l’adhésion/invitation.
+Les audits d’accès sont append-only et transactionnels ; l’e-mail est différé
+après commit. Aucun modèle Identity n’est importé directement dans Tenancy.
+Les tables d’accès et leurs migrations restent centrales, détenues par Tenancy.
+
+La politique d’adhésion de `TEN-003` doit être isolée de la résolution du contexte :
+multi-organisations par défaut, restriction d’exclusivité activable explicitement.
+Vérifier les périodes côté serveur et sérialiser les admissions d’un même compte
+pour éviter deux acceptations concurrentes. La suspension n’est pas un départ.
+La restriction ne fusionne ni identités ni historiques et ne remplace pas les Policies.
 
 1. Confirmer le module propriétaire et ses dépendances avant de coder.
 2. Ajouter ou modifier le contrat public seulement si un autre module doit réellement appeler

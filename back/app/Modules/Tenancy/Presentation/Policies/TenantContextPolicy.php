@@ -11,4 +11,9 @@ final class TenantContextPolicy
     {
         return (int) $user->getAuthIdentifier() === $context->actorUserId;
     }
+
+    public function manage(Authenticatable $user, TenantContext $context): bool
+    {
+        return $this->view($user, $context) && $context->canAdminister();
+    }
 }

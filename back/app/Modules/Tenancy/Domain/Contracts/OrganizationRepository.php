@@ -13,6 +13,13 @@ interface OrganizationRepository
 
     public function findOwned(string $id, int $ownerId): Organization;
 
+    public function findAccessible(string $id, int $actorUserId): Organization;
+
+    /** @return LengthAwarePaginator<int, Organization> */
+    public function paginateAccessible(int $actorUserId, int $perPage, int $page): LengthAwarePaginator;
+
+    public function ownsAnotherUnarchivedOrganization(?string $organizationId, int $userId): bool;
+
     public function findBySlug(string $slug): ?Organization;
 
     public function lock(string $id): Organization;

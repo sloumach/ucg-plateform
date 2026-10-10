@@ -122,7 +122,7 @@ Sous une session SPA Sanctum avec protection CSRF :
   uniquement, pagination bornée à 100 éléments et ordre stable par UUID.
 - `GET /api/v1/organizations/{uuid}` : détail de l’organisation possédée.
 - `PUT /api/v1/organizations/{uuid}` : remplacement complet des paramètres
-  ci-dessous ; réservé au propriétaire d’une organisation active.
+  ci-dessous ; réservé au propriétaire ou administrateur d’une organisation active.
 
 Exemple dans le frontend, après connexion et initialisation du cookie CSRF ;
 `apiBaseUrl` est l’URL configurée de l’API et `organizationId` l’UUID autorisé :
@@ -176,9 +176,9 @@ middleware tenant et une Policy :
 
 Ils renvoient `data.organization_id`, `data.actor_user_id`, `data.slug`,
 `data.timezone`, `data.language` et `meta.request_id`. Le contexte ne contient
-pas de modèle Eloquent mutable et n’est pas persisté comme sélection active
-en session. Le changement d’organisation et ses confirmations appartiennent
-à `TEN-003`.
+pas de modèle Eloquent mutable et n’est pas persisté en session.
+`TEN-003` ajoute une sélection distincte, avec révision et confirmation,
+sans modifier la forme JSON de ces deux endpoints.
 
 Exemple après authentification SPA, avec l’UUID autorisé :
 
@@ -195,7 +195,7 @@ const response = await fetch(
 | --- | --- |
 | session absente | `401 AUTHENTICATION_REQUIRED` |
 | aucune source tenant, même avec un seul tenant possédé | `422 TENANT_CONTEXT_REQUIRED` |
-| tenant inconnu, non possédé, approbation invalide ou route/domaine divergents | `404 RESOURCE_NOT_FOUND` |
+| tenant inconnu, sans adhésion effective ni propriété, approbation invalide ou route/domaine divergents | `404 RESOURCE_NOT_FOUND` |
 | tenant suspendu, en clôture ou archivé | `409 ORGANIZATION_INACTIVE` |
 | Policy refusant une action dans un contexte résolu | `403 AUTHORIZATION_DENIED` |
 
@@ -206,10 +206,87 @@ format de toast n’est introduit.
 
 Les en-têtes `X-Tenant-ID`/`X-Organization-ID`, la query string, les cookies et
 les champs du payload ne constituent jamais une source de contexte.
-Un domaine ne contourne pas l’autorisation du propriétaire. Si route et domaine
+Un domaine ne contourne pas l’autorisation d’accès. Si route et domaine
 approuvé existent, ils doivent désigner la même organisation.
 `PUT /organizations/{uuid}` utilise maintenant ce contexte ; son Service ne
 prend plus un UUID tenant libre pour choisir l’organisation à modifier et
-revérifie propriétaire/statut sous verrou avant l’écriture.
+revérifie rôle d’administration et statut sous verrou avant l’écriture.
 Les lectures de gestion `GET /organizations` et `GET /organizations/{uuid}`
 restent accessibles au propriétaire sans contexte métier actif.
+
+## Adhésions, invitations et sélection — UCG-TEN-003
+
+Tous les endpoints sont sous Sanctum. Les mutations SPA requièrent le cookie
+CSRF et `X-XSRF-TOKEN`, comme la connexion.
+Les collections sont paginées : `page=1..100000`, `per_page=1..100`.
+
+| Endpoint sous /api/v1 | Usage et autorisation |
+| --- | --- |
+| `GET accessible-organizations` | Organisations actives accessibles ; rôles propres à chacune et membership_id |
+| `GET active-organization` | Sélection actuelle, droits fraîchement résolus ; contexte nul si accès perdu |
+| `POST active-organization` | Sélectionner organization_id autorisé ; nouvelle révision, confirmed=false |
+| `POST active-organization/confirmation` | organization_id, revision, confirm=true ; confirme la sélection courante |
+| `GET my-invitations` | Historique filtré par l’adresse vérifiée du compte, noms chargés sans N+1 |
+| `PUT my-invitations/{uuid}` | Destinataire uniquement ; decision=accepted/declined, confirm=true |
+| `DELETE my-memberships/{uuid}` | Départ du compte lui-même ; confirm=true, historique conservé |
+| `GET tenants/{tenant}/memberships` | Administration de ce tenant |
+| `PUT tenants/{tenant}/memberships/{uuid}` | Administration ; roles, status, starts_at, ends_at |
+| `GET tenants/{tenant}/invitations` | Administration de ce tenant |
+| `POST tenants/{tenant}/invitations` | Administration ; email, roles, starts_at facultatif, ends_at nullable |
+| `DELETE tenants/{tenant}/invitations/{uuid}` | Révoquer une invitation en attente de ce tenant |
+
+Les roles acceptés sont `member` et `administrator`. Seul le propriétaire
+peut déléguer/modifier/révoquer une affectation d’administration.
+Le statut propriétaire `owner` est retourné mais jamais accepté dans un payload.
+Les périodes utilisent un ISO 8601 précis avec décalage,
+par exemple `2026-10-10T14:30:00+02:00`, fin strictement postérieure au début.
+Les instants sont persistés/retournés en UTC ; leur décalage d’entrée est respecté.
+Les listes ne révèlent aucun profil global privé ; les membres exposent leur
+identifiant de compte, pas les données d’une autre organisation.
+Les identifiants d’organisation/compte, l’émetteur et la durée d’expiration ne
+peuvent pas être modifiés depuis les payloads d’invitation/adhésion.
+Un UUID d’accès situé dans un autre tenant donne le même 404 qu’un UUID inconnu.
+La création d’invitations est limitée à 10/minute par acteur et tenant.
+
+Une sélection retourne `data.context` (identité, rôles, permissions,
+membership_id, is_owner), `data.revision` et `data.confirmed`.
+Après sélection, envoyer `X-Tenant-Revision` sur les routes tenant, y compris
+les lectures, et sur les réponses aux invitations/départs.
+Ce header ne choisit pas le tenant : il empêche d’agir avec un ancien onglet.
+Une révision absente/périmée produit `409 TENANT_CONTEXT_CHANGED` ;
+une mutation tenant avant confirmation produit `409 TENANT_CONFIRMATION_REQUIRED`.
+Les parcours globaux acceptation/refus/départ demandent toujours confirm=true
+pour leur cible propre ; ils ne choisissent pas le contexte métier depuis le payload.
+Un client API explicite sans sélection de session conserve le parcours route
+TEN-002 : autorisation serveur obligatoire, sans changement antérieur à confirmer.
+
+Exemple TypeScript avec le client partagé (session/CSRF/erreurs structurées) :
+
+```ts
+const selection = await tenancyRequest<ApiSuccessResponse<ActiveOrganization>>(
+  'active-organization',
+  { method: 'POST', body: { organization_id: organizationId } },
+)
+const revision = selection.data.revision
+if (!revision) throw new Error('Sélection non établie')
+// Demander à la personne de confirmer explicitement l’organisation affichée.
+await tenancyRequest('active-organization/confirmation', {
+  method: 'POST',
+  body: { organization_id: organizationId, revision, confirm: true },
+})
+await tenancyRequest('tenants/' + organizationId + '/invitations', {
+  method: 'POST', revision,
+  body: { email: 'membre@example.test', roles: ['member'],
+    starts_at: '2026-10-10T14:30:00+02:00', ends_at: null },
+})
+// Consommer notification via le provider partagé ; afficher errors près des champs.
+```
+
+Codes 409 supplémentaires : `INVITATION_ALREADY_PENDING`,
+`INVITATION_EXPIRED`, `INVITATION_ALREADY_CLOSED`, `INVITATION_PERIOD_ENDED`,
+`MEMBERSHIP_ALREADY_EXISTS`, `OWNER_MEMBERSHIP_PROTECTED` et
+`MULTIPLE_ORGANIZATIONS_FORBIDDEN`. L’exclusivité globale, facultative et
+multi-organisations par défaut, est documentée dans le README et ORG-03.
+Elle ne supprime ni compte, ni appartenance, ni historique automatiquement.
+L’acceptation demande un compte existant à adresse vérifiée ; la création
+et la vérification Identity restent hors de TEN-003.

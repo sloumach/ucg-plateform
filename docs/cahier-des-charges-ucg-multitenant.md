@@ -74,6 +74,13 @@ Les fonctionnalités commerciales d’un SaaS, telles que la facturation des abo
 - ORG-01 : créer une organisation avec identifiant immuable, nom, slug, statut, fuseau IANA, langue, pays et paramètres de base.
 - ORG-02 : gérer invitation, acceptation, refus, expiration et révocation d’une adhésion sans créer de doublon de compte.
 - ORG-03 : permettre à un compte d’appartenir à plusieurs organisations et d’y posséder des rôles, statuts et dates distincts.
+- Précision ORG-02/ORG-03 : le mode multi-organisations reste le comportement par défaut.
+  Préserver une politique d’adhésion extensible permettant d’interdire des appartenances
+  simultanées lorsqu’une règle métier d’exclusivité est activée explicitement.
+  L’interdiction doit être vérifiée côté serveur à l’acceptation ou à la réactivation,
+  en tenant compte des périodes ; une suspension ne vaut pas départ. Ne pas supprimer
+  les comptes ni les historiques, ni révoquer automatiquement des adhésions existantes.
+  Une activation sur des données existantes exige une vérification préalable des conflits.
 - ORG-04 : rendre l’organisation active visible et exiger une confirmation explicite avant toute action sensible après un changement de contexte.
 - ORG-05 : résoudre le tenant depuis une source approuvée, puis vérifier l’adhésion ou l’accès externe avant de charger une donnée métier.
 - ORG-06 : gérer actif, suspendu, en clôture et archivé ; une organisation suspendue ne peut plus produire de nouvelles opérations métier, sauf actions de régularisation autorisées.
@@ -144,6 +151,11 @@ Les participants externes d’un tournoi, sponsors et candidats possèdent des a
 Une autorisation se compose d’une organisation, d’une action, d’un périmètre et de conditions. Exemple : un coach peut modifier un débrief de son équipe, dans son organisation active et pendant sa période d’affectation. Les permissions de lecture sportive, lecture administrative, lecture financière, modification, validation et publication sont distinctes.
 
 Les rôles métier sont des ensembles de permissions configurables par organisation. Chaque affectation peut être limitée à un jeu, une équipe, une cohorte ou un événement et possède une date de début et de fin. Une personne peut avoir plusieurs rôles dans des périmètres ou des organisations différents. Une suspension d’adhésion retire en priorité les accès au tenant concerné ; une suspension globale du compte suit une procédure plateforme distincte.
+
+Cette capacité multi-organisations ne rend pas les appartenances simultanées obligatoires :
+la politique d’exclusivité ORG-03 peut les restreindre sans fusionner les rôles, les données
+ou les identités. Une exclusivité ciblée sur un rôle métier demandera une règle explicite
+lors de la mise en place des permissions contextuelles ; ne pas la déduire du seul rôle.
 
 ### 4.2 Matrice de responsabilité
 

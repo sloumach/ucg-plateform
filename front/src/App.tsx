@@ -15,6 +15,8 @@ import { AsyncState } from './components/feedback/AsyncState'
 import { NotificationProvider } from './components/feedback/NotificationProvider'
 import { useNotifications } from './components/feedback/notificationContext'
 import { t } from './i18n/fr'
+import { TenantWorkspace } from './components/tenancy/TenantWorkspace'
+import type { ActiveOrganization } from './api/tenancy'
 
 const technologies = [
   'Laravel 13',
@@ -39,6 +41,7 @@ function Application() {
   const [systemState, setSystemState] = useState<LoadState>('loading')
   const [systemError, setSystemError] = useState<ApiClientError | null>(null)
   const [user, setUser] = useState<AuthenticatedUser | null>(null)
+  const [activeTenant, setActiveTenant] = useState<ActiveOrganization['context']>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [sessionError, setSessionError] = useState<ApiClientError | null>(null)
   const [formError, setFormError] = useState<ApiClientError | null>(null)
@@ -199,7 +202,7 @@ function Application() {
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-10 lg:px-10">
-        <header className="flex items-center justify-between gap-4 border-b border-white/10 pb-6">
+        <header className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-4 border-b border-white/10 bg-slate-950 py-4">
           <div className="flex items-center gap-3">
             <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-cyan-400 font-black text-slate-950">
               UCG
@@ -214,6 +217,9 @@ function Application() {
           <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-300">
             {t('app.ticket')}
           </span>
+          {user && <p aria-label={t('tenant.header')} className="w-full break-words text-sm font-semibold text-cyan-200">
+            {activeTenant?.name ?? t('tenant.none')}
+          </p>}
         </header>
 
         <section className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1.15fr_0.85fr]">
@@ -376,6 +382,7 @@ function Application() {
             )}
           </aside>
         </section>
+        {user && <TenantWorkspace key={user.id} onContextChange={setActiveTenant} />}
       </div>
     </main>
   )

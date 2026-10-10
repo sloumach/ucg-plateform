@@ -70,7 +70,7 @@ export async function logout(): Promise<ApiNotification | null> {
   return payload.notification ?? null
 }
 
-async function prepareCsrfCookie(): Promise<void> {
+export async function prepareCsrfCookie(): Promise<void> {
   const response = await fetch(`${backendOrigin}/sanctum/csrf-cookie`, {
     credentials: 'include',
     headers: { Accept: 'application/json' },
@@ -81,7 +81,7 @@ async function prepareCsrfCookie(): Promise<void> {
   }
 }
 
-function mutationHeaders(): HeadersInit {
+export function mutationHeaders(): HeadersInit {
   const csrfToken = document.cookie
     .split('; ')
     .find((cookie) => cookie.startsWith('XSRF-TOKEN='))

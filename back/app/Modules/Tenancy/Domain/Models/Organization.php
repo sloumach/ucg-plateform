@@ -5,9 +5,11 @@ namespace App\Modules\Tenancy\Domain\Models;
 use App\Exceptions\DomainConflictException;
 use App\Modules\Tenancy\Domain\OrganizationStatus;
 use Database\Factories\OrganizationFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
@@ -20,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property string $language
  * @property string $country
  * @property-read OrganizationSetting|null $settings
+ * @property-read Collection<int, OrganizationMembership> $memberships
  */
 class Organization extends Model
 {
@@ -57,5 +60,11 @@ class Organization extends Model
     public function acceptsBusinessOperations(): bool
     {
         return $this->status === OrganizationStatus::Active;
+    }
+
+    /** @return HasMany<OrganizationMembership, $this> */
+    public function memberships(): HasMany
+    {
+        return $this->hasMany(OrganizationMembership::class);
     }
 }

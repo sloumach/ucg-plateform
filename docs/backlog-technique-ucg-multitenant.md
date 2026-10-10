@@ -120,6 +120,13 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Priorité / taille** : P0 / L
 - **Périmètre** : adhésion datée, invitation, expiration, révocation, sélection de l’organisation active et confirmation des actions sensibles.
 - **Acceptation** : un compte peut rejoindre plusieurs tenants avec des rôles distincts ; le changement de contexte recharge permissions, menus et données.
+- **Précision d’adhésion** : multi-organisations par défaut ; conserver une politique
+  extensible d’exclusivité, activable explicitement, pour refuser les appartenances
+  simultanées. Contrôle serveur des périodes à l’acceptation/réactivation, y compris
+  les adhésions suspendues ; aucun départ ou effacement d’historique automatique.
+  L’activation sur des comptes déjà multi-organisations nécessite un contrôle préalable
+  des conflits. Une restriction spécifique aux joueurs ou à un autre rôle reste une
+  règle métier distincte, à définir avec les permissions contextuelles.
 - **Références CDC** : ORG-02 à ORG-05.
 
 ### UCG-TEN-004 — Imposer l’isolation dans PostgreSQL

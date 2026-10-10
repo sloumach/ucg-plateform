@@ -2,6 +2,16 @@
 
 return [
     'errors' => [
+        'access_identity' => 'L’organisation et le destinataire de cet accès ne peuvent pas être modifiés.',
+        'exclusive_membership' => 'La politique d’adhésion interdit d’appartenir à deux organisations sur la même période. Quittez d’abord l’autre organisation ou choisissez une période sans chevauchement.',
+        'owner_membership' => 'Le propriétaire ne peut pas quitter ou suspendre son organisation par une opération d’adhésion.',
+        'invitation_pending' => 'Une invitation non expirée existe déjà pour cette adresse dans cette organisation.',
+        'invitation_expired' => 'Cette invitation a expiré. Demandez une nouvelle invitation.',
+        'invitation_closed' => 'Cette invitation a déjà été traitée ou révoquée.',
+        'invitation_period' => 'La période d’adhésion proposée est déjà terminée.',
+        'membership_exists' => 'Ce compte appartient déjà à cette organisation sur une période en cours ou à venir.',
+        'confirm_context' => 'Confirmez l’organisation active avant cette action sensible.',
+        'context_changed' => 'L’organisation active a changé. Rechargez le contexte avant de poursuivre.',
         'context_required' => 'Un contexte d’organisation valide est requis pour cette opération.',
         'identity_immutable' => 'L’identifiant, le slug et le propriétaire de l’organisation ne peuvent pas être modifiés par cette opération.',
         'audit_immutable' => 'Le journal de cycle de vie ne peut pas être modifié ou supprimé.',
@@ -12,6 +22,11 @@ return [
         'pilot_owner' => 'Le pilote UCG existe déjà avec un autre propriétaire. Aucun changement n’a été effectué.',
     ],
     'validation' => [
+        'email' => 'L’adresse e-mail doit être valide.',
+        'roles' => 'Sélectionnez des rôles autorisés et distincts.',
+        'date' => 'La date doit être au format ISO 8601, avec son fuseau horaire.',
+        'period' => 'La date de fin doit être postérieure à la date de début.',
+        'confirm' => 'Une confirmation explicite est requise.',
         'required' => 'Ce champ est obligatoire.',
         'string' => 'Ce champ doit être du texte.',
         'max' => 'Ce champ ne peut pas dépasser :max caractères.',
@@ -24,7 +39,21 @@ return [
         'uuid' => 'L’identifiant de corrélation est invalide.',
         'immutable' => 'Ce champ ne peut pas être modifié par cette opération.',
     ],
-    'notifications' => ['updated' => 'Les paramètres de l’organisation ont été enregistrés.'],
+    'notifications' => [
+        'updated' => 'Les paramètres de l’organisation ont été enregistrés.',
+        'invited' => 'L’invitation a été créée. Sa notification est mise en file d’attente.',
+        'responded' => 'Votre réponse à l’invitation a été enregistrée.',
+        'revoked' => 'L’invitation a été révoquée.',
+        'membership_updated' => 'L’adhésion a été mise à jour.',
+        'left' => 'Votre départ de cette organisation a été enregistré.',
+    ],
+    'mail' => [
+        'subject' => 'Invitation à rejoindre une organisation',
+        'invited' => 'Vous êtes invité à rejoindre :organization.',
+        'account' => 'Connectez-vous avec le compte dont l’adresse e-mail vérifiée correspond à cette invitation. Si vous n’avez pas encore de compte, demandez sa création via le parcours Identity.',
+        'open' => 'Consulter mes invitations',
+        'access' => 'Aucun accès n’est accordé avant votre acceptation. Une invitation expirée ou révoquée ne peut plus être acceptée.',
+    ],
     'console' => [
         'provisioned' => 'Organisation créée : :id.',
         'transitioned' => 'Statut modifié : :status.',

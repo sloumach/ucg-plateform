@@ -5,7 +5,6 @@ namespace App\Modules\Tenancy\Application\Services;
 use App\Exceptions\DomainConflictException;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use App\Modules\Tenancy\Domain\Contracts\ApprovedTenantDomains;
-use App\Modules\Tenancy\Domain\Contracts\OrganizationRepository;
 use App\Modules\Tenancy\Domain\Exceptions\TenantContextRequiredException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Str;
@@ -13,7 +12,7 @@ use Illuminate\Support\Str;
 final readonly class TenantResolver
 {
     public function __construct(
-        private OrganizationRepository $organizations,
+        private OrganizationAccessService $access,
         private ApprovedTenantDomains $domains,
     ) {}
 
@@ -32,15 +31,22 @@ final readonly class TenantResolver
             throw new TenantContextRequiredException;
         }
 
-        // TEN-003 will extend access to active memberships; for now only the owner is authorized.
-        $organization = $this->organizations->findOwned($organizationId, $actorUserId);
+        $organization = $this->access->find($organizationId, $actorUserId);
         if (! $organization->acceptsBusinessOperations()) {
             throw new DomainConflictException(__('tenancy.errors.inactive'), 'ORGANIZATION_INACTIVE');
+        }
+
+        $isOwner = $organization->owner_user_id === $actorUserId;
+        $membership = $this->access->effectiveMembership($organization, $actorUserId);
+        if (! $isOwner && $membership === null) {
+            throw new ModelNotFoundException;
         }
 
         return new TenantContext(
             $organization->id, $actorUserId, $organization->slug,
             $organization->timezone, $organization->language, $requestId,
+            $isOwner ? ['owner'] : ($membership->roles ?? []),
+            $isOwner, $organization->name, $membership?->id,
         );
     }
 }

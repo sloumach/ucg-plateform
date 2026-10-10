@@ -177,9 +177,9 @@ Les suppressions physiques d’organisations et de comptes référencés sont re
 Les futures procédures de transfert/conservation devront faire évoluer
 explicitement ces protections, sans contournement par une mise à jour ordinaire.
 
-Les adhésions/invitations (`TEN-003`), l’isolation généralisée (`TEN-004`) et
-l’audit transverse (`IAM-006`) restent à implémenter.
-Ces tickets ne créent pas encore d’écran React de gestion des organisations.
+Les adhésions/invitations sont ajoutées par `TEN-003`, décrit ci-dessous.
+L’isolation généralisée (`TEN-004`) et l’audit transverse (`IAM-006`)
+restent à implémenter.
 
 La CI teste ce module sur une base PostgreSQL 17 dédiée en plus de la suite SQLite.
 
@@ -205,8 +205,8 @@ Le reverse proxy doit rejeter les hôtes inattendus ; ne faire confiance aux
 en-têtes transférés que depuis des proxies explicitement maîtrisés.
 Un domaine approuvé ne donne aucun droit sur son organisation.
 
-Le propriétaire est le seul accès actuellement autorisé : les adhésions seront
-ajoutées dans `TEN-003`. Une source absente produit `422 TENANT_CONTEXT_REQUIRED`,
+L’accès est autorisé au propriétaire ou à une adhésion active dans sa période.
+Une source absente produit `422 TENANT_CONTEXT_REQUIRED`,
 une organisation inconnue/non autorisée ou un conflit route/domaine produit le
 même `404 RESOURCE_NOT_FOUND`, et un tenant non actif produit
 `409 ORGANIZATION_INACTIVE`. Query string, payload, cookies et en-têtes tenant
@@ -220,6 +220,74 @@ files existant, sans autoriser une opération différée. La restauration et la
 revérification des droits/statuts des jobs appartiennent à `TEN-006`.
 Les contraintes PostgreSQL généralisées et l’isolation complète des fichiers,
 caches et verrous restent respectivement `TEN-004` et `TEN-005`.
+
+## Adhésions et changement d’organisation — UCG-TEN-003
+
+Après connexion, l’espace « Mes organisations » permet de sélectionner un tenant,
+consulter/répondre aux invitations et quitter explicitement une adhésion.
+Le propriétaire et les administrateurs peuvent inviter des membres et gérer
+leurs rôles, statuts et périodes. Seul le propriétaire délègue ou retire le rôle
+`administrator` ; `owner` reste un accès de gouvernance implicite et non assignable.
+Les rôles métier détaillés et leurs périmètres restent `IAM-003`.
+
+Une adhésion possède un UUID immuable, un couple organisation/compte unique,
+des rôles, un statut `active`/`suspended`/`revoked` et une période
+`[starts_at, ends_at[`. Une date de fin absente signifie durée indéfinie.
+Les dates sont normalisées en UTC avant persistance ; la session PostgreSQL
+est fixée à UTC, indépendamment du fuseau du serveur. Le fuseau de
+l’organisation concerne l’affichage, pas le stockage des instants.
+Une adhésion future, expirée, suspendue ou révoquée ne donne aucun accès.
+Un départ révoque l’adhésion sans supprimer le compte ou les audits.
+Une réadhésion réutilise son identité et conserve les périodes précédentes
+dans le journal append-only, écrit dans la même transaction.
+
+Les invitations ciblent une adresse e-mail normalisée. Leur acceptation exige
+un compte authentifié dont l’adresse est vérifiée et identique à la cible :
+pas de compte dupliqué ni de lien accordant un accès sans authentification.
+La création/vérification d’un nouveau compte reste le parcours Identity
+(`IAM-001`), pas une inscription publique ajoutée à ce ticket.
+L’invitation expire après 7 jours par défaut ; une expiration calculée suffit
+à refuser l’acceptation, sans dépendre d’un scheduler. Son historique est
+conservé ; une invitation expirée peut être remplacée par une nouvelle.
+
+La notification e-mail est mise en file `notifications` après commit.
+Configurer `MAIL_*`, `FRONTEND_URL` et exécuter le worker documenté ci-dessus.
+Le transport local `log` ne livre pas de message à une boîte externe.
+Une erreur de préparation avant commit annule invitation et audit.
+Une erreur de mise en file après commit ne peut pas annuler l’invitation déjà
+enregistrée : superviser et reprendre explicitement l’envoi. L’invitation reste
+consultable dans la boîte interne du destinataire vérifié.
+Un échec de livraison d’un job en file relève des retries et des failed jobs ;
+une notification de création ne constitue pas une preuve de livraison externe.
+
+La sélection serveur en session ne contient que tenant, acteur, révision et
+confirmation. Elle ne remplace jamais le contexte résolu par route/domaine :
+les accès et le statut sont revérifiés à chaque requête.
+Le frontend efface immédiatement les anciennes données/commandes, annule
+les lectures obsolètes et recharge les permissions. Il ne stocke pas de données
+tenant dans localStorage. Un retour de focus recharge aussi les accès.
+Chaque action propose une confirmation explicite de sa cible ; une action
+tenant confirme ensuite la révision active avant mutation.
+Les requêtes sensibles et les changements de sélection utilisent les verrous
+de session Laravel : conserver un cache à verrous atomiques et, en déploiement
+horizontal, un stockage de session/cache partagé.
+
+Le mode multi-organisations reste activé par défaut :
+
+```dotenv
+TENANCY_ALLOW_MULTIPLE_ORGANIZATIONS=true
+```
+
+Passer explicitement à `false` active une exclusivité globale au déploiement,
+isolée dans `MembershipAdmissionService`. Elle vérifie les chevauchements
+d’adhésions actives ou suspendues à l’acceptation, la réactivation/modification
+et la création d’une organisation possédée. Le verrou du compte sérialise
+les admissions à des organisations différentes. La propriété d’une autre
+organisation non archivée compte comme une appartenance indéfinie.
+Ne pas activer ce mode sur des données existantes sans examiner et résoudre
+explicitement les conflits ; aucune révocation automatique n’est effectuée.
+Une restriction par rôle métier reste une extension distincte avec `IAM-003`.
+Le détail des endpoints et exemples est dans `docs/conventions-api.md`.
 
 ## Vérifications
 

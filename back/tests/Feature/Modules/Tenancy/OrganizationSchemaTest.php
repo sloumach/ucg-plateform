@@ -90,14 +90,20 @@ class OrganizationSchemaTest extends TestCase
         $this->assertTrue(Schema::hasTable('users'));
         $organizationMigration = require database_path('migrations/2026_10_10_085921_create_organizations_and_settings_tables.php');
         $auditMigration = require database_path('migrations/2026_10_10_085922_create_organization_lifecycle_events_table.php');
+        $accessMigration = require database_path('migrations/2026_10_10_122134_create_organization_memberships_invitations_and_access_events.php');
+        $accessMigration->down();
         $auditMigration->down();
         $organizationMigration->down();
         $this->assertFalse(Schema::hasTable('organizations'));
         $organizationMigration->up();
         $auditMigration->up();
+        $accessMigration->up();
         $this->assertTrue(Schema::hasTable('organizations'));
         $this->assertTrue(Schema::hasTable('organization_settings'));
         $this->assertTrue(Schema::hasTable('organization_lifecycle_events'));
+        $this->assertTrue(Schema::hasTable('organization_memberships'));
+        $this->assertTrue(Schema::hasTable('organization_invitations'));
+        $this->assertTrue(Schema::hasTable('organization_access_events'));
     }
 
     public function test_settings_cannot_reference_a_nonexistent_organization(): void

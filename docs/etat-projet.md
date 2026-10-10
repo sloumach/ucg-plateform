@@ -7,9 +7,10 @@
 
 - Dernière mise à jour : 10 octobre 2026.
 - Branche de travail : `staging`.
-- Dernier ticket implémenté et validé localement : `UCG-TEN-002` — résolution et transport du contexte tenant.
-- Prochain ticket : `UCG-TEN-003` — adhésions, invitations et changement d’organisation.
-- CI de `TEN-001` confirmée réussie après push ; CI de `TEN-002` à vérifier après son push.
+- Dernier ticket implémenté et validé localement : `UCG-TEN-003` — adhésions, invitations et changement d’organisation.
+- Prochain ticket : `UCG-TEN-004` — isolation dans PostgreSQL.
+- CI de `TEN-001` et `TEN-002` confirmées réussies après push.
+- `TEN-003` : push et validation CI distante restent à effectuer.
 - Aucun blocage fonctionnel connu.
 - Au démarrage, vérifier l'état réel avec `git status --short --branch` et
   `git log -8 --oneline --decorate`.
@@ -216,6 +217,53 @@ Commit :
   Les workflows existants couvrent automatiquement les nouveaux tests.
 - Commit local à pousser ; validation distante à vérifier après push.
 
+### UCG-TEN-003 — Adhésions, invitations et changement d’organisation
+
+- Tables Tenancy centralisées : adhésions datées, invitations et audits d’accès.
+  Identités immuables, périodes valides, unicité organisation/compte et invitation
+  pending par organisation/e-mail ; historique protégé contre réécriture/suppression.
+- Multi-organisations par défaut ; politique globale d’exclusivité activable via
+  `TENANCY_ALLOW_MULTIPLE_ORGANIZATIONS=false`. Contrôle des chevauchements à
+  admission/réactivation/modification et création de propriété, compte verrouillé
+  avant organisation/accès. Une suspension ne constitue pas un départ.
+  Vérifier les conflits existants avant activation ; pas de révocation automatique.
+- Propriété implicite inchangée, rôles minimaux `member`/`administrator`
+  propres à chaque adhésion ; seul le propriétaire délègue l’administration.
+  Aucun superadmin plateforme ou rôle métier détaillé ajouté implicitement.
+- Invitations par e-mail vérifié : création, acceptation/refus, expiration et
+  révocation ; départ volontaire et réadhésion sans compte/historique supprimé.
+  Le parcours de création/vérification de nouveaux comptes reste Identity/IAM-001.
+- Notifications e-mail après commit dans `notifications`, rendu échappé,
+  contexte de corrélation explicite et retries. SMTP et worker requis pour une
+  livraison externe ; le mailer local log ne livre pas d’e-mail réel.
+  Une panne de mise en file après commit exige supervision/reprise explicite ;
+  la boîte interne reste disponible et aucun accès n’est accordé par l’e-mail.
+- Sélection serveur avec UUID de révision, confirmations et verrous de session.
+  Droits réévalués côté serveur ; anciennes révisions refusées, accès perdu
+  effacé. Le contexte HTTP reste issu d’une route/d’un domaine approuvé.
+- Interface React intégrée : contexte visible dans l’en-tête, organisations et
+  invitations paginées, administration conditionnée par permissions, statuts,
+  rôles, périodes, départ et confirmation explicite de la cible.
+  Anciennes données effacées immédiatement, requêtes annulées/réponses obsolètes
+  ignorées, rechargement au retour de focus ; aucune donnée tenant dans localStorage.
+- Dates d’entrée normalisées en UTC, session PostgreSQL fixée à UTC :
+  correction vérifiée avec des dates ISO 8601 à décalage non nul. Aucune
+  réécriture des historiques existants pour corriger le fuseau serveur.
+- Ancien test de rollback TEN-001 adapté avec accord explicite de l’utilisateur :
+  inverser TEN-003 avant ses dépendances, puis le réappliquer après celles-ci ;
+  toutes les vérifications historiques conservées.
+- Validation locale : 157 tests backend / 836 assertions ; 130 tests Tenancy
+  PostgreSQL / 661 assertions ; Pint, PHPStan niveau 8 et Composer réussis ;
+  lint, 21 tests Vitest, build et 2 tests Chromium réussis.
+  Le nouveau parcours navigateur utilise des réponses API contrôlées ; les
+  autorisations/persistance sont vérifiées séparément sur PostgreSQL réel.
+- Migration additive appliquée à la base locale. Empreinte des comptes,
+  organisations, paramètres et audits de cycle de vie identique avant/après ;
+  aucun reset, rollback ou effacement de ces données. Bases temporaires de tests
+  supprimées après vérification.
+- README, conventions API, architecture, cahier des charges, backlog et point
+  de reprise mis à jour. Push utilisateur puis contrôle des workflows requis.
+
 ## Décisions à préserver
 
 - Conserver les migrations dans `back/database/migrations/`.
@@ -246,16 +294,16 @@ Commit :
 - Piloter le comportement frontend avec le code d’erreur API stable, jamais en
   analysant le texte localisé ; conserver `request_id` pour le support.
 
-## Prochaine étape : UCG-TEN-003
+## Prochaine étape : UCG-TEN-004
 
-Gérer adhésions, invitations et changement d’organisation conformément au backlog :
+Après push de TEN-003 et validation CI, préparer l’isolation PostgreSQL
+généralisée conformément au backlog :
 
-- adhésions datées, rôles et statuts distincts selon l’organisation ;
-- invitation, acceptation/refus, expiration et révocation, sans compte dupliqué ;
-- sélection explicite de l’organisation active et confirmation des actions sensibles ;
-- rechargement des permissions, menus et données après changement ;
-- extension de la résolution tenant aux adhésions autorisées, sans affaiblir
-  le refus par défaut ni les gardes inter-contexte de `TEN-002`.
+- recenser les tables globales dans une liste fermée ;
+- imposer organization_id non nul aux données métier tenant-owned ;
+- définir clés uniques tenant, index composites et relations interobjets sûres ;
+- tester le rejet des associations inter-tenant au niveau de la base ;
+- évaluer et documenter Row-Level Security, sans l’activer implicitement.
 
 Le contexte HTTP de `TEN-002` ne remplace pas l’isolation PostgreSQL généralisée
 de `TEN-004`, celle des fichiers/caches/verrous de `TEN-005`, ni la restauration

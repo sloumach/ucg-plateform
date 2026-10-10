@@ -1,6 +1,9 @@
 <?php
 
 return [
+    // An operator may disable concurrent memberships after reviewing existing conflicts.
+    'allow_multiple_organizations' => env('TENANCY_ALLOW_MULTIPLE_ORGANIZATIONS', true),
+    'invitation_lifetime_days' => 7,
     // Exact, lowercase hosts approved by an operator => immutable organization UUID.
     // Empty by default; never populate this mapping from a request or an unverified domain.
     'approved_domains' => [],

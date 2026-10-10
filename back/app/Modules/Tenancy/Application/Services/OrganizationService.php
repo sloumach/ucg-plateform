@@ -15,7 +15,6 @@ use App\Modules\Tenancy\Domain\OrganizationStatus;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\Validation\Factory;
 use Illuminate\Database\ConnectionInterface;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\UniqueConstraintViolationException;
 
 final readonly class OrganizationService
@@ -25,6 +24,8 @@ final readonly class OrganizationService
         private AccountDirectory $accounts,
         private ConnectionInterface $database,
         private Factory $validator,
+        private OrganizationAccessService $access,
+        private MembershipAdmissionService $admission,
     ) {}
 
     /** @return LengthAwarePaginator<int, Organization> */
@@ -42,6 +43,16 @@ final readonly class OrganizationService
         return $this->organizations->findOwned($id, $ownerId);
     }
 
+    /** @return LengthAwarePaginator<int, Organization> */
+    public function listAccessible(int $actorUserId, int $perPage, int $page): LengthAwarePaginator
+    {
+        $this->validator->make(['per_page' => $perPage, 'page' => $page], [
+            'per_page' => ['integer', 'between:1,100'], 'page' => ['integer', 'between:1,100000'],
+        ], OrganizationInput::messages())->validate();
+
+        return $this->organizations->paginateAccessible($actorUserId, $perPage, $page);
+    }
+
     public function create(string $slug, int $ownerId, OrganizationDetailsData $details, OrganizationAuditData $audit): Organization
     {
         $this->validateDetails($details);
@@ -52,6 +63,10 @@ final readonly class OrganizationService
         ], OrganizationInput::messages())->validate();
         try {
             return $this->database->transaction(function () use ($slug, $ownerId, $details, $audit): Organization {
+                if ($this->accounts->lockVerifiedEmail($ownerId) === null) {
+                    throw new InvalidOrganizationAccountException;
+                }
+                $this->admission->ensureAllowed(null, $ownerId, now(), null);
                 $organization = $this->organizations->create([
                     ...$details->attributes(), 'slug' => $slug, 'owner_user_id' => $ownerId, 'status' => OrganizationStatus::Active,
                 ], $details->settings());
@@ -88,9 +103,8 @@ final readonly class OrganizationService
 
         return $this->database->transaction(function () use ($context, $details): Organization {
             $organization = $this->organizations->lock($context->organizationId);
-            if ($organization->owner_user_id !== $context->actorUserId) {
-                throw (new ModelNotFoundException)->setModel(Organization::class);
-            }
+            $this->access->find($organization->id, $context->actorUserId);
+            $this->access->requireAdministration($organization, $context->actorUserId);
             if (! $organization->acceptsBusinessOperations()) {
                 throw new DomainConflictException(__('tenancy.errors.inactive'), 'ORGANIZATION_INACTIVE');
             }

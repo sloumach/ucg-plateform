@@ -8,6 +8,7 @@ use App\Modules\Tenancy\Domain\Models\OrganizationLifecycleEvent;
 use App\Modules\Tenancy\Domain\Models\OrganizationSetting;
 use App\Modules\Tenancy\Domain\OrganizationStatus;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 
 final class EloquentOrganizationRepository implements OrganizationRepository
 {
@@ -21,6 +22,32 @@ final class EloquentOrganizationRepository implements OrganizationRepository
     public function findOwned(string $id, int $ownerId): Organization
     {
         return Organization::query()->where('owner_user_id', $ownerId)->with('settings')->findOrFail($id);
+    }
+
+    public function findAccessible(string $id, int $actorUserId): Organization
+    {
+        return $this->accessibleQuery($actorUserId)->findOrFail($id);
+    }
+
+    /** @return LengthAwarePaginator<int, Organization> */
+    public function paginateAccessible(int $actorUserId, int $perPage, int $page): LengthAwarePaginator
+    {
+        return $this->accessibleQuery($actorUserId)->where('status', OrganizationStatus::Active)
+            ->with(['memberships' => fn ($query) => $query->where('user_id', $actorUserId)->effective(now())])
+            ->orderBy('id')->paginate($perPage, ['*'], 'page', $page);
+    }
+
+    public function ownsAnotherUnarchivedOrganization(?string $organizationId, int $userId): bool
+    {
+        return Organization::query()->where('owner_user_id', $userId)->where('status', '!=', OrganizationStatus::Archived)
+            ->when($organizationId !== null, fn (Builder $query) => $query->whereKeyNot($organizationId))->exists();
+    }
+
+    /** @return Builder<Organization> */
+    private function accessibleQuery(int $actorUserId): Builder
+    {
+        return Organization::query()->where(fn (Builder $query) => $query->where('owner_user_id', $actorUserId)
+            ->orWhereHas('memberships', fn (Builder $membership) => $membership->where('user_id', $actorUserId)->effective(now())));
     }
 
     public function findBySlug(string $slug): ?Organization
