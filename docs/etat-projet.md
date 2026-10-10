@@ -7,14 +7,15 @@
 
 - Dernière mise à jour : 10 octobre 2026.
 - Branche de travail : `staging`.
-- Dernier ticket implémenté et validé localement : `UCG-TEN-005` — fichiers, caches, verrous et quotas.
-- Prochain ticket après push et CI de TEN-005 : `UCG-TEN-006` — jobs et scheduler.
+- Dernier ticket implémenté et validé localement : `UCG-TEN-006` — jobs et scheduler.
+- Prochain ticket après push et CI de TEN-006 : `UCG-TEN-007` — cycle de vie et portabilité.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
   pour `4f7854b` (runs `38065130499` et `38065130513`).
-- TEN-005 terminé localement : rollback adapté avec accord utilisateur,
-  migration additive appliquée sans modifier les données existantes.
-  Push utilisateur et CI, notamment Redis réel, restent à confirmer.
+- TEN-005 poussé (`86569b1`) : CI backend et frontend confirmées réussies
+  (runs `38077705674` et `38077705642`), dont le test Redis réel de TEN-005.
+- TEN-006 terminé localement, sans migration ni modification d’anciens tests.
+  Push utilisateur et CI, notamment le nouveau test de queue Redis, à confirmer.
 - Au démarrage, vérifier l'état réel avec `git status --short --branch` et
   `git log -8 --oneline --decorate`.
 - Vérifier également que les derniers commits locaux ont été poussés.
@@ -337,7 +338,7 @@ Commit :
 - Piloter le comportement frontend avec le code d’erreur API stable, jamais en
   analysant le texte localisé ; conserver `request_id` pour le support.
 
-## Travail terminé localement : UCG-TEN-005
+## Travail terminé : UCG-TEN-005
 
 Implémentation démarrée après push et validation CI de TEN-004 :
 
@@ -377,7 +378,7 @@ Vérifications de clôture :
   existantes conservées, existence des deux nouvelles tables vérifiée ;
 - Pint et Larastan niveau 8 réussis ; frontend Vitest : 21 tests réussis ;
 - Redis inaccessible en local et moteur Docker arrêté : test réel ajouté à la
-  CI avec service Redis dédié, validation distante encore à effectuer ;
+  CI avec service Redis dédié, puis validé après push (run `38077705674`) ;
 - stockage S3 testé via son contrat/adaptateur simulé, pas d’accès AWS réel ;
 - seule la migration additive TEN-005 appliquée à `ucg_platform` : empreintes
   SHA-256 et nombres de lignes des sept tables existantes identiques avant/après,
@@ -385,8 +386,7 @@ Vérifications de clôture :
 - contrôle `tenancy:check-schema` réussi ; bases temporaires de vérification
   supprimées après les tests, sans rollback ni réinitialisation de la base principale.
 
-Pour la validation distante : pousser le commit local TEN-005 puis confirmer
-les CI backend/frontend et le test d’intégration Redis réel ajouté à la CI.
+Validation distante TEN-005 : push utilisateur et CI backend/frontend réussis.
 Ne jamais exécuter `migrate:fresh`/rollback sur la base principale.
 
 Le contexte HTTP de `TEN-002` et les contraintes SQL de `TEN-004` ne remplacent
@@ -395,6 +395,51 @@ contrôlée des jobs de `TEN-006`. Le transfert renforcé de propriété,
 les régularisations métier, la réactivation après archivage, la conservation/purge
 et l’audit transverse restent dans leurs lots dédiés ; aucun écran React
 organisations n’a été ajouté à `TEN-001` ou `TEN-002`.
+
+## Travail terminé localement : UCG-TEN-006
+
+- Contrat public `TenantJob` et middleware final : transport explicite des IDs
+  tenant/acteur/corrélation ; statut, accès et rôles rechargés à chaque tentative.
+  Aucun droit conservé dans le payload ou déduit de la sélection HTTP/logs.
+- Contexte worker scoped et restauré dans un `finally`, y compris après erreur
+  ou dispatch synchrone imbriqué ; refus permanents dans `failed_jobs`, pannes
+  transitoires retentées. Délai et reprise manuelle conservent le tenant d’origine.
+- Invitations e-mail raccordées : acteur expéditeur explicite et administration
+  revérifiée avant envoi. Examiner les anciens payloads sans acteur avant
+  déploiement : ils sont refusés, jamais attribués au propriétaire implicitement.
+  Aucune ancienne invitation n’était en attente dans la queue database locale.
+- Tâches système derrière `TenantScheduledTask` et registre serveur fermé,
+  vide par défaut ; pas de tâche métier fictive, d’endpoint ni d’acteur propriétaire.
+  Commande opérateur, scheduler multi-nœuds et distribution par pages de 200
+  tenants actifs, curseur UUID, jobs indépendants et continuation en file.
+- Verrous d’exécution par tenant/tâche, verrou de distribution par page/run,
+  checkpoints de distribution et marqueurs de succès de 24 h : les retries
+  évitent les redistributions connues, sans promettre exactly-once. Les futurs
+  handlers doivent être idempotents durablement et revérifier leurs règles métier.
+- Supervision corrélée, retries/backoffs et exploitation documentés dans README.
+  Queues database/Redis durables seulement ; cache partagé sans failover pour
+  les gardes. Les timeouts d’arrêt dur exigent Linux/PCNTL, non testés sous Windows.
+
+Vérifications de clôture :
+
+- Suite backend SQLite, ordre aléatoire (seed `10026`) : 305 tests, 302 réussis,
+  1 264 assertions ; 3 skips explicites (test PostgreSQL et deux tests Redis réel).
+- PostgreSQL 17.5, Tenancy et architecture SQL complètes, ordre aléatoire
+  (seed `10026`) : 266 tests, 264 réussis, 1 076 assertions ; 2 skips Redis réel.
+  Les anciens tests, dont le rollback, sont conservés et exécutés sans exclusion.
+- Pint et PHPStan niveau 8 réussis ; frontend : 21 tests Vitest réussis,
+  lint et build réussis. Aucune interface ou dépendance ajoutée.
+- Test d’intégration queue Redis/retry ajouté au service Redis de la CI backend ;
+  validation distante de ce nouveau test à confirmer après push TEN-006.
+- Contrôle `tenancy:check-schema` réussi ; scheduler sans handler métier enregistré.
+  Aucune migration, reset ou consommation de queue dans la base principale.
+  Empreintes SHA-256 et nombres de lignes des sept tables historiques identiques
+  avant/après ; ledger stockage et queue database toujours vides.
+- Seules les trois bases temporaires de tests `ucg_ten006_verify_a`,
+  `ucg_ten006_verify_b` et `ucg_ten006_verify_c` ont été supprimées après vérification.
+  Elles sont recréables ; aucune donnée applicative n’a été effacée.
+- README, architecture, backlog et point de reprise mis à jour. Commit local
+  à pousser ; après CI verte, reprendre `UCG-TEN-007` selon le backlog.
 
 ## Documents de référence
 

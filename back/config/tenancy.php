@@ -1,6 +1,9 @@
 <?php
 
 return [
+    // Closed server-side task registry; business modules register their handlers explicitly.
+    'scheduled_tasks' => [],
+    'schedule_connection' => env('TENANCY_SCHEDULE_CONNECTION'),
     'cache_store' => env('TENANCY_CACHE_STORE', env('CACHE_STORE', 'database')),
     // Technical defaults, not commercial plans. Operator-only overrides use immutable tenant UUIDs.
     'limits' => [

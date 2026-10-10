@@ -123,7 +123,8 @@ Ne jamais utiliser le contexte Laravel de journalisation comme preuve
 d’autorisation. Les callbacks après réponse, workers et commandes ne disposent
 pas automatiquement d’un contexte HTTP. Capturer les identifiants explicitement
 avant la fin de la requête ; `toJobContext()` fournit le transport existant.
-La restauration contrôlée des jobs sera réalisée dans `TEN-006`.
+La restauration contrôlée des jobs est livrée dans `TEN-006` : le transport
+inclut l’acteur, mais pas ses rôles ; le worker résout à nouveau ses accès.
 
 ### Propriété des tables et contraintes SQL — UCG-TEN-004
 
@@ -227,8 +228,9 @@ un contexte absent ; tester pools/connexions réutilisées, workers, retries,
 scheduler, sauvegardes et administration exceptionnelle auditée. Les parcours
 multi-organisations et la boîte d’invitations globale nécessitent une stratégie
 explicite, pas une politique tenant unique appliquée aveuglément. Ce travail
-d’intégration n’est pas prétendu livré par l’évaluation et dépend notamment de
-TEN-006. RLS ne remplace ni les FK composites ni les autorisations applicatives.
+d’intégration n’est pas livré par l’évaluation ni par TEN-006 : ce dernier fournit
+les contextes workers, pas les rôles/politiques RLS. RLS ne remplace ni les FK
+composites ni les autorisations applicatives.
 
 ### Flux d’ajout
 
@@ -273,8 +275,40 @@ initiales et contraintes de montée en charge sont détaillées dans README.
 Les bornes sont techniques et configurables côté opérateur par UUID, sans
 facturation. Les imports/exports futurs doivent appeler les gardes pendant
 leur traitement : ce lot ne crée pas de parcours métier artificiel.
-Les jobs/schedulers, leurs retries et leur autorisation restaurée restent
-TEN-006 ; les téléchargements métier devront appliquer les Policies du module.
+Les jobs/schedulers utilisent le contrat TEN-006 ci-dessous ; les téléchargements
+métier devront appliquer les Policies du module.
+
+### Exécutions différées — UCG-TEN-006
+
+Le contrat public `TenantJob` impose un middleware final, implémenté derrière
+`TenantJobMiddleware`. Il transporte les IDs tenant/acteur/corrélation et résout
+un `TenantContext` frais à chaque tentative. Les rôles du dispatch ne sont pas
+une autorisation persistante. Le binding worker ne dépend ni de la sélection
+HTTP ni du contexte Laravel de journalisation. `TenantExecutionScope` est scoped,
+jamais singleton, et restaure son état dans un `finally`, y compris en cas
+d’exception ou de dispatch synchrone imbriqué. Les refus permanents sont marqués
+échoués ; les erreurs transitoires laissent la politique queue gérer les retries.
+Les jobs métier appliquent toujours leurs Policies/Services avant les effets.
+
+`TenantScheduledTask` représente un périmètre **système enregistré côté serveur**,
+pas un acteur propriétaire implicite. Son `TenantExecutionContext` n’accorde pas
+les droits d’un utilisateur. Les handlers futurs doivent filtrer les ressources
+et définir leurs autorisations système/idempotence ; aucun endpoint public ne
+peut choisir une classe ou lancer un handler. Le registre est vide par défaut.
+Le fan-out global lit uniquement des IDs actifs par pages de 200 avec curseur ;
+il distribue un job indépendant par tenant et une continuation. Le statut est
+revérifié à l’exécution, sans snapshot global ni transaction longue sur tous les tenants.
+Un verrou par page/run et des checkpoints de distribution de 24 h limitent
+les redistributions lors d’une reprise ; ils ne remplacent pas un outbox durable
+ni les contraintes d’idempotence des futurs handlers métier.
+
+Les gardes scheduler multi-nœuds utilisent un cache partagé sans failover ;
+les verrous d’exécution et marqueurs de succès distinguent tenant/tâche/run.
+Les marqueurs réduisent les doublons, sans remplacer une idempotence métier
+durable : ce socle ne promet pas exactly-once. Corrélation, logs structurés,
+failed jobs et Horizon permettent la supervision et la reprise ciblée.
+Le raccordement, les limites, les anciens payloads et l’exploitation sont décrits
+dans README. Aucune migration ni réécriture d’historique n’est nécessaire.
 
 La politique d’adhésion de `TEN-003` doit être isolée de la résolution du contexte :
 multi-organisations par défaut, restriction d’exclusivité activable explicitement.

@@ -205,7 +205,101 @@ $contents = $artifacts->read($context, $file->id);
 Les futurs imports doivent appeler les gardes d’octets/lignes pendant la
 lecture ; les exports utiliser `assertExport()` avant matérialisation. Ces
 gardes sont livrées/testées, mais les parcours métier n’existent pas encore.
-Contexte/retry/scheduler des jobs restent `TEN-006`.
+Contexte/retry/scheduler des jobs sont décrits dans la section TEN-006 ci-dessous.
+
+### Jobs et scheduler tenant — UCG-TEN-006
+
+Les jobs métier utilisateur héritent du contrat public
+`App\Modules\Tenancy\Application\Contracts\TenantJob`. Leur transport
+`$context->toJobContext()` contient seulement UUID tenant, UUID de corrélation
+et identifiant de l’acteur, jamais les rôles ni la sélection HTTP courante.
+La méthode `middleware()` est finale et restaure un contexte revérifié à chaque
+tentative, y compris après délai et `queue:retry`. Injecter `TenantContext` dans
+`handle()`, jamais dans le constructeur ; appliquer ensuite la Policy de l’action
+et les gardes des Services métier. Utiliser `dispatch()`/`dispatchSync()`, pas
+`dispatchNow()` ni un appel direct à `handle()` qui contournerait ce middleware.
+
+Un tenant absent/inactif, un accès révoqué ou un refus d’autorisation termine le
+job dans `failed_jobs`, sans nouvelles tentatives automatiques inutiles. Les
+pannes transitoires suivent les retries et backoffs. Le contexte worker est
+nettoyé dans un `finally` ; une exécution imbriquée restaure son contexte extérieur.
+Le contexte Laravel de journalisation, même hydraté depuis la queue, ne donne
+aucune autorisation. Les invitations e-mail enregistrent aussi l’expéditeur et
+revérifient son droit d’administration juste avant le transport.
+
+Les tâches système implémentent le port public `TenantScheduledTask` et sont
+enregistrées **côté serveur** dans `tenancy.scheduled_tasks` :
+
+```php
+// Exemple de raccordement d’un futur handler métier, pas une tâche déjà livrée.
+'scheduled_tasks' => [
+    'my-task' => MyTenantTask::class, // implements TenantScheduledTask
+],
+```
+
+Le registre est fermé et borné à 64 noms sûrs ; aucune classe ne vient d’un
+payload client. Il est vide par défaut : aucun traitement métier fictif n’est
+lancé. Chaque handler enregistré est distribué chaque minute ; les fréquences
+métier spécifiques doivent être définies lors de son raccordement. Le contexte
+système `TenantExecutionContext` contient le tenant actif, sa timezone/langue
+actuelles et la corrélation, **sans usurper le propriétaire**. Il ne donne pas de
+`TenantContext` utilisateur. Le handler applique son périmètre système explicite,
+filtre ses ressources par UUID et revérifie les conditions métier avant ses
+écritures ; ne pas fabriquer un acteur propriétaire pour réutiliser une API utilisateur.
+
+```powershell
+cd back
+php artisan tenancy:dispatch-scheduled my-task --no-interaction
+php artisan schedule:work --no-interaction
+```
+
+La commande exige un nom enregistré et une queue durable database/Redis
+(`TENANCY_SCHEDULE_CONNECTION=database` en local, `redis` avec Horizon).
+En production, superviser le scheduler (ou appeler `schedule:run` chaque minute)
+et les workers documentés plus haut. Scheduler multi-nœuds : cache partagé sans
+failover, `onOneServer()` et `withoutOverlapping(2)` pour la distribution. Les
+pages de 200 tenants utilisent un curseur UUID, pas un offset ni une collection
+globale ; une continuation en file couvre les pages suivantes. Une erreur de
+mise en file est signalée et retentée sans empêcher les autres distributions.
+Des checkpoints de distribution (24 h) évitent de réenfiler les tenants et
+continuations déjà distribués lors d’une reprise de page. Un verrou partagé
+par tâche/run/curseur sérialise cette page ; il n’accorde aucun accès métier.
+
+Chaque exécution a un verrou **par tenant et nom de tâche**, bail 90 s pour un
+job de 60 s. Une contention relâche le job 5 s ; une autre organisation conserve
+son propre verrou. Les jobs système disposent de 10 tentatives, les jobs
+utilisateur et pages de 3, avec backoffs 5/30/120 s. Conserver les timeouts
+workers sous `retry_after` (330 s pour database/Redis). Les limites d’arrêt dur
+et Horizon nécessitent l’environnement Linux/PCNTL de production ; les tests
+Windows valident l’exécution et les retries, pas un arrêt par signal.
+
+Après succès, un marqueur cache tenant/task/run réduit les doublons pendant
+24 h. Ce n’est **pas une garantie exactly-once** : crash après effet métier,
+crash entre mise en file et checkpoint, cache perdu ou retry plus tardif exigent une idempotence durable du handler,
+avec le même `runId` et des contraintes/transactions métier. Les mutations et
+effets externes doivent être bornés sous le bail ; découper les travaux longs.
+Éviter toute purge globale de cache/verrous/queues pour résoudre un incident.
+La pagination considère les tenants actifs au passage de chaque page ; une
+activation derrière le curseur sera prise au cycle suivant, pas dans un snapshot global.
+
+Superviser `tenant.work.started/handled/failed/rejected`,
+`tenant.schedule.page_dispatched/dispatch_failed/busy/completed/duplicate_skipped`,
+les corrélations, les temps d’attente Horizon et `queue:failed`. `handled` indique
+le retour du handler, pas nécessairement un succès métier (un job peut être
+relâché). Les refus enregistrent des codes stables ; nos événements structurés
+de panne enregistrent seulement le type d’exception, pas le contenu métier.
+Cela ne masque pas les rapports d’exception du framework. Un callback `failed()` ne
+dispose pas d’un contexte autorisé : utiliser les IDs sérialisés pour le suivi,
+et revérifier explicitement toute mutation. Horizon et les incidents sont réservés
+aux opérateurs ; les payloads de `failed_jobs` peuvent contenir des données privées.
+
+Avant déploiement, examiner/drainer les anciennes invitations en file : un ancien
+payload sans acteur est refusé, jamais attribué implicitement au propriétaire.
+Ne pas vider les files ; traiter les anciens envois explicitement. Après correction
+d’un incident, reprendre un UUID précis avec `php artisan queue:retry <uuid>` :
+la reprise vérifie les droits/statuts actuels et conserve les IDs d’origine.
+Redis réel (cache/verrous et queue/retry) est couvert par les tests de la CI dédiée ; le test
+de queue est ignoré explicitement si Redis n’est pas disponible localement.
 La CI ajoute un Redis dédié. Le test réel est activé par
 `TENANCY_TEST_REDIS=true` uniquement sur un Redis de test, avec des clés uniques
 nettoyées individuellement, jamais `FLUSHDB`. Aucun accès réel à AWS n’a été testé.
@@ -301,9 +395,9 @@ après un refus. Les Services prennent le contexte explicitement ; les
 Repositories reçoivent l’UUID issu de ce contexte, jamais un filtre tenant client.
 `toJobContext()` transporte les identifiants tenant/requête dans le socle de
 files existant, sans autoriser une opération différée. La restauration et la
-revérification des droits/statuts des jobs appartiennent à `TEN-006`.
+revérification des droits/statuts des jobs sont assurées par les contrats de `TEN-006`.
 Les contraintes PostgreSQL sont renforcées par `TEN-004` ; l’isolation complète
-des fichiers, caches et verrous reste `TEN-005`.
+des fichiers, caches et verrous utilise les ports de `TEN-005`.
 
 ## Adhésions et changement d’organisation — UCG-TEN-003
 

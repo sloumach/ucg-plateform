@@ -85,7 +85,7 @@ jobs:
           DB_URL: ''
 
       - name: Verify tenant isolation on Redis
-        run: php artisan test --compact tests/Feature/Modules/Tenancy/TenantRedisIsolationTest.php --log-junit=reports/phpunit-redis.xml
+        run: php artisan test --compact tests/Feature/Modules/Tenancy/TenantRedisIsolationTest.php tests/Feature/Modules/Tenancy/TenantQueueRedisTest.php --log-junit=reports/phpunit-redis.xml
         env:
           TENANCY_TEST_REDIS: 'true'
           REDIS_CLIENT: predis

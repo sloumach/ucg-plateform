@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'schedule' => [
+        'failed' => 'La tâche planifiée n’a pas pu être mise en file. Vérifiez sa configuration et les journaux techniques.',
+        'queued' => 'Distribution mise en file. Identifiant d’exécution : :run.',
+    ],
     'schema' => [
         'root_required' => 'organizations: table racine requise.',
         'organization_required' => ':table: organization_id NOT NULL requis.',
@@ -13,6 +17,7 @@ return [
         'unavailable' => 'Le schéma ne peut pas être vérifié. Consultez les journaux techniques.',
     ],
     'errors' => [
+        'background_rejected' => 'Le traitement différé ne peut pas être exécuté avec ce contexte d’organisation.',
         'technical_limit_exceeded' => 'La limite technique de cette organisation est atteinte.',
         'resource_busy' => 'Cette opération est déjà en cours pour cette organisation.',
         'access_identity' => 'L’organisation et le destinataire de cet accès ne peuvent pas être modifiés.',

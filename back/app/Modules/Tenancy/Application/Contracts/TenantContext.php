@@ -42,7 +42,7 @@ final readonly class TenantContext extends DataTransferObject
     /** Explicit transport; workers must recheck current authorization/status before business writes. */
     public function toJobContext(): JobContext
     {
-        return new JobContext($this->requestId, $this->organizationId);
+        return new JobContext($this->requestId, $this->organizationId, $this->actorUserId);
     }
 
     public function canAdminister(): bool

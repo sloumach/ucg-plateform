@@ -9,6 +9,7 @@ final readonly class JobContext
     public function __construct(
         public string $requestId,
         public ?string $tenantId = null,
+        public ?int $actorUserId = null,
     ) {
         if (trim($this->requestId) === '') {
             throw new InvalidArgumentException('A queued job requires a request identifier.');

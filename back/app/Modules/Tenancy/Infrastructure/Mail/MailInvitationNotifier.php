@@ -15,7 +15,8 @@ final readonly class MailInvitationNotifier implements InvitationNotifier
     public function notify(OrganizationInvitation $invitation, string $organizationName, string $requestId): void
     {
         $this->mail->mailer()->send((new OrganizationInvitationMail(
-            $organizationName, (string) $this->config->get('app.frontend_url'), new JobContext($requestId, $invitation->organization_id),
+            $organizationName, (string) $this->config->get('app.frontend_url'),
+            new JobContext($requestId, $invitation->organization_id, $invitation->invited_by),
         ))->to($invitation->email));
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+use App\Modules\Tenancy\Application\Services\TenantScheduleRegistry;
+use App\Support\Cache\TenantCacheStore;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -12,3 +14,17 @@ Schedule::command('horizon:snapshot')
     ->everyFiveMinutes()
     ->withoutOverlapping()
     ->when(static fn (): bool => config('horizon.metrics_enabled') === true);
+
+$tenantTasks = app(TenantScheduleRegistry::class)->names();
+if ($tenantTasks !== []) {
+    // Refuse local/failover stores before registering distributed scheduler guards.
+    app(TenantCacheStore::class)->repository();
+    Schedule::useCache((string) config('tenancy.cache_store'));
+}
+foreach ($tenantTasks as $task) {
+    Schedule::command('tenancy:dispatch-scheduled', [$task])
+        ->name('tenant-schedule:'.$task)
+        ->everyMinute()
+        ->onOneServer()
+        ->withoutOverlapping(2);
+}

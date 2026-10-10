@@ -154,8 +154,8 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   sans déplacer les fichiers anciens. Validation locale terminée sur SQLite et
   PostgreSQL ; test historique de rollback adapté avec accord utilisateur et
   toutes ses vérifications conservées. Migration additive appliquée, empreintes
-  des données existantes inchangées. Push et CI restent à confirmer, notamment
-  Redis réel ajouté à la CI, non disponible localement. Les futurs Services
+  des données existantes inchangées. Push `86569b1` et CI backend/frontend confirmés
+  réussis, y compris Redis réel, le 10 octobre 2026. Les futurs Services
   d’import/export devront appeler les gardes livrées ; aucun parcours métier ni
   plan commercial n’est créé par ce lot. Détails d’exploitation dans README.
 
@@ -165,6 +165,14 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : sérialisation du tenant, restauration contrôlée du contexte, refus d’un tenant inactif, verrouillage et supervision des tâches planifiées.
 - **Acceptation** : relance, nouvelle tentative et exécution différée utilisent toujours le tenant enregistré ; l’échec d’un tenant ne bloque pas les autres.
 - **Références CDC** : ORG-14, IAM-08.
+- **Avancement (10 octobre 2026)** : transport tenant/acteur explicite, middleware
+  de restauration et réautorisation à chaque tentative, refus permanent des
+  tenants inactifs/accès révoqués, invitations e-mail raccordées. Tâches système
+  via registre serveur fermé (vide par défaut), distribution bornée par pages,
+  verrous tenant, reprises corrélées et supervision documentée. Validation locale
+  SQLite/PostgreSQL effectuée ; queue Redis réelle ajoutée à la CI, à confirmer
+  après push TEN-006. Aucune migration ; les handlers métier futurs doivent rester
+  idempotents et appliquer leur périmètre système explicite.
 
 ### UCG-TEN-007 — Gérer le cycle de vie et la portabilité d’un tenant
 
