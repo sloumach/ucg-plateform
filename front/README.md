@@ -1,32 +1,38 @@
-# React + TypeScript + Vite
+# Interface UCG
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Application React 19 et TypeScript de la plateforme UCG, construite avec Vite et
+Tailwind CSS 4.
 
-Currently, two official plugins are available:
+## Conventions d’interface
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- `src/components/` contient les composants accessibles communs.
+- `src/components/feedback/` sépare les alertes persistantes des notifications
+  temporaires.
+- `src/components/data/` fournit les tableaux et la pagination réutilisables.
+- `src/i18n/fr.ts` est le catalogue français des textes appartenant au client.
+- `src/api/errors.ts` transforme les erreurs API en `ApiClientError` sans perdre
+  les erreurs de champ ni `meta.request_id`.
 
-## React Compiler
+Les erreurs de validation sont affichées près des champs et le premier champ
+invalide reçoit le focus. Les erreurs importantes restent visibles dans une
+alerte. Les réponses API qui contiennent `notification` alimentent le système de
+notifications partagé ; les notifications d’erreur et d’avertissement restent
+affichées jusqu’à leur fermeture.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Le frontend utilise le `code` stable d’une erreur pour son comportement et le
+`message` localisé pour l’affichage. Il ne déduit jamais une règle à partir du
+texte. React échappe les messages affichés et la référence de support provient
+uniquement de `meta.request_id`.
 
-## Expanding the Oxlint configuration
+## Commandes
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```powershell
+npm run dev
+npm run lint
+npm test
+npm run build
+npm run test:e2e
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Le test Playwright démarre automatiquement Laravel et Vite et vérifie notamment
+le parcours de connexion ainsi que son ordre de navigation au clavier.

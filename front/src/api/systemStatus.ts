@@ -1,4 +1,6 @@
+import { t } from '../i18n/fr'
 import type { ApiSuccessResponse } from './contracts'
+import { apiClientErrorFromResponse } from './errors'
 
 export type SystemStatus = {
   apiVersion: string
@@ -25,7 +27,7 @@ export async function getSystemStatus(signal?: AbortSignal): Promise<SystemStatu
   })
 
   if (!response.ok) {
-    throw new Error(`API request failed with status ${response.status}`)
+    throw await apiClientErrorFromResponse(response, t('system.unavailableMessage'))
   }
 
   const payload = (await response.json()) as ApiSuccessResponse<SystemStatusData>

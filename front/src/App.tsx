@@ -1,51 +1,117 @@
-import { type FormEvent, useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import {
-  AuthenticationError,
   getCurrentUser,
   login,
   logout,
   type AuthenticatedUser,
 } from './api/auth'
+import type { ApiFieldErrors } from './api/contracts'
+import { ApiClientError, isAbortError } from './api/errors'
 import { getSystemStatus, type SystemStatus } from './api/systemStatus'
+import { Button } from './components/Button'
+import { FormField } from './components/FormField'
+import { Alert } from './components/feedback/Alert'
+import { AsyncState } from './components/feedback/AsyncState'
+import { NotificationProvider } from './components/feedback/NotificationProvider'
+import { useNotifications } from './components/feedback/notificationContext'
+import { t } from './i18n/fr'
 
-type Toast = { message: string; tone: 'success' | 'error' }
+const technologies = [
+  'Laravel 13',
+  'React 19',
+  'TypeScript',
+  'Tailwind 4',
+  'PostgreSQL 17',
+]
+
+type LoadState = 'error' | 'loading' | 'ready'
 
 function App() {
+  return (
+    <NotificationProvider>
+      <Application />
+    </NotificationProvider>
+  )
+}
+
+function Application() {
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null)
-  const [systemError, setSystemError] = useState(false)
+  const [systemState, setSystemState] = useState<LoadState>('loading')
+  const [systemError, setSystemError] = useState<ApiClientError | null>(null)
   const [user, setUser] = useState<AuthenticatedUser | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
+  const [sessionError, setSessionError] = useState<ApiClientError | null>(null)
+  const [formError, setFormError] = useState<ApiClientError | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<ApiFieldErrors>({})
   const [submitting, setSubmitting] = useState(false)
-  const [toast, setToast] = useState<Toast | null>(null)
+  const loginForm = useRef<HTMLFormElement>(null)
+  const { notify } = useNotifications()
 
   useEffect(() => {
     const controller = new AbortController()
 
-    Promise.all([
-      getSystemStatus(controller.signal)
-        .then(setSystemStatus)
-        .catch((error: unknown) => {
-          if (!(error instanceof DOMException && error.name === 'AbortError')) {
-            setSystemError(true)
-          }
-        }),
-      getCurrentUser(controller.signal)
-        .then(setUser)
-        .catch((error: unknown) => {
-          if (!(error instanceof DOMException && error.name === 'AbortError')) {
-            setToast({ message: 'Impossible de vérifier la session.', tone: 'error' })
-          }
-        })
-        .finally(() => setAuthLoading(false)),
-    ])
+    void getSystemStatus(controller.signal)
+      .then((status) => {
+        if (!controller.signal.aborted) {
+          setSystemStatus(status)
+          setSystemError(null)
+          setSystemState('ready')
+        }
+      })
+      .catch((error: unknown) => {
+        if (!isAbortError(error) && !controller.signal.aborted) {
+          setSystemStatus(null)
+          setSystemError(
+            error instanceof ApiClientError
+              ? error
+              : new ApiClientError(t('system.unavailableMessage')),
+          )
+          setSystemState('error')
+        }
+      })
+    void getCurrentUser(controller.signal)
+      .then((currentUser) => {
+        if (!controller.signal.aborted) {
+          setUser(currentUser)
+        }
+      })
+      .catch((error: unknown) => {
+        if (!isAbortError(error) && !controller.signal.aborted) {
+          setSessionError(
+            error instanceof ApiClientError
+              ? error
+              : new ApiClientError(t('auth.sessionUnavailableMessage')),
+          )
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setAuthLoading(false)
+        }
+      })
 
     return () => controller.abort()
   }, [])
 
+  useEffect(() => {
+    const firstInvalidField = Object.keys(fieldErrors)[0]
+
+    if (!firstInvalidField) {
+      return
+    }
+
+    const control = loginForm.current?.elements.namedItem(firstInvalidField)
+
+    if (control instanceof HTMLElement) {
+      control.focus()
+    }
+  }, [fieldErrors])
+
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setSubmitting(true)
-    setToast(null)
+    setFormError(null)
+    setFieldErrors({})
 
     const form = new FormData(event.currentTarget)
 
@@ -56,15 +122,15 @@ function App() {
       )
 
       setUser(authenticatedUser)
-      setToast({ message: 'Connexion réussie.', tone: 'success' })
+      notify({ type: 'success', message: t('auth.loginSucceeded') })
     } catch (error) {
-      setToast({
-        message:
-          error instanceof AuthenticationError
-            ? error.message
-            : 'Le service de connexion est indisponible.',
-        tone: 'error',
-      })
+      const apiError =
+        error instanceof ApiClientError
+          ? error
+          : new ApiClientError(t('auth.loginUnavailable'))
+
+      setFieldErrors(apiError.fieldErrors)
+      setFormError(apiError)
     } finally {
       setSubmitting(false)
     }
@@ -76,160 +142,237 @@ function App() {
     try {
       const notification = await logout()
       setUser(null)
-      setToast({
-        message: notification?.message ?? 'Déconnexion effectuée.',
-        tone: 'success',
+      setSessionError(null)
+      notify(
+        notification ?? {
+          type: 'success',
+          message: t('auth.logoutSucceeded'),
+        },
+      )
+    } catch (error) {
+      notify({
+        type: 'error',
+        message:
+          error instanceof ApiClientError ? error.message : t('auth.logoutFailed'),
+        requestId: error instanceof ApiClientError ? error.requestId : undefined,
       })
-    } catch {
-      setToast({ message: 'La déconnexion a échoué.', tone: 'error' })
     } finally {
       setSubmitting(false)
     }
   }
 
-  const isOperational = systemStatus?.status === 'operational'
+  function clearFieldError(field: string) {
+    setFieldErrors((current) => {
+      if (!current[field]) {
+        return current
+      }
+
+      const next = { ...current }
+      delete next[field]
+
+      return next
+    })
+
+    if (formError?.code === 'VALIDATION_FAILED') {
+      setFormError(null)
+    }
+  }
+
+  async function retrySystemStatus() {
+    setSystemState('loading')
+    setSystemError(null)
+
+    try {
+      setSystemStatus(await getSystemStatus())
+      setSystemState('ready')
+    } catch (error) {
+      setSystemStatus(null)
+      setSystemError(
+        error instanceof ApiClientError
+          ? error
+          : new ApiClientError(t('system.unavailableMessage')),
+      )
+      setSystemState('error')
+    }
+  }
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
       <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-10 lg:px-10">
-        <header className="flex items-center justify-between border-b border-white/10 pb-6">
+        <header className="flex items-center justify-between gap-4 border-b border-white/10 pb-6">
           <div className="flex items-center gap-3">
-            <div className="grid size-11 place-items-center rounded-xl bg-cyan-400 font-black text-slate-950">
+            <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-cyan-400 font-black text-slate-950">
               UCG
             </div>
             <div>
               <p className="text-sm font-semibold tracking-[0.18em] text-cyan-300 uppercase">
-                Ultra Cyber Game
+                {t('app.name')}
               </p>
-              <p className="text-sm text-slate-400">Plateforme de gestion esports</p>
+              <p className="text-sm text-slate-400">{t('app.subtitle')}</p>
             </div>
           </div>
           <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-300">
-            UCG-ARC-001
+            {t('app.ticket')}
           </span>
         </header>
 
         <section className="grid flex-1 items-center gap-12 py-16 lg:grid-cols-[1.15fr_0.85fr]">
           <div className="max-w-3xl">
             <p className="mb-5 text-sm font-semibold tracking-[0.24em] text-cyan-300 uppercase">
-              Fondation technique
+              {t('foundation.eyebrow')}
             </p>
             <h1 className="text-5xl leading-[1.05] font-black tracking-tight text-balance sm:text-6xl">
-              Le socle UCG est prêt pour les premiers parcours métier.
+              {t('foundation.title')}
             </h1>
             <p className="mt-7 max-w-2xl text-lg leading-8 text-slate-300">
-              React et Laravel communiquent par une API versionnée, sécurisée par Sanctum.
-              Cette page valide le premier parcours authentifié de la plateforme.
+              {t('foundation.description')}
             </p>
 
-            <div className="mt-10 flex flex-wrap gap-3" aria-label="Technologies installées">
-              {['Laravel 13', 'React 19', 'TypeScript', 'Tailwind 4', 'PostgreSQL 17'].map(
-                (technology) => (
-                  <span
-                    key={technology}
-                    className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300"
-                  >
-                    {technology}
-                  </span>
-                ),
-              )}
+            <div
+              className="mt-10 flex flex-wrap gap-3"
+              aria-label={t('foundation.technologiesLabel')}
+            >
+              {technologies.map((technology) => (
+                <span
+                  key={technology}
+                  className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300"
+                >
+                  {technology}
+                </span>
+              ))}
             </div>
 
-            <div className="mt-10 flex items-center gap-3 text-sm text-slate-400">
-              <span
-                className={`size-2.5 rounded-full ${
-                  systemError
-                    ? 'bg-rose-400'
-                    : isOperational
-                      ? 'bg-emerald-400'
-                      : 'animate-pulse bg-amber-300'
-                }`}
-              />
-              {systemError
-                ? 'API indisponible'
-                : isOperational
-                  ? `${systemStatus.name} ${systemStatus.apiVersion} opérationnelle`
-                  : 'Vérification de l’API…'}
+            <div className="mt-10 max-w-2xl">
+              {systemState === 'loading' && (
+                <div role="status" className="flex items-center gap-3 text-sm text-slate-400">
+                  <span
+                    aria-hidden="true"
+                    className="size-2.5 animate-pulse rounded-full bg-amber-300 motion-reduce:animate-none"
+                  />
+                  {t('system.loading')}
+                </div>
+              )}
+              {systemState === 'ready' && systemStatus && (
+                <div role="status" className="flex items-center gap-3 text-sm text-slate-300">
+                  <span
+                    aria-hidden="true"
+                    className="size-2.5 rounded-full bg-emerald-400"
+                  />
+                  {t('system.operational', {
+                    name: systemStatus.name,
+                    version: systemStatus.apiVersion,
+                  })}
+                </div>
+              )}
+              {systemState === 'error' && (
+                <Alert
+                  tone="error"
+                  title={t('system.unavailableTitle')}
+                  requestId={systemError?.requestId}
+                  actions={
+                    <Button className="py-2 text-sm" onClick={() => void retrySystemStatus()}>
+                      {t('common.retry')}
+                    </Button>
+                  }
+                >
+                  {t('system.unavailableMessage')}
+                </Alert>
+              )}
             </div>
           </div>
 
           <aside className="rounded-3xl border border-white/10 bg-white/[0.04] p-7 shadow-2xl shadow-cyan-950/30 backdrop-blur">
             {authLoading ? (
-              <p className="py-16 text-center text-slate-400">Vérification de la session…</p>
+              <AsyncState variant="loading" title={t('auth.loading')} />
             ) : user ? (
               <div>
                 <p className="text-sm font-semibold tracking-[0.18em] text-emerald-300 uppercase">
-                  Session active
+                  {t('auth.active')}
                 </p>
-                <h2 className="mt-4 text-3xl font-black">Bienvenue, {user.name}</h2>
+                <h2 className="mt-4 text-3xl font-black">
+                  {t('auth.welcome', { name: user.name })}
+                </h2>
                 <p className="mt-3 text-slate-400">{user.email}</p>
-                <div className="mt-8 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 p-5 text-sm leading-6 text-emerald-100">
-                  Le parcours SPA → Sanctum → session Laravel est opérationnel.
+                <div className="mt-8">
+                  <Alert tone="success" title={t('auth.sessionDescription')} />
                 </div>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  disabled={submitting}
-                  className="mt-8 w-full rounded-xl border border-white/15 px-4 py-3 font-semibold transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-60"
+                <Button
+                  onClick={() => void handleLogout()}
+                  isLoading={submitting}
+                  loadingLabel={t('auth.loggingOut')}
+                  className="mt-8 w-full"
                 >
-                  Se déconnecter
-                </button>
+                  {t('auth.logout')}
+                </Button>
               </div>
             ) : (
-              <form onSubmit={handleLogin}>
-                <p className="text-sm font-semibold tracking-[0.18em] text-cyan-300 uppercase">
-                  Espace sécurisé
-                </p>
-                <h2 className="mt-3 text-3xl font-black">Connexion</h2>
-                <p className="mt-3 text-sm leading-6 text-slate-400">
-                  Utilisez un compte créé dans la base locale pour valider le parcours.
-                </p>
+              <form
+                ref={loginForm}
+                noValidate
+                aria-busy={submitting}
+                onSubmit={(event) => void handleLogin(event)}
+                className="grid gap-5"
+              >
+                <div>
+                  <p className="text-sm font-semibold tracking-[0.18em] text-cyan-300 uppercase">
+                    {t('auth.secureArea')}
+                  </p>
+                  <h2 className="mt-3 text-3xl font-black">{t('auth.loginTitle')}</h2>
+                  <p className="mt-3 text-sm leading-6 text-slate-400">
+                    {t('auth.loginDescription')}
+                  </p>
+                </div>
 
-                <label className="mt-7 block text-sm font-medium" htmlFor="email">
-                  Adresse e-mail
-                </label>
-                <input
+                {sessionError && (
+                  <Alert
+                    tone="warning"
+                    title={t('auth.sessionUnavailableTitle')}
+                    requestId={sessionError.requestId}
+                  >
+                    {sessionError.message}
+                  </Alert>
+                )}
+
+                {formError && (
+                  <Alert
+                    tone="error"
+                    title={formError.message}
+                    requestId={formError.requestId}
+                  />
+                )}
+
+                <FormField
                   id="email"
                   name="email"
                   type="email"
                   autoComplete="email"
                   required
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                  label={t('auth.emailLabel')}
+                  error={fieldErrors.email?.[0]}
+                  onChange={() => clearFieldError('email')}
                 />
 
-                <label className="mt-5 block text-sm font-medium" htmlFor="password">
-                  Mot de passe
-                </label>
-                <input
+                <FormField
                   id="password"
                   name="password"
                   type="password"
                   autoComplete="current-password"
                   required
-                  className="mt-2 w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-3 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                  label={t('auth.passwordLabel')}
+                  error={fieldErrors.password?.[0]}
+                  onChange={() => clearFieldError('password')}
                 />
 
-                <button
+                <Button
                   type="submit"
-                  disabled={submitting}
-                  className="mt-7 w-full rounded-xl bg-cyan-400 px-4 py-3 font-black text-slate-950 transition hover:bg-cyan-300 disabled:cursor-wait disabled:opacity-60"
+                  variant="primary"
+                  isLoading={submitting}
+                  loadingLabel={t('auth.submitting')}
+                  className="mt-2 w-full font-black"
                 >
-                  {submitting ? 'Connexion…' : 'Se connecter'}
-                </button>
+                  {t('auth.submit')}
+                </Button>
               </form>
-            )}
-
-            {toast && (
-              <p
-                role="status"
-                className={`mt-6 rounded-xl border p-4 text-sm ${
-                  toast.tone === 'success'
-                    ? 'border-emerald-400/20 bg-emerald-400/10 text-emerald-100'
-                    : 'border-rose-400/20 bg-rose-400/10 text-rose-100'
-                }`}
-              >
-                {toast.message}
-              </p>
             )}
           </aside>
         </section>

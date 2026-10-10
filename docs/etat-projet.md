@@ -7,8 +7,8 @@
 
 - Dernière mise à jour : 10 octobre 2026.
 - Branche de travail : `staging`.
-- Dernier ticket terminé : `UCG-ARC-005` — Redis, queues, temps réel et stockage.
-- Prochain ticket : `UCG-ARC-006` — interface partagée et traductions.
+- Dernier ticket terminé : `UCG-ARC-006` — interface partagée et traductions.
+- Prochain ticket : `UCG-TEN-001` — organisations et paramètres.
 - Aucun blocage fonctionnel connu.
 - Au démarrage, vérifier l'état réel avec `git status --short --branch` et
   `git log -8 --oneline --decorate`.
@@ -116,8 +116,30 @@ Les workflows `Backend quality` et `Frontend quality` associés à ce commit ont
   vulnérabilité, lint frontend réussi, 3 tests Vitest réussis, build Vite
   réussi et 1 test Playwright réussi.
 
-L’implémentation ARC-005 est présente dans l’arbre de travail et n’a pas encore
-été commitée.
+Commit :
+
+- `0580629 UCG-ARC-005: prepare queues realtime and storage infrastructure`
+
+### UCG-ARC-006 — Interface partagée et traductions
+
+- Catalogue français typé ajouté côté React ; les textes importants de l’écran
+  de fondation ne sont plus dispersés dans les composants.
+- Messages API, validation de connexion et notification de déconnexion
+  centralisés dans les catalogues Laravel français.
+- Composants communs ajoutés pour boutons, champs et erreurs accessibles,
+  alertes persistantes, chargement, état vide, erreur et nouvelle tentative.
+- Système de notifications partagé ajouté avec les tons `success`, `error`,
+  `info` et `warning`, déduplication, fermeture accessible et conservation des
+  erreurs importantes jusqu’à leur fermeture.
+- Tableau accessible et pagination bornée ajoutés pour les futurs écrans métier.
+- Le client API conserve désormais tous les messages de champ, le code stable,
+  le statut HTTP et `request_id` ; le premier champ invalide reçoit le focus.
+- Navigation clavier du formulaire vérifiée par Playwright.
+- Contrastes principaux vérifiés : le rapport minimal mesuré est de `7.87:1`,
+  supérieur au niveau WCAG AA attendu pour le texte normal.
+- Validation locale : Pint réussi, Larastan/PHPStan sans erreur, 27 tests
+  backend et 175 assertions réussis, lint frontend sans avertissement, 12 tests
+  Vitest réussis, build Vite réussi et 1 test Playwright réussi.
 
 ## Décisions à préserver
 
@@ -141,17 +163,26 @@ L’implémentation ARC-005 est présente dans l’arbre de travail et n’a pas
   local/S3 comme source durable.
 - Conserver l’autorisation des canaux privés sous `auth:sanctum`. Les canaux
   tenant-aware complets seront ajoutés après les modèles et policies Tenancy.
+- Conserver les textes d’interface React dans `front/src/i18n/fr.ts` et les
+  messages backend dans les catalogues `back/lang/fr/`.
+- Afficher les erreurs de validation près des champs, les incidents importants
+  dans une alerte persistante et les retours d’actions dans le système de
+  notifications partagé.
+- Piloter le comportement frontend avec le code d’erreur API stable, jamais en
+  analysant le texte localisé ; conserver `request_id` pour le support.
 
-## Prochaine étape : UCG-ARC-006
+## Prochaine étape : UCG-TEN-001
 
-Centraliser l’interface et les traductions conformément au backlog :
+Modéliser les organisations et leurs paramètres conformément au backlog :
 
-- composants accessibles communs ;
-- formulaires, tableaux, pagination et états vide/chargement/erreur ;
-- notifications Flasher ;
-- catalogue de traductions français ;
-- navigation clavier et contrastes vérifiés ;
-- aucun texte métier important dispersé dans les composants React.
+- table `organizations` et contraintes associées ;
+- statuts, fuseau IANA, langue, pays et paramètres ;
+- slug immuable et propriétaire de l’organisation ;
+- création d’UCG comme tenant pilote ;
+- transitions `actif`, `suspendu`, `en clôture` et `archivé` contrôlées et
+  auditées ;
+- migration réversible, index, modèle, Repository, Service, Form Request,
+  Policy, Resource et tests selon les règles permanentes du projet.
 
 ## Documents de référence
 

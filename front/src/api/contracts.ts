@@ -7,6 +7,8 @@ export type ApiNotification = {
   message: string
 }
 
+export type ApiFieldErrors = Record<string, string[]>
+
 export type ApiSuccessResponse<T> = {
   data: T
   meta: ApiMeta
@@ -16,6 +18,6 @@ export type ApiSuccessResponse<T> = {
 export type ApiErrorResponse = {
   message: string
   code: string
-  errors: Record<string, string[]>
+  errors: ApiFieldErrors
   meta: ApiMeta
 }

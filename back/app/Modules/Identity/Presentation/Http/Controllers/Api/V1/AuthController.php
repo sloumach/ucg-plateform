@@ -45,7 +45,7 @@ class AuthController extends Controller
             request: $request,
             notification: [
                 'type' => 'success',
-                'message' => 'Déconnexion effectuée.',
+                'message' => __('identity.notifications.logout_succeeded'),
             ],
         );
     }

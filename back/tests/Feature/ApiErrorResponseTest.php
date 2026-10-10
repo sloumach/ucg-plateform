@@ -37,6 +37,7 @@ class ApiErrorResponseTest extends TestCase
         $response = $this->getJson('/api/v1/auth/me');
 
         $this->assertStandardError($response, 401, 'AUTHENTICATION_REQUIRED');
+        $response->assertJsonPath('message', 'Authentification requise.');
     }
 
     public function test_returns_standard_403_response(): void
@@ -44,6 +45,7 @@ class ApiErrorResponseTest extends TestCase
         $response = $this->getJson('/api/testing/forbidden');
 
         $this->assertStandardError($response, 403, 'AUTHORIZATION_DENIED');
+        $response->assertJsonPath('message', 'Vous n’êtes pas autorisé à effectuer cette action.');
     }
 
     public function test_returns_standard_404_response(): void
@@ -51,6 +53,7 @@ class ApiErrorResponseTest extends TestCase
         $response = $this->getJson('/api/v1/missing-resource');
 
         $this->assertStandardError($response, 404, 'RESOURCE_NOT_FOUND');
+        $response->assertJsonPath('message', 'La ressource demandée est introuvable.');
     }
 
     public function test_returns_standard_409_response(): void
@@ -67,7 +70,11 @@ class ApiErrorResponseTest extends TestCase
             ->postJson('/api/v1/auth/login');
 
         $this->assertStandardError($response, 422, 'VALIDATION_FAILED');
-        $response->assertJsonValidationErrors(['email', 'password']);
+        $response
+            ->assertJsonPath('message', 'Les données transmises sont invalides.')
+            ->assertJsonValidationErrors(['email', 'password'])
+            ->assertJsonPath('errors.email.0', 'L’adresse e-mail est obligatoire.')
+            ->assertJsonPath('errors.password.0', 'Le mot de passe est obligatoire.');
     }
 
     public function test_returns_standard_429_response_after_login_limit_is_exceeded(): void
@@ -86,6 +93,7 @@ class ApiErrorResponseTest extends TestCase
 
         $this->assertInstanceOf(TestResponse::class, $response);
         $this->assertStandardError($response, 429, 'RATE_LIMIT_EXCEEDED');
+        $response->assertJsonPath('message', 'Trop de tentatives. Veuillez réessayer plus tard.');
     }
 
     public function test_returns_safe_standard_500_response_without_debug_details(): void
@@ -94,6 +102,7 @@ class ApiErrorResponseTest extends TestCase
 
         $this->assertStandardError($response, 500, 'INTERNAL_ERROR');
         $response
+            ->assertJsonPath('message', 'Une erreur interne est survenue.')
             ->assertJsonMissing(['exception'])
             ->assertJsonMissing(['file'])
             ->assertJsonMissing(['trace'])
