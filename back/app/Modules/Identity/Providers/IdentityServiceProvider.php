@@ -2,8 +2,10 @@
 
 namespace App\Modules\Identity\Providers;
 
+use App\Modules\Identity\Application\Contracts\AccountDirectory;
 use App\Modules\Identity\Domain\Contracts\UserRepositoryInterface;
 use App\Modules\Identity\Domain\Models\User;
+use App\Modules\Identity\Infrastructure\Persistence\EloquentAccountDirectory;
 use App\Modules\Identity\Infrastructure\Persistence\EloquentUserRepository;
 use App\Modules\Identity\Presentation\Policies\UserPolicy;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -20,6 +22,7 @@ final class IdentityServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(UserRepositoryInterface::class, EloquentUserRepository::class);
+        $this->app->bind(AccountDirectory::class, EloquentAccountDirectory::class);
         $this->app->bind(
             StatefulGuard::class,
             fn ($app): StatefulGuard => $app->make('auth')->guard('web'),

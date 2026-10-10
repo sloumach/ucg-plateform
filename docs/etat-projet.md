@@ -7,8 +7,9 @@
 
 - Dernière mise à jour : 10 octobre 2026.
 - Branche de travail : `staging`.
-- Dernier ticket terminé : `UCG-ARC-006` — interface partagée et traductions.
-- Prochain ticket : `UCG-TEN-001` — organisations et paramètres.
+- Dernier ticket implémenté et validé localement : `UCG-TEN-001` — organisations et paramètres.
+- Prochain ticket : `UCG-TEN-002` — résolution et transport du contexte tenant.
+- La validation distante du nouveau contrôle PostgreSQL reste à confirmer après push.
 - Aucun blocage fonctionnel connu.
 - Au démarrage, vérifier l'état réel avec `git status --short --branch` et
   `git log -8 --oneline --decorate`.
@@ -141,6 +142,41 @@ Commit :
   backend et 175 assertions réussis, lint frontend sans avertissement, 12 tests
   Vitest réussis, build Vite réussi et 1 test Playwright réussi.
 
+### UCG-TEN-001 — Organisations et paramètres
+
+- Module Tenancy implémenté avec Repository, Service transactionnel, DTO,
+  Form Requests, Policy, Resource et commandes opérateur.
+- Tables `organizations`, `organization_settings` et
+  `organization_lifecycle_events` ajoutées par des migrations réversibles.
+- UUID/slug immuables et propriétaire protégé contre une modification ordinaire,
+  y compris par SQL direct ; propriétaire référencé dans les comptes globaux.
+- Paramètres validés : fuseau IANA, langue française installée, pays ISO alpha-2,
+  premier jour de semaine et format de date bornés.
+- Cycle de vie explicite : actif vers suspendu/en clôture, suspendu vers
+  actif/en clôture, en clôture vers archivé ; aucun retour depuis archivé.
+- Créations et changements de statut audités dans la même transaction,
+  avec acteur, motif, ancien/nouveau statut, horodatage et corrélation.
+  Le journal refuse les mises à jour/suppressions par Eloquent et en base.
+- API propriétaire uniquement : liste paginée, détail et remplacement complet
+  des paramètres ; refus `404` pour une autre organisation et `409`
+  pour les modifications ordinaires d’une organisation non active.
+- Création et transitions réservées aux commandes opérateur du serveur,
+  sans endpoint plateforme prématuré ni attribution de superadmin au propriétaire.
+- Seed local UCG idempotent, sans réinitialisation d’un compte ou de paramètres
+  existants ; aucun compte de démonstration créé en production.
+- Migrations appliquées sur la base PostgreSQL locale ; pilote UCG actif créé
+  avec un audit de création. `UTC/fr/FR` sont des valeurs de développement.
+- Validation locale : 82 tests backend et 422 assertions, 55 tests Tenancy sur
+  PostgreSQL et 247 assertions, Pint et PHPStan niveau 8 réussis, Composer valide,
+  lint frontend réussi, 12 tests Vitest, build Vite et 1 test Playwright réussis.
+- Le premier essai Playwright sous le compte Windows isolé ne pouvait pas
+  accéder au navigateur installé ; la relance avec accès autorisé a réussi.
+- Les tests PostgreSQL ont utilisé une base temporaire dédiée, supprimée ensuite,
+  sans rollback ni suppression dans la base locale existante.
+- CI backend enrichie d’une base PostgreSQL 17 dédiée et d’un rapport JUnit
+  supplémentaire ; exécution distante à vérifier après push.
+- README et conventions API mis à jour avec les choix, limites et exemples.
+
 ## Décisions à préserver
 
 - Conserver les migrations dans `back/database/migrations/`.
@@ -171,18 +207,22 @@ Commit :
 - Piloter le comportement frontend avec le code d’erreur API stable, jamais en
   analysant le texte localisé ; conserver `request_id` pour le support.
 
-## Prochaine étape : UCG-TEN-001
+## Prochaine étape : UCG-TEN-002
 
-Modéliser les organisations et leurs paramètres conformément au backlog :
+Résoudre et transporter le contexte tenant conformément au backlog :
 
-- table `organizations` et contraintes associées ;
-- statuts, fuseau IANA, langue, pays et paramètres ;
-- slug immuable et propriétaire de l’organisation ;
-- création d’UCG comme tenant pilote ;
-- transitions `actif`, `suspendu`, `en clôture` et `archivé` contrôlées et
-  auditées ;
-- migration réversible, index, modèle, Repository, Service, Form Request,
-  Policy, Resource et tests selon les règles permanentes du projet.
+- middleware et `TenantContext` immuable ;
+- résolution depuis une route ou un domaine approuvé, refus par défaut ;
+- requête métier sans tenant valide refusée ;
+- empêcher toute sortie du contexte autorisé par modification d’identifiants ;
+- appliquer le statut de l’organisation aux opérations métier futures.
+
+Ne pas confondre le filtrage propriétaire de TEN-001 avec le contexte tenant
+complet. Les adhésions/invitations arrivent dans TEN-003 et l’isolation PostgreSQL
+généralisée dans TEN-004. Le transfert renforcé de propriété, les régularisations
+métier, la réactivation après archivage, la conservation/purge et l’audit transverse
+restent à réaliser dans leurs lots dédiés ; aucun écran React organisations
+n’a été ajouté à TEN-001.
 
 ## Documents de référence
 

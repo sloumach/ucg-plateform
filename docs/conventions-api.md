@@ -113,3 +113,55 @@ Appeler une route protégée sans session pour vérifier le contrat `401` :
 ```powershell
 curl.exe --header "Accept: application/json" http://localhost:8000/api/v1/auth/me
 ```
+
+## Organisations — UCG-TEN-001
+
+Sous une session SPA Sanctum avec protection CSRF :
+
+- `GET /api/v1/organizations?page=1&per_page=20` : organisations possédées
+  uniquement, pagination bornée à 100 éléments et ordre stable par UUID.
+- `GET /api/v1/organizations/{uuid}` : détail de l’organisation possédée.
+- `PUT /api/v1/organizations/{uuid}` : remplacement complet des paramètres
+  ci-dessous ; réservé au propriétaire d’une organisation active.
+
+Exemple dans le frontend, après connexion et initialisation du cookie CSRF ;
+`apiBaseUrl` est l’URL configurée de l’API et `organizationId` l’UUID autorisé :
+
+```ts
+const xsrfCookie = document.cookie.split('; ')
+  .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
+if (!xsrfCookie) throw new Error('Cookie CSRF absent')
+
+const response = await fetch(apiBaseUrl + '/organizations/' + organizationId, {
+  method: 'PUT',
+  credentials: 'include',
+  headers: {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+    'X-XSRF-TOKEN': decodeURIComponent(xsrfCookie.slice('XSRF-TOKEN='.length)),
+  },
+  body: JSON.stringify({
+    name: 'Ultra Cyber Game',
+    timezone: 'UTC',
+    language: 'fr',
+    country: 'FR',
+    settings: { week_starts_on: 1, date_format: 'd/m/Y' },
+  }),
+})
+// Traiter response.ok, les erreurs structurées et la notification via
+// les conventions partagées avant d’afficher un succès.
+```
+
+Une organisation d’un autre propriétaire ou inexistante renvoie le même `404`,
+sans charger ses paramètres. Les champs `id`, `slug`, `owner_user_id`,
+`organization_id` et `status` sont interdits dans le payload de modification.
+Les paramètres inconnus dans `settings` sont refusés.
+Le succès inclut une notification française de type `success`.
+
+Les codes métier supplémentaires sont `ORGANIZATION_INACTIVE`,
+`ORGANIZATION_TRANSITION_DENIED`, `ORGANIZATION_SLUG_TAKEN`,
+`ORGANIZATION_IDENTITY_IMMUTABLE`, `ORGANIZATION_AUDIT_IMMUTABLE`,
+`ORGANIZATION_ACCOUNT_INVALID` et `ORGANIZATION_PILOT_OWNER_CONFLICT`.
+Les créations et transitions ne disposent pas d’endpoint HTTP : elles passent
+par les commandes opérateur documentées dans le README en attendant les
+autorisations plateforme.

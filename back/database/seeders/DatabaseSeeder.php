@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
             return;
         }
 
-        User::query()->updateOrCreate(
+        User::query()->firstOrCreate(
             ['email' => 'admin@ucg.local'],
             [
                 'name' => 'Administrateur UCG',
@@ -27,5 +27,7 @@ class DatabaseSeeder extends Seeder
                 'password' => 'password',
             ],
         );
+
+        $this->call(PilotOrganizationSeeder::class);
     }
 }

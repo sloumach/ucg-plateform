@@ -15,6 +15,20 @@ jobs:
   quality:
     name: Pint, Larastan and PHPUnit
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: ucg_platform_test
+          POSTGRES_USER: ucg_test
+          POSTGRES_PASSWORD: test-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ucg_test -d ucg_platform_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: back
@@ -27,7 +41,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
-          extensions: mbstring, pcntl, posix, pdo_sqlite, sqlite3
+          extensions: mbstring, pcntl, posix, pdo_sqlite, sqlite3, pdo_pgsql
           coverage: none
 
       - name: Validate Composer files
@@ -50,11 +64,22 @@ jobs:
       - name: Run backend tests
         run: composer test:ci
 
+      - name: Verify organization constraints on PostgreSQL
+        run: php artisan test --compact tests/Feature/Modules/Tenancy --log-junit=reports/phpunit-postgresql.xml
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: ucg_platform_test
+          DB_USERNAME: ucg_test
+          DB_PASSWORD: test-only-password
+          DB_URL: ''
+
       - name: Upload backend test report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: backend-test-report
-          path: back/reports/phpunit.xml
+          path: back/reports/phpunit*.xml
           if-no-files-found: ignore
           retention-days: 14
