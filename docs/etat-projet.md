@@ -7,15 +7,20 @@
 
 - Dernière mise à jour : 10 octobre 2026.
 - Branche de travail : `staging`.
-- Dernier ticket implémenté et validé localement : `UCG-TEN-006` — jobs et scheduler.
-- Prochain ticket après push et CI de TEN-006 : `UCG-TEN-007` — cycle de vie et portabilité.
+- Dernier socle implémenté et validé localement : `UCG-TEN-007` — cycle de vie
+  et portabilité, avec les limites de conservation/restauration détaillées ci-dessous.
+- Prochaine action : push utilisateur puis confirmation de la CI TEN-007.
+- Ensuite, priorité P0 / itération Tenant et identité : `UCG-IAM-001` ;
+  `UCG-TEN-008` (branding/domaines) est P1, à replanifier selon le backlog.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
   pour `4f7854b` (runs `38065130499` et `38065130513`).
 - TEN-005 poussé (`86569b1`) : CI backend et frontend confirmées réussies
   (runs `38077705674` et `38077705642`), dont le test Redis réel de TEN-005.
-- TEN-006 terminé localement, sans migration ni modification d’anciens tests.
-  Push utilisateur et CI, notamment le nouveau test de queue Redis, à confirmer.
+- TEN-006 poussé (`4269a6a`) : CI backend et frontend confirmées réussies
+  (runs `38080998770` et `38080998784`), dont le nouveau test de queue Redis.
+- TEN-007 : migration additive appliquée, table de suivi vide ; aucune opération
+  métier de maintenance exécutée sur les données actuelles. Push/CI à confirmer.
 - Au démarrage, vérifier l'état réel avec `git status --short --branch` et
   `git log -8 --oneline --decorate`.
 - Vérifier également que les derniers commits locaux ont été poussés.
@@ -392,8 +397,9 @@ Ne jamais exécuter `migrate:fresh`/rollback sur la base principale.
 Le contexte HTTP de `TEN-002` et les contraintes SQL de `TEN-004` ne remplacent
 pas l’isolation des fichiers/caches/verrous de `TEN-005`, ni la restauration
 contrôlée des jobs de `TEN-006`. Le transfert renforcé de propriété,
-les régularisations métier, la réactivation après archivage, la conservation/purge
-et l’audit transverse restent dans leurs lots dédiés ; aucun écran React
+les régularisations métier et l’audit transverse restent dans leurs lots dédiés.
+TEN-007 ajoute désormais récupération conservatrice et purge ciblée décrites
+ci-dessous, sans livrer l’effacement complet OPS-007 ; aucun écran React
 organisations n’a été ajouté à `TEN-001` ou `TEN-002`.
 
 ## Travail terminé localement : UCG-TEN-006
@@ -430,7 +436,7 @@ Vérifications de clôture :
 - Pint et PHPStan niveau 8 réussis ; frontend : 21 tests Vitest réussis,
   lint et build réussis. Aucune interface ou dépendance ajoutée.
 - Test d’intégration queue Redis/retry ajouté au service Redis de la CI backend ;
-  validation distante de ce nouveau test à confirmer après push TEN-006.
+  validation distante confirmée après push TEN-006 (backend `38080998770`).
 - Contrôle `tenancy:check-schema` réussi ; scheduler sans handler métier enregistré.
   Aucune migration, reset ou consommation de queue dans la base principale.
   Empreintes SHA-256 et nombres de lignes des sept tables historiques identiques
@@ -438,8 +444,70 @@ Vérifications de clôture :
 - Seules les trois bases temporaires de tests `ucg_ten006_verify_a`,
   `ucg_ten006_verify_b` et `ucg_ten006_verify_c` ont été supprimées après vérification.
   Elles sont recréables ; aucune donnée applicative n’a été effacée.
-- README, architecture, backlog et point de reprise mis à jour. Commit local
-  à pousser ; après CI verte, reprendre `UCG-TEN-007` selon le backlog.
+- README, architecture, backlog et point de reprise mis à jour. Commit `4269a6a`
+  poussé ; CI backend/frontend verte avant le démarrage de TEN-007.
+
+## Socle terminé localement : UCG-TEN-007
+
+- Commandes opérateur validées et couches Service/Repository/ports dédiées,
+  sans endpoint de maintenance ni rôle plateforme inventé. L’acteur vérifié
+  reste déclaré par un opérateur disposant d’un accès autorisé au serveur.
+- Export asynchrone `reports`, suivi par UUID tenant/opération/corrélation,
+  catalogue fermé des tables/colonnes et fichiers enregistrés TEN-005. Comptes,
+  sessions, jetons globaux et queues exclus. Un ajout de schéma non enregistré,
+  un fichier incomplet ou une limite dépassée empêche l’état `ready`.
+- Archive privée NDJSON version 1, lecture vérifiée taille/SHA-256, snapshot
+  PostgreSQL et pagination. Limites : 50 000 lignes, 64 MiB par archive, 128 MiB
+  réservés par tenant ; expiration technique à 24 h depuis la demande, distincte
+  de la conservation métier. Pas de dump de fichiers non enregistrés.
+- Nettoyage ciblé des archives échues, borné et tolérant à l’échec d’un tenant.
+  Scheduler désactivé par défaut ; activation explicite avec cache partagé.
+  Panne de dispatch : opération `pending` conservée, UUID dans les logs,
+  redistribution explicite possible ; aucun reset global de queue ou stockage.
+- Purge : inventaire sans écriture par défaut. Politique serveur vide donc
+  refus de toute purge métier. Exécution uniquement après archivage, confirmation
+  exacte, export intègre généré après le dernier archivage et politique complète
+  revue par UUID/date/catégories/référence de sauvegardes. Lots reprenables,
+  politique figée par empreinte, comptabilité libérée après suppression confirmée.
+- Les seules catégories supprimables dans ce socle sont paramètres, artefacts
+  et exports. Racine, comptes, adhésions/invitations, historiques protégés et
+  suivi restent conservés ; aucun trigger ou FK désactivé. **Pas de preuve
+  d’effacement physique complet** : matrice de durées et effacement des
+  historiques/sauvegardes/réplicas restent CAD-004/OPS-007.
+- Récupération distincte de données conservées : `archived` vers `suspended`,
+  export intègre, paramètres présents, aucune purge engagée et propriétaire
+  vérifié/admission compatible avec l’exclusivité TEN-003. Audit transactionnel,
+  aucun remplacement de données ou reprise implicite de jobs. Matrice des
+  transitions ordinaires inchangée. La procédure après perte est documentée,
+  mais l’import/restauration de sauvegardes et l’exercice réel restent OPS-005.
+- Échéances de travail souples et verrous par tenant ; arrêter les workers
+  sous Linux/PCNTL en production, avec délais DB/I/O sous le bail. Aucun arrêt
+  dur ni accès AWS réel validé sous Windows.
+
+Vérifications de clôture :
+
+- 37 nouveaux cas export/maintenance réussis (236 assertions), incluant queue
+  database réelle, tenant inactif, isolation avec propriétaire partagé, intégrité,
+  sources absentes, limites, transport indisponible, expiration, refus de purge,
+  101 fichiers en lots reprenables, dérive de politique, panne de suppression,
+  récupération et contraintes SQL. Disque S3 simulé seulement.
+- Suite backend SQLite aléatoire (seed `10037`) : 342 tests, 339 réussis,
+  1 501 assertions et 3 skips explicites (PostgreSQL et deux tests Redis réel).
+- PostgreSQL 17.5, suite Tenancy/architecture SQL complète aléatoire (même seed) :
+  303 tests, 301 réussis, 1 313 assertions, 2 skips Redis réel. Aucun ancien test
+  exclu : test de rollback adapté avec l’accord explicite de l’utilisateur,
+  inversion/réapplication TEN-007 et toutes les anciennes assertions conservées.
+- Pint et PHPStan niveau 8 réussis ; frontend : 21 tests Vitest, lint et build
+  réussis. Aucune interface ni dépendance ajoutée. CI après push à confirmer.
+- Migration additive TEN-007 appliquée seule dans `ucg_platform` ; contrôle
+  `tenancy:check-schema` réussi. Table d’opérations et queue vides. Comptages et
+  empreintes SHA-256 des neuf tables préexistantes identiques avant/après ;
+  stockage privé actuel sans fichier métier. Aucun export, purge, nettoyage,
+  changement de statut, reset ou consommation de queue sur la base principale.
+- Bases temporaires PostgreSQL de test `ucg_ten007_verify_a`,
+  `ucg_ten007_verify_b` et `ucg_ten007_verify_c` supprimées après vérification ; recréables, sans perte
+  de données applicatives. README, architecture, CDC, backlog et transmission
+  mis à jour. Commit local à pousser par l’utilisateur.
 
 ## Documents de référence
 

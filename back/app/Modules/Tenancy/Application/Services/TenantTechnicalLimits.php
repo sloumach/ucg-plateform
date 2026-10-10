@@ -15,8 +15,14 @@ final readonly class TenantTechnicalLimits implements TenantResourceLimits
 
     public function value(TenantContext $context, string $name): int
     {
+        return $this->valueForOrganization($context->organizationId, $name);
+    }
+
+    /** Technical measurement for an explicit operator maintenance target; grants no authorization. */
+    public function valueForOrganization(string $organizationId, string $name): int
+    {
         $defaults = $this->config->get('tenancy.limits');
-        $overrides = $this->config->get('tenancy.limit_overrides.'.strtolower($context->organizationId), []);
+        $overrides = $this->config->get('tenancy.limit_overrides.'.strtolower($organizationId), []);
         if (! is_array($defaults) || ! array_key_exists($name, $defaults) || ! is_array($overrides)) {
             throw new LogicException('Unknown or invalid tenant technical limits.');
         }

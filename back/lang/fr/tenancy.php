@@ -1,6 +1,25 @@
 <?php
 
 return [
+    'portability' => [
+        'catalog' => 'Le catalogue de portabilité doit couvrir toutes les tables tenant avant de poursuivre.',
+        'artifact_pending' => 'Un fichier est incomplet ou indisponible ; aucun export partiel ne sera déclaré prêt.',
+        'too_long' => 'L’export dépasse sa durée technique maximale ; prévoir un traitement partitionné.',
+        'busy' => 'Une opération de maintenance est déjà en cours pour cette organisation.',
+        'expired' => 'Cette archive a expiré ou ne peut pas être utilisée.',
+        'not_ready' => 'Cette archive n’est pas encore prête.',
+        'not_expired' => 'Cette archive n’a pas encore expiré.',
+        'confirm' => 'Confirmez explicitement l’identifiant de l’organisation ciblée.',
+        'recovery_blocked' => 'La récupération est refusée : organisation non archivée, purge engagée ou paramètres absents.',
+        'archived_required' => 'Une purge exige une organisation archivée.',
+        'snapshot_required' => 'Générez un export complet après le dernier archivage avant de lancer la purge.',
+        'purge_started' => 'Une purge a déjà été engagée : reprenez son identifiant de suivi, sans lancer un nouvel export.',
+        'policy_changed' => 'Le plan de conservation a changé ; la reprise de cette purge est refusée.',
+        'policy_required' => 'Aucune politique de conservation complète et admissible n’autorise cette purge.',
+        'retention_pending' => 'La date autorisant cette purge n’est pas encore atteinte.',
+        'failed' => 'L’opération de portabilité a échoué. Consultez les journaux techniques et son identifiant de suivi.',
+        'cleanup_done' => 'Lot de nettoyage des archives expirées terminé ; aucune donnée métier supprimée.',
+    ],
     'schedule' => [
         'failed' => 'La tâche planifiée n’a pas pu être mise en file. Vérifiez sa configuration et les journaux techniques.',
         'queued' => 'Distribution mise en file. Identifiant d’exécution : :run.',

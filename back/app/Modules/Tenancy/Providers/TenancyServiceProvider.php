@@ -20,6 +20,9 @@ use App\Modules\Tenancy\Domain\Contracts\InvitationNotifier;
 use App\Modules\Tenancy\Domain\Contracts\InvitationRepository;
 use App\Modules\Tenancy\Domain\Contracts\MembershipRepository;
 use App\Modules\Tenancy\Domain\Contracts\OrganizationRepository;
+use App\Modules\Tenancy\Domain\Contracts\PortabilityArchive;
+use App\Modules\Tenancy\Domain\Contracts\PortabilityQueue;
+use App\Modules\Tenancy\Domain\Contracts\PortabilityRepository;
 use App\Modules\Tenancy\Domain\Contracts\TenantWorkRepository;
 use App\Modules\Tenancy\Domain\Exceptions\TenantContextRequiredException;
 use App\Modules\Tenancy\Domain\Models\Organization;
@@ -27,17 +30,22 @@ use App\Modules\Tenancy\Domain\Models\OrganizationInvitation;
 use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
 use App\Modules\Tenancy\Infrastructure\Mail\MailInvitationNotifier;
 use App\Modules\Tenancy\Infrastructure\Persistence\DatabaseArtifactLedger;
+use App\Modules\Tenancy\Infrastructure\Persistence\DatabasePortabilityRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentAccessAuditRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentInvitationRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentMembershipRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentOrganizationRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentTenantWorkRepository;
+use App\Modules\Tenancy\Infrastructure\Queue\LaravelPortabilityQueue;
 use App\Modules\Tenancy\Infrastructure\Queue\LaravelTenantScheduleQueue;
 use App\Modules\Tenancy\Infrastructure\Queue\RestoreTenantJobContext;
 use App\Modules\Tenancy\Infrastructure\Resolution\ConfiguredTenantDomains;
 use App\Modules\Tenancy\Infrastructure\Resources\LaravelTenantCache;
+use App\Modules\Tenancy\Infrastructure\Resources\PrivatePortabilityArchive;
 use App\Modules\Tenancy\Presentation\Console\CheckTenantSchemaCommand;
 use App\Modules\Tenancy\Presentation\Console\DispatchTenantSchedulesCommand;
+use App\Modules\Tenancy\Presentation\Console\ExpireOrganizationExportsCommand;
+use App\Modules\Tenancy\Presentation\Console\OrganizationPortabilityCommand;
 use App\Modules\Tenancy\Presentation\Console\ProvisionOrganizationCommand;
 use App\Modules\Tenancy\Presentation\Console\TransitionOrganizationCommand;
 use App\Modules\Tenancy\Presentation\Policies\InvitationPolicy;
@@ -57,6 +65,9 @@ final class TenancyServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(PortabilityRepository::class, DatabasePortabilityRepository::class);
+        $this->app->bind(PortabilityArchive::class, PrivatePortabilityArchive::class);
+        $this->app->bind(PortabilityQueue::class, LaravelPortabilityQueue::class);
         $this->app->scoped(TenantExecutionScope::class);
         $this->app->bind(TenantJobMiddleware::class, RestoreTenantJobContext::class);
         $this->app->bind(TenantWorkRepository::class, EloquentTenantWorkRepository::class);
@@ -105,6 +116,7 @@ final class TenancyServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([ProvisionOrganizationCommand::class, TransitionOrganizationCommand::class,
                 CheckTenantSchemaCommand::class, DispatchTenantSchedulesCommand::class]);
+            $this->commands([OrganizationPortabilityCommand::class, ExpireOrganizationExportsCommand::class]);
         }
     }
 }

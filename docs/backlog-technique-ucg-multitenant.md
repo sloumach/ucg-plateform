@@ -170,8 +170,8 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   tenants inactifs/accès révoqués, invitations e-mail raccordées. Tâches système
   via registre serveur fermé (vide par défaut), distribution bornée par pages,
   verrous tenant, reprises corrélées et supervision documentée. Validation locale
-  SQLite/PostgreSQL effectuée ; queue Redis réelle ajoutée à la CI, à confirmer
-  après push TEN-006. Aucune migration ; les handlers métier futurs doivent rester
+  SQLite/PostgreSQL effectuée ; queue Redis réelle validée en CI après push
+  TEN-006 (`4269a6a`, backend `38080998770`, frontend `38080998784`). Aucune migration ; les handlers métier futurs doivent rester
   idempotents et appliquer leur périmètre système explicite.
 
 ### UCG-TEN-007 — Gérer le cycle de vie et la portabilité d’un tenant
@@ -180,6 +180,19 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : suspension, réactivation, export complet, archivage, purge et récupération logique documentée.
 - **Acceptation** : export traçable et borné ; suppression conforme à la conservation ; aucune donnée d’un autre tenant modifiée.
 - **Références CDC** : ORG-09 à ORG-11.
+- **Avancement (10 octobre 2026)** : socle opérateur export asynchrone privé
+  NDJSON complet pour le catalogue actuel, fichiers enregistrés inclus, limites,
+  intégrité, expiration et suivi par tenant. Suspension/réactivation/archivage
+  ordinaires conservés ; récupération distincte de données préservées vers
+  `suspended`, auditée et sans reprise implicite des jobs. Purge ciblée bornée et
+  reprenable, refusée par défaut sans politique revue ; racine, comptes et
+  historiques protégés conservés. Données actuelles inchangées, validation locale
+  SQLite/PostgreSQL effectuée ; push et CI TEN-007 à confirmer.
+- **Limites / dépendances** : la purge ciblée n’est pas un effacement physique
+  complet. Durées par catégorie/tenant et suppression des historiques,
+  sauvegardes/réplicas restent CAD-004/OPS-007 ; restauration sélective après perte
+  documentée, import/outillage et exercice réel restent OPS-004/OPS-005. Aucun
+  transfert inter-tenant implicite ou endpoint public de maintenance.
 
 ### UCG-TEN-008 — Ajouter branding et domaines personnalisés
 

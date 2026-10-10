@@ -141,10 +141,10 @@ tenant-owned par défaut, jamais globale par convention de nommage.
 | `jobs`, `job_batches`, `failed_jobs` | Transport et suivi techniques ; contexte contrôlé dans TEN-006, accès aux incidents réservé aux opérateurs |
 | `migrations` | Historique technique du schéma |
 
-Les sept tables tenant actuellement implémentées sont `organization_settings`,
+Les huit tables tenant actuellement implémentées sont `organization_settings`,
 `organization_lifecycle_events`, `organization_memberships`,
-`organization_invitations`, `organization_access_events`, `tenant_storage_usage`
-et `tenant_artifacts`. Toutes imposent
+`organization_invitations`, `organization_access_events`, `tenant_storage_usage`,
+`tenant_artifacts` et `tenant_portability_operations`. Toutes imposent
 `organization_id NOT NULL`, une FK vers `organizations.id` et un index de lecture
 commençant par l’organisation. Le tenant est immuable après création, y compris
 pour les paramètres. Les comptes auteur/destinataire restent des références
@@ -309,6 +309,49 @@ durable : ce socle ne promet pas exactly-once. Corrélation, logs structurés,
 failed jobs et Horizon permettent la supervision et la reprise ciblée.
 Le raccordement, les limites, les anciens payloads et l’exploitation sont décrits
 dans README. Aucune migration ni réécriture d’historique n’est nécessaire.
+
+### Cycle de vie et portabilité — UCG-TEN-007
+
+Les Services opérateur `OrganizationPortabilityService`, `OrganizationPurgeService`
+et `OrganizationRecoveryService` utilisent les ports `PortabilityRepository`,
+`PortabilityArchive` et `PortabilityQueue`, implémentés par l’infrastructure
+SQL/stockage privé/queue. Les commandes valident les entrées ; aucun endpoint
+HTTP, rôle superadmin fictif ou accès implicite du propriétaire n’est ajouté.
+L’accès serveur/queue doit être contrôlé ; l’acteur vérifié est déclaré pour audit.
+
+`tenant_portability_operations` conserve identité tenant/acteur/motif/corrélation,
+type, état, taille, SHA-256 et détails techniques. Les identités sont immuables
+et la suppression SQL interdite ; seuls les états/détails techniques évoluent.
+L’export a un inventaire fermé des tables et colonnes, filtres tenant explicites,
+snapshot PostgreSQL et pagination. Un ajout de schéma non enregistré bloque
+l’export au lieu de le rendre incomplet ou d’y exposer un champ implicitement.
+Le NDJSON versionné inclut les lignes et fichiers enregistrés TEN-005, pas les
+comptes/jetons globaux ni les dossiers arbitraires. Archives privées, budgets
+réservés distincts du ledger métier, intégrité vérifiée et expiration bornée.
+
+`BuildOrganizationExport` est un job opérateur avec UUID tenant/opération : il
+recharge l’acteur et le statut technique en base, y compris pour un tenant
+inactif. Son contexte système scoped ne fabrique pas de droits utilisateur ;
+le refus des tenants inactifs dans les jobs métier TEN-006 reste inchangé.
+La queue est durable et après commit ; les pannes restent visibles/reprenables
+par UUID. Les mutations externes ne bénéficient pas d’un retry transactionnel
+automatique. Voir README pour limites, scheduler optionnel et procédures.
+
+La purge est un plan en lecture seule par défaut. Une exécution archivée exige
+confirmation exacte, export intègre généré après archivage et politique complète
+revue par UUID/date/catégories/référence de sauvegardes. Elle ne supprime que
+paramètres/artefacts/exports autorisés, par lots reprenables avec empreinte de
+politique. Racine, historiques, sujets d’audit et comptes restent protégés.
+Ce socle n’est pas un effacement physique complet : durées et effacement des
+historiques/sauvegardes/réplicas restent CAD-004/OPS-007.
+
+La récupération opérateur de données conservées accepte seulement `archived`
+vers `suspended`, sans purge engagée, avec paramètres/export présents et
+admission du propriétaire vérifiée sous verrous compte puis organisation.
+Elle est auditée et ne remplace ni données ni adhésions ; aucune queue n’est
+reprise automatiquement. La transition ordinaire depuis `archived` reste
+interdite. La restauration sélective après perte est documentée dans README,
+mais son import/outillage et sa répétition opérationnelle restent OPS-005.
 
 La politique d’adhésion de `TEN-003` doit être isolée de la résolution du contexte :
 multi-organisations par défaut, restriction d’exclusivité activable explicitement.

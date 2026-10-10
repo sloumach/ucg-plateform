@@ -28,3 +28,10 @@ foreach ($tenantTasks as $task) {
         ->onOneServer()
         ->withoutOverlapping(2);
 }
+
+if (config('tenancy.portability.expire_exports_scheduled') === true) {
+    app(TenantCacheStore::class)->repository();
+    Schedule::useCache((string) config('tenancy.cache_store'));
+    Schedule::command('organizations:expire-exports')->everyTenMinutes()
+        ->name('tenant-export-expiry')->onOneServer()->withoutOverlapping(2);
+}

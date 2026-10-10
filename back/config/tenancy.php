@@ -1,6 +1,15 @@
 <?php
 
 return [
+    'portability' => [
+        // Technical archive lifetime and budgets, not retention rules for business data.
+        'export_lifetime_hours' => 24,
+        'export_bytes' => 67108864,
+        'export_storage_bytes' => 134217728,
+        'expire_exports_scheduled' => false,
+        // Reviewed operator policies by UUID; empty means all business purges are forbidden.
+        'purge_policies' => [],
+    ],
     // Closed server-side task registry; business modules register their handlers explicitly.
     'scheduled_tasks' => [],
     'schedule_connection' => env('TENANCY_SCHEDULE_CONNECTION'),

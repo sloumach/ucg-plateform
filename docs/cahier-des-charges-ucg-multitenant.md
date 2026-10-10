@@ -94,6 +94,16 @@ Les fonctionnalités commerciales d’un SaaS, telles que la facturation des abo
 - ORG-14 : exécuter les traitements planifiés par tenant actif avec verrouillage, reprise et observabilité, sans laisser un échec bloquer silencieusement les autres organisations.
 - ORG-15 : auditer création, suspension, réactivation, changement de propriétaire, changement de domaine et suppression d’une organisation.
 
+État d’implémentation TEN-007 : export privé asynchrone du catalogue tenant
+actuel et des artefacts enregistrés, expiration et procédures opérateur. La purge
+ciblée reste interdite sans politique validée ; ce socle conserve la racine et
+les historiques protégés et ne constitue pas un effacement complet. Les durées
+de conservation ne sont pas déduites de l’expiration technique des archives :
+CAD-004/OPS-007 restent nécessaires pour la matrice et les sauvegardes/réplicas.
+La récupération de données conservées vers `suspended` est distincte de l’import
+sélectif après perte, documenté mais à outiller/exercer dans OPS-005. Ces limites
+ne réduisent pas l’exigence finale ORG-09/ORG-10/REC-35.
+
 | Domaine | P0 première version | P1 version professionnelle | P2 extensions |
 | --- | --- | --- | --- |
 | Organisations | Tenants, paramètres, adhésions, invitations, changement de contexte et suspension | Branding, quotas et domaines personnalisés | Abonnements, facturation SaaS et options d’isolation renforcée |

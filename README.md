@@ -304,6 +304,149 @@ La CI ajoute un Redis dédié. Le test réel est activé par
 `TENANCY_TEST_REDIS=true` uniquement sur un Redis de test, avec des clés uniques
 nettoyées individuellement, jamais `FLUSHDB`. Aucun accès réel à AWS n’a été testé.
 
+### Cycle de vie et portabilité — UCG-TEN-007
+
+Les opérations sensibles restent **réservées aux opérateurs disposant d’un accès
+autorisé au serveur**. Un `--actor` vérifié est une attribution d’audit, pas un
+rôle plateforme ni une autorisation HTTP. Aucun endpoint ou écran de purge n’est
+exposé. Suspension, réactivation ordinaire et archivage utilisent toujours
+`organizations:transition` et sa matrice historique.
+
+La nouvelle table `tenant_portability_operations` rattache chaque export, purge
+ou récupération à un tenant, un acteur, un motif et une corrélation. L’identité
+de l’opération et sa conservation sont protégées en SQL ; son état technique
+reste modifiable. Les références à des comptes globaux ne sont pas transférées.
+
+Exemples opérateur (remplacer les placeholders par des identifiants approuvés) :
+
+```powershell
+php artisan organizations:portability UUID_ORGANISATION export --actor=42 --reason="Export approuvé"
+php artisan organizations:portability UUID_ORGANISATION inspect --operation=UUID_EXPORT --actor=42 --reason="Contrôle de l’export"
+php artisan organizations:portability UUID_ORGANISATION read --operation=UUID_EXPORT --actor=42 --reason="Consultation approuvée"
+php artisan organizations:portability UUID_ORGANISATION purge --actor=42 --reason="Inventaire sans suppression"
+```
+
+`export` retourne un UUID `pending` puis un job sur `reports` produit une archive
+privée. Le worker existant database/Redis doit être actif. L’export opérateur
+accepte un tenant inactif sans réactiver ses jobs métier TEN-006. Le catalogue
+fermé couvre la racine et les huit tables tenant présentes : chaque nouvelle
+table/colonne doit être enregistrée explicitement, sinon l’export est refusé.
+Les fichiers couverts sont les artefacts enregistrés par TEN-005, lus sur leur
+disque d’origine ; ce n’est pas un dump récursif des dossiers privés. Tout futur
+stockage métier doit intégrer ce contrat avant de revendiquer un export complet.
+Les comptes globaux, sessions, jetons, mots de passe et queues sont exclus.
+
+Format `ucg-tenant-ndjson` version 1 : manifeste tenant/opération/corrélation,
+lignes `row` avec table et données, blocs `file_chunk` base64 de 1 MiB avec offset,
+`file_end` avec taille/SHA-256, puis bilan `end`. Les colonnes SQL calculées du
+journal d’accès ne sont pas des entrées de restauration. Une ligne/fichier
+manquant, incomplet ou hors limite empêche l’état `ready` ; jamais de troncature
+silencieuse. La lecture vérifie la taille et le SHA-256 de toute l’archive avant
+de restituer son contenu. Attention : `read` affiche des données privées ; ne
+pas utiliser un terminal partagé ou des logs publics.
+
+Les limites techniques sont distinctes des durées légales : 50 000 lignes via
+TEN-005, 64 MiB d’archive finale, 128 MiB de réservations d’exports par tenant et
+24 h depuis la demande. Le base64 compte dans les octets. Les exports ont leur
+budget séparé du ledger des artefacts ; `pending` et `failed` restent réservés
+jusqu’au nettoyage. Ces valeurs se configurent côté serveur dans `tenancy`.
+Pour un tenant dépassant ces bornes, prévoir un export partitionné validé, ne
+pas augmenter arbitrairement les limites ni déclarer un export partiel complet.
+La génération utilise une transaction snapshot PostgreSQL, des lectures par
+pages et un tampon temporaire, pas une collection globale en mémoire.
+
+Superviser `tenant.export.ready/read/expired/enqueue_failed/expiry_failed` et
+`tenant.purge.batch`. Après panne de mise en file, l’UUID reste dans l’opération
+`pending` et dans le log `enqueue_failed`. Pour redistribuer le même export :
+
+```powershell
+php artisan organizations:portability UUID_ORGANISATION export --operation=UUID_EXPORT --actor=42 --reason="Reprise après correction"
+php artisan organizations:expire-exports
+```
+
+Le nettoyage traite au plus 100 exports échus par lot ; il supprime uniquement
+leur chemin exact et libère leur réservation, jamais les artefacts métier.
+Une archive échue n’est plus lisible même avant le nettoyage. Un échec de stockage
+pour un tenant n’empêche pas le traitement des autres : les tentatives de
+suppression échouées passent derrière les candidats plus anciens sans modifier
+leur date d’expiration. Le scheduler de nettoyage
+est **désactivé par défaut** ; `tenancy.portability.expire_exports_scheduled=true`
+nécessite un cache partagé sans failover et enregistre un passage toutes les
+dix minutes avec `onOneServer`/`withoutOverlapping`.
+
+#### Purge ciblée et conservation
+
+Sans `--execute`, `purge` est un inventaire en lecture seule. La configuration
+`tenancy.portability.purge_policies` reste vide : **toute purge métier est refusée
+par défaut**. Une politique revue par UUID doit indiquer `reference`, une date
+ISO 8601 avec offset `not_before`, `backups_procedure` et exactement les six
+catégories `settings`, `artifacts`, `exports`, `access_history`,
+`lifecycle_history`, `organization_identity`. Chacune vaut `delete` ou `retain` ;
+les trois dernières doivent rester `retain` dans ce socle. Une date future,
+invalide ou une catégorie absente/inconnue bloque toute suppression.
+`backups_procedure` est une référence déclarée par l’opérateur, **pas une preuve
+que les sauvegardes et réplicas ont été effacés**.
+
+L’exécution exige un tenant archivé, `--confirm=UUID_ORGANISATION`,
+`--source-export=UUID_EXPORT` et `--execute`. L’archive doit être complète,
+intègre, non expirée et générée après le dernier archivage. Les seules catégories
+supprimables sont les paramètres, artefacts et exports autorisés par la
+politique. Les fichiers sont supprimés avant de libérer leur comptabilité.
+Le lot est borné à 100 artefacts et 100 exports, avec une échéance souple de
+45 s. S’il reste du travail (`pending`), reprendre avec `--operation=UUID_PURGE`,
+le même export source et la même politique ; son empreinte interdit une reprise
+avec des règles modifiées. Aucun nouvel export ou seconde purge n’est admis
+après engagement d’une purge. Les archives peuvent faire partie des catégories
+supprimées : vérifier la procédure approuvée de sauvegarde avant l’exécution.
+
+Ce mécanisme n’est **pas une suppression physique complète de l’organisation** :
+racine, comptes globaux, adhésions, invitations, historiques protégés et suivi
+technique restent conservés. Aucune protection d’audit/FK n’est désactivée.
+La matrice de durées/catégories à valider dans CAD-004, l’effacement conforme des
+historiques et la disparition dans les sauvegardes/réplicas restent OPS-007.
+Le code ne fournit pas de preuve d’effacement RGPD à lui seul.
+
+Les verrous sont propres au tenant (90 s pour export/expiration, 180 s pour un
+lot de purge). L’échéance de 45 s est souple : une dernière opération I/O peut
+la dépasser. En production, régler les délais DB/I/O et exécuter les workers
+sous Linux/PCNTL (`timeout=60`, `retry_after` supérieur au timeout) ; l’arrêt dur
+n’est pas validé sous Windows. Ne jamais laisser un appel dépasser le bail ni
+résoudre un incident par une suppression globale des fichiers/queues/verrous.
+
+#### Récupération logique
+
+Pour une organisation archivée dont les données ont été **conservées**, la
+commande suivante revient à `suspended`, jamais directement à `active` :
+
+```powershell
+php artisan organizations:portability UUID_ORGANISATION recover --confirm=UUID_ORGANISATION --source-export=UUID_EXPORT --actor=42 --reason="Récupération approuvée"
+```
+
+Elle vérifie l’archive, les paramètres présents, le propriétaire vérifié et
+l’exclusivité optionnelle TEN-003, puis écrit l’audit et le statut dans la même
+transaction. Toute purge déjà engagée interdit ce raccourci. Les fichiers et
+adhésions ne sont pas remplacés ; aucun job métier n’est repris automatiquement.
+Après contrôle métier, la réactivation ordinaire est une décision séparée.
+
+Une récupération **après perte/suppression** relève du scénario OPS-005 :
+
+1. Restaurer une sauvegarde dans un environnement isolé, jamais par PITR global
+   sur la base courante pour récupérer un seul tenant.
+2. Vérifier version du schéma/format, UUID tenant, exhaustivité des catégories,
+   tailles/SHA-256 des fichiers et références aux comptes globaux ; produire un
+   inventaire comparé et conserver la preuve de la source approuvée.
+3. Préparer une réconciliation par tenant (identités immuables, propriétaire,
+   exclusivité, audits, FK composites, ledger et fichiers privés), sans déplacer
+   un objet vers un autre tenant ni désactiver les contraintes.
+4. Effectuer une répétition à blanc, faire approuver les écarts, puis exécuter
+   une réimportation sélective auditée et revérifier les autres tenants avant
+   toute remise en service ou reprise ciblée de jobs.
+
+TEN-007 documente cette procédure ; il **n’implémente pas un import automatique
+d’archives ni une restauration de sauvegardes**. Leur outillage et exercice
+opérationnel restent OPS-004/OPS-005. Aucun export, nettoyage, changement de
+statut ou purge n’a été exécuté sur les données actuelles pendant ce ticket.
+
 ## Organisations — UCG-TEN-001
 
 Les organisations ont un UUID et un slug immuables, un propriétaire global,
@@ -344,7 +487,9 @@ Cette matrice est une décision conservatrice d’implémentation : les document
 initiaux ne précisaient pas chaque transition. Une organisation non active ne
 peut pas modifier ses paramètres ordinaires. La réactivation après archivage,
 les régularisations métier, le transfert renforcé de propriété et la purge
-ne sont pas implémentés dans ce ticket.
+ne sont pas implémentés dans TEN-001. TEN-007 ajoute les procédures opérateur
+distinctes de récupération de données conservées et de purge ciblée ci-dessus ;
+la matrice des transitions ordinaires reste inchangée.
 
 Chaque création/changement de statut exige un motif et écrit un audit dans la
 même transaction : organisation, acteur, ancien/nouveau statut, date et UUID
