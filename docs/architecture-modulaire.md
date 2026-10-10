@@ -98,6 +98,35 @@ limiter et les routes. Aucun de ces détails n’est exposé aux futurs modules.
 
 ## Ajouter une fonctionnalité
 
+### Contexte métier — UCG-TEN-002
+
+Les modules autorisés à dépendre de Tenancy consomment
+`Tenancy\Application\Contracts\TenantContext`, un DTO public `readonly`.
+Le middleware `tenant` le résout depuis un UUID de route ou un hôte exact
+approuvé, vérifie le propriétaire et le statut actif, puis l’attache à la
+requête. Il s’exécute après l’authentification et avant les bindings de ressources.
+Les adhésions ne seront prises en compte qu’en `TEN-003`.
+
+Injecter le contexte dans la méthode d’action, pas dans le constructeur du
+controller : Laravel peut instancier celui-ci avant l’exécution du middleware.
+Passer ensuite le contexte explicitement aux Services. Ceux-ci transmettent
+son UUID aux ports de persistance du Domain, sans créer de dépendance
+`Domain → Application`. Toute recherche de ressource combine son identifiant
+avec cet UUID ; `assertOrganization()` permet de refuser un identifiant
+d’organisation différent, même si l’acteur possède les deux organisations.
+Cette garde ne remplace ni les Policies ni les contraintes de base.
+
+Le binding du contexte relit la requête courante et vérifie son acteur et sa
+corrélation. Il ne mémorise pas le contexte dans le conteneur ; le middleware
+nettoie ses attributs et le contexte de journalisation tenant dans un `finally`.
+Ne jamais utiliser le contexte Laravel de journalisation comme preuve
+d’autorisation. Les callbacks après réponse, workers et commandes ne disposent
+pas automatiquement d’un contexte HTTP. Capturer les identifiants explicitement
+avant la fin de la requête ; `toJobContext()` fournit le transport existant.
+La restauration contrôlée des jobs sera réalisée dans `TEN-006`.
+
+### Flux d’ajout
+
 1. Confirmer le module propriétaire et ses dépendances avant de coder.
 2. Ajouter ou modifier le contrat public seulement si un autre module doit réellement appeler
    le cas d’usage.

@@ -177,11 +177,49 @@ Les suppressions physiques d’organisations et de comptes référencés sont re
 Les futures procédures de transfert/conservation devront faire évoluer
 explicitement ces protections, sans contournement par une mise à jour ordinaire.
 
-Le contexte tenant (`TEN-002`), les adhésions/invitations (`TEN-003`), l’isolation
-généralisée (`TEN-004`) et l’audit transverse (`IAM-006`) restent à implémenter.
-Ce ticket ne crée pas encore d’écran React de gestion des organisations.
+Les adhésions/invitations (`TEN-003`), l’isolation généralisée (`TEN-004`) et
+l’audit transverse (`IAM-006`) restent à implémenter.
+Ces tickets ne créent pas encore d’écran React de gestion des organisations.
 
 La CI teste ce module sur une base PostgreSQL 17 dédiée en plus de la suite SQLite.
+
+## Contexte tenant — UCG-TEN-002
+
+Les routes métier utilisent le middleware `tenant`, après Sanctum et avant les
+bindings de ressources. Le contexte immuable est disponible uniquement pendant
+la requête : UUID d’organisation, acteur authentifié, slug, fuseau, langue et
+UUID de corrélation. Aucune organisation n’est sélectionnée automatiquement.
+
+- `GET /api/v1/tenants/{uuid}/context` : résolution explicite par la route.
+- `GET /api/v1/tenant/context` : résolution par le domaine approuvé uniquement.
+- `PUT /api/v1/organizations/{uuid}` conserve son URL et son payload, mais
+  passe désormais par `tenant:organization` et un Service recevant le contexte.
+- Les lectures de gestion propriétaire, l’authentification et le statut système
+  restent globales ; elles ne supposent pas de tenant actif.
+
+`back/config/tenancy.php` contient `approved_domains`, vide par défaut :
+associer un nom d’hôte exact en minuscules à l’UUID d’une organisation existante
+uniquement après validation opérateur de son contrôle et de son routage.
+Pas de wildcard, de sous-domaines implicites, ni d’approbation depuis une requête.
+Le reverse proxy doit rejeter les hôtes inattendus ; ne faire confiance aux
+en-têtes transférés que depuis des proxies explicitement maîtrisés.
+Un domaine approuvé ne donne aucun droit sur son organisation.
+
+Le propriétaire est le seul accès actuellement autorisé : les adhésions seront
+ajoutées dans `TEN-003`. Une source absente produit `422 TENANT_CONTEXT_REQUIRED`,
+une organisation inconnue/non autorisée ou un conflit route/domaine produit le
+même `404 RESOURCE_NOT_FOUND`, et un tenant non actif produit
+`409 ORGANIZATION_INACTIVE`. Query string, payload, cookies et en-têtes tenant
+ne peuvent pas choisir ou remplacer le contexte.
+
+Le contexte n’est pas un singleton et est nettoyé après la réponse, y compris
+après un refus. Les Services prennent le contexte explicitement ; les
+Repositories reçoivent l’UUID issu de ce contexte, jamais un filtre tenant client.
+`toJobContext()` transporte les identifiants tenant/requête dans le socle de
+files existant, sans autoriser une opération différée. La restauration et la
+revérification des droits/statuts des jobs appartiennent à `TEN-006`.
+Les contraintes PostgreSQL généralisées et l’isolation complète des fichiers,
+caches et verrous restent respectivement `TEN-004` et `TEN-005`.
 
 ## Vérifications
 

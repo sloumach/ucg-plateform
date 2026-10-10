@@ -7,9 +7,9 @@
 
 - Dernière mise à jour : 10 octobre 2026.
 - Branche de travail : `staging`.
-- Dernier ticket implémenté et validé localement : `UCG-TEN-001` — organisations et paramètres.
-- Prochain ticket : `UCG-TEN-002` — résolution et transport du contexte tenant.
-- La validation distante du nouveau contrôle PostgreSQL reste à confirmer après push.
+- Dernier ticket implémenté et validé localement : `UCG-TEN-002` — résolution et transport du contexte tenant.
+- Prochain ticket : `UCG-TEN-003` — adhésions, invitations et changement d’organisation.
+- CI de `TEN-001` confirmée réussie après push ; CI de `TEN-002` à vérifier après son push.
 - Aucun blocage fonctionnel connu.
 - Au démarrage, vérifier l'état réel avec `git status --short --branch` et
   `git log -8 --oneline --decorate`.
@@ -174,8 +174,47 @@ Commit :
 - Les tests PostgreSQL ont utilisé une base temporaire dédiée, supprimée ensuite,
   sans rollback ni suppression dans la base locale existante.
 - CI backend enrichie d’une base PostgreSQL 17 dédiée et d’un rapport JUnit
-  supplémentaire ; exécution distante à vérifier après push.
+  supplémentaire ; exécution distante confirmée réussie après push.
 - README et conventions API mis à jour avec les choix, limites et exemples.
+
+### UCG-TEN-002 — Résolution et transport du contexte tenant
+
+- Contrat public `TenantContext` immuable, avec UUID d’organisation, acteur
+  authentifié, slug, fuseau, langue et UUID de corrélation.
+- Middleware `tenant` placé après Sanctum et avant les bindings de ressources.
+  Résolution depuis un UUID de route ou un hôte exact approuvé ; sources
+  divergentes, inconnues ou non autorisées refusées.
+- Liste opérateur `tenancy.approved_domains` vide par défaut, sans wildcard
+  ni approbation automatique. Un domaine approuvé ne donne aucun droit.
+- Aucun choix depuis un paramètre client, un en-tête, un cookie ou la session ;
+  aucun tenant choisi implicitement, même pour un compte propriétaire unique.
+- Accès propriétaire uniquement en attendant les adhésions de `TEN-003`.
+  Le tenant doit être actif pour fournir un contexte métier.
+- Endpoints Sanctum/Policy `GET /tenants/{uuid}/context` et
+  `GET /tenant/context`, sous `/api/v1`, avec Resource et corrélation.
+- Modification des paramètres existante placée sous `tenant:organization`.
+  Le Service prend le contexte explicitement, puis revérifie le propriétaire
+  et le statut sous verrou avant écriture.
+- Binding non mémorisé, lié à la requête courante, avec vérification
+  acteur/corrélation ; nettoyage du contexte et du champ de journalisation
+  `tenant_id` dans un `finally`, y compris après erreur.
+- Garde inter-contexte testée même lorsque l’acteur possède les deux tenants ;
+  aucun identifiant de ressource ne peut déplacer le contexte déjà résolu.
+- Transport explicite vers le `JobContext` existant, testé après sérialisation
+  et une autre requête HTTP. Ce transport ne remplace pas l’autorisation
+  différée ; la restauration contrôlée des jobs reste `TEN-006`.
+- Les routes globales de gestion propriétaire, d’authentification et de statut
+  restent accessibles sans contexte métier, selon leurs autorisations.
+- Pas de nouvelle migration, dépendance ou interface React ; aucune
+  modification du pilote ou des données locales existantes.
+- Validation locale : 109 tests backend et 592 assertions, 82 tests Tenancy
+  sur PostgreSQL et 417 assertions, Pint et PHPStan niveau 8 réussis,
+  Composer valide, lint frontend, 12 tests Vitest, build et 1 test Playwright.
+- Base PostgreSQL temporaire dédiée supprimée après les tests ; aucune
+  suppression ni rollback dans la base applicative existante.
+- Documentation de l’API, architecture, README et point de reprise mis à jour.
+  Les workflows existants couvrent automatiquement les nouveaux tests.
+- Commit local à pousser ; validation distante à vérifier après push.
 
 ## Décisions à préserver
 
@@ -207,22 +246,23 @@ Commit :
 - Piloter le comportement frontend avec le code d’erreur API stable, jamais en
   analysant le texte localisé ; conserver `request_id` pour le support.
 
-## Prochaine étape : UCG-TEN-002
+## Prochaine étape : UCG-TEN-003
 
-Résoudre et transporter le contexte tenant conformément au backlog :
+Gérer adhésions, invitations et changement d’organisation conformément au backlog :
 
-- middleware et `TenantContext` immuable ;
-- résolution depuis une route ou un domaine approuvé, refus par défaut ;
-- requête métier sans tenant valide refusée ;
-- empêcher toute sortie du contexte autorisé par modification d’identifiants ;
-- appliquer le statut de l’organisation aux opérations métier futures.
+- adhésions datées, rôles et statuts distincts selon l’organisation ;
+- invitation, acceptation/refus, expiration et révocation, sans compte dupliqué ;
+- sélection explicite de l’organisation active et confirmation des actions sensibles ;
+- rechargement des permissions, menus et données après changement ;
+- extension de la résolution tenant aux adhésions autorisées, sans affaiblir
+  le refus par défaut ni les gardes inter-contexte de `TEN-002`.
 
-Ne pas confondre le filtrage propriétaire de TEN-001 avec le contexte tenant
-complet. Les adhésions/invitations arrivent dans TEN-003 et l’isolation PostgreSQL
-généralisée dans TEN-004. Le transfert renforcé de propriété, les régularisations
-métier, la réactivation après archivage, la conservation/purge et l’audit transverse
-restent à réaliser dans leurs lots dédiés ; aucun écran React organisations
-n’a été ajouté à TEN-001.
+Le contexte HTTP de `TEN-002` ne remplace pas l’isolation PostgreSQL généralisée
+de `TEN-004`, celle des fichiers/caches/verrous de `TEN-005`, ni la restauration
+contrôlée des jobs de `TEN-006`. Le transfert renforcé de propriété,
+les régularisations métier, la réactivation après archivage, la conservation/purge
+et l’audit transverse restent dans leurs lots dédiés ; aucun écran React
+organisations n’a été ajouté à `TEN-001` ou `TEN-002`.
 
 ## Documents de référence
 

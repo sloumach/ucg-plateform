@@ -2,6 +2,7 @@
 
 namespace App\Modules\Tenancy\Presentation\Http\Requests\Api\V1;
 
+use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use App\Modules\Tenancy\Application\Data\OrganizationDetailsData;
 use App\Modules\Tenancy\Application\Services\OrganizationService;
 use App\Modules\Tenancy\Application\Validation\OrganizationInput;
@@ -9,13 +10,14 @@ use Illuminate\Foundation\Http\FormRequest;
 
 final class UpdateOrganizationRequest extends FormRequest
 {
-    public function authorize(OrganizationService $organizations): bool
+    public function authorize(OrganizationService $organizations, TenantContext $context): bool
     {
         $user = $this->user();
         if ($user === null) {
             return false;
         }
-        $organization = $organizations->findOwned((string) $this->route('organization'), (int) $user->getAuthIdentifier());
+        $context->assertOrganization((string) $this->route('organization'));
+        $organization = $organizations->findOwned($context->organizationId, $context->actorUserId);
 
         return $user->can('update', $organization);
     }

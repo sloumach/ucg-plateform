@@ -4,6 +4,7 @@ namespace App\Modules\Tenancy\Application\Services;
 
 use App\Exceptions\DomainConflictException;
 use App\Modules\Identity\Application\Contracts\AccountDirectory;
+use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use App\Modules\Tenancy\Application\Data\OrganizationAuditData;
 use App\Modules\Tenancy\Application\Data\OrganizationDetailsData;
 use App\Modules\Tenancy\Application\Validation\OrganizationInput;
@@ -81,13 +82,13 @@ final readonly class OrganizationService
         return $this->create('ucg', $ownerId, $details, $audit);
     }
 
-    public function updateOwned(string $id, int $ownerId, OrganizationDetailsData $details): Organization
+    public function updateInContext(TenantContext $context, OrganizationDetailsData $details): Organization
     {
         $this->validateDetails($details);
 
-        return $this->database->transaction(function () use ($id, $ownerId, $details): Organization {
-            $organization = $this->organizations->lock($id);
-            if ($organization->owner_user_id !== $ownerId) {
+        return $this->database->transaction(function () use ($context, $details): Organization {
+            $organization = $this->organizations->lock($context->organizationId);
+            if ($organization->owner_user_id !== $context->actorUserId) {
                 throw (new ModelNotFoundException)->setModel(Organization::class);
             }
             if (! $organization->acceptsBusinessOperations()) {

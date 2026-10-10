@@ -4,6 +4,7 @@ namespace App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1;
 
 use App\Http\Api\RequestId;
 use App\Http\Controllers\Controller;
+use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use App\Modules\Tenancy\Application\Services\OrganizationService;
 use App\Modules\Tenancy\Presentation\Http\Requests\Api\V1\ListOrganizationsRequest;
 use App\Modules\Tenancy\Presentation\Http\Requests\Api\V1\UpdateOrganizationRequest;
@@ -31,10 +32,12 @@ final class OrganizationController extends Controller
         return OrganizationResource::make($record);
     }
 
-    public function update(UpdateOrganizationRequest $request, string $organization): OrganizationResource
+    public function update(UpdateOrganizationRequest $request, TenantContext $context, string $organization): OrganizationResource
     {
-        return OrganizationResource::make($this->organizations->updateOwned(
-            $organization, $this->userId($request), $request->toData(),
+        $context->assertOrganization($organization);
+
+        return OrganizationResource::make($this->organizations->updateInContext(
+            $context, $request->toData(),
         ))->additional(['notification' => ['type' => 'success', 'message' => __('tenancy.notifications.updated')]]);
     }
 

@@ -2,6 +2,7 @@
 
 return [
     'errors' => [
+        'context_required' => 'Un contexte d’organisation valide est requis pour cette opération.',
         'identity_immutable' => 'L’identifiant, le slug et le propriétaire de l’organisation ne peuvent pas être modifiés par cette opération.',
         'audit_immutable' => 'Le journal de cycle de vie ne peut pas être modifié ou supprimé.',
         'slug_taken' => 'Ce slug est déjà utilisé par une organisation.',

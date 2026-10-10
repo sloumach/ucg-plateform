@@ -165,3 +165,51 @@ Les codes métier supplémentaires sont `ORGANIZATION_INACTIVE`,
 Les créations et transitions ne disposent pas d’endpoint HTTP : elles passent
 par les commandes opérateur documentées dans le README en attendant les
 autorisations plateforme.
+
+## Contexte tenant — UCG-TEN-002
+
+Les deux endpoints de lecture du contexte sont protégés par Sanctum, le
+middleware tenant et une Policy :
+
+- `GET /api/v1/tenants/{uuid}/context`, source route ;
+- `GET /api/v1/tenant/context`, source domaine approuvé exact.
+
+Ils renvoient `data.organization_id`, `data.actor_user_id`, `data.slug`,
+`data.timezone`, `data.language` et `meta.request_id`. Le contexte ne contient
+pas de modèle Eloquent mutable et n’est pas persisté comme sélection active
+en session. Le changement d’organisation et ses confirmations appartiennent
+à `TEN-003`.
+
+Exemple après authentification SPA, avec l’UUID autorisé :
+
+```ts
+const response = await fetch(
+  apiBaseUrl + '/tenants/' + encodeURIComponent(organizationId) + '/context',
+  { credentials: 'include', headers: { Accept: 'application/json' } },
+)
+// Vérifier response.ok avant de lire data ; traiter les erreurs structurées
+// avec le système de feedback partagé et conserver meta.request_id.
+```
+
+| Situation | Réponse |
+| --- | --- |
+| session absente | `401 AUTHENTICATION_REQUIRED` |
+| aucune source tenant, même avec un seul tenant possédé | `422 TENANT_CONTEXT_REQUIRED` |
+| tenant inconnu, non possédé, approbation invalide ou route/domaine divergents | `404 RESOURCE_NOT_FOUND` |
+| tenant suspendu, en clôture ou archivé | `409 ORGANIZATION_INACTIVE` |
+| Policy refusant une action dans un contexte résolu | `403 AUTHORIZATION_DENIED` |
+
+Le message `TENANT_CONTEXT_REQUIRED` est : « Un contexte d’organisation valide
+est requis pour cette opération. » Les erreurs conservent l’enveloppe centrale
+`message/code/errors/meta`, consommée par le feedback frontend ; aucun nouveau
+format de toast n’est introduit.
+
+Les en-têtes `X-Tenant-ID`/`X-Organization-ID`, la query string, les cookies et
+les champs du payload ne constituent jamais une source de contexte.
+Un domaine ne contourne pas l’autorisation du propriétaire. Si route et domaine
+approuvé existent, ils doivent désigner la même organisation.
+`PUT /organizations/{uuid}` utilise maintenant ce contexte ; son Service ne
+prend plus un UUID tenant libre pour choisir l’organisation à modifier et
+revérifie propriétaire/statut sous verrou avant l’écriture.
+Les lectures de gestion `GET /organizations` et `GET /organizations/{uuid}`
+restent accessibles au propriétaire sans contexte métier actif.
