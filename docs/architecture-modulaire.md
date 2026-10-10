@@ -136,13 +136,14 @@ tenant-owned par défaut, jamais globale par convention de nommage.
 | `users`, `password_reset_tokens`, `personal_access_tokens` | Identité et authentification du compte global ; aucun droit métier implicite |
 | `organizations` | Racine du tenant : `id` identifie l’organisation ; ce registre ne donne aucun droit de lecture globale |
 | `sessions` | Transport de session du compte ; la sélection ne constitue pas une autorisation |
-| `cache`, `cache_locks` | Transport partagé ; le cloisonnement des clés reste TEN-005 |
+| `cache`, `cache_locks` | Transport partagé ; clés tenant et verrous atomiques via les ports TEN-005 |
 | `jobs`, `job_batches`, `failed_jobs` | Transport et suivi techniques ; contexte contrôlé dans TEN-006, accès aux incidents réservé aux opérateurs |
 | `migrations` | Historique technique du schéma |
 
-Les cinq tables tenant actuellement implémentées sont `organization_settings`,
+Les sept tables tenant actuellement implémentées sont `organization_settings`,
 `organization_lifecycle_events`, `organization_memberships`,
-`organization_invitations` et `organization_access_events`. Toutes imposent
+`organization_invitations`, `organization_access_events`, `tenant_storage_usage`
+et `tenant_artifacts`. Toutes imposent
 `organization_id NOT NULL`, une FK vers `organizations.id` et un index de lecture
 commençant par l’organisation. Le tenant est immuable après création, y compris
 pour les paramètres. Les comptes auteur/destinataire restent des références
@@ -245,6 +246,35 @@ contrat public Identity, puis l’organisation, puis l’adhésion/invitation.
 Les audits d’accès sont append-only et transactionnels ; l’e-mail est différé
 après commit. Aucun modèle Identity n’est importé directement dans Tenancy.
 Les tables d’accès et leurs migrations restent centrales, détenues par Tenancy.
+
+### Ressources techniques — UCG-TEN-005
+
+Les modules utilisent les contrats publics `TenantArtifacts`, `TenantCache`
+et `TenantResourceLimits`, sans accéder directement à un bucket ou à des clés
+de cache globales. Les adaptateurs restent internes à Tenancy/Support.
+Le contexte est explicite, jamais stocké dans un singleton ; fichiers/caches
+revérifient l’accès et le statut à chaque opération. Le module propriétaire
+doit appliquer ses Policies d’objet et de champ avant de lire du cache ou du
+stockage. Une clé de cache de données filtrées doit distinguer l’acteur/les
+droits concernés ; ne pas réutiliser le résultat privilégié d’un autre acteur.
+
+Le stockage immuable est préfixé par tenant. La réservation durable en base
+est conservatrice face aux pannes et ne dépend pas de Redis. Les deux nouvelles
+tables imposent une organisation existante/immuable et des volumes non négatifs.
+Les mutations de compteur sont sérialisées par organisation ; il n’y a pas de
+verrou global. Cache/verrous/débit utilisent des namespaces distincts, UUID
+canonique et identifiant fonctionnel hashé, sur un backend partagé sans failover.
+La contention database utilise un insert conflict-safe et conserve le
+contrôle d’ownership Laravel pour la libération. La suppression d’un fichier
+doit être confirmée avant de libérer le quota. Les modalités de panne,
+inventaire des fichiers anciens, transaction englobante, leases, limites
+initiales et contraintes de montée en charge sont détaillées dans README.
+
+Les bornes sont techniques et configurables côté opérateur par UUID, sans
+facturation. Les imports/exports futurs doivent appeler les gardes pendant
+leur traitement : ce lot ne crée pas de parcours métier artificiel.
+Les jobs/schedulers, leurs retries et leur autorisation restaurée restent
+TEN-006 ; les téléchargements métier devront appliquer les Policies du module.
 
 La politique d’adhésion de `TEN-003` doit être isolée de la résolution du contexte :
 multi-organisations par défaut, restriction d’exclusivité activable explicitement.

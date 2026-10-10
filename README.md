@@ -118,13 +118,97 @@ d’éviter le traitement simultané accidentel d’un même job.
 
 `ARTIFACTS_DISK=local` conserve les fichiers privés dans le stockage Laravel
 local. En production, utiliser `ARTIFACTS_DISK=s3` et renseigner les variables
-`AWS_*`. L’application passe par le contrat `ArtifactStorage`, de sorte que le
-code métier ne dépend pas directement d’AWS.
+`AWS_*`. Les modules métier passent par le contrat public `TenantArtifacts`
+de Tenancy. `ArtifactStorage` reste le transport bas niveau d’infrastructure,
+sans compteur de quota ; il ne doit pas être appelé directement par un module métier.
 
 Les identifiants de tenant sont propagés explicitement dans les jobs concernés
 et les artefacts sont préfixés par `tenants/<tenant_id>/`. Redis transporte les
 jobs et accélère le cache, mais ne constitue jamais la seule copie durable d’un
 contrat, paiement, résultat ou fichier critique.
+
+### Ressources tenant — UCG-TEN-005
+
+Les ports publics `TenantArtifacts`, `TenantCache` et `TenantResourceLimits`
+prennent un contexte explicite. Fichiers et caches revérifient les accès courants
+et le statut de l’organisation, sans mettre les droits en cache. Le module
+appelant reste responsable de la Form Request, de la Policy de son objet et
+du contrôle du contenu. Aucun endpoint fichier/import/export ni URL publique
+ou temporaire n’est créé par ce lot.
+
+Les nouveaux fichiers sont privés et immuables :
+`tenants/<uuid organisation>/artifacts/<uuid artefact>`. Le nom est un libellé,
+pas un chemin ; réutiliser un nom n’écrase rien. Lecture/suppression par UUID
+filtrent l’organisation. Les fichiers anciens ne sont ni déplacés ni
+comptabilisés rétroactivement : avant adoption sur un stockage existant,
+préparer un inventaire/rattachement contrôlé. S3 reçoit la visibilité privée,
+avec délais réseau par requête de 5 s (connexion) et 30 s (transfert), distincts
+des retries SDK. Activer aussi S3 Block Public Access côté bucket.
+
+Les clés utilisent l’UUID canonique, le type `cache`/`lock`/`rate` et un hash
+de l’identifiant fonctionnel. `TENANCY_CACHE_STORE=database` fonctionne en local ;
+à plusieurs nœuds utiliser Redis partagé (`redis`, `REDIS_CLIENT=predis`) ou
+une base partagée. `array` est réservé aux tests ; `file`, `failover` et les
+backends sans verrou atomique sont refusés. Pas de `flush()` ni `forceRelease()`.
+Le bail d’un verrou est de 1 à 300 s et son callback doit finir avant expiration.
+Acquérir le verrou cache avant une transaction métier. L’acquisition database
+utilise `ON CONFLICT DO NOTHING` : une contention normale n’invalide pas la
+transaction PostgreSQL. Redis expire ses verrous ; prévoir un entretien borné
+des verrous database expirés après crash, sans purger les verrous actifs.
+
+Valeurs techniques initiales, à ajuster après mesure, sans plan commercial :
+
+| Configuration | Défaut |
+| --- | --- |
+| `TENANCY_REQUESTS_PER_MINUTE` | 600 requêtes/minute par organisation, acteurs et routes tenant confondus |
+| `TENANCY_ARTIFACT_BYTES` | 25 MiB par fichier |
+| `TENANCY_STORAGE_BYTES` | 1 GiB cumulé par organisation |
+| `TENANCY_IMPORT_BYTES` | 10 MiB par import |
+| `TENANCY_IMPORT_ROWS` | 10 000 lignes par import |
+| `TENANCY_EXPORT_ROWS` | 50 000 lignes par export |
+
+Les opérateurs peuvent surcharger des bornes entières positives par UUID dans
+`config/tenancy.php:limit_overrides`, jamais via un payload client. Une mauvaise
+configuration refuse l’opération. Les routes globales de compte/sélection
+restent hors du budget tenant ; les invitations gardent aussi leur borne
+de 10/minute par acteur et organisation avec une clé canonique.
+`429 RATE_LIMIT_EXCEEDED` inclut `Retry-After` ; une borne de volume renvoie
+`429 TENANT_LIMIT_EXCEEDED`, avec l’enveloppe JSON et le feedback ARC-006 existants.
+
+`tenant_storage_usage` conserve le compteur durable, `tenant_artifacts` les
+réservations/disques/états publiés. La réservation est commitée avant l’I/O :
+en production, `store()` refuse une transaction englobante. Cette garde est
+testée ; seules les transactions de rollback du runner PHPUnit sont exemptées.
+La mutation est sérialisée par organisation, sans verrou global. Le quota n’est
+libéré qu’après suppression confirmée. Un crash/nettoyage incertain conserve
+une réservation `ready=false`, comptée et non lisible. Après avoir vérifié
+que le traitement est terminé, un opérateur autorisé peut la supprimer via
+le Service ; ne jamais remettre le compteur à zéro ni purger sur le seul âge.
+Un rollback supprime les métadonnées/compteurs mais pas les objets : il est
+destructif sur un stockage utilisé ; préférer un correctif forward.
+
+Le verrou organisation reste tenu pendant l’I/O pour empêcher une suppression
+concurrente de réservation. Mesurer contention et latence S3 avant la forte
+charge ; aucun résultat « millions d’utilisateurs » n’est revendiqué.
+Un disque local doit être partagé entre nœuds ou remplacé par S3.
+
+Exemple dans un Service autorisé, avant sa transaction de métadonnées :
+
+```php
+// TenantArtifacts $artifacts et TenantResourceLimits $limits sont injectés.
+// $context vient du résolveur serveur ; le contenu est validé et l’objet autorisé.
+$limits->assertImport($context, $measuredBytes, $measuredRows);
+$file = $artifacts->store($context, 'rapport.json', $validatedContents);
+$contents = $artifacts->read($context, $file->id);
+```
+
+Les futurs imports doivent appeler les gardes d’octets/lignes pendant la
+lecture ; les exports utiliser `assertExport()` avant matérialisation. Ces
+gardes sont livrées/testées, mais les parcours métier n’existent pas encore.
+Contexte/retry/scheduler des jobs restent `TEN-006`.
+La CI ajoute un Redis dédié. Le test réel est activé par
+`TENANCY_TEST_REDIS=true` uniquement sur un Redis de test, avec des clés uniques
+nettoyées individuellement, jamais `FLUSHDB`. Aucun accès réel à AWS n’a été testé.
 
 ## Organisations — UCG-TEN-001
 

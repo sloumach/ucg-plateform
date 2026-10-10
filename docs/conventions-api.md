@@ -66,10 +66,20 @@ l’utilisateur ; `code` est le contrat stable utilisé par les clients.
 | `409` | code métier ou `RESOURCE_CONFLICT` | état concurrent ou transition impossible |
 | `422` | `VALIDATION_FAILED` ou code métier | entrée invalide ou règle métier refusée |
 | `429` | `RATE_LIMIT_EXCEEDED` | limite de requêtes atteinte |
+| `429` | `TENANT_LIMIT_EXCEEDED` | borne technique d’import, export, fichier ou stockage atteinte |
 | `500` | `INTERNAL_ERROR` | erreur inattendue masquée au client |
 
 Les erreurs `500` ne contiennent jamais de classe d’exception, fichier, trace ou message
 technique, même lorsque l’environnement local active le mode debug.
+
+TEN-005 conserve cette enveloppe et le feedback partagé ARC-006. Le débit des
+routes tenant est compté après authentification/résolution d’une organisation
+autorisée, dans un budget propre à son UUID canonique. Les réponses de débit
+exposent `X-RateLimit-Limit` et `X-RateLimit-Remaining` ; un refus inclut
+`Retry-After` en secondes. Un quota de volume n’invente pas de délai de reprise :
+il faut libérer des ressources ou modifier la borne côté opérateur.
+`TENANT_RESOURCE_BUSY` est un conflit `409` localisé de verrou, sans détail
+sur un autre tenant. Aucune trace, clé de cache ou URL d’objet n’est exposée.
 
 ## Corrélation
 

@@ -7,11 +7,14 @@
 
 - Dernière mise à jour : 10 octobre 2026.
 - Branche de travail : `staging`.
-- Dernier ticket implémenté et validé localement : `UCG-TEN-004` — isolation dans PostgreSQL.
-- Prochain ticket dans la séquence Tenancy : `UCG-TEN-005` — fichiers, caches, verrous et quotas.
+- Dernier ticket implémenté et validé localement : `UCG-TEN-005` — fichiers, caches, verrous et quotas.
+- Prochain ticket après push et CI de TEN-005 : `UCG-TEN-006` — jobs et scheduler.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
-- `TEN-004` : push utilisateur et validation CI distante restent à effectuer.
-- Aucun blocage fonctionnel connu.
+- `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
+  pour `4f7854b` (runs `38065130499` et `38065130513`).
+- TEN-005 terminé localement : rollback adapté avec accord utilisateur,
+  migration additive appliquée sans modifier les données existantes.
+  Push utilisateur et CI, notamment Redis réel, restent à confirmer.
 - Au démarrage, vérifier l'état réel avec `git status --short --branch` et
   `git log -8 --oneline --decorate`.
 - Vérifier également que les derniers commits locaux ont été poussés.
@@ -334,16 +337,57 @@ Commit :
 - Piloter le comportement frontend avec le code d’erreur API stable, jamais en
   analysant le texte localisé ; conserver `request_id` pour le support.
 
-## Prochaine étape : UCG-TEN-005
+## Travail terminé localement : UCG-TEN-005
 
-Après push de TEN-004 et validation CI, poursuivre l’isolation des canaux
-techniques conformément au backlog :
+Implémentation démarrée après push et validation CI de TEN-004 :
 
 - préfixes de stockage local/S3 propres à chaque tenant ;
 - clés de cache Redis et verrous incluant l’organisation ;
 - limites de débit et quotas techniques d’import, export et stockage ;
 - tests avec les mêmes identifiants fonctionnels dans deux organisations,
   sans fichier/cache/verrou partagé ni impact silencieux sur leurs limites.
+
+Livré :
+
+- ports publics `TenantArtifacts`, `TenantCache`, `TenantResourceLimits` et
+  réautorisation du contexte courant pour fichiers/caches ;
+- fichiers privés immuables préfixés tenant, noms/chemins sûrs, isolation des
+  lectures/suppressions et disque enregistré par artefact ;
+- compteur durable/réservations dans `tenant_storage_usage` et `tenant_artifacts`,
+  migration additive `2026_10_10_160242_create_tenant_artifact_ledger_tables.php`,
+  FK tenant, index, immutabilité de l’organisation et volumes non négatifs ;
+- refus conservateur des dépassements/pannes : aucun écrasement d’un ancien
+  fichier, aucune libération de quota avant suppression confirmée ;
+- cache/verrous/débit à clés canoniques distinctes ; correction du conflit de
+  verrou database qui invalidait une transaction PostgreSQL ;
+- limites opérateur configurables par UUID et contrat `429` existant avec
+  `Retry-After` pour le débit ; pas de plan commercial ;
+- documentation d’exploitation, gardes d’import/export disponibles pour les
+  futurs Services métier, sans endpoint artificiel.
+
+Vérifications de clôture :
+
+- suite backend SQLite : 265 tests, 263 réussis, 1 124 assertions, 2 skips
+  explicites (contrainte spécifique PostgreSQL et Redis réel absent localement) ;
+- PostgreSQL 17 sur base temporaire isolée : 226 tests, 225 réussis,
+  936 assertions, 1 skip Redis ; suite Tenancy et architecture SQL complète,
+  sans exclusion, dans un ordre aléatoire (seed `10010`) ;
+- test historique de rollback adapté avec l’accord utilisateur : TEN-005 inversé
+  avant les anciennes migrations et réappliqué après elles ; toutes les assertions
+  existantes conservées, existence des deux nouvelles tables vérifiée ;
+- Pint et Larastan niveau 8 réussis ; frontend Vitest : 21 tests réussis ;
+- Redis inaccessible en local et moteur Docker arrêté : test réel ajouté à la
+  CI avec service Redis dédié, validation distante encore à effectuer ;
+- stockage S3 testé via son contrat/adaptateur simulé, pas d’accès AWS réel ;
+- seule la migration additive TEN-005 appliquée à `ucg_platform` : empreintes
+  SHA-256 et nombres de lignes des sept tables existantes identiques avant/après,
+  deux nouvelles tables vides, aucun fichier privé local à migrer ;
+- contrôle `tenancy:check-schema` réussi ; bases temporaires de vérification
+  supprimées après les tests, sans rollback ni réinitialisation de la base principale.
+
+Pour la validation distante : pousser le commit local TEN-005 puis confirmer
+les CI backend/frontend et le test d’intégration Redis réel ajouté à la CI.
+Ne jamais exécuter `migrate:fresh`/rollback sur la base principale.
 
 Le contexte HTTP de `TEN-002` et les contraintes SQL de `TEN-004` ne remplacent
 pas l’isolation des fichiers/caches/verrous de `TEN-005`, ni la restauration

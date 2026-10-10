@@ -16,6 +16,15 @@ jobs:
     name: Pint, Larastan and PHPUnit
     runs-on: ubuntu-latest
     services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
       postgres:
         image: postgres:17
         env:
@@ -74,6 +83,17 @@ jobs:
           DB_USERNAME: ucg_test
           DB_PASSWORD: test-only-password
           DB_URL: ''
+
+      - name: Verify tenant isolation on Redis
+        run: php artisan test --compact tests/Feature/Modules/Tenancy/TenantRedisIsolationTest.php --log-junit=reports/phpunit-redis.xml
+        env:
+          TENANCY_TEST_REDIS: 'true'
+          REDIS_CLIENT: predis
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 6379
+          REDIS_PASSWORD: 'null'
+          REDIS_DB: 0
+          REDIS_CACHE_DB: 1
 
       - name: Upload backend test report
         if: always()

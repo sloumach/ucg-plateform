@@ -15,7 +15,11 @@ use Symfony\Component\HttpFoundation\Response;
 
 final readonly class ResolveTenantContext
 {
-    public function __construct(private TenantResolver $resolver, private ActiveOrganizationSession $selection) {}
+    public function __construct(
+        private TenantResolver $resolver,
+        private ActiveOrganizationSession $selection,
+        private LimitTenantRequests $limiter,
+    ) {}
 
     public function handle(Request $request, Closure $next, string $routeParameter = 'tenant'): Response
     {
@@ -38,7 +42,7 @@ final readonly class ResolveTenantContext
             Context::add('tenant_id', $context->organizationId);
             $this->selection->assertCurrent($request, $context);
 
-            return $next($request);
+            return $this->limiter->handle($request, $next);
         } finally {
             $request->attributes->remove(TenantContext::ATTRIBUTE);
             Context::forget('tenant_id');

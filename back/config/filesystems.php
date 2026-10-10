@@ -58,6 +58,8 @@ return [
 
         's3' => [
             'driver' => 's3',
+            'visibility' => 'private',
+            'http' => ['connect_timeout' => 5, 'timeout' => 30],
             'key' => env('AWS_ACCESS_KEY_ID'),
             'secret' => env('AWS_SECRET_ACCESS_KEY'),
             'region' => env('AWS_DEFAULT_REGION'),

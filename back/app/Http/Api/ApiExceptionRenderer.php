@@ -5,6 +5,7 @@ namespace App\Http\Api;
 use App\Contracts\Exceptions\DomainExceptionContract;
 use App\Contracts\Exceptions\ValidationDomainExceptionContract;
 use App\Exceptions\DomainConflictException;
+use App\Modules\Tenancy\Domain\Exceptions\TenantLimitExceededException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -66,6 +67,12 @@ final readonly class ApiExceptionRenderer
                 code: $exception->errorCode(),
                 status: 422,
                 errors: $exception->errors(),
+            ),
+            $exception instanceof TenantLimitExceededException => $this->responses->error(
+                request: $request,
+                message: $exception->getMessage(),
+                code: $exception->errorCode(),
+                status: 429,
             ),
             $exception instanceof DomainExceptionContract => $this->responses->error(
                 request: $request,

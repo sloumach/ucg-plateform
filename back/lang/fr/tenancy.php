@@ -13,6 +13,8 @@ return [
         'unavailable' => 'Le schéma ne peut pas être vérifié. Consultez les journaux techniques.',
     ],
     'errors' => [
+        'technical_limit_exceeded' => 'La limite technique de cette organisation est atteinte.',
+        'resource_busy' => 'Cette opération est déjà en cours pour cette organisation.',
         'access_identity' => 'L’organisation et le destinataire de cet accès ne peuvent pas être modifiés.',
         'exclusive_membership' => 'La politique d’adhésion interdit d’appartenir à deux organisations sur la même période. Quittez d’abord l’autre organisation ou choisissez une période sans chevauchement.',
         'owner_membership' => 'Le propriétaire ne peut pas quitter ou suspendre son organisation par une opération d’adhésion.',

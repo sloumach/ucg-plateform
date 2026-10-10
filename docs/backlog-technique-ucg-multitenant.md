@@ -149,6 +149,15 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : préfixes S3 par tenant, clés Redis incluant le tenant, limitation de débit et limites techniques d’import, export et stockage.
 - **Acceptation** : deux tenants utilisant les mêmes identifiants fonctionnels ne partagent ni fichier, ni cache, ni verrou ; les limites d’un tenant n’affectent pas silencieusement les autres.
 - **Références CDC** : ORG-12, IAM-08, SEC-12.
+- **Avancement (10 octobre 2026)** : ports publics de fichiers privés, cache/verrous,
+  bornes techniques et débit HTTP tenant implémentés ; compteurs durables ajoutés
+  sans déplacer les fichiers anciens. Validation locale terminée sur SQLite et
+  PostgreSQL ; test historique de rollback adapté avec accord utilisateur et
+  toutes ses vérifications conservées. Migration additive appliquée, empreintes
+  des données existantes inchangées. Push et CI restent à confirmer, notamment
+  Redis réel ajouté à la CI, non disponible localement. Les futurs Services
+  d’import/export devront appeler les gardes livrées ; aucun parcours métier ni
+  plan commercial n’est créé par ce lot. Détails d’exploitation dans README.
 
 ### UCG-TEN-006 — Propager le tenant dans les jobs et le scheduler
 

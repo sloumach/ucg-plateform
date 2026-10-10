@@ -1,6 +1,18 @@
 <?php
 
 return [
+    'cache_store' => env('TENANCY_CACHE_STORE', env('CACHE_STORE', 'database')),
+    // Technical defaults, not commercial plans. Operator-only overrides use immutable tenant UUIDs.
+    'limits' => [
+        'requests_per_minute' => filter_var(env('TENANCY_REQUESTS_PER_MINUTE', 600), FILTER_VALIDATE_INT),
+        'artifact_bytes' => filter_var(env('TENANCY_ARTIFACT_BYTES', 26214400), FILTER_VALIDATE_INT),
+        'storage_bytes' => filter_var(env('TENANCY_STORAGE_BYTES', 1073741824), FILTER_VALIDATE_INT),
+        'import_bytes' => filter_var(env('TENANCY_IMPORT_BYTES', 10485760), FILTER_VALIDATE_INT),
+        'import_rows' => filter_var(env('TENANCY_IMPORT_ROWS', 10000), FILTER_VALIDATE_INT),
+        'export_rows' => filter_var(env('TENANCY_EXPORT_ROWS', 50000), FILTER_VALIDATE_INT),
+    ],
+    'limit_overrides' => [],
+    'test_redis' => env('TENANCY_TEST_REDIS', false),
     // An operator may disable concurrent memberships after reviewing existing conflicts.
     'allow_multiple_organizations' => env('TENANCY_ALLOW_MULTIPLE_ORGANIZATIONS', true),
     'invitation_lifetime_days' => 7,
