@@ -1,6 +1,17 @@
 <?php
 
 return [
+    'schema' => [
+        'root_required' => 'organizations: table racine requise.',
+        'organization_required' => ':table: organization_id NOT NULL requis.',
+        'cross_schema' => ':table: relation hors du schéma partagé courant interdite.',
+        'unsafe_relation' => ':table: relation vers :target sans organization_id apparié.',
+        'root_foreign_key' => ':table: clé étrangère organization_id vers organizations.id requise.',
+        'unsafe_unique' => ':table: unicité :index sans organization_id.',
+        'tenant_index' => ':table: index commençant par organization_id requis.',
+        'valid' => 'Le schéma multi-tenant respecte les contraintes vérifiées.',
+        'unavailable' => 'Le schéma ne peut pas être vérifié. Consultez les journaux techniques.',
+    ],
     'errors' => [
         'access_identity' => 'L’organisation et le destinataire de cet accès ne peuvent pas être modifiés.',
         'exclusive_membership' => 'La politique d’adhésion interdit d’appartenir à deux organisations sur la même période. Quittez d’abord l’autre organisation ou choisissez une période sans chevauchement.',

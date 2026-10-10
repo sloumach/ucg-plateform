@@ -136,6 +136,13 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Acceptation** : les associations inter-tenant invalides échouent en base ; les tables globales sont recensées dans une liste fermée.
 - **Dépendances** : UCG-TEN-001, UCG-ARC-002.
 
+- **Livraison TEN-004** : registre global fermé et contrôle de schéma exécutable,
+  rattachements non nuls vérifiés sur les tables existantes, FK composites du
+  journal vers adhésions/invitations, immutabilité tenant des paramètres,
+  tests SQL négatifs et migration préservant les historiques. Évaluation RLS
+  documentée dans `architecture-modulaire.md` ; aucune activation automatique.
+  Les futures tables métier devront appliquer ce contrat dès leur migration.
+
 ### UCG-TEN-005 — Isoler fichiers, caches, verrous et quotas
 
 - **Priorité / taille** : P0 / L

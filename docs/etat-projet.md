@@ -7,10 +7,10 @@
 
 - Dernière mise à jour : 10 octobre 2026.
 - Branche de travail : `staging`.
-- Dernier ticket implémenté et validé localement : `UCG-TEN-003` — adhésions, invitations et changement d’organisation.
-- Prochain ticket : `UCG-TEN-004` — isolation dans PostgreSQL.
-- CI de `TEN-001` et `TEN-002` confirmées réussies après push.
-- `TEN-003` : push et validation CI distante restent à effectuer.
+- Dernier ticket implémenté et validé localement : `UCG-TEN-004` — isolation dans PostgreSQL.
+- Prochain ticket dans la séquence Tenancy : `UCG-TEN-005` — fichiers, caches, verrous et quotas.
+- CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
+- `TEN-004` : push utilisateur et validation CI distante restent à effectuer.
 - Aucun blocage fonctionnel connu.
 - Au démarrage, vérifier l'état réel avec `git status --short --branch` et
   `git log -8 --oneline --decorate`.
@@ -264,6 +264,46 @@ Commit :
 - README, conventions API, architecture, cahier des charges, backlog et point
   de reprise mis à jour. Push utilisateur puis contrôle des workflows requis.
 
+### UCG-TEN-004 — Imposer l’isolation dans PostgreSQL
+
+- Registre global fermé avec justification de chaque exception dans
+  `TableOwnership` et l’architecture. Toute nouvelle table reste tenant-owned
+  tant qu’une décision documentée ne la déclare pas globale. `organizations`
+  est la racine du tenant ; les transports globaux ne rendent pas leurs
+  payloads publics et ne livrent pas implicitement TEN-005/TEN-006.
+- Contrôle en lecture seule `tenancy:check-schema` : existence de la racine,
+  rattachement tenant non nul, FK racine, index tenant, unicités locales et
+  relations tenant composites ; références hors schéma partagé refusées.
+  Ce contrôle ne remplace pas les Policies, les filtres de lecture ou les
+  tests de chaque règle métier.
+- Nouvelle migration uniquement : clés uniques `(organization_id, id)` des
+  adhésions/invitations, colonnes calculées du sujet des audits et FK composites.
+  Les associations étrangères/inexistantes/du mauvais type échouent en SQL,
+  de même que les actions non déclarées et la suppression d’un sujet audité.
+  Le tenant des paramètres est désormais immuable en base.
+- Historique prévalidé avant DDL, transaction et verrouillage PostgreSQL avec
+  attente de cinq secondes. Aucune correction silencieuse d’un audit incohérent.
+  Payloads préservés à l’upgrade/rollback, colonnes calculées masquées par le
+  modèle et triggers append-only restaurés lors des reconstructions SQLite.
+  L’ancien test de rollback a été adapté avec accord explicite de l’utilisateur,
+  en conservant toutes ses vérifications précédentes.
+- RLS évaluée et non activée : décision, rôles SQL, contextes transactionnels,
+  connexions réutilisées, workers et parcours globaux documentés dans
+  `architecture-modulaire.md`. La protection des lectures reste applicative.
+- Validation locale : 204 tests backend réussis / 975 assertions, avec un test
+  propre à PostgreSQL ignoré sur SQLite ; 178 tests PostgreSQL / 801 assertions
+  réussis, également en ordre aléatoire. Pint, PHPStan niveau 8 et Composer
+  réussis ; lint, 21 tests Vitest, build et 2 tests Chromium réussis.
+  La CI PostgreSQL inclut désormais aussi les tests du contrôle de schéma.
+- Migration additive appliquée à `ucg_platform` ; empreintes et nombres des
+  comptes, organisations, paramètres et journaux existants identiques avant/après.
+  Aucun reset, rollback ou effacement de la base principale.
+  Les seules bases supprimées sont les cinq bases temporaires créées pour ces tests.
+- README, architecture, cahier des charges, backlog et point de reprise mis à
+  jour. Aucun nouvel endpoint, écran ou paquet ajouté. Sur une base contenant
+  des millions d’audits, prévoir mesure et migration progressive dédiée avant
+  déploiement ; aucun benchmark de ce volume n’est revendiqué.
+
 ## Décisions à préserver
 
 - Conserver les migrations dans `back/database/migrations/`.
@@ -294,19 +334,19 @@ Commit :
 - Piloter le comportement frontend avec le code d’erreur API stable, jamais en
   analysant le texte localisé ; conserver `request_id` pour le support.
 
-## Prochaine étape : UCG-TEN-004
+## Prochaine étape : UCG-TEN-005
 
-Après push de TEN-003 et validation CI, préparer l’isolation PostgreSQL
-généralisée conformément au backlog :
+Après push de TEN-004 et validation CI, poursuivre l’isolation des canaux
+techniques conformément au backlog :
 
-- recenser les tables globales dans une liste fermée ;
-- imposer organization_id non nul aux données métier tenant-owned ;
-- définir clés uniques tenant, index composites et relations interobjets sûres ;
-- tester le rejet des associations inter-tenant au niveau de la base ;
-- évaluer et documenter Row-Level Security, sans l’activer implicitement.
+- préfixes de stockage local/S3 propres à chaque tenant ;
+- clés de cache Redis et verrous incluant l’organisation ;
+- limites de débit et quotas techniques d’import, export et stockage ;
+- tests avec les mêmes identifiants fonctionnels dans deux organisations,
+  sans fichier/cache/verrou partagé ni impact silencieux sur leurs limites.
 
-Le contexte HTTP de `TEN-002` ne remplace pas l’isolation PostgreSQL généralisée
-de `TEN-004`, celle des fichiers/caches/verrous de `TEN-005`, ni la restauration
+Le contexte HTTP de `TEN-002` et les contraintes SQL de `TEN-004` ne remplacent
+pas l’isolation des fichiers/caches/verrous de `TEN-005`, ni la restauration
 contrôlée des jobs de `TEN-006`. Le transfert renforcé de propriété,
 les régularisations métier, la réactivation après archivage, la conservation/purge
 et l’audit transverse restent dans leurs lots dédiés ; aucun écran React

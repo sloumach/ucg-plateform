@@ -91,6 +91,8 @@ class OrganizationSchemaTest extends TestCase
         $organizationMigration = require database_path('migrations/2026_10_10_085921_create_organizations_and_settings_tables.php');
         $auditMigration = require database_path('migrations/2026_10_10_085922_create_organization_lifecycle_events_table.php');
         $accessMigration = require database_path('migrations/2026_10_10_122134_create_organization_memberships_invitations_and_access_events.php');
+        $isolationMigration = require database_path('migrations/2026_10_10_152734_enforce_tenant_database_isolation.php');
+        $isolationMigration->down();
         $accessMigration->down();
         $auditMigration->down();
         $organizationMigration->down();
@@ -98,6 +100,7 @@ class OrganizationSchemaTest extends TestCase
         $organizationMigration->up();
         $auditMigration->up();
         $accessMigration->up();
+        $isolationMigration->up();
         $this->assertTrue(Schema::hasTable('organizations'));
         $this->assertTrue(Schema::hasTable('organization_settings'));
         $this->assertTrue(Schema::hasTable('organization_lifecycle_events'));

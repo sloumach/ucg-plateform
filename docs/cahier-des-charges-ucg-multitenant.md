@@ -487,6 +487,13 @@ Le choix recommandé est un monolithe modulaire. Les processus web, workers et t
 
 Le choix initial est un schéma partagé : les comptes et catalogues explicitement globaux sont séparés des données détenues par une organisation. Toute table détenue par un tenant porte un `organization_id` non nul. Les unicités et index métier incluent ce champ, et les associations sensibles emploient des contraintes composites lorsque PostgreSQL peut les garantir.
 
+Le socle TEN-004 formalise le registre fermé des exceptions globales et les
+contraintes des tables actuellement implémentées, y compris les sujets du
+journal d’accès. La propriété globale d’une table technique ne rend pas son
+contenu public et ne dispense pas de l’isolation de ses clés ou payloads.
+La liste, le contrat des futures tables, les précautions de migration et la
+décision RLS sont détaillés dans `docs/architecture-modulaire.md`.
+
 Une base ou un schéma dédié par organisation n’est pas retenu pour P0. Cette option reste possible pour une offre future soumise à une exigence d’isolation, de résidence ou de restauration particulière. Elle nécessiterait un lot distinct couvrant provisionnement, migrations, connexions, supervision, sauvegarde, restauration et consolidation des métriques plateforme.
 
 ## 17 Modèle de données conceptuel

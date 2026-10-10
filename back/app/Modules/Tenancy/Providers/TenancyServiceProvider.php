@@ -20,6 +20,7 @@ use App\Modules\Tenancy\Infrastructure\Persistence\EloquentInvitationRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentMembershipRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentOrganizationRepository;
 use App\Modules\Tenancy\Infrastructure\Resolution\ConfiguredTenantDomains;
+use App\Modules\Tenancy\Presentation\Console\CheckTenantSchemaCommand;
 use App\Modules\Tenancy\Presentation\Console\ProvisionOrganizationCommand;
 use App\Modules\Tenancy\Presentation\Console\TransitionOrganizationCommand;
 use App\Modules\Tenancy\Presentation\Policies\InvitationPolicy;
@@ -70,7 +71,7 @@ final class TenancyServiceProvider extends ServiceProvider
         Route::middleware(['api', 'auth:sanctum'])->prefix('api/v1')->name('api.v1.')
             ->group(__DIR__.'/../Presentation/Routes/api.php');
         if ($this->app->runningInConsole()) {
-            $this->commands([ProvisionOrganizationCommand::class, TransitionOrganizationCommand::class]);
+            $this->commands([ProvisionOrganizationCommand::class, TransitionOrganizationCommand::class, CheckTenantSchemaCommand::class]);
         }
     }
 }

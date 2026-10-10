@@ -65,7 +65,7 @@ jobs:
         run: composer test:ci
 
       - name: Verify organization constraints on PostgreSQL
-        run: php artisan test --compact tests/Feature/Modules/Tenancy --log-junit=reports/phpunit-postgresql.xml
+        run: php artisan test --compact tests/Feature/Modules/Tenancy tests/Feature/Architecture/Database --log-junit=reports/phpunit-postgresql.xml
         env:
           DB_CONNECTION: pgsql
           DB_HOST: 127.0.0.1

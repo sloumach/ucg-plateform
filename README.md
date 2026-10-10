@@ -178,8 +178,8 @@ Les futures procédures de transfert/conservation devront faire évoluer
 explicitement ces protections, sans contournement par une mise à jour ordinaire.
 
 Les adhésions/invitations sont ajoutées par `TEN-003`, décrit ci-dessous.
-L’isolation généralisée (`TEN-004`) et l’audit transverse (`IAM-006`)
-restent à implémenter.
+L’isolation SQL des tables existantes et le contrat des futures tables sont
+livrés par `TEN-004`, décrit ci-dessous. L’audit transverse reste `IAM-006`.
 
 La CI teste ce module sur une base PostgreSQL 17 dédiée en plus de la suite SQLite.
 
@@ -218,8 +218,8 @@ Repositories reçoivent l’UUID issu de ce contexte, jamais un filtre tenant cl
 `toJobContext()` transporte les identifiants tenant/requête dans le socle de
 files existant, sans autoriser une opération différée. La restauration et la
 revérification des droits/statuts des jobs appartiennent à `TEN-006`.
-Les contraintes PostgreSQL généralisées et l’isolation complète des fichiers,
-caches et verrous restent respectivement `TEN-004` et `TEN-005`.
+Les contraintes PostgreSQL sont renforcées par `TEN-004` ; l’isolation complète
+des fichiers, caches et verrous reste `TEN-005`.
 
 ## Adhésions et changement d’organisation — UCG-TEN-003
 
@@ -288,6 +288,42 @@ Ne pas activer ce mode sur des données existantes sans examiner et résoudre
 explicitement les conflits ; aucune révocation automatique n’est effectuée.
 Une restriction par rôle métier reste une extension distincte avec `IAM-003`.
 Le détail des endpoints et exemples est dans `docs/conventions-api.md`.
+
+## Isolation PostgreSQL — UCG-TEN-004
+
+Les tables tenant existantes ont un `organization_id` obligatoire. Le journal
+ne peut plus référencer l’adhésion ou l’invitation d’une autre organisation,
+un sujet absent ou du mauvais type ; ses objets audités ne sont pas supprimables
+physiquement. Les paramètres ne peuvent pas être déplacés vers un autre tenant.
+Les unicités des comptes membres et des invitations restent locales au tenant.
+
+La liste fermée des exceptions globales est dans
+`back/app/Architecture/Database/TableOwnership.php`, avec leurs justifications
+dans `docs/architecture-modulaire.md`. Une nouvelle table est tenant-owned par
+défaut ; le contrôle opérateur et les tests détectent les écarts de schéma.
+Cette liste ne donne aucun accès global aux données.
+
+Après sauvegarde et vérification de l’environnement cible :
+
+```powershell
+cd back
+php artisan migrate --no-interaction
+php artisan tenancy:check-schema --no-interaction
+```
+
+La migration vérifie l’historique et s’arrête sans correction silencieuse en cas
+d’incohérence. Elle ajoute des colonnes calculées et des FK sans changer les
+payloads des audits. L’attente de verrou PostgreSQL est bornée à cinq secondes,
+mais la matérialisation sur une grande table exige une mesure et une fenêtre
+de maintenance ; prévoir un lot progressif pour des millions d’audits.
+Ne pas employer `migrate:fresh` ou un rollback sur la base principale.
+
+Le contrôle de schéma est en lecture seule et retourne un code non nul en cas
+d’écart ; il vérifie contraintes, index et relations, pas les droits HTTP ni
+les payloads de caches/jobs. Aucun endpoint ou écran supplémentaire n’est ajouté.
+RLS a été évaluée et reste désactivée : son intégration exige des rôles SQL,
+transactions/contextes, parcours globaux et workers maîtrisés. Les contrôles
+applicatifs de TEN-002/TEN-003 restent indispensables, notamment pour les lectures.
 
 ## Vérifications
 

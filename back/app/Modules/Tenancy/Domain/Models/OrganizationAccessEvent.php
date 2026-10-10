@@ -14,6 +14,8 @@ final class OrganizationAccessEvent extends Model
 
     protected $guarded = ['*'];
 
+    protected $hidden = ['membership_id', 'invitation_id'];
+
     protected static function booted(): void
     {
         $refuse = fn () => throw new DomainConflictException(__('tenancy.errors.audit_immutable'), 'ORGANIZATION_AUDIT_IMMUTABLE');
