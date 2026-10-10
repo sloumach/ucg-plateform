@@ -52,6 +52,28 @@ configuration de production validée.
 L’API est disponible sur `http://localhost:8000/api/v1`. Le frontend utilise
 l’authentification SPA Sanctum avec cookies de session et protection CSRF.
 
+Le parcours `UCG-IAM-001` fournit aussi la récupération du mot de passe, la
+vérification signée de l’adresse e-mail et la révocation des autres sessions.
+Les demandes de récupération répondent toujours de la même manière afin de ne
+pas révéler l’existence d’un compte. Les anciennes sessions sont invalidées par
+le contrôle du hash de mot de passe intégré à Sanctum. Les connexions, échecs,
+réinitialisations, vérifications et révocations sont inscrits dans le journal
+global append-only `identity_security_events`.
+
+Exemple de demande de récupération :
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/forgot-password \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"member@example.com"}'
+```
+
+En production, utiliser HTTPS, définir `SESSION_SECURE_COOKIE=true`, conserver
+`SESSION_HTTP_ONLY=true` et configurer précisément `FRONTEND_URL`,
+`SANCTUM_STATEFUL_DOMAINS` et `SESSION_DOMAIN`. Le nettoyage des jetons expirés
+est planifié toutes les quinze minutes avec `auth:clear-resets`.
+
 Dans un second terminal Windows, démarrer le worker de remplacement local :
 
 ```powershell

@@ -1,7 +1,7 @@
 export const frenchMessages = {
   'app.name': 'Ultra Cyber Game',
   'app.subtitle': 'Plateforme de gestion esports',
-  'app.ticket': 'UCG-TEN-003',
+  'app.ticket': 'UCG-IAM-001',
   'foundation.eyebrow': 'Fondation technique',
   'foundation.title': 'Le socle UCG est prêt pour les premiers parcours métier.',
   'foundation.description':
@@ -23,6 +23,7 @@ export const frenchMessages = {
     'Utilisez un compte créé dans la base locale pour valider le parcours.',
   'auth.emailLabel': 'Adresse e-mail',
   'auth.passwordLabel': 'Mot de passe',
+  'auth.passwordConfirmationLabel': 'Confirmer le mot de passe',
   'auth.submit': 'Se connecter',
   'auth.submitting': 'Connexion…',
   'auth.logout': 'Se déconnecter',
@@ -34,6 +35,29 @@ export const frenchMessages = {
   'auth.sessionUnavailableTitle': 'Session non vérifiée',
   'auth.sessionUnavailableMessage':
     'Impossible de vérifier la session. Vous pouvez réessayer de vous connecter.',
+  'auth.forgotPassword': 'Mot de passe oublié ?',
+  'auth.recoveryTitle': 'Récupérer le compte',
+  'auth.recoveryDescription':
+    'Saisissez votre adresse. La réponse reste identique même si aucun compte ne correspond.',
+  'auth.recoverySubmit': 'Envoyer le lien',
+  'auth.recoverySubmitting': 'Envoi…',
+  'auth.recoveryUnavailable': 'La demande de récupération a échoué.',
+  'auth.backToLogin': 'Revenir à la connexion',
+  'auth.resetTitle': 'Choisir un nouveau mot de passe',
+  'auth.resetDescription':
+    'Utilisez au moins 12 caractères avec majuscules, minuscules, chiffres et symboles.',
+  'auth.resetSubmit': 'Réinitialiser le mot de passe',
+  'auth.resetSubmitting': 'Réinitialisation…',
+  'auth.resetUnavailable': 'La réinitialisation du mot de passe a échoué.',
+  'auth.emailNotVerified': 'Votre adresse e-mail doit encore être vérifiée.',
+  'auth.sendVerification': 'Renvoyer le lien de vérification',
+  'auth.verificationUnavailable': 'Le lien de vérification n’a pas pu être envoyé.',
+  'auth.sessionsTitle': 'Sécurité des sessions',
+  'auth.sessionsDescription':
+    'Confirmez votre mot de passe pour déconnecter vos autres appareils.',
+  'auth.sessionsRevoke': 'Déconnecter les autres appareils',
+  'auth.sessionsRevoking': 'Révocation…',
+  'auth.sessionsRevokeUnavailable': 'Les autres sessions n’ont pas pu être révoquées.',
   'errors.requestReference': 'Référence de support : :requestId',
   'notifications.regionLabel': 'Notifications',
   'notifications.close': 'Fermer la notification',

@@ -2,7 +2,12 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
-import { getCurrentUser, login, logout } from './api/auth'
+import {
+  getCurrentUser,
+  login,
+  logout,
+  requestPasswordReset,
+} from './api/auth'
 import { ApiClientError } from './api/errors'
 import { getSystemStatus } from './api/systemStatus'
 
@@ -14,6 +19,10 @@ vi.mock('./api/auth', async (importOriginal) => {
     getCurrentUser: vi.fn(),
     login: vi.fn(),
     logout: vi.fn(),
+    requestPasswordReset: vi.fn(),
+    resetPassword: vi.fn(),
+    revokeOtherSessions: vi.fn(),
+    sendEmailVerification: vi.fn(),
   }
 })
 
@@ -25,6 +34,7 @@ const getCurrentUserMock = vi.mocked(getCurrentUser)
 const getSystemStatusMock = vi.mocked(getSystemStatus)
 const loginMock = vi.mocked(login)
 const logoutMock = vi.mocked(logout)
+const requestPasswordResetMock = vi.mocked(requestPasswordReset)
 
 describe('App', () => {
   beforeEach(() => {
@@ -43,6 +53,7 @@ describe('App', () => {
       id: 42,
       name: 'UCG Admin',
       email: 'admin@ucg.test',
+      email_verified: true,
     })
 
     render(<App />)
@@ -65,6 +76,7 @@ describe('App', () => {
       id: 42,
       name: 'UCG Admin',
       email: 'admin@ucg.test',
+      email_verified: true,
     })
     logoutMock.mockResolvedValue({
       type: 'success',
@@ -109,6 +121,24 @@ describe('App', () => {
       'true',
     )
     expect(screen.getByLabelText('Adresse e-mail')).toHaveFocus()
+  })
+
+  it('propose une récupération sans révéler si le compte existe', async () => {
+    const user = userEvent.setup()
+    requestPasswordResetMock.mockResolvedValue({
+      type: 'success',
+      message: 'Si un compte correspond, un lien a été envoyé.',
+    })
+
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Mot de passe oublié ?' }))
+    await user.type(screen.getByLabelText('Adresse e-mail'), 'member@ucg.test')
+    await user.click(screen.getByRole('button', { name: 'Envoyer le lien' }))
+
+    expect(requestPasswordResetMock).toHaveBeenCalledWith('member@ucg.test')
+    expect(await screen.findByText('Si un compte correspond, un lien a été envoyé.')).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Connexion' })).toBeVisible()
   })
 
   it('conserve la référence d une erreur système et permet une nouvelle tentative', async () => {

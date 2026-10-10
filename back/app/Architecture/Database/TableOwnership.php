@@ -8,6 +8,7 @@ final class TableOwnership
     public const GLOBAL_TABLES = [
         'users' => 'Identity : compte de connexion partagé, pas une personne métier.',
         'password_reset_tokens' => 'Identity : récupération du compte global.',
+        'identity_security_events' => 'Identity : audit append-only des événements de sécurité du compte global.',
         'personal_access_tokens' => 'Identity : authentification Sanctum ; aucun droit tenant implicite.',
         'sessions' => 'Infrastructure : sessions du compte ; sélection tenant non autorisante.',
         'cache' => 'Infrastructure : transport partagé ; clés tenant isolées par TEN-005.',

@@ -124,6 +124,18 @@ Appeler une route protégée sans session pour vérifier le contrat `401` :
 curl.exe --header "Accept: application/json" http://localhost:8000/api/v1/auth/me
 ```
 
+Le parcours Identity expose aussi :
+
+- `POST /api/v1/auth/forgot-password` et `POST /api/v1/auth/reset-password` ;
+- `POST /api/v1/auth/email/verification-notification` puis le lien signé
+  `GET /api/v1/auth/email/verify/{id}/{hash}` ;
+- `POST /api/v1/auth/sessions/revoke-others`, avec confirmation du mot de passe.
+
+La demande de récupération renvoie le même succès pour une adresse connue ou
+inconnue. Les mutations d’une SPA utilisent d’abord `/sanctum/csrf-cookie`, puis
+envoient le cookie de session et `X-XSRF-TOKEN`. Une limitation renvoie `429`
+avec `Retry-After` en plus de l’enveloppe d’erreur standard.
+
 ## Organisations — UCG-TEN-001
 
 Sous une session SPA Sanctum avec protection CSRF :

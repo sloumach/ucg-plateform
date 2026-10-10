@@ -7,11 +7,11 @@
 
 - Dernière mise à jour : 10 octobre 2026.
 - Branche de travail : `staging`.
-- Dernier socle implémenté et validé localement : `UCG-TEN-007` — cycle de vie
-  et portabilité, avec les limites de conservation/restauration détaillées ci-dessous.
-- Prochaine action : push utilisateur puis confirmation de la CI TEN-007.
-- Ensuite, priorité P0 / itération Tenant et identité : `UCG-IAM-001` ;
-  `UCG-TEN-008` (branding/domaines) est P1, à replanifier selon le backlog.
+- Dernier ticket implémenté et validé localement : `UCG-IAM-001` —
+  authentification, récupération, vérification d’e-mail et révocation des sessions.
+- Prochaine action : revue, commit/push utilisateur puis confirmation de la CI IAM-001.
+- Ensuite, priorité P0 : `UCG-IAM-002` (MFA des comptes privilégiés) ;
+  `UCG-TEN-008` (branding/domaines) reste P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
   pour `4f7854b` (runs `38065130499` et `38065130513`).
@@ -21,6 +21,8 @@
   (runs `38080998770` et `38080998784`), dont le nouveau test de queue Redis.
 - TEN-007 : migration additive appliquée, table de suivi vide ; aucune opération
   métier de maintenance exécutée sur les données actuelles. Push/CI à confirmer.
+- IAM-001 : migration et e-mails validés sur SQLite et PostgreSQL temporaire ;
+  aucune migration appliquée à `ucg_platform`, aucun e-mail réel envoyé.
 - Au démarrage, vérifier l'état réel avec `git status --short --branch` et
   `git log -8 --oneline --decorate`.
 - Vérifier également que les derniers commits locaux ont été poussés.
@@ -508,6 +510,30 @@ Vérifications de clôture :
   `ucg_ten007_verify_b` et `ucg_ten007_verify_c` supprimées après vérification ; recréables, sans perte
   de données applicatives. README, architecture, CDC, backlog et transmission
   mis à jour. Commit local à pousser par l’utilisateur.
+
+## Travail terminé localement : UCG-IAM-001
+
+- Connexion/déconnexion Sanctum conservées avec rotation et invalidation de
+  session ; limitation à cinq tentatives par minute et restitution de
+  `Retry-After` dans l’enveloppe JSON `429`.
+- Récupération non énumérante avec jeton Laravel expirant, formulaire React,
+  règle de mot de passe fort et révocation de toutes les anciennes sessions.
+- Vérification d’e-mail par lien temporaire signé, renvoi borné et interface
+  dédiée pour les comptes non vérifiés.
+- Révocation des autres appareils après confirmation du mot de passe actuel.
+- Journal global `identity_security_events`, indexé et append-only en SQLite et
+  PostgreSQL. Les adresses demandées y sont pseudonymisées par HMAC ; aucun mot
+  de passe, jeton ou contenu d’e-mail n’est journalisé.
+- Notifications e-mail françaises et liens construits depuis `FRONTEND_URL` ;
+  purge des jetons expirés planifiée toutes les quinze minutes.
+- Validation : suite backend SQLite complète, 351 tests dont 348 réussis,
+  1 564 assertions et 3 skips attendus ; PHPStan niveau 8 et Pint réussis.
+  Vérification PostgreSQL ciblée : 26 tests et 153 assertions. Frontend :
+  24 tests Vitest, lint et build réussis.
+- Les bases PostgreSQL temporaires `ucg_iam001_verify_20261010` et
+  `ucg_iam001_verify_final_20261010` ont été supprimées.
+  La migration IAM-001 n’a pas été appliquée à la base principale et la CI après
+  push reste à confirmer.
 
 ## Documents de référence
 

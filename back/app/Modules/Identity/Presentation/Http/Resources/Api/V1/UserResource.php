@@ -20,6 +20,7 @@ class UserResource extends ApiResource
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,
+            'email_verified' => $this->hasVerifiedEmail(),
         ];
     }
 }

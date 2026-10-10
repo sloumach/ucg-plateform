@@ -80,12 +80,7 @@ final readonly class ApiExceptionRenderer
                 code: $exception->errorCode(),
                 status: 422,
             ),
-            $exception instanceof ThrottleRequestsException => $this->responses->error(
-                request: $request,
-                message: __('api.errors.rate_limit_exceeded'),
-                code: ApiErrorCode::RateLimitExceeded,
-                status: 429,
-            ),
+            $exception instanceof ThrottleRequestsException => $this->renderThrottle($exception, $request),
             $exception instanceof TokenMismatchException => $this->responses->error(
                 request: $request,
                 message: __('api.errors.csrf_token_mismatch'),
@@ -100,6 +95,16 @@ final readonly class ApiExceptionRenderer
                 status: 500,
             ),
         };
+    }
+
+    private function renderThrottle(ThrottleRequestsException $exception, Request $request): JsonResponse
+    {
+        return $this->responses->error(
+            request: $request,
+            message: __('api.errors.rate_limit_exceeded'),
+            code: ApiErrorCode::RateLimitExceeded,
+            status: 429,
+        )->withHeaders($exception->getHeaders());
     }
 
     private function renderHttpException(HttpExceptionInterface $exception, Request $request): JsonResponse

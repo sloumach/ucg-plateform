@@ -15,6 +15,8 @@ Schedule::command('horizon:snapshot')
     ->withoutOverlapping()
     ->when(static fn (): bool => config('horizon.metrics_enabled') === true);
 
+Schedule::command('auth:clear-resets')->everyFifteenMinutes()->withoutOverlapping();
+
 $tenantTasks = app(TenantScheduleRegistry::class)->names();
 if ($tenantTasks !== []) {
     // Refuse local/failover stores before registering distributed scheduler guards.

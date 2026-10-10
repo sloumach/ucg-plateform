@@ -135,6 +135,7 @@ tenant-owned par défaut, jamais globale par convention de nommage.
 | Tables exemptées | Motif et limites |
 | --- | --- |
 | `users`, `password_reset_tokens`, `personal_access_tokens` | Identité et authentification du compte global ; aucun droit métier implicite |
+| `identity_security_events` | Journal append-only des événements de sécurité du compte global ; accès opérateur uniquement |
 | `organizations` | Racine du tenant : `id` identifie l’organisation ; ce registre ne donne aucun droit de lecture globale |
 | `sessions` | Transport de session du compte ; la sélection ne constitue pas une autorisation |
 | `cache`, `cache_locks` | Transport partagé ; clés tenant et verrous atomiques via les ports TEN-005 |

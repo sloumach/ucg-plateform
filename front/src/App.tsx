@@ -1,15 +1,10 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
-import {
-  getCurrentUser,
-  login,
-  logout,
-  type AuthenticatedUser,
-} from './api/auth'
-import type { ApiFieldErrors } from './api/contracts'
+import { useEffect, useState } from 'react'
+import { getCurrentUser, logout, type AuthenticatedUser } from './api/auth'
 import { ApiClientError, isAbortError } from './api/errors'
 import { getSystemStatus, type SystemStatus } from './api/systemStatus'
 import { Button } from './components/Button'
-import { FormField } from './components/FormField'
+import { AccountSecurityPanel } from './components/auth/AccountSecurityPanel'
+import { GuestAuthenticationForms } from './components/auth/GuestAuthenticationForms'
 import { Alert } from './components/feedback/Alert'
 import { AsyncState } from './components/feedback/AsyncState'
 import { NotificationProvider } from './components/feedback/NotificationProvider'
@@ -44,10 +39,7 @@ function Application() {
   const [activeTenant, setActiveTenant] = useState<ActiveOrganization['context']>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [sessionError, setSessionError] = useState<ApiClientError | null>(null)
-  const [formError, setFormError] = useState<ApiClientError | null>(null)
-  const [fieldErrors, setFieldErrors] = useState<ApiFieldErrors>({})
   const [submitting, setSubmitting] = useState(false)
-  const loginForm = useRef<HTMLFormElement>(null)
   const { notify } = useNotifications()
 
   useEffect(() => {
@@ -96,49 +88,6 @@ function Application() {
     return () => controller.abort()
   }, [])
 
-  useEffect(() => {
-    const firstInvalidField = Object.keys(fieldErrors)[0]
-
-    if (!firstInvalidField) {
-      return
-    }
-
-    const control = loginForm.current?.elements.namedItem(firstInvalidField)
-
-    if (control instanceof HTMLElement) {
-      control.focus()
-    }
-  }, [fieldErrors])
-
-  async function handleLogin(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setSubmitting(true)
-    setFormError(null)
-    setFieldErrors({})
-
-    const form = new FormData(event.currentTarget)
-
-    try {
-      const authenticatedUser = await login(
-        String(form.get('email') ?? ''),
-        String(form.get('password') ?? ''),
-      )
-
-      setUser(authenticatedUser)
-      notify({ type: 'success', message: t('auth.loginSucceeded') })
-    } catch (error) {
-      const apiError =
-        error instanceof ApiClientError
-          ? error
-          : new ApiClientError(t('auth.loginUnavailable'))
-
-      setFieldErrors(apiError.fieldErrors)
-      setFormError(apiError)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
   async function handleLogout() {
     setSubmitting(true)
 
@@ -161,23 +110,6 @@ function Application() {
       })
     } finally {
       setSubmitting(false)
-    }
-  }
-
-  function clearFieldError(field: string) {
-    setFieldErrors((current) => {
-      if (!current[field]) {
-        return current
-      }
-
-      const next = { ...current }
-      delete next[field]
-
-      return next
-    })
-
-    if (formError?.code === 'VALIDATION_FAILED') {
-      setFormError(null)
     }
   }
 
@@ -302,6 +234,7 @@ function Application() {
                 <div className="mt-8">
                   <Alert tone="success" title={t('auth.sessionDescription')} />
                 </div>
+                <AccountSecurityPanel user={user} />
                 <Button
                   onClick={() => void handleLogout()}
                   isLoading={submitting}
@@ -312,73 +245,10 @@ function Application() {
                 </Button>
               </div>
             ) : (
-              <form
-                ref={loginForm}
-                noValidate
-                aria-busy={submitting}
-                onSubmit={(event) => void handleLogin(event)}
-                className="grid gap-5"
-              >
-                <div>
-                  <p className="text-sm font-semibold tracking-[0.18em] text-cyan-300 uppercase">
-                    {t('auth.secureArea')}
-                  </p>
-                  <h2 className="mt-3 text-3xl font-black">{t('auth.loginTitle')}</h2>
-                  <p className="mt-3 text-sm leading-6 text-slate-400">
-                    {t('auth.loginDescription')}
-                  </p>
-                </div>
-
-                {sessionError && (
-                  <Alert
-                    tone="warning"
-                    title={t('auth.sessionUnavailableTitle')}
-                    requestId={sessionError.requestId}
-                  >
-                    {sessionError.message}
-                  </Alert>
-                )}
-
-                {formError && (
-                  <Alert
-                    tone="error"
-                    title={formError.message}
-                    requestId={formError.requestId}
-                  />
-                )}
-
-                <FormField
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  label={t('auth.emailLabel')}
-                  error={fieldErrors.email?.[0]}
-                  onChange={() => clearFieldError('email')}
-                />
-
-                <FormField
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  label={t('auth.passwordLabel')}
-                  error={fieldErrors.password?.[0]}
-                  onChange={() => clearFieldError('password')}
-                />
-
-                <Button
-                  type="submit"
-                  variant="primary"
-                  isLoading={submitting}
-                  loadingLabel={t('auth.submitting')}
-                  className="mt-2 w-full font-black"
-                >
-                  {t('auth.submit')}
-                </Button>
-              </form>
+              <GuestAuthenticationForms
+                onAuthenticated={setUser}
+                sessionError={sessionError}
+              />
             )}
           </aside>
         </section>
