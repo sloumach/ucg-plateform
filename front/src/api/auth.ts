@@ -1,12 +1,16 @@
 import { t } from '../i18n/fr'
 import type { ApiNotification, ApiSuccessResponse } from './contracts'
 import { apiClientErrorFromResponse } from './errors'
+import type { MfaStatus } from './mfa'
+
+export const AUTH_SESSION_CHANGED_EVENT = 'ucg:auth-session-changed'
 
 export type AuthenticatedUser = {
   id: number
   name: string
   email: string
   email_verified: boolean
+  mfa: MfaStatus
 }
 
 const apiBaseUrl =

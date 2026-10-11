@@ -47,13 +47,26 @@ describe('App', () => {
     })
   })
 
+  it('bloque l’espace organisation tant que le MFA privilégié reste en attente', async () => {
+    getCurrentUserMock.mockResolvedValue({
+      id: 42, name: 'Admin', email: 'admin@ucg.test', email_verified: true,
+      mfa: { required: true, enabled: true, verified: false },
+    })
+
+    render(<App />)
+
+    expect(await screen.findByLabelText('Code de l’application (6 chiffres)')).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Mes organisations' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Déconnecter les autres appareils' })).not.toBeInTheDocument()
+  })
+
   it('affiche le statut de la plateforme et permet de se connecter', async () => {
     const user = userEvent.setup()
     loginMock.mockResolvedValue({
       id: 42,
       name: 'UCG Admin',
       email: 'admin@ucg.test',
-      email_verified: true,
+      email_verified: true, mfa: { required: false, enabled: false, verified: false },
     })
 
     render(<App />)
@@ -76,7 +89,7 @@ describe('App', () => {
       id: 42,
       name: 'UCG Admin',
       email: 'admin@ucg.test',
-      email_verified: true,
+      email_verified: true, mfa: { required: false, enabled: false, verified: false },
     })
     logoutMock.mockResolvedValue({
       type: 'success',

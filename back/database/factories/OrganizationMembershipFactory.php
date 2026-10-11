@@ -29,4 +29,9 @@ class OrganizationMembershipFactory extends Factory
     {
         return $this->state(fn (): array => ['roles' => ['administrator']]);
     }
+
+    public function withMfaAccount(): static
+    {
+        return $this->state(fn (): array => ['user_id' => User::factory()->withMfa()]);
+    }
 }

@@ -41,7 +41,7 @@ class OrganizationMaintenanceTest extends TestCase
     public function test_default_purge_is_read_only_and_execute_without_policy_preserves_everything(): void
     {
         Storage::fake('local');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         $context = app(TenantResolver::class)->resolve($organization->id, '', $organization->owner_user_id, (string) Str::uuid());
         $file = app(TenantArtifacts::class)->store($context, 'keep.txt', 'keep');
         $this->archive($organization);
@@ -64,10 +64,10 @@ class OrganizationMaintenanceTest extends TestCase
     {
         $this->freezeTime();
         Storage::fake('local');
-        $owner = User::factory()->create();
-        $first = Organization::factory()->recycle($owner)->create();
-        $second = Organization::factory()->recycle($owner)->create();
-        OrganizationMembership::factory()->for($first)->create();
+        $owner = User::factory()->withMfa()->create();
+        $first = Organization::factory()->withMfaOwner()->recycle($owner)->create();
+        $second = Organization::factory()->withMfaOwner()->recycle($owner)->create();
+        OrganizationMembership::factory()->withMfaAccount()->for($first)->create();
         $resolver = app(TenantResolver::class);
         $files = app(TenantArtifacts::class);
         $a = $files->store($resolver->resolve($first->id, '', $owner->id, (string) Str::uuid()), 'same.txt', 'first');
@@ -113,7 +113,7 @@ class OrganizationMaintenanceTest extends TestCase
     {
         $this->freezeTime();
         Storage::fake('local');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         $this->archive($organization);
         $export = $this->export($organization);
         $policy = $this->policy($organization);
@@ -145,7 +145,7 @@ class OrganizationMaintenanceTest extends TestCase
     public function test_purge_requires_matching_confirmation_and_archived_status(): void
     {
         Storage::fake('local');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         $export = $this->export($organization);
         $this->policy($organization);
 
@@ -169,11 +169,11 @@ class OrganizationMaintenanceTest extends TestCase
     public function test_recovery_returns_to_suspended_with_audit_without_rewriting_data_or_touching_other_tenant(): void
     {
         Storage::fake('local');
-        $organization = Organization::factory()->create();
-        $other = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
+        $other = Organization::factory()->withMfaOwner()->create();
         $file = app(TenantArtifacts::class)->store(app(TenantResolver::class)->resolve($organization->id, '',
             $organization->owner_user_id, (string) Str::uuid()), 'preserved.txt', 'unchanged');
-        OrganizationMembership::factory()->for($organization)->create();
+        OrganizationMembership::factory()->withMfaAccount()->for($organization)->create();
         $this->archive($organization);
         $export = $this->export($organization);
         $memberships = DB::table('organization_memberships')->orderBy('id')->get()->map(fn ($row) => (array) $row)->all();
@@ -193,7 +193,7 @@ class OrganizationMaintenanceTest extends TestCase
     public function test_export_generated_before_archiving_cannot_authorize_purge(): void
     {
         Storage::fake('local');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         $export = $this->export($organization);
         $this->archive($organization);
         $this->policy($organization);
@@ -213,7 +213,7 @@ class OrganizationMaintenanceTest extends TestCase
     {
         $this->freezeTime();
         Storage::fake('local');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         $context = app(TenantResolver::class)->resolve($organization->id, '', $organization->owner_user_id, (string) Str::uuid());
         for ($index = 0; $index < 101; $index++) {
             app(TenantArtifacts::class)->store($context, 'file.txt', 'x');
@@ -256,7 +256,7 @@ class OrganizationMaintenanceTest extends TestCase
     {
         $this->freezeTime();
         Storage::fake('local');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         $file = app(TenantArtifacts::class)->store(app(TenantResolver::class)->resolve($organization->id, '',
             $organization->owner_user_id, (string) Str::uuid()), 'keep.txt', 'keep');
         $this->archive($organization);
@@ -291,10 +291,10 @@ class OrganizationMaintenanceTest extends TestCase
     public function test_recovery_refuses_owner_exclusivity_conflict_without_status_or_audit_change(): void
     {
         Storage::fake('local');
-        $owner = User::factory()->create();
-        $organization = Organization::factory()->recycle($owner)->create();
+        $owner = User::factory()->withMfa()->create();
+        $organization = Organization::factory()->withMfaOwner()->recycle($owner)->create();
         $this->archive($organization);
-        Organization::factory()->recycle($owner)->create();
+        Organization::factory()->withMfaOwner()->recycle($owner)->create();
         $export = $this->export($organization);
         config(['tenancy.allow_multiple_organizations' => false]);
 
@@ -313,7 +313,7 @@ class OrganizationMaintenanceTest extends TestCase
     public function test_recovery_refuses_an_organization_after_any_purge_has_started(): void
     {
         Storage::fake('local');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         $this->archive($organization);
         $export = $this->export($organization);
         $policy = $this->policy($organization);
@@ -328,8 +328,8 @@ class OrganizationMaintenanceTest extends TestCase
     public function test_operation_identity_and_history_remain_protected_by_database(): void
     {
         Storage::fake('local');
-        $organization = Organization::factory()->create();
-        $other = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
+        $other = Organization::factory()->withMfaOwner()->create();
         $export = $this->export($organization);
         foreach ([
             fn () => DB::table('tenant_portability_operations')->where('id', $export->id)->update(['organization_id' => $other->id]),

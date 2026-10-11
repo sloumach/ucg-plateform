@@ -1,6 +1,26 @@
 <?php
 
 return [
+    'mfa' => [
+        'password_string' => 'Le mot de passe doit être du texte.',
+        'password_max' => 'Le mot de passe ne peut pas dépasser :max caractères.',
+        'code_required' => 'Saisissez un code de l’application ou un code de récupération.',
+        'one_factor' => 'Utilisez un seul type de code à la fois.',
+        'authenticator_required' => 'Confirmez l’activation avec un code de l’application.',
+        'verify_email' => 'Vérifiez votre adresse e-mail avant d’activer le MFA.',
+        'enrollment_expired' => 'L’activation a expiré. Recommencez avec votre mot de passe.',
+        'enrollment_required' => 'Activez le MFA pour accéder aux fonctions de ce compte.',
+        'challenge_required' => 'Saisissez un code MFA pour poursuivre.',
+        'invalid_code' => 'Le code est invalide, expiré ou déjà utilisé.',
+        'cannot_disable' => 'Le MFA est obligatoire pour les comptes privilégiés.',
+        'notifications' => [
+            'enrollment_started' => 'Ajoutez ce compte à votre application d’authentification.',
+            'enabled' => 'Le MFA est activé. Conservez vos codes de récupération en lieu sûr.',
+            'verified' => 'Vérification MFA réussie.',
+            'recovery_regenerated' => 'Les anciens codes de récupération et les autres sessions ont été révoqués.',
+            'disabled' => 'Le MFA a été désactivé. Les autres sessions ont été révoquées.',
+        ],
+    ],
     'login' => [
         'email' => [
             'required' => 'L’adresse e-mail est obligatoire.',

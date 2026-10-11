@@ -21,18 +21,19 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\Jobs\StoreTenantArtifact;
 use Tests\TestCase;
 
 class TenantContextTest extends TestCase
 {
-    use LazilyRefreshDatabase;
+    use AuthenticatesWithMfa, LazilyRefreshDatabase;
 
     public function test_resolves_an_immutable_context_from_the_authenticated_route(): void
     {
         $owner = User::factory()->create();
         $organization = Organization::factory()->create(['owner_user_id' => $owner->id, 'timezone' => 'Africa/Tunis']);
-        $response = $this->actingAs($owner)->getJson('/api/v1/tenants/'.$organization->id.'/context');
+        $response = $this->actingAsWithMfa($owner)->getJson('/api/v1/tenants/'.$organization->id.'/context');
         $response->assertOk()->assertExactJson([
             'data' => [
                 'organization_id' => $organization->id, 'actor_user_id' => $owner->id,
@@ -67,7 +68,7 @@ class TenantContextTest extends TestCase
             'unknown' => (string) Str::uuid(),
             default => 'not-an-organization',
         };
-        $this->actingAs($owner)->getJson('/api/v1/tenants/'.$id.'/context')
+        $this->actingAsWithMfa($owner)->getJson('/api/v1/tenants/'.$id.'/context')
             ->assertNotFound()->assertJsonPath('code', 'RESOURCE_NOT_FOUND')
             ->assertJsonPath('message', __('api.errors.resource_not_found'))
             ->assertJsonMissing(['organization_id' => $foreign->id]);
@@ -78,7 +79,7 @@ class TenantContextTest extends TestCase
     {
         $owner = User::factory()->create();
         $organization = Organization::factory()->create(['owner_user_id' => $owner->id]);
-        $this->actingAs($owner)->json('GET', '/api/v1/tenant/context?tenant='.$organization->id.'&organization_id='.$organization->id,
+        $this->actingAsWithMfa($owner)->json('GET', '/api/v1/tenant/context?tenant='.$organization->id.'&organization_id='.$organization->id,
             ['tenant' => $organization->id, 'organization_id' => $organization->id],
             ['X-Tenant-ID' => $organization->id, 'X-Organization-ID' => $organization->id])
             ->assertUnprocessable()->assertJsonPath('code', 'TENANT_CONTEXT_REQUIRED')
@@ -92,7 +93,7 @@ class TenantContextTest extends TestCase
         $owner = User::factory()->create();
         $organization = Organization::factory()->create(['owner_user_id' => $owner->id]);
         config(['tenancy.approved_domains' => ['ucg.example.test' => $organization->id]]);
-        $this->actingAs($owner)->getJson('https://UCG.example.test/api/v1/tenant/context')
+        $this->actingAsWithMfa($owner)->getJson('https://UCG.example.test/api/v1/tenant/context')
             ->assertOk()->assertJsonPath('data.organization_id', $organization->id)
             ->assertJsonPath('data.actor_user_id', $owner->id);
         $this->assertNoContext();
@@ -110,7 +111,7 @@ class TenantContextTest extends TestCase
         $owner = User::factory()->create();
         $organization = Organization::factory()->create(['owner_user_id' => $owner->id]);
         config(['tenancy.approved_domains' => ['ucg.example.test' => $organization->id, '*.example.test' => $organization->id]]);
-        $this->actingAs($owner)->getJson('https://'.$host.'/api/v1/tenant/context', [
+        $this->actingAsWithMfa($owner)->getJson('https://'.$host.'/api/v1/tenant/context', [
             'X-Forwarded-Host' => 'ucg.example.test', 'X-Tenant-ID' => $organization->id,
         ])->assertUnprocessable()->assertJsonPath('code', 'TENANT_CONTEXT_REQUIRED');
         $this->assertNoContext();
@@ -120,7 +121,7 @@ class TenantContextTest extends TestCase
     {
         $organization = Organization::factory()->create();
         config(['tenancy.approved_domains' => ['ucg.example.test' => $organization->id]]);
-        $this->actingAs(User::factory()->create())->getJson('https://ucg.example.test/api/v1/tenant/context')
+        $this->actingAsWithMfa(User::factory()->create())->getJson('https://ucg.example.test/api/v1/tenant/context')
             ->assertNotFound()->assertJsonPath('code', 'RESOURCE_NOT_FOUND');
     }
 
@@ -129,7 +130,7 @@ class TenantContextTest extends TestCase
         $owner = User::factory()->create();
         $organization = Organization::factory()->create(['owner_user_id' => $owner->id]);
         Gate::before(fn (): bool => false);
-        $this->actingAs($owner)->getJson('/api/v1/tenants/'.$organization->id.'/context')
+        $this->actingAsWithMfa($owner)->getJson('/api/v1/tenants/'.$organization->id.'/context')
             ->assertForbidden()->assertJsonPath('code', 'AUTHORIZATION_DENIED');
         $this->assertNoContext();
     }
@@ -139,7 +140,7 @@ class TenantContextTest extends TestCase
         $owner = User::factory()->create();
         $organization = Organization::factory()->create(['owner_user_id' => $owner->id]);
         config(['tenancy.approved_domains' => 'untrusted']);
-        $this->actingAs($owner)->getJson('/api/v1/tenants/'.$organization->id.'/context')
+        $this->actingAsWithMfa($owner)->getJson('/api/v1/tenants/'.$organization->id.'/context')
             ->assertNotFound()->assertJsonPath('code', 'RESOURCE_NOT_FOUND');
         $this->assertNoContext();
     }
@@ -156,7 +157,7 @@ class TenantContextTest extends TestCase
         $owner = User::factory()->create();
         $organization = Organization::factory()->create(['owner_user_id' => $owner->id]);
         config(['tenancy.approved_domains' => ['ucg.example.test' => $approval]]);
-        $this->actingAs($owner)->getJson('https://ucg.example.test/api/v1/tenants/'.$organization->id.'/context')
+        $this->actingAsWithMfa($owner)->getJson('https://ucg.example.test/api/v1/tenants/'.$organization->id.'/context')
             ->assertNotFound()->assertJsonPath('code', 'RESOURCE_NOT_FOUND');
     }
 
@@ -166,7 +167,7 @@ class TenantContextTest extends TestCase
         $first = Organization::factory()->create(['owner_user_id' => $owner->id]);
         $second = Organization::factory()->create(['owner_user_id' => $owner->id]);
         config(['tenancy.approved_domains' => ['ucg.example.test' => $first->id]]);
-        $this->actingAs($owner)->getJson('https://ucg.example.test/api/v1/tenants/'.$second->id.'/context')
+        $this->actingAsWithMfa($owner)->getJson('https://ucg.example.test/api/v1/tenants/'.$second->id.'/context')
             ->assertNotFound()->assertJsonPath('code', 'RESOURCE_NOT_FOUND');
         $this->getJson('https://ucg.example.test/api/v1/tenants/'.$first->id.'/context')
             ->assertOk()->assertJsonPath('data.organization_id', $first->id);
@@ -183,7 +184,7 @@ class TenantContextTest extends TestCase
     {
         $owner = User::factory()->create();
         $organization = Organization::factory()->create(['owner_user_id' => $owner->id, 'status' => $status]);
-        $this->actingAs($owner)->getJson('/api/v1/tenants/'.$organization->id.'/context')
+        $this->actingAsWithMfa($owner)->getJson('/api/v1/tenants/'.$organization->id.'/context')
             ->assertConflict()->assertJsonPath('code', 'ORGANIZATION_INACTIVE')
             ->assertJsonPath('message', 'Cette organisation n’est pas active. Les modifications ordinaires sont désactivées.');
         $this->getJson('/api/v1/organizations/'.$organization->id)->assertOk()->assertJsonPath('data.status', $status->value);
@@ -206,12 +207,12 @@ class TenantContextTest extends TestCase
 
                 return response()->json(['organization_id' => $context->organizationId, 'request_id' => $context->requestId]);
             });
-        $firstResponse = $this->actingAs($owner)->getJson('/api/v1/tenants/'.$first->id.'/context-probe')
+        $firstResponse = $this->actingAsWithMfa($owner)->getJson('/api/v1/tenants/'.$first->id.'/context-probe')
             ->assertOk()->assertJsonPath('organization_id', $first->id);
         $this->assertNoContext();
         $this->getJson('/api/v1/tenants/'.$first->id.'/context-probe?fail=1')->assertConflict();
         $this->assertNoContext();
-        $secondResponse = $this->actingAs($otherOwner)->getJson('/api/v1/tenants/'.$second->id.'/context-probe')
+        $secondResponse = $this->actingAsWithMfa($otherOwner)->getJson('/api/v1/tenants/'.$second->id.'/context-probe')
             ->assertOk()->assertJsonPath('organization_id', $second->id);
         $this->assertNotSame($firstResponse->json('request_id'), $secondResponse->json('request_id'));
         $this->assertNoContext();
@@ -237,7 +238,7 @@ class TenantContextTest extends TestCase
         });
         Route::middleware(['api', 'auth:sanctum', 'tenant'])
             ->get('api/v1/tenants/{tenant}/binding-probe/{context_resource}', fn (): JsonResponse => response()->json(['bound' => true]));
-        $this->actingAs($owner)->getJson('/api/v1/tenants/'.$foreign->id.'/binding-probe/'.$foreign->id)->assertNotFound();
+        $this->actingAsWithMfa($owner)->getJson('/api/v1/tenants/'.$foreign->id.'/binding-probe/'.$foreign->id)->assertNotFound();
         $this->assertFalse($binding->reached);
         $this->getJson('/api/v1/tenants/'.$first->id.'/binding-probe/'.$second->id)->assertNotFound();
         $this->assertTrue($binding->reached);
@@ -250,7 +251,7 @@ class TenantContextTest extends TestCase
         $owner = User::factory()->create();
         $first = Organization::factory()->create(['owner_user_id' => $owner->id]);
         $second = Organization::factory()->create(['owner_user_id' => $owner->id]);
-        $this->actingAs($owner)->putJson('/api/v1/organizations/'.$first->id.'?tenant='.$second->id, [
+        $this->actingAsWithMfa($owner)->putJson('/api/v1/organizations/'.$first->id.'?tenant='.$second->id, [
             'name' => 'Paramètres autorisés', 'timezone' => 'UTC', 'language' => 'fr', 'country' => 'FR',
             'settings' => ['week_starts_on' => 7, 'date_format' => 'Y-m-d'],
         ], ['X-Tenant-ID' => $second->id])->assertOk()->assertJsonPath('data.id', $first->id);
@@ -263,7 +264,7 @@ class TenantContextTest extends TestCase
 
     public function test_service_rechecks_status_under_lock_instead_of_trusting_a_stale_snapshot(): void
     {
-        $owner = User::factory()->create();
+        $owner = User::factory()->withMfa()->create();
         $organization = Organization::factory()->create(['owner_user_id' => $owner->id]);
         $context = app(TenantResolver::class)->resolve($organization->id, 'localhost', $owner->id, (string) Str::uuid());
         $organization->status = OrganizationStatus::Suspended;
@@ -299,7 +300,7 @@ class TenantContextTest extends TestCase
         $context = app(TenantResolver::class)->resolve($first->id, 'localhost', $owner->id, $requestId);
         $job = unserialize(serialize(new StoreTenantArtifact($context->toJobContext(), 'exports/probe.txt', 'Tenant A')));
         $this->assertInstanceOf(StoreTenantArtifact::class, $job);
-        $this->actingAs($owner)->getJson('/api/v1/tenants/'.$second->id.'/context')->assertOk();
+        $this->actingAsWithMfa($owner)->getJson('/api/v1/tenants/'.$second->id.'/context')->assertOk();
         Storage::fake('local');
         $job->handle(app(ArtifactStorage::class));
         Storage::disk('local')->assertExists('tenants/'.$first->id.'/exports/probe.txt');

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { getCurrentUser, logout, type AuthenticatedUser } from './api/auth'
+import { AUTH_SESSION_CHANGED_EVENT, getCurrentUser, logout, type AuthenticatedUser } from './api/auth'
 import { ApiClientError, isAbortError } from './api/errors'
 import { getSystemStatus, type SystemStatus } from './api/systemStatus'
 import { Button } from './components/Button'
 import { AccountSecurityPanel } from './components/auth/AccountSecurityPanel'
 import { GuestAuthenticationForms } from './components/auth/GuestAuthenticationForms'
+import { MfaPanel } from './components/auth/MfaPanel'
 import { Alert } from './components/feedback/Alert'
 import { AsyncState } from './components/feedback/AsyncState'
 import { NotificationProvider } from './components/feedback/NotificationProvider'
@@ -41,6 +42,37 @@ function Application() {
   const [sessionError, setSessionError] = useState<ApiClientError | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const { notify } = useNotifications()
+  const mfaPending = user !== null && (user.mfa.required || user.mfa.enabled) && !user.mfa.verified
+  const userId = user?.id
+
+  function updateAccount(account: AuthenticatedUser | null) {
+    setUser((current) => current !== null && (account === null || account.id === current.id) ? account : current)
+    if (account === null || ((account.mfa.required || account.mfa.enabled) && !account.mfa.verified)) setActiveTenant(null)
+  }
+
+  useEffect(() => {
+    if (userId === undefined) return
+    const controller = new AbortController()
+    async function refreshAccount() {
+      try {
+        const account = await getCurrentUser(controller.signal)
+        if (!controller.signal.aborted) updateAccount(account)
+      } catch (error) {
+        if (!controller.signal.aborted && !isAbortError(error)) {
+          setSessionError(error instanceof ApiClientError ? error : new ApiClientError(t('auth.sessionUnavailableMessage')))
+          setUser(null)
+          setActiveTenant(null)
+        }
+      }
+    }
+    window.addEventListener(AUTH_SESSION_CHANGED_EVENT, refreshAccount)
+    window.addEventListener('focus', refreshAccount)
+    return () => {
+      controller.abort()
+      window.removeEventListener(AUTH_SESSION_CHANGED_EVENT, refreshAccount)
+      window.removeEventListener('focus', refreshAccount)
+    }
+  }, [userId])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -232,9 +264,10 @@ function Application() {
                 </h2>
                 <p className="mt-3 text-slate-400">{user.email}</p>
                 <div className="mt-8">
-                  <Alert tone="success" title={t('auth.sessionDescription')} />
+                  <Alert tone={mfaPending ? 'warning' : 'success'} title={t(mfaPending ? 'mfa.challengeRequired' : 'auth.sessionDescription')} />
                 </div>
                 <AccountSecurityPanel user={user} />
+                <MfaPanel key={user.id} user={user} onUserChanged={updateAccount} />
                 <Button
                   onClick={() => void handleLogout()}
                   isLoading={submitting}
@@ -252,7 +285,7 @@ function Application() {
             )}
           </aside>
         </section>
-        {user && <TenantWorkspace key={user.id} onContextChange={setActiveTenant} />}
+        {user && !mfaPending && <TenantWorkspace key={user.id} onContextChange={setActiveTenant} />}
       </div>
     </main>
   )

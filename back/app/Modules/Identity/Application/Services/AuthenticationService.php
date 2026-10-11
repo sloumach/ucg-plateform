@@ -19,6 +19,7 @@ final readonly class AuthenticationService
         private SessionGuard $guard,
         private SecurityAuditService $audit,
         private ConnectionInterface $database,
+        private MfaSession $mfa,
     ) {}
 
     /** @throws InvalidCredentialsException */
@@ -39,7 +40,9 @@ final readonly class AuthenticationService
 
         $this->audit->record(SecurityEventAction::LoginSucceeded, $request, $user);
         $this->guard->login($user);
+        $this->mfa->forget($request);
         $request->session()->regenerate();
+        $this->mfa->bind($user, $request);
 
         return $user;
     }
@@ -58,9 +61,22 @@ final readonly class AuthenticationService
 
     public function revokeOtherSessions(User $user, string $password, Request $request): void
     {
+        $verified = $this->mfa->verified($user, $request);
         $this->database->transaction(function () use ($user, $password, $request): void {
             $this->guard->logoutOtherDevices($password);
             $this->audit->record(SecurityEventAction::OtherSessionsRevoked, $request, $user);
         });
+        $account = $user->refresh();
+        $this->guard->setUser($account);
+        $request->setUserResolver(static fn () => $account);
+        if (! $request->hasSession()) {
+            return;
+        }
+        $request->session()->put('password_hash_web', $this->guard->hashPasswordForCookie($account->password));
+        if ($verified) {
+            $this->mfa->verify($account, $request);
+        } else {
+            $this->mfa->bind($account, $request);
+        }
     }
 }

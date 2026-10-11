@@ -10,11 +10,12 @@ use App\Modules\Tenancy\Presentation\Support\ActiveOrganizationSession;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\TestCase;
 
 class ActiveOrganizationControllerTest extends TestCase
 {
-    use LazilyRefreshDatabase;
+    use AuthenticatesWithMfa, LazilyRefreshDatabase;
 
     protected function setUp(): void
     {
@@ -24,7 +25,7 @@ class ActiveOrganizationControllerTest extends TestCase
 
     public function test_empty_session_has_no_implicit_organization(): void
     {
-        $this->actingAs(User::factory()->create())->getJson('/api/v1/active-organization')->assertOk()
+        $this->actingAsWithMfa(User::factory()->create())->getJson('/api/v1/active-organization')->assertOk()
             ->assertJsonPath('data.context', null)->assertJsonPath('data.confirmed', false);
     }
 
@@ -32,7 +33,7 @@ class ActiveOrganizationControllerTest extends TestCase
     {
         $organization = Organization::factory()->create();
         $owner = User::query()->findOrFail($organization->owner_user_id);
-        $response = $this->actingAs($owner)->postJson('/api/v1/active-organization', ['organization_id' => $organization->id])
+        $response = $this->actingAsWithMfa($owner)->postJson('/api/v1/active-organization', ['organization_id' => $organization->id])
             ->assertOk()->assertJsonPath('data.context.organization_id', $organization->id)
             ->assertJsonPath('data.context.roles', ['owner'])->assertJsonPath('data.confirmed', false);
         $revision = $response->json('data.revision');
@@ -50,7 +51,7 @@ class ActiveOrganizationControllerTest extends TestCase
         $owner = User::factory()->create();
         $first = Organization::factory()->create(['owner_user_id' => $owner->id]);
         $second = Organization::factory()->create(['owner_user_id' => $owner->id]);
-        $revision = $this->actingAs($owner)->postJson('/api/v1/active-organization', ['organization_id' => $first->id])->assertOk()->json('data.revision');
+        $revision = $this->actingAsWithMfa($owner)->postJson('/api/v1/active-organization', ['organization_id' => $first->id])->assertOk()->json('data.revision');
         $this->postJson('/api/v1/active-organization/confirmation', ['organization_id' => $first->id, 'revision' => $revision, 'confirm' => true])->assertOk();
         $next = $this->postJson('/api/v1/active-organization', ['organization_id' => $second->id])->assertOk()->assertJsonPath('data.confirmed', false)->json('data.revision');
         $this->assertNotSame($revision, $next);
@@ -64,7 +65,7 @@ class ActiveOrganizationControllerTest extends TestCase
     {
         $organization = Organization::factory()->create();
         $other = Organization::factory()->create();
-        $this->actingAs(User::query()->findOrFail($organization->owner_user_id))->postJson('/api/v1/active-organization', ['organization_id' => $organization->id])->assertOk();
+        $this->actingAsWithMfa(User::query()->findOrFail($organization->owner_user_id))->postJson('/api/v1/active-organization', ['organization_id' => $organization->id])->assertOk();
         $this->postJson('/api/v1/active-organization', ['organization_id' => $other->id])->assertNotFound();
         $this->getJson('/api/v1/active-organization')->assertOk()->assertJsonPath('data.context.organization_id', $organization->id);
     }
@@ -72,7 +73,7 @@ class ActiveOrganizationControllerTest extends TestCase
     public function test_current_context_is_cleared_after_membership_revocation(): void
     {
         $membership = OrganizationMembership::factory()->administrator()->create();
-        $this->actingAs(User::query()->findOrFail($membership->user_id))->postJson('/api/v1/active-organization', ['organization_id' => $membership->organization_id])
+        $this->actingAsWithMfa(User::query()->findOrFail($membership->user_id))->postJson('/api/v1/active-organization', ['organization_id' => $membership->organization_id])
             ->assertOk()->assertJsonPath('data.context.roles', ['administrator']);
         $membership->forceFill(['status' => 'revoked'])->save();
         $this->getJson('/api/v1/active-organization')->assertOk()->assertJsonPath('data.context', null)->assertJsonPath('notification.type', 'warning');
@@ -84,7 +85,7 @@ class ActiveOrganizationControllerTest extends TestCase
         $user = User::factory()->create();
         $first = OrganizationMembership::factory()->administrator()->create(['user_id' => $user->id]);
         $second = OrganizationMembership::factory()->create(['user_id' => $user->id]);
-        $this->actingAs($user)->postJson('/api/v1/active-organization', ['organization_id' => $first->organization_id])
+        $this->actingAsWithMfa($user)->postJson('/api/v1/active-organization', ['organization_id' => $first->organization_id])
             ->assertOk()->assertJsonPath('data.context.permissions.2', 'memberships.manage');
         $this->postJson('/api/v1/active-organization', ['organization_id' => $second->organization_id])
             ->assertOk()->assertJsonPath('data.context.permissions', ['organization.view']);
@@ -92,7 +93,7 @@ class ActiveOrganizationControllerTest extends TestCase
 
     public function test_selection_and_confirmation_reject_invalid_identifiers_and_missing_consent(): void
     {
-        $this->actingAs(User::factory()->create())->postJson('/api/v1/active-organization', ['organization_id' => 'invalid'])->assertUnprocessable();
+        $this->actingAsWithMfa(User::factory()->create())->postJson('/api/v1/active-organization', ['organization_id' => 'invalid'])->assertUnprocessable();
         $this->postJson('/api/v1/active-organization/confirmation', ['organization_id' => (string) Str::uuid(), 'revision' => (string) Str::uuid()])
             ->assertUnprocessable()->assertJsonValidationErrors('confirm');
     }
@@ -103,7 +104,7 @@ class ActiveOrganizationControllerTest extends TestCase
         $first = OrganizationMembership::factory()->create(['user_id' => $user->id]);
         $second = OrganizationMembership::factory()->create(['user_id' => $user->id]);
         $invitation = OrganizationInvitation::factory()->create(['email' => $user->email]);
-        $oldRevision = $this->actingAs($user)->postJson('/api/v1/active-organization', ['organization_id' => $first->organization_id])->assertOk()->json('data.revision');
+        $oldRevision = $this->actingAsWithMfa($user)->postJson('/api/v1/active-organization', ['organization_id' => $first->organization_id])->assertOk()->json('data.revision');
         $this->postJson('/api/v1/active-organization', ['organization_id' => $second->organization_id])->assertOk();
         $this->withHeader('X-Tenant-Revision', $oldRevision)->deleteJson('/api/v1/my-memberships/'.$first->id, ['confirm' => true])
             ->assertConflict()->assertJsonPath('code', 'TENANT_CONTEXT_CHANGED');

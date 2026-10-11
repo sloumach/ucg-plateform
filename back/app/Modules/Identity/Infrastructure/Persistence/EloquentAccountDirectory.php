@@ -8,6 +8,12 @@ use Illuminate\Support\Str;
 
 final class EloquentAccountDirectory implements AccountDirectory
 {
+    public function hasConfirmedMfa(int $userId): bool
+    {
+        return User::query()->whereKey($userId)->whereNotNull('mfa_confirmed_at')
+            ->whereNotNull('mfa_secret')->whereNotNull('mfa_version')->exists();
+    }
+
     public function verifiedAccountExists(int $userId): bool
     {
         return User::query()->whereKey($userId)->whereNotNull('email_verified_at')->exists();

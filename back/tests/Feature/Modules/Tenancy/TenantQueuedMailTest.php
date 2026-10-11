@@ -27,7 +27,7 @@ class TenantQueuedMailTest extends TestCase
 
     public function test_notifier_captures_inviter_identity_in_the_serialized_mail_context(): void
     {
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         $invitation = OrganizationInvitation::factory()->create(['organization_id' => $organization->id, 'invited_by' => $organization->owner_user_id]);
         $requestId = (string) Str::uuid();
         Mail::fake();
@@ -41,7 +41,7 @@ class TenantQueuedMailTest extends TestCase
 
     public function test_actual_queued_mail_restores_tenant_before_calling_the_mail_transport(): void
     {
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         $context = app(TenantResolver::class)->resolve($organization->id, '', $organization->owner_user_id, (string) Str::uuid());
         $mail = new OrganizationInvitationMail($organization->name, 'https://example.test/', $context->toJobContext());
         $mail->onConnection('database')->to('recipient@example.test')->queue(app(QueueManager::class));
@@ -63,7 +63,7 @@ class TenantQueuedMailTest extends TestCase
 
     public function test_mail_queued_before_tenant_suspension_never_reaches_transport(): void
     {
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         $context = app(TenantResolver::class)->resolve($organization->id, '', $organization->owner_user_id, (string) Str::uuid());
         (new OrganizationInvitationMail($organization->name, 'https://example.test/', $context->toJobContext()))
             ->onConnection('database')->queue(app(QueueManager::class));
@@ -79,7 +79,7 @@ class TenantQueuedMailTest extends TestCase
 
     public function test_legacy_mail_without_actor_is_failed_closed_not_assumed_to_be_system_work(): void
     {
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         (new OrganizationInvitationMail($organization->name, 'https://example.test/', new JobContext((string) Str::uuid(), $organization->id)))
             ->onConnection('database')->queue(app(QueueManager::class));
         $this->mock(Factory::class)->shouldNotReceive('mailer');
@@ -92,7 +92,7 @@ class TenantQueuedMailTest extends TestCase
 
     public function test_role_downgrade_after_queueing_refuses_invitation_delivery(): void
     {
-        $membership = OrganizationMembership::factory()->administrator()->create();
+        $membership = OrganizationMembership::factory()->withMfaAccount()->administrator()->create();
         $context = app(TenantResolver::class)->resolve($membership->organization_id, '', $membership->user_id, (string) Str::uuid());
         (new OrganizationInvitationMail('Organisation', 'https://example.test/', $context->toJobContext()))
             ->onConnection('database')->queue(app(QueueManager::class));

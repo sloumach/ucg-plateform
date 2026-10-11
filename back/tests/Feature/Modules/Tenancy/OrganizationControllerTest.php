@@ -7,11 +7,12 @@ use App\Modules\Tenancy\Domain\Models\Organization;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\TestCase;
 
 class OrganizationControllerTest extends TestCase
 {
-    use LazilyRefreshDatabase;
+    use AuthenticatesWithMfa, LazilyRefreshDatabase;
 
     public function test_returns_401_without_authentication(): void
     {
@@ -24,7 +25,7 @@ class OrganizationControllerTest extends TestCase
         Organization::factory()->count(3)->create(['owner_user_id' => $owner->id]);
         Organization::factory()->create();
         DB::enableQueryLog();
-        $response = $this->actingAs($owner)->getJson('/api/v1/organizations?per_page=2');
+        $response = $this->actingAsWithMfa($owner)->getJson('/api/v1/organizations?per_page=2');
         $response->assertOk()->assertJsonCount(2, 'data')->assertJsonPath('meta.total', 3)->assertJsonPath('meta.per_page', 2)
             ->assertJsonStructure(['meta' => ['request_id'], 'data' => [['settings' => ['week_starts_on', 'date_format']]]]);
         $organizationQueries = array_filter(DB::getQueryLog(), fn (array $query): bool => str_contains($query['query'], '"organizations"') || str_contains($query['query'], '"organization_settings"'));
@@ -36,7 +37,7 @@ class OrganizationControllerTest extends TestCase
     {
         $organization = Organization::factory()->create();
         $other = User::factory()->create();
-        $this->actingAs($other)->getJson('/api/v1/organizations/'.$organization->id)->assertNotFound();
+        $this->actingAsWithMfa($other)->getJson('/api/v1/organizations/'.$organization->id)->assertNotFound();
         $this->putJson('/api/v1/organizations/'.$organization->id, $this->payload())->assertNotFound();
         $this->assertDatabaseHas('organizations', ['id' => $organization->id, 'name' => $organization->name]);
     }
@@ -45,7 +46,7 @@ class OrganizationControllerTest extends TestCase
     {
         $owner = User::factory()->create();
         $organization = Organization::factory()->create(['owner_user_id' => $owner->id]);
-        $this->actingAs($owner)->getJson('/api/v1/organizations/'.$organization->id)
+        $this->actingAsWithMfa($owner)->getJson('/api/v1/organizations/'.$organization->id)
             ->assertOk()->assertJsonPath('data.id', $organization->id);
         $this->putJson('/api/v1/organizations/'.$organization->id, $this->payload())
             ->assertOk()->assertJsonPath('data.name', 'Nom actualisé')
@@ -84,7 +85,7 @@ class OrganizationControllerTest extends TestCase
         $payload = $this->payload();
         data_set($payload, $field, $value);
         $errorField = $field === 'settings.extra' ? 'settings' : $field;
-        $response = $this->actingAs($owner)->putJson('/api/v1/organizations/'.$organization->id, $payload)
+        $response = $this->actingAsWithMfa($owner)->putJson('/api/v1/organizations/'.$organization->id, $payload)
             ->assertUnprocessable()->assertJsonValidationErrors($errorField);
         $this->assertSame($message, $response->json('errors')[$errorField][0]);
         $this->assertDatabaseHas('organizations', ['id' => $organization->id, 'name' => $organization->name, 'status' => 'active']);
@@ -95,7 +96,7 @@ class OrganizationControllerTest extends TestCase
     {
         $owner = User::factory()->create();
         $organization = Organization::factory()->suspended()->create(['owner_user_id' => $owner->id]);
-        $this->actingAs($owner)->putJson('/api/v1/organizations/'.$organization->id, $this->payload())
+        $this->actingAsWithMfa($owner)->putJson('/api/v1/organizations/'.$organization->id, $this->payload())
             ->assertConflict()->assertJsonPath('code', 'ORGANIZATION_INACTIVE');
         $this->assertDatabaseHas('organizations', ['id' => $organization->id, 'name' => $organization->name, 'status' => 'suspended']);
     }
@@ -103,7 +104,7 @@ class OrganizationControllerTest extends TestCase
     public function test_returns_422_for_unbounded_pagination_or_owner_filter_injection(): void
     {
         $owner = User::factory()->create();
-        $this->actingAs($owner)->getJson('/api/v1/organizations?per_page=101&page=0&owner_user_id=99')
+        $this->actingAsWithMfa($owner)->getJson('/api/v1/organizations?per_page=101&page=0&owner_user_id=99')
             ->assertUnprocessable()->assertJsonValidationErrors(['per_page', 'page', 'owner_user_id']);
     }
 

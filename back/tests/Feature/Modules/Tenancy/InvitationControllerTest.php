@@ -16,17 +16,18 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
+use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\TestCase;
 
 class InvitationControllerTest extends TestCase
 {
-    use LazilyRefreshDatabase;
+    use AuthenticatesWithMfa, LazilyRefreshDatabase;
 
     public function test_owner_invites_a_normalized_email_with_a_queued_mail_and_audit(): void
     {
         Mail::fake();
         $organization = Organization::factory()->create();
-        $this->actingAs(User::query()->findOrFail($organization->owner_user_id))
+        $this->actingAsWithMfa(User::query()->findOrFail($organization->owner_user_id))
             ->postJson('/api/v1/tenants/'.$organization->id.'/invitations', ['email' => ' NEW@example.test ', 'roles' => ['member']])
             ->assertCreated()->assertJsonPath('data.email', 'new@example.test')
             ->assertJsonPath('notification.type', 'success');
@@ -39,7 +40,7 @@ class InvitationControllerTest extends TestCase
     {
         $recipient = User::factory()->create();
         $invitation = OrganizationInvitation::factory()->create(['email' => $recipient->email]);
-        $this->actingAs($recipient)->putJson('/api/v1/my-invitations/'.$invitation->id, ['decision' => 'accepted', 'confirm' => true])
+        $this->actingAsWithMfa($recipient)->putJson('/api/v1/my-invitations/'.$invitation->id, ['decision' => 'accepted', 'confirm' => true])
             ->assertOk()->assertJsonPath('data.status', 'accepted')->assertJsonPath('notification.type', 'success');
         $this->assertDatabaseCount('users', 2);
         $this->assertDatabaseCount('organization_memberships', 1);
@@ -54,9 +55,9 @@ class InvitationControllerTest extends TestCase
     {
         $recipient = User::factory()->create();
         $invitation = OrganizationInvitation::factory()->create(['email' => $recipient->email]);
-        $this->actingAs($recipient)->putJson('/api/v1/my-invitations/'.$invitation->id, ['decision' => 'declined', 'confirm' => true])->assertOk();
+        $this->actingAsWithMfa($recipient)->putJson('/api/v1/my-invitations/'.$invitation->id, ['decision' => 'declined', 'confirm' => true])->assertOk();
         $other = OrganizationInvitation::factory()->create();
-        $this->actingAs(User::query()->findOrFail($other->invited_by))
+        $this->actingAsWithMfa(User::query()->findOrFail($other->invited_by))
             ->deleteJson('/api/v1/tenants/'.$other->organization_id.'/invitations/'.$other->id)
             ->assertOk()->assertJsonPath('data.status', 'revoked');
         $this->assertDatabaseCount('organization_invitations', 2);
@@ -81,7 +82,7 @@ class InvitationControllerTest extends TestCase
     {
         $recipient = User::factory()->create();
         $invitation = OrganizationInvitation::factory()->create(['email' => $recipient->email]);
-        $this->actingAs($recipient)->putJson('/api/v1/my-invitations/'.$invitation->id, $payload)->assertUnprocessable()->assertJsonValidationErrors($field);
+        $this->actingAsWithMfa($recipient)->putJson('/api/v1/my-invitations/'.$invitation->id, $payload)->assertUnprocessable()->assertJsonValidationErrors($field);
         $this->assertDatabaseCount('organization_memberships', 0);
         $this->assertDatabaseHas('organization_invitations', ['id' => $invitation->id, 'status' => 'pending']);
     }
@@ -90,10 +91,10 @@ class InvitationControllerTest extends TestCase
     {
         $invitation = OrganizationInvitation::factory()->create();
         $other = User::factory()->create();
-        $this->actingAs($other)->getJson('/api/v1/my-invitations')->assertOk()->assertJsonCount(0, 'data');
+        $this->actingAsWithMfa($other)->getJson('/api/v1/my-invitations')->assertOk()->assertJsonCount(0, 'data');
         $this->putJson('/api/v1/my-invitations/'.$invitation->id, ['decision' => 'accepted', 'confirm' => true])->assertNotFound();
         $unverified = User::factory()->unverified()->create(['email' => $invitation->email]);
-        $this->actingAs($unverified)->putJson('/api/v1/my-invitations/'.$invitation->id, ['decision' => 'accepted', 'confirm' => true])->assertNotFound();
+        $this->actingAsWithMfa($unverified)->putJson('/api/v1/my-invitations/'.$invitation->id, ['decision' => 'accepted', 'confirm' => true])->assertNotFound();
         $this->assertDatabaseCount('organization_memberships', 0);
     }
 
@@ -101,7 +102,7 @@ class InvitationControllerTest extends TestCase
     {
         $recipient = User::factory()->create();
         $invitation = OrganizationInvitation::factory()->create(['email' => $recipient->email, 'expires_at' => now()->subMinute()]);
-        $this->actingAs($recipient)->putJson('/api/v1/my-invitations/'.$invitation->id, ['decision' => 'accepted', 'confirm' => true])
+        $this->actingAsWithMfa($recipient)->putJson('/api/v1/my-invitations/'.$invitation->id, ['decision' => 'accepted', 'confirm' => true])
             ->assertConflict()->assertJsonPath('code', 'INVITATION_EXPIRED');
         $invitation->forceFill(['expires_at' => now()->addDay(), 'starts_at' => now()->subDays(2), 'ends_at' => now()->subDay()])->save();
         $this->putJson('/api/v1/my-invitations/'.$invitation->id, ['decision' => 'accepted', 'confirm' => true])
@@ -114,7 +115,7 @@ class InvitationControllerTest extends TestCase
     {
         Mail::fake();
         $invitation = OrganizationInvitation::factory()->create();
-        $this->actingAs(User::query()->findOrFail($invitation->invited_by));
+        $this->actingAsWithMfa(User::query()->findOrFail($invitation->invited_by));
         $url = '/api/v1/tenants/'.$invitation->organization_id.'/invitations';
         $payload = ['email' => $invitation->email, 'roles' => ['member']];
         $this->postJson($url, $payload)->assertConflict()->assertJsonPath('code', 'INVITATION_ALREADY_PENDING');
@@ -130,7 +131,7 @@ class InvitationControllerTest extends TestCase
     {
         $organization = Organization::factory()->create();
         $invitation = OrganizationInvitation::factory()->create();
-        $this->actingAs(User::query()->findOrFail($organization->owner_user_id))
+        $this->actingAsWithMfa(User::query()->findOrFail($organization->owner_user_id))
             ->deleteJson('/api/v1/tenants/'.$organization->id.'/invitations/'.$invitation->id)->assertNotFound();
         $this->assertDatabaseHas('organization_invitations', ['id' => $invitation->id, 'status' => 'pending']);
         $this->assertDatabaseCount('organization_access_events', 0);
@@ -142,7 +143,7 @@ class InvitationControllerTest extends TestCase
         OrganizationInvitation::factory()->count(3)->create(['email' => $recipient->email]);
         OrganizationInvitation::factory()->create();
         DB::enableQueryLog();
-        $this->actingAs($recipient)->getJson('/api/v1/my-invitations?per_page=2')->assertOk()
+        $this->actingAsWithMfa($recipient)->getJson('/api/v1/my-invitations?per_page=2')->assertOk()
             ->assertJsonCount(2, 'data')->assertJsonPath('meta.total', 3)->assertJsonStructure(['data' => [['organization_name']]]);
         $queries = array_filter(DB::getQueryLog(), fn (array $query): bool => str_contains($query['query'], '"organizations"'));
         DB::disableQueryLog();
@@ -154,7 +155,7 @@ class InvitationControllerTest extends TestCase
         $recipient = User::factory()->create();
         $membership = OrganizationMembership::factory()->suspended()->create(['user_id' => $recipient->id]);
         $invitation = OrganizationInvitation::factory()->create(['organization_id' => $membership->organization_id, 'email' => $recipient->email]);
-        $this->actingAs($recipient)->putJson('/api/v1/my-invitations/'.$invitation->id, ['decision' => 'accepted', 'confirm' => true])
+        $this->actingAsWithMfa($recipient)->putJson('/api/v1/my-invitations/'.$invitation->id, ['decision' => 'accepted', 'confirm' => true])
             ->assertConflict()->assertJsonPath('code', 'MEMBERSHIP_ALREADY_EXISTS');
         $this->assertDatabaseHas('organization_memberships', ['id' => $membership->id, 'status' => 'suspended']);
     }
@@ -163,7 +164,7 @@ class InvitationControllerTest extends TestCase
     {
         $organization = Organization::factory()->create();
         $this->mock(InvitationNotifier::class)->shouldReceive('notify')->once()->andThrow(new RuntimeException('Private queue connection details'));
-        $this->actingAs(User::query()->findOrFail($organization->owner_user_id))
+        $this->actingAsWithMfa(User::query()->findOrFail($organization->owner_user_id))
             ->postJson('/api/v1/tenants/'.$organization->id.'/invitations', ['email' => 'new@example.test', 'roles' => ['member']])
             ->assertInternalServerError()->assertJsonMissing(['message' => 'Private queue connection details']);
         $this->assertDatabaseCount('organization_invitations', 0);
@@ -194,7 +195,7 @@ class InvitationControllerTest extends TestCase
         $recipient = User::factory()->create();
         $organization = Organization::factory()->suspended()->create();
         $invitation = OrganizationInvitation::factory()->create(['organization_id' => $organization->id, 'email' => $recipient->email]);
-        $this->actingAs($recipient)->putJson('/api/v1/my-invitations/'.$invitation->id, ['decision' => 'accepted', 'confirm' => true])
+        $this->actingAsWithMfa($recipient)->putJson('/api/v1/my-invitations/'.$invitation->id, ['decision' => 'accepted', 'confirm' => true])
             ->assertConflict()->assertJsonPath('code', 'ORGANIZATION_INACTIVE');
         $this->putJson('/api/v1/my-invitations/'.$invitation->id, ['decision' => 'declined', 'confirm' => true])->assertOk();
         $this->assertDatabaseCount('organization_memberships', 0);
@@ -206,16 +207,16 @@ class InvitationControllerTest extends TestCase
         $recipient = User::factory()->create();
         $organization = Organization::factory()->create();
         $owner = User::query()->findOrFail($organization->owner_user_id);
-        $invitationId = $this->actingAs($owner)->postJson('/api/v1/tenants/'.$organization->id.'/invitations',
+        $invitationId = $this->actingAsWithMfa($owner)->postJson('/api/v1/tenants/'.$organization->id.'/invitations',
             ['email' => $recipient->email, 'roles' => ['member'], 'starts_at' => '2030-01-01T15:30:45+02:00', 'ends_at' => '2030-01-02T15:30:45+02:00'])
             ->assertCreated()->json('data.id');
         $invitation = OrganizationInvitation::query()->whereKey($invitationId)->firstOrFail();
         $this->assertSame('2030-01-01 13:30:45', $invitation->starts_at->utc()->format('Y-m-d H:i:s'));
-        $this->actingAs($recipient)->putJson('/api/v1/my-invitations/'.$invitation->id, ['decision' => 'accepted', 'confirm' => true])->assertOk();
+        $this->actingAsWithMfa($recipient)->putJson('/api/v1/my-invitations/'.$invitation->id, ['decision' => 'accepted', 'confirm' => true])->assertOk();
         $membership = OrganizationMembership::query()->where('organization_id', $organization->id)->where('user_id', $recipient->id)->firstOrFail();
         $this->assertSame('2030-01-01 13:30:45', $membership->starts_at->utc()->format('Y-m-d H:i:s'));
         $this->getJson('/api/v1/tenants/'.$organization->id.'/context')->assertNotFound();
-        $this->actingAs($owner)->putJson('/api/v1/tenants/'.$organization->id.'/memberships/'.$membership->id,
+        $this->actingAsWithMfa($owner)->putJson('/api/v1/tenants/'.$organization->id.'/memberships/'.$membership->id,
             ['roles' => ['member'], 'status' => 'active', 'starts_at' => '2031-01-01T15:30:45+02:00', 'ends_at' => '2031-01-02T15:30:45+02:00'])->assertOk();
         $this->assertSame('2031-01-01 13:30:45', $membership->refresh()->starts_at->utc()->format('Y-m-d H:i:s'));
     }

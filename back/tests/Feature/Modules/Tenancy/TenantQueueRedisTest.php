@@ -32,8 +32,8 @@ class TenantQueueRedisTest extends TestCase
         config(['tenancy.cache_store' => 'redis', 'database.redis.client' => 'predis',
             'cache.prefix' => $queueName.':', 'queue.connections.redis.block_for' => null]);
         Cache::purge('redis');
-        $first = Organization::factory()->create();
-        $second = Organization::factory()->create();
+        $first = Organization::factory()->withMfaOwner()->create();
+        $second = Organization::factory()->withMfaOwner()->create();
         $resolver = app(TenantResolver::class);
         $a = $resolver->resolve($first->id, '', $first->owner_user_id, (string) Str::uuid());
         $b = $resolver->resolve($second->id, '', $second->owner_user_id, (string) Str::uuid());

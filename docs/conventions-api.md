@@ -136,6 +136,64 @@ inconnue. Les mutations d’une SPA utilisent d’abord `/sanctum/csrf-cookie`, 
 envoient le cookie de session et `X-XSRF-TOKEN`. Une limitation renvoie `429`
 avec `Retry-After` en plus de l’enveloppe d’erreur standard.
 
+## MFA — UCG-IAM-002
+
+Tous les endpoints suivants demandent une session SPA Sanctum ; les mutations
+conservent CSRF. Les réponses MFA utilisent une Resource et
+`Cache-Control: no-store, private`. Aucun secret ni code ne doit être journalisé.
+
+| Endpoint | Entrée / sortie |
+| --- | --- |
+| `GET /api/v1/auth/mfa` | `required`, `enabled`, `verified` |
+| `POST /api/v1/auth/mfa/enrollment` | Mot de passe courant ; clé, URI `otpauth`, expiration de 600 s |
+| `POST /api/v1/auth/mfa/confirmation` | `code` TOTP à six chiffres ; dix `recovery_codes` affichés une fois |
+| `POST /api/v1/auth/mfa/challenge` | Exactement un de `code` ou `recovery_code` ; état MFA |
+| `POST /api/v1/auth/mfa/recovery-codes` | Mot de passe et session MFA validée ; nouveaux codes |
+| `DELETE /api/v1/auth/mfa` | Mot de passe et session MFA validée ; comptes sans privilège imposant le MFA |
+
+`POST /auth/login` et `GET /auth/me` exposent désormais `data.mfa`. Une connexion
+par mot de passe peut fournir une session limitée : consulter son profil,
+vérifier l’e-mail, activer le MFA, effectuer le challenge ou se déconnecter.
+L’accès métier et la révocation des autres appareils demandent aussi le MFA
+lorsque le compte est enrôlé ou privilégié.
+
+Le blocage MFA précède le binding métier et le contrôle du contexte tenant :
+`403 MFA_ENROLLMENT_REQUIRED` ou `403 MFA_CHALLENGE_REQUIRED`. Une version de
+session révoquée renvoie `401 AUTHENTICATION_REQUIRED`. Une préparation absente,
+périmée ou liée à un ancien mot de passe/facteur renvoie
+`409 MFA_ENROLLMENT_EXPIRED`. Un propriétaire, administrateur effectif ou opérateur
+Horizon ne peut pas désactiver le MFA :
+`409 MFA_REQUIRED_FOR_PRIVILEGED_ACCOUNT`. L’adresse doit être vérifiée avant
+enrôlement (`409 EMAIL_VERIFICATION_REQUIRED`).
+
+Les opérations MFA partagent cinq tentatives par minute par compte, complétées
+par trente par IP. `429` conserve `Retry-After`, exposé par CORS et par
+`ApiClientError.retryAfter`. Les erreurs de code sont localisées. Chaque code TOTP
+est consommé une seule fois par compte, avec une tolérance d’une période de part
+et d’autre de l’heure serveur.
+
+Exemple React avec le client CSRF partagé :
+
+```ts
+import { mfaRequest } from './api/mfa'
+
+const activation = await mfaRequest<{ secret: string; provisioning_uri: string; expires_in: number }>(
+  'enrollment', { password: currentPassword },
+)
+// Présenter la clé sans l’envoyer à un générateur QR distant.
+const confirmation = await mfaRequest<{ recovery_codes: string[] }>(
+  'confirmation', { code: authenticatorCode },
+)
+// Afficher les codes une fois et demander leur conservation hors de l’application.
+await mfaRequest('challenge', { recovery_code: savedRecoveryCode })
+```
+
+Remplacer l’authentificateur reprend le couple enrollment/confirmation après un
+challenge réussi, éventuellement avec un code de récupération. L’ancien facteur
+reste actif jusqu’à confirmation, puis les anciennes sessions et les anciens
+codes sont révoqués. Le reset de mot de passe ne retire jamais le MFA.
+
+
 ## Organisations — UCG-TEN-001
 
 Sous une session SPA Sanctum avec protection CSRF :

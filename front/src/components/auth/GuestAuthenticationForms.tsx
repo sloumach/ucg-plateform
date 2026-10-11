@@ -52,7 +52,7 @@ export function GuestAuthenticationForms({
         String(form.get('password') ?? ''),
       )
       onAuthenticated(user)
-      notify({ type: 'success', message: t('auth.loginSucceeded') })
+      notify({ type: 'success', message: t((user.mfa.required || user.mfa.enabled) && !user.mfa.verified ? 'mfa.challengeRequired' : 'auth.loginSucceeded') })
     } catch (error) {
       handleError(error, t('auth.loginUnavailable'))
     } finally {

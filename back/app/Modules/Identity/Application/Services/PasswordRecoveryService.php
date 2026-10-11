@@ -2,6 +2,7 @@
 
 namespace App\Modules\Identity\Application\Services;
 
+use App\Modules\Identity\Domain\Contracts\MfaRepository;
 use App\Modules\Identity\Domain\Contracts\UserRepositoryInterface;
 use App\Modules\Identity\Domain\Models\User;
 use App\Modules\Identity\Domain\SecurityEventAction;
@@ -23,6 +24,7 @@ final readonly class PasswordRecoveryService
         private SecurityAuditService $audit,
         private ConnectionInterface $database,
         private SessionGuard $guard,
+        private MfaRepository $mfaAccounts,
     ) {}
 
     public function requestResetLink(string $email, Request $request): void
@@ -43,6 +45,7 @@ final readonly class PasswordRecoveryService
                 }
 
                 $this->database->transaction(function () use ($account, $password, $request): void {
+                    $account = $this->mfaAccounts->lock((int) $account->getKey());
                     $account->forceFill([
                         'password' => $password,
                         'remember_token' => Str::random(60),

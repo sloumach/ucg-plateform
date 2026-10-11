@@ -17,7 +17,7 @@ test('sélection tenant, droits rechargés et confirmation explicite dans le nav
       return
     }
     let data: unknown = []
-    if (path === 'auth/me') data = { id: 42, name: 'Test staff', email: 'staff@example.test' }
+    if (path === 'auth/me') data = { id: 42, name: 'Test staff', email: 'staff@example.test', email_verified: true, mfa: { required: true, enabled: true, verified: true } }
     if (path === 'system/status') data = { name: 'UCG Platform', status: 'operational', api_version: 'v1' }
     if (path === 'accessible-organizations') data = [
       { id: alpha, name: 'Alpha', slug: 'alpha', roles: ['owner'], is_owner: true, membership_id: null },

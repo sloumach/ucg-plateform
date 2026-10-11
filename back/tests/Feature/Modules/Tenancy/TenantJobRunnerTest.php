@@ -32,8 +32,8 @@ class TenantJobRunnerTest extends TestCase
 
     public function test_serialized_transport_uses_its_tenant_and_actor_not_ambient_context(): void
     {
-        $organization = Organization::factory()->create();
-        $other = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
+        $other = Organization::factory()->withMfaOwner()->create();
         $context = $this->context($organization);
         $transport = unserialize(serialize($context->toJobContext()));
         Context::add('tenant_id', $other->id);
@@ -55,7 +55,7 @@ class TenantJobRunnerTest extends TestCase
 
     public function test_current_roles_are_reloaded_after_dispatch(): void
     {
-        $membership = OrganizationMembership::factory()->administrator()->create();
+        $membership = OrganizationMembership::factory()->withMfaAccount()->administrator()->create();
         $context = app(TenantResolver::class)->resolve($membership->organization_id, '', $membership->user_id, (string) Str::uuid());
         $membership->roles = ['member'];
         $membership->save();
@@ -81,7 +81,7 @@ class TenantJobRunnerTest extends TestCase
 
     public function test_revoked_membership_prevents_execution_before_any_side_effect(): void
     {
-        $membership = OrganizationMembership::factory()->create();
+        $membership = OrganizationMembership::factory()->withMfaAccount()->create();
         $context = app(TenantResolver::class)->resolve($membership->organization_id, '', $membership->user_id, (string) Str::uuid());
         DB::table('organization_memberships')->where('id', $membership->id)->update(['status' => 'revoked']);
         $called = false;
@@ -108,7 +108,7 @@ class TenantJobRunnerTest extends TestCase
     #[DataProvider('inactiveStatuses')]
     public function test_inactive_tenant_refuses_work_after_dispatch(string $status): void
     {
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         $context = $this->context($organization);
         DB::table('organizations')->where('id', $organization->id)->update(['status' => $status]);
 
@@ -135,8 +135,8 @@ class TenantJobRunnerTest extends TestCase
 
     public function test_exception_cleanup_and_nested_work_do_not_leak_between_tenants(): void
     {
-        $first = Organization::factory()->create();
-        $second = Organization::factory()->create();
+        $first = Organization::factory()->withMfaOwner()->create();
+        $second = Organization::factory()->withMfaOwner()->create();
         $runner = app(TenantJobRunner::class);
         $a = $this->context($first)->toJobContext();
         $b = $this->context($second)->toJobContext();
@@ -162,8 +162,8 @@ class TenantJobRunnerTest extends TestCase
 
     public function test_system_scope_has_no_user_permissions_even_with_an_ambient_http_context(): void
     {
-        $organization = Organization::factory()->create();
-        $other = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
+        $other = Organization::factory()->withMfaOwner()->create();
         $http = $this->context($other);
         request()->attributes->set(TenantContext::ATTRIBUTE, $http);
         $run = (string) Str::uuid();
@@ -187,8 +187,8 @@ class TenantJobRunnerTest extends TestCase
     {
         $this->freezeTime();
         config(['tenancy.cache_store' => 'database']);
-        $first = Organization::factory()->create();
-        $second = Organization::factory()->create();
+        $first = Organization::factory()->withMfaOwner()->create();
+        $second = Organization::factory()->withMfaOwner()->create();
         $a = $this->context($first);
         $b = $this->context($second);
         app(Dispatcher::class)->dispatch((new TenantContextProbe($a->toJobContext(), 'first', true))->onConnection('database')->delay(10));
@@ -215,8 +215,8 @@ class TenantJobRunnerTest extends TestCase
     public function test_database_queue_marks_inactive_work_failed_once_and_continues_other_tenants(): void
     {
         config(['tenancy.cache_store' => 'database']);
-        $first = Organization::factory()->create();
-        $second = Organization::factory()->create();
+        $first = Organization::factory()->withMfaOwner()->create();
+        $second = Organization::factory()->withMfaOwner()->create();
         $a = $this->context($first);
         $b = $this->context($second);
         $bus = app(Dispatcher::class);
@@ -235,7 +235,7 @@ class TenantJobRunnerTest extends TestCase
 
     public function test_queue_permission_denial_is_terminal_after_role_downgrade(): void
     {
-        $membership = OrganizationMembership::factory()->administrator()->create();
+        $membership = OrganizationMembership::factory()->withMfaAccount()->administrator()->create();
         $context = app(TenantResolver::class)->resolve($membership->organization_id, '', $membership->user_id, (string) Str::uuid());
         app(Dispatcher::class)->dispatch((new TenantContextProbe($context->toJobContext(), requiresAdministration: true))->onConnection('database'));
         $membership->roles = ['member'];
@@ -251,8 +251,8 @@ class TenantJobRunnerTest extends TestCase
     public function test_operator_retry_revalidates_access_and_keeps_the_original_tenant(): void
     {
         config(['tenancy.cache_store' => 'database']);
-        $first = Organization::factory()->create();
-        $second = Organization::factory()->create();
+        $first = Organization::factory()->withMfaOwner()->create();
+        $second = Organization::factory()->withMfaOwner()->create();
         $a = $this->context($first);
         $b = $this->context($second);
         app(Dispatcher::class)->dispatch((new TenantContextProbe($a->toJobContext(), 'retried'))->onConnection('database'));

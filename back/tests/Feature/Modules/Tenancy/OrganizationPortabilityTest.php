@@ -43,11 +43,11 @@ class OrganizationPortabilityTest extends TestCase
     {
         $this->freezeTime();
         Storage::fake('local');
-        $owner = User::factory()->create();
-        $first = Organization::factory()->recycle($owner)->create();
-        $second = Organization::factory()->recycle($owner)->create();
-        OrganizationMembership::factory()->for($first)->create();
-        OrganizationMembership::factory()->for($second)->create();
+        $owner = User::factory()->withMfa()->create();
+        $first = Organization::factory()->withMfaOwner()->recycle($owner)->create();
+        $second = Organization::factory()->withMfaOwner()->recycle($owner)->create();
+        OrganizationMembership::factory()->withMfaAccount()->for($first)->create();
+        OrganizationMembership::factory()->withMfaAccount()->for($second)->create();
         $resolver = app(TenantResolver::class);
         $a = $resolver->resolve($first->id, '', $owner->id, (string) Str::uuid());
         $b = $resolver->resolve($second->id, '', $owner->id, (string) Str::uuid());
@@ -87,7 +87,7 @@ class OrganizationPortabilityTest extends TestCase
     public function test_operator_export_accepts_inactive_tenant_without_resuming_business_operations(string $status): void
     {
         Storage::fake('local');
-        $organization = Organization::factory()->create(['status' => $status]);
+        $organization = Organization::factory()->withMfaOwner()->create(['status' => $status]);
 
         $operation = $this->build($organization);
 
@@ -99,7 +99,7 @@ class OrganizationPortabilityTest extends TestCase
     public function test_serialized_export_is_idempotent_and_keeps_its_registered_tenant(): void
     {
         Storage::fake('local');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         $operation = $this->build($organization);
         $before = Storage::disk('local')->get($this->path($operation));
         $job = unserialize(serialize(new BuildOrganizationExport($organization->id, $operation->id)));
@@ -115,9 +115,9 @@ class OrganizationPortabilityTest extends TestCase
     public function test_other_tenant_cannot_inspect_or_read_an_export_even_with_same_owner(): void
     {
         Storage::fake('local');
-        $owner = User::factory()->create();
-        $first = Organization::factory()->recycle($owner)->create();
-        $second = Organization::factory()->recycle($owner)->create();
+        $owner = User::factory()->withMfa()->create();
+        $first = Organization::factory()->withMfaOwner()->recycle($owner)->create();
+        $second = Organization::factory()->withMfaOwner()->recycle($owner)->create();
         $operation = $this->build($first);
 
         $this->expectException(ModelNotFoundException::class);
@@ -128,7 +128,7 @@ class OrganizationPortabilityTest extends TestCase
     {
         $this->freezeTime();
         Storage::fake('local');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         $context = app(TenantResolver::class)->resolve($organization->id, '', $organization->owner_user_id, (string) Str::uuid());
         $artifact = app(TenantArtifacts::class)->store($context, 'keep.txt', 'keep-me');
         $operation = $this->build($organization);
@@ -152,7 +152,7 @@ class OrganizationPortabilityTest extends TestCase
     public function test_archive_tampering_is_refused_by_integrity_check(): void
     {
         Storage::fake('local');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         $operation = $this->build($organization);
         Storage::disk('local')->put($this->path($operation), 'tampered');
 
@@ -163,7 +163,7 @@ class OrganizationPortabilityTest extends TestCase
     public function test_row_limit_fails_the_queued_export_without_partial_ready_archive(): void
     {
         Storage::fake('local');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         config(['tenancy.limits.export_rows' => 1]);
         $operation = app(OrganizationPortabilityService::class)->requestExport($organization->id, $this->audit($organization));
 
@@ -178,7 +178,7 @@ class OrganizationPortabilityTest extends TestCase
     public function test_unregistered_table_refuses_export_instead_of_silently_omitting_data(): void
     {
         Storage::fake('local');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         Queue::fake([BuildOrganizationExport::class]);
         Schema::create('unregistered_tenant_data', function ($table): void {
             $table->uuid('id')->primary();
@@ -200,7 +200,7 @@ class OrganizationPortabilityTest extends TestCase
     public function test_byte_limit_never_publishes_a_truncated_archive(): void
     {
         Storage::fake('local');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         config(['tenancy.portability.export_bytes' => 300]);
         $operation = app(OrganizationPortabilityService::class)->requestExport($organization->id, $this->audit($organization));
 
@@ -215,7 +215,7 @@ class OrganizationPortabilityTest extends TestCase
     public function test_transport_failure_keeps_a_visible_operation_for_explicit_redispatch(): void
     {
         Storage::fake('local');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         config(['tenancy.schedule_connection' => 'null', 'queue.connections.null.driver' => 'null']);
         try {
             app(OrganizationPortabilityService::class)->requestExport($organization->id, $this->audit($organization));
@@ -238,7 +238,7 @@ class OrganizationPortabilityTest extends TestCase
     public function test_cleanup_refuses_a_still_live_archive(): void
     {
         Storage::fake('local');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         $operation = $this->build($organization);
         try {
             app(OrganizationPortabilityService::class)->expire($organization->id, $operation->id);
@@ -254,8 +254,8 @@ class OrganizationPortabilityTest extends TestCase
     public function test_unverified_operator_actor_is_refused_without_queue_or_operation(): void
     {
         Storage::fake('local');
-        $organization = Organization::factory()->create();
-        $actor = User::factory()->unverified()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
+        $actor = User::factory()->withMfa()->unverified()->create();
         Queue::fake([BuildOrganizationExport::class]);
 
         $this->assertSame(1, Artisan::call('organizations:portability', ['organization' => $organization->id,
@@ -276,7 +276,7 @@ class OrganizationPortabilityTest extends TestCase
     public function test_cli_export_queues_explicit_target_and_validates_input_before_any_write(): void
     {
         Storage::fake('local');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         Queue::fake([BuildOrganizationExport::class]);
 
         $this->assertSame(0, Artisan::call('organizations:portability', ['organization' => $organization->id,
@@ -294,7 +294,7 @@ class OrganizationPortabilityTest extends TestCase
     public function test_missing_source_file_prevents_ready_archive_then_retry_recovers_without_scope_leak(): void
     {
         Storage::fake('local');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         $context = app(TenantResolver::class)->resolve($organization->id, '', $organization->owner_user_id, (string) Str::uuid());
         $artifact = app(TenantArtifacts::class)->store($context, 'source.txt', 'original');
         $source = TenantResourceNamespace::path($organization->id, 'artifacts/'.$artifact->id);
@@ -319,7 +319,7 @@ class OrganizationPortabilityTest extends TestCase
     public function test_operator_verification_revoked_after_enqueue_fails_without_external_archive(): void
     {
         Storage::fake('local');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         $operation = app(OrganizationPortabilityService::class)->requestExport($organization->id, $this->audit($organization));
         DB::table('users')->where('id', $organization->owner_user_id)->update(['email_verified_at' => null]);
 
@@ -333,7 +333,7 @@ class OrganizationPortabilityTest extends TestCase
     public function test_export_storage_reservation_prevents_unbounded_pending_archives(): void
     {
         Storage::fake('local');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         config(['tenancy.portability.export_storage_bytes' => 67108864]);
         Queue::fake([BuildOrganizationExport::class]);
         app(OrganizationPortabilityService::class)->requestExport($organization->id, $this->audit($organization));
@@ -350,7 +350,7 @@ class OrganizationPortabilityTest extends TestCase
     public function test_new_unreviewed_column_blocks_export_instead_of_leaking_it(): void
     {
         Storage::fake('local');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         Queue::fake([BuildOrganizationExport::class]);
         DB::statement('ALTER TABLE organizations ADD COLUMN unreviewed_secret TEXT');
         try {
@@ -370,8 +370,8 @@ class OrganizationPortabilityTest extends TestCase
     {
         $this->freezeTime();
         Storage::fake('local');
-        $first = Organization::factory()->create();
-        $second = Organization::factory()->create();
+        $first = Organization::factory()->withMfaOwner()->create();
+        $second = Organization::factory()->withMfaOwner()->create();
         $a = $this->build($first);
         $b = $this->build($second);
         $this->travel(24)->hours();
@@ -394,10 +394,10 @@ class OrganizationPortabilityTest extends TestCase
     {
         $this->freezeTime();
         Storage::fake('local');
-        $first = Organization::factory()->create();
+        $first = Organization::factory()->withMfaOwner()->create();
         $a = $this->build($first);
         $this->travel(1)->seconds();
-        $second = Organization::factory()->create();
+        $second = Organization::factory()->withMfaOwner()->create();
         $b = $this->build($second);
         $this->travel(24)->hours();
         $archive = $this->mock(PortabilityArchive::class);
@@ -421,7 +421,7 @@ class OrganizationPortabilityTest extends TestCase
     {
         Storage::fake('local');
         Storage::fake('s3');
-        $organization = Organization::factory()->create();
+        $organization = Organization::factory()->withMfaOwner()->create();
         $context = app(TenantResolver::class)->resolve($organization->id, '', $organization->owner_user_id, (string) Str::uuid());
         app(TenantArtifacts::class)->store($context, 'source.txt', 'local-source');
         config(['filesystems.artifacts' => 's3']);

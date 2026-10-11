@@ -3,6 +3,7 @@
 namespace App\Modules\Tenancy\Application\Services;
 
 use App\Exceptions\DomainConflictException;
+use App\Modules\Identity\Application\Contracts\AccountDirectory;
 use App\Modules\Tenancy\Application\Contracts\TenantExecutionContext;
 use App\Modules\Tenancy\Domain\Contracts\TenantWorkRepository;
 use App\Modules\Tenancy\Domain\Exceptions\TenantExecutionRejectedException;
@@ -18,6 +19,7 @@ final readonly class TenantJobRunner
     public function __construct(
         private TenantResolver $resolver, private TenantWorkRepository $organizations,
         private TenantExecutionScope $scope, private LoggerInterface $logger,
+        private AccountDirectory $accounts,
     ) {}
 
     /**
@@ -39,6 +41,10 @@ final readonly class TenantJobRunner
             throw new TenantExecutionRejectedException('TENANT_ACCESS_REVOKED');
         } catch (DomainConflictException $exception) {
             throw new TenantExecutionRejectedException($exception->errorCode());
+        }
+
+        if ($actor->canAdminister() && ! $this->accounts->hasConfirmedMfa($actorUserId)) {
+            throw new TenantExecutionRejectedException('MFA_ENROLLMENT_REQUIRED');
         }
 
         return $this->execute(new TenantExecutionContext($actor->organizationId, $actor->requestId,

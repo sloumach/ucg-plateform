@@ -10,13 +10,14 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
+use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\Events\TenantPrivateEvent;
 use Tests\Fixtures\Jobs\StoreTenantArtifact;
 use Tests\TestCase;
 
 class InfrastructureServicesTest extends TestCase
 {
-    use RefreshDatabase;
+    use AuthenticatesWithMfa, RefreshDatabase;
 
     public function test_queued_job_persists_an_artifact_with_explicit_tenant_context(): void
     {
@@ -112,8 +113,9 @@ class InfrastructureServicesTest extends TestCase
 
     public function test_horizon_dashboard_allows_an_allowlisted_operator(): void
     {
-        $user = User::factory()->create(['email' => 'operator@ucg.test']);
+        $user = User::factory()->withMfa()->create(['email' => 'operator@ucg.test']);
         config(['horizon.authorized_emails' => ['operator@ucg.test']]);
+        $this->actingAsWithMfa($user)->getJson('/api/v1/auth/me')->assertOk();
 
         $this->assertTrue(Gate::forUser($user)->allows('viewHorizon'));
     }

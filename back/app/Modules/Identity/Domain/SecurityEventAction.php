@@ -12,4 +12,11 @@ enum SecurityEventAction: string
     case EmailVerificationRequested = 'auth.email_verification.requested';
     case EmailVerified = 'auth.email_verified';
     case OtherSessionsRevoked = 'auth.sessions.revoked';
+    case MfaEnrollmentStarted = 'auth.mfa.enrollment_started';
+    case MfaEnabled = 'auth.mfa.enabled';
+    case MfaChallengeSucceeded = 'auth.mfa.challenge_succeeded';
+    case MfaChallengeFailed = 'auth.mfa.challenge_failed';
+    case MfaRecoveryUsed = 'auth.mfa.recovery_used';
+    case MfaRecoveryRegenerated = 'auth.mfa.recovery_regenerated';
+    case MfaDisabled = 'auth.mfa.disabled';
 }

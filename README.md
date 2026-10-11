@@ -60,6 +60,47 @@ le contrôle du hash de mot de passe intégré à Sanctum. Les connexions, éche
 réinitialisations, vérifications et révocations sont inscrits dans le journal
 global append-only `identity_security_events`.
 
+`UCG-IAM-002` impose le MFA aux propriétaires, aux administrateurs dont l’adhésion
+est effective et aux comptes de la liste `horizon.authorized_emails`. Après le
+mot de passe, `auth/me` expose `mfa.required`, `mfa.enabled` et `mfa.verified`.
+L’espace d’organisation, les mutations métier et l’autorisation des canaux
+privés restent bloqués jusqu’à l’activation puis au challenge. Horizon exige
+également une preuve MFA courante, y compris en local. Aucun rôle plateforme
+supplémentaire n’est créé avant IAM-003.
+
+L’activation depuis le panneau de sécurité demande le mot de passe courant et
+une adresse e-mail vérifiée. Ajouter manuellement la clé à une application TOTP
+(SHA-1, six chiffres, période de 30 secondes), puis confirmer un premier code
+avant dix minutes. Le secret est chiffré avec Laravel ; les dix codes de
+récupération aléatoires de 128 bits sont hachés et affichés une seule fois, sans
+stockage navigateur. Un code TOTP accepté ne peut pas être réutilisé, même sur
+un autre appareil ; attendre le suivant dans l’application.
+
+Un code de récupération donne accès après le mot de passe, est consommé sous
+verrou de ligne et inscrit dans le journal de sécurité. Il révoque les autres
+sessions : suppression des lignes avec le driver database et changement de
+version contrôlé sur les requêtes suivantes avec les autres drivers. Le compte
+peut ensuite remplacer l’authentificateur en confirmant son mot de passe puis le
+premier code du nouvel appareil ; l’ancien facteur reste actif pendant cette
+préparation. Renouveler les codes révoque les anciens codes et les autres
+sessions. Un compte privilégié ne peut pas désactiver le MFA.
+
+Un reset de mot de passe conserve le MFA et révoque les anciennes preuves ;
+il ne récupère pas le deuxième facteur. En cas de perte de l’authentificateur
+et de tous les codes, aucun contournement par e-mail ou endpoint de désactivation
+n’est fourni. Les jobs d’un acteur privilégié revérifient son enrôlement avant
+exécution, sans transporter une preuve de session dans leur payload.
+
+La migration additive IAM-002 ajoute cinq colonnes nullable à `users`, sans
+enrôler automatiquement les comptes existants. Appliquer les migrations IAM-001
+et IAM-002 avant de démarrer cette version, avec `php artisan migrate` et une
+sauvegarde habituelle. Ne pas lancer `migrate:fresh` sur `ucg_platform`. Un rollback
+IAM-002 supprime les facteurs enregistrés ; privilégier une correction en avant
+sur une base utilisée. Conserver les clés de chiffrement lors d’une rotation.
+La politique utilise des requêtes d’existence indexées, sans parcourir toutes les
+organisations du compte ni mettre en cache durablement ses privilèges.
+
+
 Exemple de demande de récupération :
 
 ```bash

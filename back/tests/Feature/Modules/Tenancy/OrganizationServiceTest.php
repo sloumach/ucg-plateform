@@ -22,7 +22,7 @@ class OrganizationServiceTest extends TestCase
 
     public function test_creates_an_active_organization_with_settings_and_correlated_audit(): void
     {
-        $owner = User::factory()->create();
+        $owner = User::factory()->withMfa()->create();
         $this->freezeTime();
         $organization = app(OrganizationService::class)->create('ucg-test', $owner->id,
             new OrganizationDetailsData('UCG Test', 'Europe/Paris', 'fr', 'FR', 7, 'Y-m-d'), $this->audit($owner));
@@ -62,8 +62,8 @@ class OrganizationServiceTest extends TestCase
     #[DataProvider('transitions')]
     public function test_applies_only_authorized_transitions_and_audits_successes(string $from, string $to, bool $allowed): void
     {
-        $owner = User::factory()->create();
-        $organization = Organization::factory()->create(['owner_user_id' => $owner->id, 'status' => $from]);
+        $owner = User::factory()->withMfa()->create();
+        $organization = Organization::factory()->withMfaOwner()->create(['owner_user_id' => $owner->id, 'status' => $from]);
         try {
             app(OrganizationService::class)->transition($organization->id, OrganizationStatus::from($to), $this->audit($owner));
             $this->assertTrue($allowed, 'An unauthorized transition was accepted.');
@@ -80,7 +80,7 @@ class OrganizationServiceTest extends TestCase
 
     public function test_rolls_back_creation_when_audit_persistence_fails(): void
     {
-        $owner = User::factory()->create();
+        $owner = User::factory()->withMfa()->create();
         Schema::drop('organization_lifecycle_events');
         try {
             app(OrganizationService::class)->create('audit-failure', $owner->id,
@@ -94,8 +94,8 @@ class OrganizationServiceTest extends TestCase
 
     public function test_rejects_duplicate_slugs_without_partial_data(): void
     {
-        $owner = User::factory()->create();
-        Organization::factory()->create(['owner_user_id' => $owner->id, 'slug' => 'duplicate']);
+        $owner = User::factory()->withMfa()->create();
+        Organization::factory()->withMfaOwner()->create(['owner_user_id' => $owner->id, 'slug' => 'duplicate']);
         try {
             app(OrganizationService::class)->create('duplicate', $owner->id,
                 new OrganizationDetailsData('Duplicate', 'UTC', 'fr', 'FR'), $this->audit($owner));
@@ -110,8 +110,8 @@ class OrganizationServiceTest extends TestCase
 
     public function test_rolls_back_status_change_when_audit_persistence_fails(): void
     {
-        $owner = User::factory()->create();
-        $organization = Organization::factory()->create(['owner_user_id' => $owner->id]);
+        $owner = User::factory()->withMfa()->create();
+        $organization = Organization::factory()->withMfaOwner()->create(['owner_user_id' => $owner->id]);
         Schema::drop('organization_lifecycle_events');
 
         try {
@@ -124,8 +124,8 @@ class OrganizationServiceTest extends TestCase
 
     public function test_rejects_a_blank_audit_reason_without_changing_status(): void
     {
-        $owner = User::factory()->create();
-        $organization = Organization::factory()->create(['owner_user_id' => $owner->id]);
+        $owner = User::factory()->withMfa()->create();
+        $organization = Organization::factory()->withMfaOwner()->create(['owner_user_id' => $owner->id]);
         try {
             app(OrganizationService::class)->transition($organization->id, OrganizationStatus::Suspended,
                 new OrganizationAuditData($owner->id, ' ', 'a646bd57-c6df-47a1-8073-5aa4d89a7cbc'));

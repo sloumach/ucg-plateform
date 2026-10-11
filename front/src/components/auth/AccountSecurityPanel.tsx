@@ -70,14 +70,14 @@ export function AccountSecurityPanel({ user }: { user: AuthenticatedUser }) {
           }
         />
       )}
-      <form onSubmit={(event) => void handleRevoke(event)} className="grid gap-4">
+      {(!(user.mfa.required || user.mfa.enabled) || user.mfa.verified) && <form onSubmit={(event) => void handleRevoke(event)} className="grid gap-4">
         <div>
           <h3 className="font-bold">{t('auth.sessionsTitle')}</h3>
           <p className="mt-1 text-sm text-slate-400">{t('auth.sessionsDescription')}</p>
         </div>
         <FormField name="password" type="password" autoComplete="current-password" required label={t('auth.passwordLabel')} error={passwordError} onChange={() => setPasswordError(undefined)} />
         <Button type="submit" isLoading={submitting === 'sessions'} loadingLabel={t('auth.sessionsRevoking')} className="w-full">{t('auth.sessionsRevoke')}</Button>
-      </form>
+      </form>}
     </div>
   )
 }

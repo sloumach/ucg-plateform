@@ -5,12 +5,12 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 10 octobre 2026.
+- Dernière mise à jour : 11 octobre 2026.
 - Branche de travail : `staging`.
-- Dernier ticket implémenté et validé localement : `UCG-IAM-001` —
-  authentification, récupération, vérification d’e-mail et révocation des sessions.
-- Prochaine action : revue, commit/push utilisateur puis confirmation de la CI IAM-001.
-- Ensuite, priorité P0 : `UCG-IAM-002` (MFA des comptes privilégiés) ;
+- Dernier ticket implémenté et validé localement : `UCG-IAM-002` —
+  MFA TOTP, récupération auditée et révocation des anciennes sessions.
+- Prochaine action : push utilisateur du commit IAM-002 puis confirmation de sa CI.
+- Ensuite, priorité P0 : `UCG-IAM-003` (rôles et permissions contextuels) ;
   `UCG-TEN-008` (branding/domaines) reste P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
@@ -21,8 +21,9 @@
   (runs `38080998770` et `38080998784`), dont le nouveau test de queue Redis.
 - TEN-007 : migration additive appliquée, table de suivi vide ; aucune opération
   métier de maintenance exécutée sur les données actuelles. Push/CI à confirmer.
-- IAM-001 : migration et e-mails validés sur SQLite et PostgreSQL temporaire ;
-  aucune migration appliquée à `ucg_platform`, aucun e-mail réel envoyé.
+- IAM-001 poussé (`98f2ed3`) : CI confirmées vertes par l’utilisateur.
+- IAM-001/IAM-002 : migrations validées sur SQLite et PostgreSQL temporaire ;
+  elles restent en attente sur `ucg_platform`. Aucun e-mail réel envoyé.
 - Au démarrage, vérifier l'état réel avec `git status --short --branch` et
   `git log -8 --oneline --decorate`.
 - Vérifier également que les derniers commits locaux ont été poussés.
@@ -532,8 +533,51 @@ Vérifications de clôture :
   24 tests Vitest, lint et build réussis.
 - Les bases PostgreSQL temporaires `ucg_iam001_verify_20261010` et
   `ucg_iam001_verify_final_20261010` ont été supprimées.
-  La migration IAM-001 n’a pas été appliquée à la base principale et la CI après
-  push reste à confirmer.
+  La migration IAM-001 n’a pas été appliquée à la base principale.
+  Commit `98f2ed3` poussé ; CI confirmées vertes par l’utilisateur.
+
+### UCG-IAM-002 — MFA des comptes privilégiés
+
+- TOTP compatible avec les applications d’authentification, clé chiffrée en base,
+  confirmation obligatoire et préparation d’enrôlement expirant après dix minutes.
+  Dix codes de récupération à usage unique, conservés uniquement sous forme de hash,
+  sont affichés une seule fois par le parcours React.
+- MFA imposé aux propriétaires, administrateurs effectifs d’organisation et
+  comptes autorisés à Horizon. Le contrôle se réévalue à chaque requête ; une
+  session avec seulement le mot de passe ne peut pas accéder au métier,
+  au broadcasting ni à la révocation des autres sessions.
+- Limitation des tentatives, rejet du rejeu TOTP, consommation transactionnelle
+  des codes et journal de sécurité. Le frontend affiche les délais `Retry-After`.
+- Sessions liées à l’utilisateur, à la version MFA et au mot de passe courant.
+  Activation, récupération, remplacement et régénération révoquent les anciennes
+  sessions ; la session courante est renouvelée après validation.
+  Les tests couvrent aussi les anciennes sessions sans marqueur et un reset
+  concurrent du mot de passe pendant le challenge.
+- Remplacement d’authentificateur après validation MFA, avec l’ancien facteur
+  actif jusqu’à confirmation. Un compte privilégié ne peut pas désactiver le MFA ;
+  un reset de mot de passe ne supprime ni le facteur ni les codes.
+- Contrôles applicatifs ajoutés aux services d’administration et aux jobs
+  privilégiés ; Horizon exige également une session MFA, y compris en local.
+  Les ports publics conservent la frontière Identity/Tenancy.
+- Interface française d’activation, challenge, récupération et gestion,
+  erreurs accessibles et masquage du workspace tant que le MFA requis est incomplet.
+  Aucun secret ou code de récupération conservé dans le stockage navigateur.
+- Validation SQLite complète : 388 tests, dont 385 réussis, 1 762 assertions
+  et 3 exclusions attendues. PostgreSQL : suite Tenancy/schéma/Identity de
+  333 tests, dont 331 réussis, 1 524 assertions et 2 exclusions Redis attendues ;
+  contrôle final IAM-001/IAM-002 sur base neuve : 38 tests, 248 assertions.
+  Pint et PHPStan niveau 8 réussis. Frontend : 31 tests Vitest, lint, build
+  et 3 tests Playwright réussis. Le test navigateur MFA simule l’API ;
+  les tests PHP couvrent les transactions et requêtes réelles.
+- Base temporaire `ucg_iam002_verify_20261011` supprimée après vérification.
+  Migrations IAM-001 et IAM-002 toujours en attente sur la base principale.
+  Aucun enrôlement automatique, nouvelle dépendance ou e-mail externe.
+  Avant usage de la nouvelle version, appliquer les migrations additives.
+  Un rollback IAM-002 supprimerait les facteurs : privilégier une correction
+  en avant après un enrôlement réel.
+- README, conventions API, architecture et backlog mis à jour.
+  Workflow PostgreSQL enrichi avec les tests MFA et récupération IAM-001 ;
+  validation distante IAM-002 à confirmer après push.
 
 ## Documents de référence
 

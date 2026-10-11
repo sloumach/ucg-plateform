@@ -216,6 +216,10 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : enrôlement, codes de récupération, challenge et politique selon les rôles plateforme ou organisation.
 - **Acceptation** : aucun rôle privilégié utilisable sans MFA ; récupération auditée sans contourner la révocation.
 - **Références CDC** : SEC-01, SEC-02.
+- **État** : implémenté localement le 11 octobre 2026 ; enrôlement TOTP,
+  challenge, récupération auditée, remplacement d’authentificateur, révocation
+  des sessions et contrôles HTTP/jobs/Horizon. Validation distante à confirmer
+  après push ; migrations IAM-001/IAM-002 non appliquées à la base principale.
 
 ### UCG-IAM-003 — Construire les rôles et permissions contextuels
 

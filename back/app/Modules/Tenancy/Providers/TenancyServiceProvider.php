@@ -3,6 +3,7 @@
 namespace App\Modules\Tenancy\Providers;
 
 use App\Http\Api\RequestId;
+use App\Modules\Identity\Application\Contracts\PrivilegedAccountDirectory;
 use App\Modules\Tenancy\Application\Contracts\TenantArtifacts;
 use App\Modules\Tenancy\Application\Contracts\TenantCache;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
@@ -35,6 +36,7 @@ use App\Modules\Tenancy\Infrastructure\Persistence\EloquentAccessAuditRepository
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentInvitationRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentMembershipRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentOrganizationRepository;
+use App\Modules\Tenancy\Infrastructure\Persistence\EloquentPrivilegedAccountDirectory;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentTenantWorkRepository;
 use App\Modules\Tenancy\Infrastructure\Queue\LaravelPortabilityQueue;
 use App\Modules\Tenancy\Infrastructure\Queue\LaravelTenantScheduleQueue;
@@ -65,6 +67,7 @@ final class TenancyServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(PrivilegedAccountDirectory::class, EloquentPrivilegedAccountDirectory::class);
         $this->app->bind(PortabilityRepository::class, DatabasePortabilityRepository::class);
         $this->app->bind(PortabilityArchive::class, PrivatePortabilityArchive::class);
         $this->app->bind(PortabilityQueue::class, LaravelPortabilityQueue::class);
@@ -111,7 +114,7 @@ final class TenancyServiceProvider extends ServiceProvider
         RateLimiter::for('tenant-invitations', fn (Request $request): Limit => Limit::perMinute(10)
             ->by(TenantResourceNamespace::key((string) $request->route('tenant'), 'rate',
                 'invitations:'.(string) $request->user()?->getAuthIdentifier())));
-        Route::middleware(['api', 'auth:sanctum'])->prefix('api/v1')->name('api.v1.')
+        Route::middleware(['api', 'auth:sanctum', 'identity.session', 'mfa'])->prefix('api/v1')->name('api.v1.')
             ->group(__DIR__.'/../Presentation/Routes/api.php');
         if ($this->app->runningInConsole()) {
             $this->commands([ProvisionOrganizationCommand::class, TransitionOrganizationCommand::class,

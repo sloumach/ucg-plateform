@@ -2,6 +2,7 @@
 
 namespace App\Modules\Tenancy\Application\Services;
 
+use App\Modules\Identity\Application\Contracts\AccountDirectory;
 use App\Modules\Tenancy\Domain\Contracts\MembershipRepository;
 use App\Modules\Tenancy\Domain\Contracts\OrganizationRepository;
 use App\Modules\Tenancy\Domain\MembershipRole;
@@ -11,7 +12,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 
 final readonly class OrganizationAccessService
 {
-    public function __construct(private OrganizationRepository $organizations, private MembershipRepository $memberships) {}
+    public function __construct(private OrganizationRepository $organizations, private MembershipRepository $memberships, private AccountDirectory $accounts) {}
 
     public function find(string $id, int $actorUserId): Organization
     {
@@ -50,6 +51,9 @@ final readonly class OrganizationAccessService
     {
         if (! $this->canAdminister($organization, $actorUserId)) {
             throw new AuthorizationException;
+        }
+        if (! $this->accounts->hasConfirmedMfa($actorUserId)) {
+            throw new AuthorizationException(__('identity.mfa.enrollment_required'));
         }
     }
 

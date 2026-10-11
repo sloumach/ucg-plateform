@@ -15,7 +15,7 @@ final class RevokeOtherSessionsRequest extends FormRequest
     /** @return array<string, ValidationRule|array<mixed>|string> */
     public function rules(): array
     {
-        return ['password' => ['required', 'string', 'current_password:web', 'max:255']];
+        return ['password' => ['bail', 'required', 'string', 'max:255', 'current_password:web']];
     }
 
     /** @return array<string, string> */
@@ -24,6 +24,8 @@ final class RevokeOtherSessionsRequest extends FormRequest
         return [
             'password.required' => __('identity.login.password.required'),
             'password.current_password' => __('identity.sessions.password_invalid'),
+            'password.string' => __('identity.mfa.password_string'),
+            'password.max' => __('identity.mfa.password_max'),
         ];
     }
 

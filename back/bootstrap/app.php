@@ -2,8 +2,11 @@
 
 use App\Http\Api\ApiExceptionRenderer;
 use App\Http\Middleware\AssignRequestId;
+use App\Modules\Identity\Presentation\Http\Middleware\RequireMfa;
+use App\Modules\Identity\Presentation\Http\Middleware\ValidateIdentitySession;
 use App\Modules\Tenancy\Presentation\Http\Middleware\RequireTenantConfirmation;
 use App\Modules\Tenancy\Presentation\Http\Middleware\ResolveTenantContext;
+use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -20,12 +23,17 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withBroadcasting(
         __DIR__.'/../routes/channels.php',
-        ['prefix' => 'api', 'middleware' => ['api', 'auth:sanctum']],
+        ['prefix' => 'api', 'middleware' => ['api', 'auth:sanctum', 'identity.session', 'mfa']],
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(AssignRequestId::class);
         $middleware->statefulApi();
-        $middleware->alias(['tenant' => ResolveTenantContext::class, 'tenant.confirmed' => RequireTenantConfirmation::class]);
+        $middleware->alias([
+            'tenant' => ResolveTenantContext::class, 'tenant.confirmed' => RequireTenantConfirmation::class,
+            'mfa' => RequireMfa::class, 'identity.session' => ValidateIdentitySession::class,
+        ]);
+        $middleware->appendToPriorityList(AuthenticatesRequests::class, ValidateIdentitySession::class);
+        $middleware->appendToPriorityList(ValidateIdentitySession::class, RequireMfa::class);
         $middleware->prependToPriorityList(SubstituteBindings::class, ResolveTenantContext::class);
         $middleware->appendToPriorityList(ResolveTenantContext::class, RequireTenantConfirmation::class);
     })

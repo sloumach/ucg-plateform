@@ -96,6 +96,31 @@ Presentation/Routes/api.php
 `IdentityServiceProvider` lie le contrat au repository Eloquent, enregistre la Policy, le rate
 limiter et les routes. Aucun de ces détails n’est exposé aux futurs modules.
 
+IAM-002 complète ce parcours avec `MfaController`, trois Form Requests,
+`MfaResource`, `MfaService`, `MfaSession` et le port `MfaRepository`.
+`Totp` porte le calcul RFC 6238, vérifié avec ses vecteurs publiés.
+Le repository verrouille le compte pour consommer un TOTP ou un code de
+récupération, persister la version et auditer dans la même transaction.
+Le secret est chiffré, les codes hachés et les attributs exclus de la
+sérialisation ordinaire de `User`.
+
+Identity ne dépend toujours pas de Tenancy : il déclare le port public
+`PrivilegedAccountDirectory`, implémenté et lié par Tenancy pour les propriétaires
+et administrateurs effectifs. `AccountDirectory.hasConfirmedMfa` permet aux
+services d’administration et aux jobs Tenancy de vérifier l’enrôlement sans
+importer le modèle utilisateur. La seule capacité plateforme actuelle concernée
+est la liste opérateur Horizon ; IAM-003 raccordera les futurs rôles.
+
+Les routes métier suivent `auth:sanctum` → `identity.session` → `mfa` → `tenant`
+→ confirmation éventuelle → binding/Policy. La preuve de session est liée au
+compte, à la version MFA et à une empreinte du hash de mot de passe. Un reset,
+une récupération ou un changement de facteur invalide les anciennes preuves.
+Le challenge revérifie cette liaison sous verrou pour empêcher une révocation
+concurrente d’être contournée. Les anciennes sessions sans marqueur sont refusées
+dès qu’une version MFA existe. React masque l’espace tenant pendant le challenge
+et recharge l’identité après un blocage MFA ou `401`.
+
+
 ## Ajouter une fonctionnalité
 
 ### Contexte métier — UCG-TEN-002

@@ -5,6 +5,7 @@ type ApiClientErrorOptions = {
   fieldErrors?: ApiFieldErrors
   requestId?: string
   status?: number
+  retryAfter?: number
 }
 
 export class ApiClientError extends Error {
@@ -12,6 +13,7 @@ export class ApiClientError extends Error {
   readonly fieldErrors: ApiFieldErrors
   readonly requestId?: string
   readonly status?: number
+  readonly retryAfter?: number
 
   constructor(message: string, options: ApiClientErrorOptions = {}) {
     super(message)
@@ -20,6 +22,7 @@ export class ApiClientError extends Error {
     this.fieldErrors = options.fieldErrors ?? {}
     this.requestId = options.requestId
     this.status = options.status
+    this.retryAfter = options.retryAfter
   }
 }
 
@@ -28,12 +31,15 @@ export async function apiClientErrorFromResponse(
   fallbackMessage: string,
 ): Promise<ApiClientError> {
   const payload = await readErrorPayload(response)
+  const retryHeader = response.headers.get('Retry-After')
+  const retryAfter = retryHeader !== null && /^\d+$/.test(retryHeader) ? Number(retryHeader) : undefined
 
   return new ApiClientError(payload?.message ?? fallbackMessage, {
     code: payload?.code,
     fieldErrors: payload?.errors,
     requestId: payload?.meta.request_id,
     status: response.status,
+    retryAfter: retryAfter !== undefined && Number.isSafeInteger(retryAfter) ? retryAfter : undefined,
   })
 }
 

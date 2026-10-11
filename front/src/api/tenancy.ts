@@ -1,5 +1,5 @@
 import { t } from '../i18n/fr'
-import { mutationHeaders, prepareCsrfCookie } from './auth'
+import { AUTH_SESSION_CHANGED_EVENT, mutationHeaders, prepareCsrfCookie } from './auth'
 import type { ApiSuccessResponse } from './contracts'
 import { apiClientErrorFromResponse } from './errors'
 
@@ -73,6 +73,12 @@ export async function tenancyRequest<T>(
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     signal: options.signal,
   })
-  if (!response.ok) throw await apiClientErrorFromResponse(response, t('tenant.error'))
+  if (!response.ok) {
+    const error = await apiClientErrorFromResponse(response, t('tenant.error'))
+    if (error.status === 401 || error.code === 'MFA_ENROLLMENT_REQUIRED' || error.code === 'MFA_CHALLENGE_REQUIRED') {
+      window.dispatchEvent(new Event(AUTH_SESSION_CHANGED_EVENT))
+    }
+    throw error
+  }
   return (await response.json()) as T
 }

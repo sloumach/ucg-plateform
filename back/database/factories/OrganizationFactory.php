@@ -42,4 +42,9 @@ class OrganizationFactory extends Factory
     {
         return $this->state(fn (): array => ['status' => OrganizationStatus::Suspended]);
     }
+
+    public function withMfaOwner(): static
+    {
+        return $this->state(fn (): array => ['owner_user_id' => User::factory()->withMfa()]);
+    }
 }
