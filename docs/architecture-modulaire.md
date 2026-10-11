@@ -30,6 +30,24 @@ dépendance signifie que le module de gauche peut consommer l’API publique du 
 
 `Reporting` est un consommateur terminal : aucun autre module ne doit dépendre de lui.
 
+## Périmètre sportif — décision du 11 octobre 2026
+
+Le module `Competition` reste prévu pour les scrims, matchs, parties, scores et
+le suivi interne des participations aux compétitions externes. Ses dépendances
+vers `Tenancy`, `Teams` et `Scheduling`, ainsi que celles de `Performance` et
+`Reporting`, restent pertinentes pour ces usages.
+
+L’organisation de tournois est retirée du périmètre : aucun portail participant,
+inscription publique, bracket, moteur de progression ou arbitrage de tournoi
+n’est prévu, même en P1/P2. Le modèle conceptuel conservé distingue la compétition
+externe et le dossier de participation interne ; il ne décrit pas un tenant
+organisateur accueillant des inscrits sur la plateforme.
+
+Les accès externes nécessaires aux sponsors et candidats, les instantanés
+d’adversaires et les permissions par événement restent des mécanismes distincts.
+Les événements hors compétition restent dans le planning. Cette décision
+documentaire ne modifie ni le code, ni les migrations, ni les données existantes.
+
 ## Structure d’un module
 
 ```text

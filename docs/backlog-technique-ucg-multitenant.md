@@ -2,11 +2,13 @@
 
 ## Backlog technique modulaire de la plateforme esports multi-tenant
 
-Version 1.0 — 3 octobre 2026
+Version 1.1 — 11 octobre 2026 — périmètre sans organisation de tournois
 
 Ce document transforme le cahier des charges fonctionnel en tickets techniques suffisamment détaillés pour préparer les sprints, les estimations et l’affectation des travaux. Il ne remplace ni les maquettes, ni les règles métier détaillées, ni les décisions de cadrage encore ouvertes.
 
 UCG est le tenant pilote. Le socle reste conçu pour accueillir plusieurs organisations sans partage implicite de leurs données.
+
+L’organisation de tournois est retirée de toutes les priorités, conformément à la section 2.3 du cahier des charges. Le suivi interne des compétitions externes, les équipes, scrims, matchs, scores et statistiques restent prévus. Les identifiants des tickets retirés restent réservés ; les tickets conservés ne sont pas renumérotés.
 
 ## 1 Conventions de lecture
 
@@ -349,7 +351,7 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 ### UCG-TEAM-006 — Référencer adversaires et organisations externes
 
 - **Priorité / taille** : P0 / M
-- **Périmètre** : références externes, données publiques autorisées et snapshots de compétition.
+- **Périmètre** : références externes, données publiques autorisées et snapshots de compétition, sans accès aux tenants des adversaires ni portail adversaire.
 - **Acceptation** : aucun droit interne attribué à un adversaire ; aucune donnée privée importée depuis un autre tenant.
 - **Références CDC** : TEAM-07, TEAM-09.
 
@@ -474,7 +476,7 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 ### UCG-MATCH-004 — Proposer et valider les résultats
 
 - **Priorité / taille** : P0 / L
-- **Périmètre** : soumission, preuve, approbation distincte, version optimiste, contestation et motif.
+- **Périmètre** : soumission interne, preuve, approbation distincte, version optimiste, contestation interne et motif ; aucun portail adversaire ni arbitrage de tournoi.
 - **Acceptation** : validation autorisée uniquement ; conflit 409 sur version obsolète ; aucune perte silencieuse.
 - **Références CDC** : MATCH-06, MATCH-07, REC-09.
 
@@ -506,7 +508,9 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Acceptation** : séquence invalide refusée ; résultat reproductible à partir de l’historique.
 - **Références CDC** : MATCH-09.
 
-## 12 Module Compétitions et tournois
+## 12 Module Suivi des compétitions externes
+
+Ce module suit les participations de l’organisation à des compétitions gérées ailleurs. Il ne crée ni événement compétitif organisé sur la plateforme, ni inscription publique, ni moteur de tournoi. Le module technique `Competition` reste propriétaire des matchs et de ce suivi interne.
 
 ### UCG-COMP-001 — Suivre les compétitions externes
 
@@ -515,11 +519,11 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Acceptation** : données limitées au tenant, documents privés et historique des changements importants.
 - **Références CDC** : COMP-01.
 
-### UCG-COMP-002 — Gérer inscriptions et échéances
+### UCG-COMP-002 — Suivre les dossiers d’inscription externes et échéances
 
 - **Priorité / taille** : P0 / L
-- **Périmètre** : paiement renseigné, pièces, roster, validation, check-in, règles d’âge/résidence/rang et tâches manager.
-- **Acceptation** : éléments manquants visibles et rappelés ; aucune éligibilité déduite automatiquement d’un contrat.
+- **Périmètre** : suivi interne du paiement renseigné, des pièces, du roster soumis, de sa validation par l’organisateur, du statut de check-in externe, des règles d’âge/résidence/rang et des tâches manager.
+- **Acceptation** : éléments manquants visibles et rappelés ; aucune éligibilité déduite automatiquement d’un contrat ; inscription et check-in effectués chez l’organisateur externe, sans accès participant ni partage automatique entre tenants.
 - **Références CDC** : COMP-02, COMP-04, COMP-05.
 
 ### UCG-COMP-003 — Relier résultats, classement et dotation
@@ -528,41 +532,6 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : matchs, classement, dotation annoncée et réellement reçue.
 - **Acceptation** : montants et résultats soumis aux droits dédiés ; source et date conservées.
 - **Références CDC** : COMP-03.
-
-### UCG-TOUR-001 — Créer un tournoi organisé et ses inscriptions
-
-- **Priorité / taille** : P1 / L
-- **Périmètre** : tenant organisateur, page d’inscription, règlement, capacité, critères, liste d’attente et verrouillage.
-- **Acceptation** : version du règlement acceptée conservée ; participant externe limité à sa propre inscription.
-- **Références CDC** : TOUR-01 à TOUR-03.
-
-### UCG-TOUR-002 — Gérer participants interorganisations
-
-- **Priorité / taille** : P1 / L
-- **Périmètre** : organisation participante facultative, compte externe, roster soumis et snapshots autorisés.
-- **Acceptation** : aucune adhésion implicite au tenant organisateur ; seul le périmètre partagé est lisible.
-- **Références CDC** : TOUR-02, TOUR-09, TOUR-10, REC-31.
-
-### UCG-TOUR-003 — Générer un bracket à élimination simple
-
-- **Priorité / taille** : P1 / XL
-- **Périmètre** : seeding, byes, formats de séries, forfaits et progression sur résultat validé.
-- **Acceptation** : génération déterministe, format verrouillé après démarrage et couverture exhaustive des cas limites.
-- **Références CDC** : TOUR-04, TOUR-05, TOUR-07, REC-18.
-
-### UCG-TOUR-004 — Gérer preuves, litiges et corrections dépendantes
-
-- **Priorité / taille** : P1 / XL
-- **Périmètre** : propositions contradictoires, arbitrage, décision, correction tardive et rencontres dépendantes.
-- **Acceptation** : aucune propagation avant validation ; impact sur les tours suivants présenté et traité explicitement.
-- **Références CDC** : TOUR-06, REC-19.
-
-### UCG-TOUR-005 — Ajouter les formats avancés
-
-- **Priorité / taille** : P2 / XL
-- **Périmètre** : poules, round robin, double élimination et suisse avec départages propres.
-- **Acceptation** : chaque moteur possède invariants, simulations et jeux de tests séparés.
-- **Références CDC** : TOUR-08.
 
 ## 13 Module Statistiques et performance
 
@@ -976,7 +945,7 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 ### UCG-CAD-002 — Valider la propriété des données
 
 - **Priorité / taille** : P0 / M
-- **Décision attendue** : tables globales, données tenant, données publiables et informations partageables pendant un tournoi.
+- **Décision attendue** : tables globales, données tenant, données publiables et projections autorisées des résultats de matchs, sans dossier interne de compétition externe.
 
 ### UCG-CAD-003 — Valider la résolution du tenant
 
@@ -1042,7 +1011,7 @@ Les tickets P1 et P2 sont replanifiés après la recette UCG. Les epics de taill
 | Académie et coaching | UCG-ACA-001 à UCG-ACA-005 |
 | Calendrier, disponibilités et logistique | UCG-CAL-001 à UCG-CAL-008 |
 | Scrims, matchs, scores et débriefs | UCG-MATCH-001 à UCG-MATCH-008 |
-| Compétitions et tournois | UCG-COMP-001 à UCG-COMP-003, UCG-TOUR-001 à UCG-TOUR-005 |
+| Suivi des compétitions externes | UCG-COMP-001 à UCG-COMP-003 |
 | Statistiques, imports et connecteurs | UCG-STAT-001 à UCG-STAT-006 |
 | Contrats et documents | UCG-CTR-001 à UCG-CTR-007 |
 | Sponsors et partenariats | UCG-SPON-001 à UCG-SPON-005 |

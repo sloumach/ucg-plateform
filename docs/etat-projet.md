@@ -6,6 +6,8 @@
 ## Point de reprise
 
 - Dernière mise à jour : 11 octobre 2026.
+- Périmètre sportif : organisation de tournois retirée des documents ; suivi
+  interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
 - Dernier ticket implémenté et validé localement : `UCG-IAM-003` —
   rôles configurables, affectations contextuelles, délégation bornée et audit.
@@ -616,6 +618,26 @@ Vérifications de clôture :
   en lecture seule. Base PostgreSQL temporaire supprimée après vérification.
   Workflow PostgreSQL enrichi avec IAM-003 ; README, API, architecture et backlog
   mis à jour. Commit local à pousser par l’utilisateur, CI distante à confirmer.
+
+## Décision de périmètre — retrait de l’organisation de tournois
+
+- Décision utilisateur du 11 octobre 2026 : retirer des documents le parcours
+  d’organisation de tournois, en P0, P1 et P2 ; aucune réintroduction planifiée.
+- Retirés : fiche de tournoi organisé et suivi manuel, inscriptions publiques,
+  comptes participants, liste d’attente, check-in sur la plateforme, brackets,
+  progression automatique, formats avancés et arbitrage de tournoi ; exigences,
+  tickets, rôles dédiés et critères de recette correspondants supprimés.
+- Conservés : suivi interne des compétitions externes et de leurs dossiers,
+  équipes/rosters, scrims, matchs, scores, validations internes et statistiques.
+  L’inscription et le check-in externes sont seulement renseignés en interne.
+- `Competition` et ses dépendances restent utiles aux matchs et à ce suivi.
+  Les sponsors, candidats et événements hors compétition gardent leur périmètre.
+- Cahier des charges, backlog et architecture alignés ; identifiants conservés
+  sans réutiliser ceux retirés. L’estimation professionnelle reste à réévaluer.
+- Changement documentaire uniquement : aucun code, migration ou donnée modifié.
+- Vérifications : seuls les cinq tickets de tournois et leurs exigences/lots/recettes
+  associés sont retirés ; 122 tickets conservés sans doublons, 127 références au CDC
+  résolues, recherche des mentions restantes revue et `git diff --check` réussi.
 
 ## Documents de référence
 

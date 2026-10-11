@@ -2,18 +2,18 @@
 
 ## Cahier des charges de la plateforme de gestion esports
 
-Version 1.1 — 3 octobre 2026 — orientation multi-tenant validée
+Version 1.2 — 11 octobre 2026 — périmètre sans organisation de tournois
 
 Ce document définit une plateforme web multi-tenant destinée à centraliser la gestion sportive, humaine, administrative et commerciale d’organisations esports. Ultra Cyber Game, ci-après UCG, constitue la première organisation utilisatrice et le tenant pilote. Il sert de base aux ateliers de conception, aux devis, au backlog et à la recette du projet. Les fonctionnalités proposées, les objectifs de service et les estimations restent à valider avec la direction avant de devenir des engagements contractuels.
 
-La recommandation est de construire une application Laravel organisée en modules métier, avec React et TypeScript pour les interfaces, PostgreSQL pour les données et Redis pour les traitements différés. Le socle isole les données, fichiers, autorisations, caches, traitements différés, exports et canaux temps réel de chaque organisation. Une première livraison doit rendre UCG autonome sur ses effectifs, ses contrats, son calendrier et ses résultats, sans empêcher l’accueil sécurisé d’autres organisations. Les statistiques automatisées, les tournois avancés et les intégrations sont ajoutés par étapes selon les accès réellement disponibles.
+La recommandation est de construire une application Laravel organisée en modules métier, avec React et TypeScript pour les interfaces, PostgreSQL pour les données et Redis pour les traitements différés. Le socle isole les données, fichiers, autorisations, caches, traitements différés, exports et canaux temps réel de chaque organisation. Une première livraison doit rendre UCG autonome sur ses effectifs, ses contrats, son calendrier et ses résultats, sans empêcher l’accueil sécurisé d’autres organisations. Les statistiques automatisées et les intégrations sont ajoutées par étapes selon les accès réellement disponibles.
 
 ## 1 Objectifs et hypothèses de cadrage
 
 ### 1.1 Objectifs
 
 - Disposer d’un référentiel fiable des joueurs, équipes, membres du staff, sponsors et partenaires.
-- Organiser les entraînements, scrims, compétitions et événements sans conflits de disponibilité.
+- Planifier les entraînements, scrims, participations aux compétitions externes et événements hors compétition sans conflits de disponibilité.
 - Suivre les performances avec des indicateurs propres à chaque jeu et une provenance vérifiable.
 - Gérer les contrats, leurs versions, leurs échéances et les obligations associées.
 - Donner à chacun un espace adapté à ses responsabilités, avec des accès limités aux données utiles.
@@ -42,7 +42,7 @@ Le pays d’établissement, les effectifs, les jeux prioritaires, le budget et l
 - **Contexte de tenant** : organisation explicitement résolue et autorisée pour une requête, un Job, un export ou un événement.
 - **Donnée globale** : donnée administrée par la plateforme et volontairement commune, par exemple un catalogue de jeux.
 - **Donnée tenant** : donnée possédée par une organisation et inaccessible aux autres sauf projection publique ou partage métier explicite.
-- **Participant externe** : personne ou structure autorisée sur un objet limité sans adhésion générale à l’organisation.
+- **Accès externe** : accès explicitement autorisé à un objet limité, par exemple un accord sponsor, sans adhésion générale à l’organisation.
 
 ### 1.4 Mesure de réussite
 
@@ -113,8 +113,7 @@ ne réduisent pas l’exigence finale ORG-09/ORG-10/REC-35.
 | Académie | Cohortes, séances et objectifs simples | Parcours pédagogiques et évaluations | Portail représentant légal si nécessaire |
 | Planning | Disponibilités, convocations, conflits, rappels | Répétitions avancées, réservations, logistique | Synchronisation bidirectionnelle |
 | Scrims et matchs | Saisie, lineups, parties, scores, validation | Veto, statistiques détaillées, débriefs | Données automatisées en direct |
-| Tournois externes | Inscription suivie, échéances, résultats | Classements et obligations détaillées | Connecteurs organisateurs |
-| Tournois organisés | Fiche et suivi manuel | Inscriptions externes et élimination simple | Double élimination, suisse, circuits |
+| Compétitions externes | Suivi interne de la participation, des inscriptions, échéances et résultats | Classements et obligations détaillées | Connecteurs de suivi organisateurs |
 | Contrats | Documents privés, versions, échéances | Circuit d’approbation et signature externe | Automatisation documentaire avancée |
 | Sponsors | Contacts, contrats liés, engagements | Portail sponsor et rapports de campagne | Connecteurs d’audience |
 | Statistiques | Saisie et import CSV contrôlé | Premier connecteur approuvé par jeu | Analyse approfondie et entrepôt dédié |
@@ -123,6 +122,14 @@ ne réduisent pas l’exigence finale ORG-09/ORG-10/REC-35.
 | Exploitation | Isolation multi-tenant, sauvegardes, alertes, exports et support | Haute disponibilité et récupération logique d’un tenant selon besoin | Déploiements ou bases dédiés selon contraintes contractuelles |
 
 La première version ne comprend pas un service de diffusion vidéo propriétaire, une paie complète, une comptabilité réglementaire, une application mobile native, une facturation SaaS complète ou une promesse de données universelles en direct. Ces capacités nécessitent des projets ou fournisseurs distincts.
+
+### 2.3 Limite du périmètre sportif
+
+Décision du 11 octobre 2026 : l’organisation de tournois est retirée du périmètre du projet, pour P0, P1 et P2. Sont exclus la fiche de tournoi organisé et son suivi manuel, les inscriptions publiques, les comptes participants dédiés, la liste d’attente, le check-in organisé sur la plateforme, la génération de brackets, la progression automatique, les formats de tournoi et l’arbitrage entre participants externes. Une éventuelle réintroduction exige un nouveau cadrage ; elle n’est pas une livraison différée prévue par ce document.
+
+Le suivi interne des compétitions externes reste prévu : l’organisation renseigne sa participation, son dossier d’inscription, son roster soumis, ses échéances et ses résultats. L’inscription et le check-in sont effectués auprès de l’organisateur externe ; la plateforme en conserve le statut, sans créer de portail participant ni donner accès à un autre tenant. Les équipes, scrims, matchs, parties, scores, validations internes et statistiques restent dans le périmètre.
+
+Les identifiants des exigences, lots et critères de recette retirés ne sont pas réattribués. Les sections conservées gardent leur numéro ; les éventuels écarts de numérotation sont intentionnels.
 
 ## 3 Espaces et expérience utilisateur
 
@@ -138,7 +145,7 @@ Les fiches doivent distinguer informations générales, données sportives et in
 
 ### 3.3 Espaces externes
 
-Les participants externes d’un tournoi, sponsors et candidats possèdent des accès spécifiques. Ils ne deviennent pas automatiquement membres de l’organisation organisatrice. Un participant peut consulter son inscription, effectuer son check-in et soumettre une preuve de résultat ; un sponsor consulte seulement les campagnes et livrables de son propre accord. Une organisation inscrite au tournoi d’une autre organisation ne partage que les données prévues par l’inscription et ne reçoit aucun accès à son espace interne.
+Les sponsors et candidats possèdent des accès spécifiques aux objets explicitement partagés. Ils ne deviennent pas automatiquement membres de l’organisation. Un sponsor consulte seulement les campagnes et livrables de son propre accord. Le suivi d’une compétition externe n’accorde aucun accès aux organisateurs ou adversaires, ni à leurs espaces internes.
 
 ### 3.4 Exigences d’interface
 
@@ -180,12 +187,10 @@ lors de la mise en place des permissions contextuelles ; ne pas la déduire du s
 | Responsable administratif | Contrats et dossiers | Préparer, suivre et archiver les documents | Aucun droit sportif de validation implicite |
 | Finance | Budgets et engagements | Consulter les montants autorisés et effectuer les rapprochements | Pas de publication sportive ni modification de roster |
 | Modérateur | Contenus et signalements | Traiter les signalements et modérer dans son périmètre | Pas de contrats, rémunérations ou stratégies |
-| Arbitre | Tournois affectés | Valider scores, preuves et litiges | Pas d’accès général à l’organisation |
 | Admin d’organisation | Administration du tenant | Gérer membres et configuration selon délégation | Aucun droit dans un autre tenant ; accès sensible explicitement accordé |
 | Propriétaire d’organisation | Gouvernance du tenant | Gérer administrateurs, paramètres structurants et transfert de propriété | Aucun pouvoir plateforme ou accès à un autre tenant |
 | Superadmin plateforme | Exploitation technique | Configuration globale et assistance contrôlée | Aucun accès métier permanent ; accès exceptionnel journalisé, motivé et limité dans le temps |
 | Sponsor | Accord attribué | Consulter les livrables et rapports partagés | Aucun accès aux autres sponsors ou au staff |
-| Participant externe | Tournoi inscrit | Inscription, check-in, résultats proposés | Aucune visibilité interne de l’organisation |
 
 Un mode d’accès exceptionnel pour incident peut être prévu : tenant ciblé, motif obligatoire, durée courte, trace, revue et notification selon la politique convenue. Les comptes techniques n’ont pas vocation à approuver des contrats ou des dépenses.
 
@@ -274,7 +279,7 @@ Règle de date : les instants sont stockés en UTC. Les événements récurrents
 
 Un match est une rencontre entre participants. Une série peut comporter plusieurs parties ou cartes, par exemple BO3. Une partie possède ses participants, sa carte ou son mode, sa version du jeu et ses statistiques. Certains jeux utilisent des lobbies à plusieurs équipes ou des compétitions individuelles : le modèle ne doit pas imposer systématiquement deux équipes.
 
-Un scrim est une activité d’entraînement privée. Un match officiel peut être rattaché à un tournoi externe ou organisé par une organisation cliente, dont UCG. Le résultat de la série, le score d’une partie et les statistiques individuelles sont des objets distincts.
+Un scrim est une activité d’entraînement privée. Un match officiel peut être rattaché à une compétition externe suivie par l’organisation. Le résultat de la série, le score d’une partie et les statistiques individuelles sont des objets distincts.
 
 ### 9.2 Exigences
 
@@ -283,12 +288,12 @@ Un scrim est une activité d’entraînement privée. Un match officiel peut êt
 - MATCH-03 : sélectionner le lineup et les remplaçants autorisés ; tracer les changements avant ou pendant la rencontre.
 - MATCH-04 : saisir les résultats par partie et calculer le résultat de la série selon le format.
 - MATCH-05 : gérer forfait, abandon, remake, match nul lorsqu’autorisé et preuve du résultat.
-- MATCH-06 : valider le score par un responsable autorisé ; en tournoi organisé, permettre propositions contradictoires et arbitrage.
+- MATCH-06 : valider le score par un responsable interne autorisé ; conserver la preuve et traiter les contestations internes sans portail adversaire ni arbitrage de tournoi.
 - MATCH-07 : conserver tout changement de score avec ancienne valeur, nouvelle valeur, motif et auteur.
 - MATCH-08 : ajouter VOD, notes, objectifs et débrief ; appliquer des droits spécifiques aux stratégies.
 - MATCH-09 : en P1, gérer le veto ou la sélection des cartes lorsque le jeu et le règlement l’exigent.
 - MATCH-10 : diffuser le score autorisé aux abonnés temps réel ; ne jamais diffuser les données privées dans un canal public.
-- MATCH-11 : identifier l’organisation propriétaire du match et représenter les adversaires interorganisations par une inscription autorisée ou un instantané, sans relier leurs données internes.
+- MATCH-11 : identifier l’organisation propriétaire du match et représenter les adversaires externes par une référence publique ou un instantané autorisé, sans relier leurs données internes ni leur accorder d’accès.
 
 ### 9.3 Circuit opérationnel
 
@@ -306,7 +311,7 @@ Chaque métrique possède un code, une définition, une unité, un niveau d’ag
 | --- | --- | --- |
 | FPS tactique | Kills, deaths, assists, K/D, ADR, taux de headshots, impact selon rôle | Définition et événements disponibles ; certaines mesures exigent un fournisseur ou une analyse de démo |
 | MOBA | KDA, CS/min, gold/min, vision, dégâts, participation aux kills | Durée, rôle, champion, patch et source |
-| Battle royale | Placement, points, éliminations, dégâts, survie | Barème du tournoi et résultat du lobby |
+| Battle royale | Placement, points, éliminations, dégâts, survie | Barème de la compétition externe et résultat du lobby |
 | Sport ou course | Score, tirs, passes, possession, classement, temps | Jeu, mode et granularité accessible |
 | Évaluation coach | Communication, exécution, décisions, progression | Grille, auteur et date ; valeur subjective signalée |
 
@@ -340,32 +345,15 @@ La documentation VALORANT prévoit un accès de production et un parcours d’op
 
 FACEIT propose une Data API pour ses informations publiques. Cela ne garantit pas l’accès aux scrims privés ni à toutes les données de Counter-Strike. Le périmètre de chaque endpoint et le droit d’usage doivent être vérifiés. [Source FACEIT](https://docs.faceit.com/docs/data-api/).
 
-## 11 Tournois et événements
+## 11 Suivi des compétitions externes et événements
 
 ### 11.1 Compétitions auxquelles une organisation participe
 
 - COMP-01 : enregistrer organisateur, jeu, région, saison, règlement, URL et contacts.
-- COMP-02 : suivre inscription, paiement éventuel, pièces requises, validation du roster, check-in et échéances.
+- COMP-02 : renseigner le suivi interne de l’inscription effectuée auprès de l’organisateur externe, du paiement éventuel, des pièces requises, de la validation du roster, du statut de check-in externe et des échéances.
 - COMP-03 : rattacher les matchs, résultats, classement et dotation annoncée puis réellement reçue.
 - COMP-04 : attribuer les tâches au manager et alerter sur les pièces ou disponibilités manquantes.
 - COMP-05 : conserver les exigences d’âge, résidence, compte ou rang telles que définies par le règlement.
-
-### 11.2 Tournois organisés par une organisation cliente
-
-P0 suit les événements et rencontres manuellement. P1 fournit un format d’élimination simple pour le premier jeu retenu, avec paramètres validés avant génération.
-
-- TOUR-01 : créer page d’inscription, période, règlement versionné, capacité et critères d’éligibilité.
-- TOUR-02 : enregistrer équipes ou joueurs externes, responsables et roster de compétition.
-- TOUR-03 : gérer liste d’attente, validation, check-in et verrouillage des inscriptions.
-- TOUR-04 : définir seeding, byes, format des séries et règles de forfait avant publication du bracket.
-- TOUR-05 : générer les rencontres et propager uniquement les résultats validés.
-- TOUR-06 : gérer preuves, contestations, arbitrage et décisions traçables.
-- TOUR-07 : empêcher un changement de format après démarrage sans procédure de migration contrôlée.
-- TOUR-08 : en P2, ajouter poules, round robin, double élimination et suisse, chacun avec ses règles propres de classement et départage.
-- TOUR-09 : identifier le tenant organisateur et limiter les organisations participantes aux données d’inscription, de check-in, de résultat et de règlement qui leur sont explicitement partagées.
-- TOUR-10 : conserver un instantané du nom, du logo et du roster autorisé d’un participant interorganisation afin que les changements dans son tenant d’origine n’altèrent pas l’historique du tournoi.
-
-Corriger un score alors que le tour suivant a commencé exige de traiter les rencontres dépendantes et la décision d’arbitrage. Une simple modification de ligne ne suffit pas. Le moteur de progression et ses tests constituent un lot métier à part entière.
 
 ### 11.3 Événements hors compétition
 
@@ -476,7 +464,7 @@ PostgreSQL permet d’indexer JSONB. Cela convient aux champs spécifiques aux j
 
 Flux HTTP : route → résolution du tenant → vérification de l’adhésion → Form Request et Policy → Controller → Service ou Action métier → Repository limité au tenant → modèles Eloquent et PostgreSQL. La réponse utilise une vue Blade, une page Inertia avec données filtrées, ou des Resources et DTOs typés pour les endpoints JSON.
 
-Les contrôleurs délèguent l’orchestration. Un `TenantContext` immuable fournit l’organisation active aux Services et Repositories autorisés. Les Services appliquent les règles et délimitent les transactions. Les Repositories encapsulent les accès aux données, les recherches paginées et les agrégats en exigeant le tenant ; leurs interfaces sont injectées. Les règles complexes, telles que l’éligibilité ou la progression d’un bracket, vivent dans des classes métier testables. Un scope Eloquent automatique peut renforcer la protection, mais ne remplace ni les Policies, ni les contraintes de base de données, ni les tests négatifs.
+Les contrôleurs délèguent l’orchestration. Un `TenantContext` immuable fournit l’organisation active aux Services et Repositories autorisés. Les Services appliquent les règles et délimitent les transactions. Les Repositories encapsulent les accès aux données, les recherches paginées et les agrégats en exigeant le tenant ; leurs interfaces sont injectées. Les règles complexes, telles que l’éligibilité d’un lineup ou le calcul du résultat d’une série, vivent dans des classes métier testables. Un scope Eloquent automatique peut renforcer la protection, mais ne remplace ni les Policies, ni les contraintes de base de données, ni les tests négatifs.
 
 Les événements métier sont émis après validation de la transaction et transportent l’identifiant du tenant. Les notifications, imports, synchronisations, PDF, signatures et recalculs utilisent des Jobs dont le contexte d’organisation est sérialisé puis revérifié à l’exécution. Les intégrations possèdent une interface par fournisseur et traduisent leurs erreurs en exceptions métier identifiables.
 
@@ -518,7 +506,7 @@ Une base ou un schéma dédié par organisation n’est pas retenu pour P0. Cett
 | Effectifs | teams, team_memberships, roster_snapshots | Une appartenance est datée ; un lineup historique est conservé |
 | Académie | cohorts, enrollments, learning_goals, assessments | Une cohorte contient des inscrits et des objectifs suivis |
 | Planning | activities, activity_participants, availability_slots, resource_bookings | L’activité commune porte le planning ; match ou séance l’enrichit sans dupliquer l’horaire |
-| Compétition | tournaments, stages, registrations, matches, match_participants, game_instances | Le match appartient éventuellement à une phase ; une partie appartient à un match |
+| Compétition | external_competitions, competition_participations, matches, match_participants, game_instances | La participation suit le dossier interne d’une organisation auprès d’un organisateur externe ; un match peut référencer cette compétition et une partie appartient à un match |
 | Performance | metric_definitions, observations, aggregate_versions | Chaque observation précise joueur, partie, jeu, source et version de schéma |
 | Documents | documents, document_versions, contracts, amendments, contract_parties, approvals | Les contrats référencent des versions et plusieurs parties |
 | Partenariats | sponsors, deals, campaigns, deliverables | L’accord possède obligations et livrables |
@@ -551,7 +539,7 @@ Une base ou un schéma dédié par organisation n’est pas retenu pour P0. Cett
 | Paramètres, personnes, équipes et rôles | Tenant | Aucune fiche administrative n’est partagée automatiquement |
 | Contrats, finances, documents et équipements | Tenant strict | Aucun accès inter-tenant ; export et conservation propres à l’organisation |
 | Planning, matchs, statistiques et analyses | Tenant | Le partage public ou interorganisation porte sur une projection autorisée, jamais sur l’objet privé complet |
-| Tournois | Tenant organisateur | Les inscrits externes ou autres tenants voient uniquement leur inscription et les données publiées |
+| Suivi des compétitions externes | Tenant participant | Le dossier et le roster soumis restent internes ; seules les projections autorisées peuvent être publiées, sans accès accordé à l’organisateur ou aux adversaires |
 | Fournisseurs et intégrations | Tenant par défaut | Un contrat ou credential plateforme partagé doit être explicitement documenté et compartimenté |
 | Audit et observabilité | Plateforme avec dimension tenant | Accès restreint ; aucune donnée sensible dans les logs techniques |
 
@@ -715,8 +703,8 @@ Livrables : périmètre validé, maquettes, modèle conceptuel multi-tenant, mat
 ### 21.4 Lot D opérations sportives
 
 - UCG-030 : calendrier, disponibilités, conflits et convocations isolés par tenant ; backend et frontend.
-- UCG-031 : scrims, matchs, parties, saisie et validation de résultats, y compris participants interorganisations autorisés ; backend.
-- UCG-032 : compétitions externes, inscriptions, échanges interorganisations limités et échéances ; backend et frontend.
+- UCG-031 : scrims, matchs, parties, saisie et validation interne de résultats, avec références publiques ou instantanés des adversaires externes ; backend.
+- UCG-032 : suivi interne des compétitions externes, dossiers d’inscription, rosters soumis et échéances ; backend et frontend.
 - UCG-033 : statistiques saisies ou importées, définition des métriques et tableaux de bord ; backend.
 - UCG-034 : liens VOD et live, débriefs et visibilité ; frontend.
 - UCG-035 : tests de parcours de la semaine sportive complète ; QA et staff pilote.
@@ -734,7 +722,6 @@ Livrables : périmètre validé, maquettes, modèle conceptuel multi-tenant, mat
 - UCG-050 : premier connecteur statistique autorisé, isolé par tenant, et réconciliation avec les matchs du tenant pilote.
 - UCG-051 : recrutement, évaluations académie et ressources pédagogiques.
 - UCG-052 : signature électronique et preuves archivées.
-- UCG-053 : tournoi organisé en élimination simple avec comptes externes et arbitrage.
 - UCG-054 : portail sponsor, campagnes et rapports.
 - UCG-055 : budgets opérationnels, dépenses, matériel et exports comptables.
 - UCG-056 : pages publiques, lecteurs live, SEO et notifications Discord.
@@ -742,11 +729,11 @@ Livrables : périmètre validé, maquettes, modèle conceptuel multi-tenant, mat
 
 ### 21.7 Lot G extensions
 
-Autres jeux et connecteurs, formats de tournoi avancés, overlays, scouting, synchronisation calendrier bidirectionnelle, application mobile éventuelle, abonnements SaaS, facturation et options de déploiement ou de base dédiés. Chaque extension est précédée d’un cadrage propre et d’une estimation.
+Autres jeux et connecteurs, overlays, scouting, synchronisation calendrier bidirectionnelle, application mobile éventuelle, abonnements SaaS, facturation et options de déploiement ou de base dédiés. Chaque extension est précédée d’un cadrage propre et d’une estimation.
 
 ### 21.8 Dépendances structurantes
 
-Résolution du tenant, organisations, adhésions et isolation précèdent tous les modules métier. Identité et permissions précèdent les documents. Personnes, jeux et équipes précèdent lineups et calendrier. Matchs et définitions de métriques précèdent agrégats et connecteurs. Validation de résultats précède progression de tournoi. Classification des données précède publication et portail sponsor. Sauvegardes et restauration précèdent mise en production.
+Résolution du tenant, organisations, adhésions et isolation précèdent tous les modules métier. Identité et permissions précèdent les documents. Personnes, jeux et équipes précèdent lineups et calendrier. Matchs validés et définitions de métriques précèdent agrégats et connecteurs. Classification des données précède publication et portail sponsor. Sauvegardes et restauration précèdent mise en production.
 
 ## 22 Critères de recette
 
@@ -768,9 +755,6 @@ Résolution du tenant, organisations, adhésions et isolation précèdent tous l
 | REC-14 | Un lien temporaire de document expire | Téléchargement refusé ; nouvelle demande réautorisée |
 | REC-15 | Un sponsor ouvre le rapport d’un autre accord | Aucun accès ni fuite dans la recherche |
 | REC-16 | Un rappel de contrat est relancé après incident | Envoi dédupliqué et exécution traçable |
-| REC-17 | Un participant externe ouvre un module interne | Accès refusé ; inscription propre accessible |
-| REC-18 | Un bracket reçoit un résultat validé en P1 | Progression conforme aux byes et au règlement |
-| REC-19 | Un résultat dépendant doit être corrigé en P1 | Arbitrage et impact sur les tours suivants traités |
 | REC-20 | Une restauration est exécutée | Base et fichiers cohérents ; RPO et RTO mesurés |
 | REC-21 | Charge conforme à l’enveloppe validée | Cibles p95 vérifiées et rapport reproductible |
 | REC-22 | Suppression ou archivage d’une personne | Politique de conservation appliquée sans casser les résultats autorisés |
@@ -782,7 +766,6 @@ Résolution du tenant, organisations, adhésions et isolation précèdent tous l
 | REC-28 | Un Job est relancé après changement d’organisation dans la session de l’auteur | Le Job utilise le tenant persisté et revérifié, jamais le contexte courant d’un autre utilisateur |
 | REC-29 | Un événement temps réel est publié pour un match privé | Seuls les abonnés autorisés du tenant et du périmètre reçoivent les données |
 | REC-30 | Un webhook porte un identifiant externe existant dans deux tenants | L’intégration, la signature et la clé d’idempotence déterminent sans ambiguïté le bon tenant |
-| REC-31 | Une organisation participe au tournoi d’une autre | Seules l’inscription, le roster soumis et les informations publiées sont partagés |
 | REC-32 | Un admin d’organisation tente d’obtenir un rôle plateforme | Refus, audit et absence de modification de privilège |
 | REC-33 | Un superadmin ouvre un accès exceptionnel | Tenant, motif, durée et actions sont journalisés ; l’accès expire automatiquement |
 | REC-34 | Un tenant fortement actif lance de nombreux imports et exports | Les limites empêchent la dégradation incontrôlée des autres organisations |
@@ -814,7 +797,7 @@ Avec trois développeurs mobilisés à environ 85 % sur le projet, 17 à 26 sema
 
 Ces phases constituent une projection de 17 à 26 semaines avec travaux parallèles de design et recette. L’équipe les recalcule après découpage des stories. Une première version métier plus étroite, limitée aux effectifs, au planning et aux résultats, peut être isolée si le budget impose une livraison plus rapide ; le socle d’isolation multi-tenant ne doit pas être retiré.
 
-La version professionnelle ajoute des lots distincts. Un périmètre large comprenant plusieurs APIs, signature, tournois avancés et portails peut porter le programme à 9 à 15 mois avec cette équipe. Ce scénario n’est pas un engagement et doit être réestimé après le pilote et les réponses des fournisseurs.
+La version professionnelle ajoute des lots distincts. L’ancienne enveloppe indicative de 9 à 15 mois incluait un périmètre désormais réduit ; elle ne constitue pas une estimation du périmètre actuel. Les lots restants, notamment APIs, signature et portails, doivent être réestimés après le pilote et les réponses des fournisseurs, sans déduction forfaitaire de durée.
 
 ### 23.3 Méthode budgétaire
 
@@ -834,10 +817,10 @@ Les postes récurrents incluent hébergement, base, stockage, sauvegardes, e-mai
 | Fuite inter-tenant | Exposition de données privées d’une autre organisation | Refus par défaut, contexte explicite, contraintes SQL, isolation de tous les canaux et tests systématiques |
 | Tenant bruyant | Saturation des jobs, exports, stockage ou temps réel | Quotas techniques, priorités, supervision et limitation par organisation |
 | Cycle de vie incomplet d’un tenant | Données orphelines ou suppression dangereuse | Procédures d’onboarding, suspension, export, archivage, purge et récupération |
-| Partage interorganisation trop large | Données internes révélées pendant un tournoi | Projections autorisées, instantanés et permissions temporaires minimales |
+| Publication sportive trop large | Données internes révélées avec un résultat public | Projections autorisées, instantanés et permission de publication distincte |
 | Données historiques incohérentes | Rapports erronés | Nettoyage, imports contrôlés et rapprochement avec responsables |
 | Modèle de jeu trop uniforme | Impossibilité de gérer certains formats | Participants multiples et métriques spécifiques au jeu |
-| Correction tardive d’un score | Bracket incohérent | Validation, versionnement et traitement des dépendances |
+| Correction tardive d’un score | Statistiques et rapports incohérents | Validation, audit, versionnement et recalcul des agrégats et vues concernés |
 | Faible adoption | Retour aux outils dispersés | Pilote, parcours simples, formation et suivi d’usage |
 | Incident de production | Activités ou documents indisponibles | Supervision, copie isolée, restauration testée et procédure d’urgence |
 | Mineurs ou droit applicable mal cadrés | Processus administratifs inadaptés | Validation locale des documents et accès nécessaires |
@@ -862,8 +845,8 @@ Les postes récurrents incluent hébergement, base, stockage, sauvegardes, e-mai
 1. Jeux exacts, plateformes, régions, modes et métriques prioritaires.
 2. Effectifs actuels et attendus, équipes, staff et nombre de comptes externes.
 3. Pays d’établissement, territoires d’activité et présence de mineurs.
-4. Priorité entre gestion interne, site public et tournois ouverts.
-5. Formats de tournoi à gérer réellement au lancement.
+4. Priorité entre gestion interne et site public.
+5. Compétitions externes à suivre et formats de match nécessaires au lancement.
 6. Sources actuelles de données et qualité des fichiers à importer.
 7. Budget, date souhaitée et compétences de l’équipe de réalisation.
 8. Droits contractuels, signataires et personnes habilitées aux montants.
