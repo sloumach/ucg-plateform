@@ -331,12 +331,14 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   confirmation tenant conservés ; PATCH avec version et champs omis préservés.
   Audit IAM-006 transactionnel avec états fermés sans valeurs privées ; catalogue
   de sauvegarde opérateur complété. Suppression physique/rollback non vide refusés.
-  Migration additive `Pending` sur la base principale ; aucun backfill, personne
-  réelle ou accès créé. Photos/imports, profils de jeu, listes/recherche/écrans
+  Commit `d9a4066` poussé par l’utilisateur ; migration additive appliquée,
+  `Ran` batch 10 confirmé en lecture seule. Aucun backfill, personne réelle
+  ou accès créé par l’agent. Photos/imports, profils de jeu, listes/recherche/écrans
   et départ restent dans les lots suivants. SQLite : 620 tests, 617 réussis ;
   PostgreSQL 17 : 620 tests, 618 réussis, bases temporaires supprimées. Pint,
   PHPStan niveau 8, lint/build et 38 tests frontend verts. Le workflow PostgreSQL
-  couvre People. Push utilisateur, CI et sauvegarde/migration à faire avant usage.
+  couvre People. CI backend/frontend vérifiées vertes pour `d9a4066`
+  (runs `38180615309` et `38180615233`) ; ticket clôturé.
 
 ### UCG-HUM-002 — Gérer profils de jeu et comptes externes
 

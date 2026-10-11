@@ -14,9 +14,11 @@
 - IAM-006 et son correctif `0b85252` poussés ; push, migration et CI validés
   par l’utilisateur dans cette discussion. Migration confirmée en lecture seule :
   `Ran`, batch 9. L’échec initial `38174777644` reste documenté ci-dessous.
-- Prochaine action : push utilisateur HUM-001, confirmation backend/frontend CI,
-  puis sauvegarde/migration avant usage. Migration HUM-001 `Pending` ; aucune
-  migration ni donnée métier réelle créée sur la base principale par l’agent.
+- HUM-001 poussé (`d9a4066`) par l’utilisateur ; `staging` et `origin/staging`
+  concordent. Migration appliquée par l’utilisateur, confirmée en lecture seule :
+  `Ran`, batch 10. Aucune migration ni donnée métier réelle créée par l’agent.
+- CI HUM-001 du commit `d9a4066` vérifiées vertes sur GitHub : backend
+  `38180615309`, frontend `38180615233`. Ticket clôturé ; prochain ticket HUM-002.
 - Format de commit convenu : `UCG-ID: description`, sans préfixe `feat(...)`.
 - IAM-005 poussé avec le renommage `70440a6` puis fusion `63b8626` ; CI vertes
   confirmées par l’utilisateur (backend `38171624409`, frontend `38171624442`).
@@ -27,7 +29,7 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après CI/migration HUM-001, prochain ticket P0 : `UCG-HUM-002`
+- Prochain ticket P0 : `UCG-HUM-002`
   (profils de jeu et comptes externes). HUM-003 ajoutera listes/recherche/écrans.
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
@@ -42,7 +44,8 @@
 - IAM-001 poussé (`98f2ed3`) : CI confirmées vertes par l’utilisateur.
 - IAM-001/IAM-002/IAM-003 : migrations appliquées par l’utilisateur sur
   `ucg_platform`, statut `Ran`, batch 7 confirmé en lecture seule. IAM-004 n’ajoute
-  aucune migration. IAM-005 est `Ran`, batch 8 ; IAM-006 est `Ran`, batch 9.
+  aucune migration. IAM-005 est `Ran`, batch 8 ; IAM-006 est `Ran`, batch 9 ;
+  HUM-001 est `Ran`, batch 10, après migration par l’utilisateur.
   Aucun e-mail réel envoyé.
 - Au démarrage, vérifier l'état réel avec `git status --short --branch` et
   `git log -8 --oneline --decorate`.
@@ -827,9 +830,11 @@ Vérifications de clôture :
 - Pint et PHPStan niveau 8 verts ; lint/build frontend et 38 tests Vitest verts.
   Aucun écran créé/modifié ; Playwright non relancé pour ce lot. Le workflow
   PostgreSQL inclut les quatre nouveaux fichiers de tests.
-- Contrôle principal en lecture seule : IAM-006 `Ran`, batch 9 ; HUM-001 `Pending`.
-  Aucune personne réelle, migration, purge ou e-mail réel. Push utilisateur/CI
-  puis sauvegarde/migration avant utilisation locale. Profiler la contention du
+- À la livraison, HUM-001 était `Pending`. Push `d9a4066` et migration ensuite
+  effectués par l’utilisateur ; contrôle en lecture seule : HUM-001 `Ran`, batch 10.
+  CI backend/frontend vérifiées vertes pour `d9a4066` (runs `38180615309` et
+  `38180615233`). Aucune personne réelle, migration,
+  purge ou e-mail réel par l’agent. Profiler la contention du
   verrou organisation avant forte charge ; aucun benchmark de millions d’utilisateurs.
 - README, contrats API, architecture, backlog et point de reprise mis à jour.
   Prochain ticket : HUM-002 ; listes/recherche/écrans restent HUM-003.
