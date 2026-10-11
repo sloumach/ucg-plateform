@@ -8,6 +8,7 @@ use App\Modules\Tenancy\Application\Contracts\AuthorizationScopeDirectory;
 use App\Modules\Tenancy\Application\Contracts\TenantArtifacts;
 use App\Modules\Tenancy\Application\Contracts\TenantAuditJournal;
 use App\Modules\Tenancy\Application\Contracts\TenantAuthorization;
+use App\Modules\Tenancy\Application\Contracts\TenantBusinessGuard;
 use App\Modules\Tenancy\Application\Contracts\TenantCache;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use App\Modules\Tenancy\Application\Contracts\TenantDataVisibility;
@@ -16,6 +17,7 @@ use App\Modules\Tenancy\Application\Contracts\TenantJobMiddleware;
 use App\Modules\Tenancy\Application\Contracts\TenantResourceLimits;
 use App\Modules\Tenancy\Application\Contracts\TenantScheduleQueue;
 use App\Modules\Tenancy\Application\Services\TenantArtifactService;
+use App\Modules\Tenancy\Application\Services\TenantBusinessGuardService;
 use App\Modules\Tenancy\Application\Services\TenantDataProjectionService;
 use App\Modules\Tenancy\Application\Services\TenantExecutionScope;
 use App\Modules\Tenancy\Application\Services\TenantPermissionService;
@@ -86,6 +88,7 @@ final class TenancyServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(TenantBusinessGuard::class, TenantBusinessGuardService::class);
         $this->app->bind(TenantAuditJournal::class, EloquentTenantAuditJournal::class);
         $this->app->bind(RoleRepository::class, EloquentRoleRepository::class);
         $this->app->bind(SupportAccessRepository::class, EloquentSupportAccessRepository::class);

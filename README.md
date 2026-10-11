@@ -926,3 +926,47 @@ adaptée pour les index, profiler les requêtes et surveiller stockage et sauveg
 Aucun benchmark de millions de lignes ni écran React de journal dans ce lot.
 La permission apparaît dans la gestion des rôles ; les futurs modules devront
 raccorder les ports d’audit.
+
+### Personnes tenant — UCG-HUM-001
+
+Le module `People` fournit une fiche indépendante du compte global : pseudonyme,
+langue, fuseau, statut et biographies publique/interne. Une fiche sans compte est
+possible ; un compte vérifié déjà effectif dans l’organisation peut être lié à une
+seule fiche de ce tenant. Le lien ne crée ni adhésion, ni rôle, ni permission.
+Les pseudonymes ne sont pas uniques et ne déclenchent aucun rapprochement automatique.
+
+Les routes `POST tenants/{tenant}/people`, `GET tenants/{tenant}/people/{person}` et
+`PATCH tenants/{tenant}/people/{person}` passent par Sanctum/session/MFA, le contexte
+tenant, une Form Request et une Policy. Les mutations demandent confirmation de la
+sélection ; PATCH exige la `version` UUID actuelle. Les champs omis sont conservés.
+`sports.read/write` couvre le profil général ; `administrative.read/write` couvre
+le compte lié, l’identité, les coordonnées et la biographie interne. Aucun droit
+métier implicite pour propriétaire/administrateur ; les droits de lecture restent
+distincts des droits d’écriture. Une réponse omet les champs non autorisés.
+
+Identité, coordonnées et biographie interne sont chiffrées avec Laravel et masquées
+dans la sérialisation ordinaire du modèle. Conserver les clés de chiffrement avec
+les sauvegardes et lors d’une rotation. Aucun champ de naissance, pièce d’identité
+ou coordonnées bancaires, aucun fichier/photo ni publication publique dans ce lot.
+Les biographies sont du texte à échapper à l’affichage. Les écrans, listes et
+recherche restent HUM-003 ; les profils de jeu restent HUM-002.
+
+La migration additive `2026_10_11_215159_create_people_table` est à appliquer après
+sauvegarde avec `php artisan migrate` depuis `back/`, avant utilisation de cette API.
+Aucune fiche ni aucun lien n’est créé automatiquement pour les comptes existants.
+Les identifiants/tenants sont immuables en Eloquent et SQL ; la suppression physique
+est refusée. Le statut `former` conserve la fiche ; le départ et la révocation
+des accès restent HUM-004. Le rollback d’une table non vide est refusé.
+
+Les changements sont audités dans la même transaction : `domain.changed`, cible
+organisation, UUID de personne dans l’état fermé, statut, présence d’un lien,
+version et noms des champs soumis, sans données privées. Une panne d’audit annule
+la mutation. Les sauvegardes complètes opérateur incluent les fiches du seul tenant,
+avec les colonnes chiffrées brutes ; aucun export métier n’est ajouté.
+
+Les verrous suivent compte puis organisation puis fiche ; les permissions sont
+relues sous verrou. Cette sérialisation par organisation protège les révocations
+concurrentes ; profiler contention et latence avant de changer sa granularité.
+Aucun benchmark de millions d’utilisateurs ni cache durable d’autorisation.
+Le client TypeScript `front/src/api/people.ts` utilise les protections CSRF et
+la révision tenant existantes. Voir les exemples dans `docs/conventions-api.md`.

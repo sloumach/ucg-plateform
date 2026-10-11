@@ -15,10 +15,12 @@ final class AuditState
         $result = [];
         foreach ($state as $key => $value) {
             $valid = match ($key) {
-                'active', 'privileged', 'confirmed' => is_bool($value),
+                'active', 'privileged', 'confirmed', 'account_linked' => is_bool($value),
+                'person_status' => is_string($value) && in_array($value, ['candidate', 'trial', 'active', 'unavailable', 'substitute', 'former'], true),
+                'changed_fields' => self::listWithin($value, ['pseudonym', 'language', 'timezone', 'status', 'biography_public', 'user_id', 'first_name', 'last_name', 'contact_email', 'contact_phone', 'biography_internal']),
                 'status' => is_string($value) && in_array($value, ['active', 'suspended', 'revoked', 'expired', 'pending', 'accepted', 'declined', 'closing', 'archived', 'published', 'draft'], true),
                 'role' => is_string($value) && in_array($value, ['member', 'administrator', 'superadmin', 'support'], true),
-                'version','role_id','scope_id','membership_id' => is_string($value) && Str::isUuid($value),
+                'version','role_id','scope_id','membership_id','person_id' => is_string($value) && Str::isUuid($value),
                 'scope_type' => is_string($value) && in_array($value, ['organization', 'team', 'game', 'cohort', 'event'], true),
                 'starts_at','ends_at','expires_at' => $value === null || (is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?$/D', $value) === 1),
                 'http_status' => is_int($value) && in_array($value, [401, 403, 404], true),

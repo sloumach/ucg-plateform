@@ -59,7 +59,7 @@ const baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/
 
 export async function tenancyRequest<T>(
   path: string,
-  options: { method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; body?: unknown; revision?: string; signal?: AbortSignal } = {},
+  options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; revision?: string; signal?: AbortSignal } = {},
 ): Promise<T> {
   const method = options.method ?? 'GET'
   if (method !== 'GET') await prepareCsrfCookie()

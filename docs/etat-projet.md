@@ -9,13 +9,14 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité et validé localement : `UCG-IAM-006` — journaux global/tenant,
-  autorisation dédiée, états fermés et conservation sans limite demandée par l’utilisateur.
-- IAM-006 poussé (`2c24782`) ; migration appliquée par l’utilisateur et confirmée
-  en lecture seule : `Ran`, batch 9. Backend CI run `38174777644` en échec sur
-  le test de comptage SQL, reproduit et corrigé localement (voir ci-dessous).
-- Prochaine action : push utilisateur du correctif IAM-006 puis confirmation CI.
-  Ce correctif ne change ni code applicatif ni schéma ; aucune migration à relancer.
+- Dernier ticket traité et validé localement : `UCG-HUM-001` — personnes tenant, lien facultatif
+  au compte, permissions par catégorie et audit transactionnel sans données privées.
+- IAM-006 et son correctif `0b85252` poussés ; push, migration et CI validés
+  par l’utilisateur dans cette discussion. Migration confirmée en lecture seule :
+  `Ran`, batch 9. L’échec initial `38174777644` reste documenté ci-dessous.
+- Prochaine action : push utilisateur HUM-001, confirmation backend/frontend CI,
+  puis sauvegarde/migration avant usage. Migration HUM-001 `Pending` ; aucune
+  migration ni donnée métier réelle créée sur la base principale par l’agent.
 - Format de commit convenu : `UCG-ID: description`, sans préfixe `feat(...)`.
 - IAM-005 poussé avec le renommage `70440a6` puis fusion `63b8626` ; CI vertes
   confirmées par l’utilisateur (backend `38171624409`, frontend `38171624442`).
@@ -26,8 +27,8 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après CI/migration IAM-006, prochain socle métier P0 : `UCG-HUM-001`
-  (personnes tenant et lien facultatif au compte global), à confirmer avec l’utilisateur.
+- Après CI/migration HUM-001, prochain ticket P0 : `UCG-HUM-002`
+  (profils de jeu et comptes externes). HUM-003 ajoutera listes/recherche/écrans.
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
@@ -780,7 +781,58 @@ Vérifications de clôture :
   `ucg_iam006_ci_fix_20261011` créée puis supprimée. Pint/PHPStan niveau 8 verts.
 - Push/migration initiale confirmés par l’utilisateur ; contrôle en lecture seule
   IAM-006 `Ran` batch 9 sur `ucg_platform`. Aucun besoin de relancer migrate pour
-  ce correctif. Push utilisateur du correctif et confirmation CI encore à faire.
+  ce correctif. Correctif `0b85252` présent sur `staging`/`origin/staging` ;
+  push et CI confirmés ensuite par l’utilisateur avant le lancement de HUM-001.
+
+### UCG-HUM-001 — Personnes et lien facultatif au compte global
+
+- Module `People` câblé : modèle tenant, factory de tests, statuts, repository,
+  Service, DTO et port public `PeopleDirectory`, projection, Form Requests, Policy
+  et API unitaire POST/GET/PATCH. Client TypeScript utilisant CSRF/révision tenant.
+- Compte facultatif, une fiche liée par compte/tenant, fiches distinctes possibles
+  dans plusieurs tenants. Aucun rapprochement global ni unicité de pseudonyme.
+  Lien réservé à un compte vérifié déjà propriétaire/membre effectif du tenant ;
+  aucun compte, accès ou rôle créé. Un déliage ne révoque pas l’adhésion.
+- Pseudo/langue/fuseau/statut/biographie publique sous `sports.read/write` ;
+  identité/coordonnées/biographie interne/lien compte sous `administrative.read/write`.
+  Chaque catégorie soumise exige son droit d’écriture, y compris un null explicite.
+  Lecture distincte de l’écriture, droits métier non implicites, comptes techniques
+  refusés. Projection serveur IAM-004, champs privés absents sans autorisation.
+- Identité, coordonnées et biographie interne chiffrées/masquées. Aucun champ
+  de naissance, pièce d’identité ou coordonnées bancaires. Les biographies sont
+  du texte à échapper ; aucune publication publique ou upload/photo dans ce lot.
+- PATCH partiel avec version UUID ; champs omis conservés, conflit 409 si obsolète.
+  Tenancy expose `TenantBusinessGuard` : transaction obligatoire, compte éventuel
+  puis organisation verrouillés ; People revérifie les droits puis verrouille
+  la fiche. Ressources filtrées par UUID + tenant, sans import de modèles voisins.
+- Audit via port IAM-006 dans la transaction : action `domain.changed`, cible
+  organisation et UUID de personne dans l’état fermé, statut/lien/version/noms
+  des champs soumis ; aucune valeur privée. Une panne d’audit annule la mutation.
+  Le schéma d’audit existant n’est pas réécrit.
+- Migration additive `2026_10_11_215159_create_people_table` : table `people`,
+  FK restrictives, unicités/index tenant, gardes SQL/Eloquent contre déplacement
+  et suppression physique. Aucun backfill. Rollback vide testé ; rollback avec
+  personnes refusé. Les statuts descriptifs ne révoquent aucun accès ; HUM-004
+  devra implémenter le départ et ses obligations.
+- Catalogue fermé de portabilité opérateur complété ; seuls les fiches/colonnes
+  physiques du tenant sont exportées, ciphertext conservé. Garder les clés avec
+  sauvegardes/rotation. Aucun import, restauration, export métier ni purge ajouté.
+- Validation SQLite complète avec `TENANCY_CACHE_STORE=database` : 620 tests,
+  617 réussis, 2 704 assertions, 3 exclusions attendues. PostgreSQL 17 : suite
+  complète de 620 tests, 618 réussis, 2 705 assertions, 2 exclusions Redis attendues.
+  Base `ucg_hum001_verify_20261011_220904` supprimée après succès.
+  Le premier lancement PostgreSQL héritait du broadcasting local ; relancé avec
+  les variables complètes de phpunit.xml et cache tenant database, sans correction
+  des tests applicatifs ni modification de la configuration principale.
+- Pint et PHPStan niveau 8 verts ; lint/build frontend et 38 tests Vitest verts.
+  Aucun écran créé/modifié ; Playwright non relancé pour ce lot. Le workflow
+  PostgreSQL inclut les quatre nouveaux fichiers de tests.
+- Contrôle principal en lecture seule : IAM-006 `Ran`, batch 9 ; HUM-001 `Pending`.
+  Aucune personne réelle, migration, purge ou e-mail réel. Push utilisateur/CI
+  puis sauvegarde/migration avant utilisation locale. Profiler la contention du
+  verrou organisation avant forte charge ; aucun benchmark de millions d’utilisateurs.
+- README, contrats API, architecture, backlog et point de reprise mis à jour.
+  Prochain ticket : HUM-002 ; listes/recherche/écrans restent HUM-003.
 
 ## Décision de périmètre — retrait de l’organisation de tournois
 

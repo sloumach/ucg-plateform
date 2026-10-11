@@ -594,3 +594,46 @@ explicites. Aucun cache durable des décisions d’accès. Les futurs modules m�
 doivent écrire via le port de leur périmètre, dans la transaction de l’action, avec
 des états fermés. Aucun module métier fictif ni écran de journal créé dans ce lot ;
 l’interface de rôles propose `audit.view` avec son badge MFA.
+
+## Référentiel humain — UCG-HUM-001
+
+`People` possède `people`, `Person`, ses statuts, repository, DTO, service,
+projection, Form Requests, Policy et routes. Le provider compose les bindings.
+Le port public `PeopleDirectory.find(TenantContext, UUID)` renvoie un `PersonRecord`
+filtré selon les permissions actuelles ; aucune relation Eloquent vers `Identity`
+ou `Tenancy`, aucun modèle interne voisin importé. Ne pas réutiliser ce snapshot
+comme preuve d’accès dans un job/cache.
+
+Le port Tenancy `TenantBusinessGuard.lock(context, accountId?)` exige la transaction
+du module appelant. Il verrouille le compte vérifié éventuel via Identity, puis
+l’organisation, et revérifie activité/accès et admissibilité du compte lié.
+Le compte doit déjà être propriétaire ou membre effectif du tenant. Le service
+People revérifie ensuite les permissions par catégorie et verrouille la fiche
+avec UUID + organisation ; ordre compte → organisation → fiche. Il ne crée aucun
+accès à partir d’un lien personne/compte.
+
+Unicité `(organization_id, user_id)` pour les comptes non nuls, identité composite
+`(organization_id, id)` pour les futures références tenant, FK restrictives vers
+organisation/compte, index tenant/statut/UUID. Plusieurs fiches sans compte et
+pseudonymes identiques sont possibles ; aucune déduplication globale.
+Identifiant et organisation protégés en SQL/Eloquent, suppression physique refusée.
+Les statuts descriptifs ne révoquent pas les adhésions : le départ est HUM-004.
+
+Profil général : `sports.read/write`. Identité, coordonnées, lien compte et
+biographie interne : `administrative.read/write`. Chaque catégorie présente dans
+une mutation exige son droit d’écriture, y compris une valeur null. Une lecture
+exige au moins un droit de lecture métier ; la Resource reçoit uniquement la
+projection serveur via IAM-004. Les champs omis par PATCH ne sont pas écrasés.
+Les champs administratifs sont chiffrés/masqués ; aucune identité globale copiée.
+
+IAM-006 est consommé via `TenantAuditJournal` dans la transaction, avec
+`domain.changed` sur l’organisation et `person_id` dans l’état fermé. Le journal
+conserve statut/lien/version/noms des champs soumis sans leurs valeurs privées.
+Le contrat d’audit et son schéma restent compatibles avec les historiques.
+Portabilité opérateur : catalogue fermé complété par les colonnes physiques de
+`people`, ciphertext conservé. Garder les clés avec les sauvegardes.
+
+Migration additive sans backfill ; attente de verrou PostgreSQL bornée à 5 s.
+Rollback vide possible, rollback avec personnes refusé ; correction en avant
+sur une base utilisée. Aucune liste massive, publication, photo/import ou UI
+créée dans ce lot. HUM-002/HUM-003/HUM-004 portent les parcours suivants.

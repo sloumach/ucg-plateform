@@ -687,3 +687,64 @@ programmée ni exclusion automatique des événements anciens. `audit:retention`
 affiche la politique sans écrire. Une politique bornée future nécessitera une
 décision et une implémentation dédiées avec protection des événements de sécurité
 et procédures en cours ; changer une configuration ne l’active pas.
+
+## Personnes tenant — UCG-HUM-001
+
+| Méthode | Route relative à `/api/v1` | Accès |
+| --- | --- | --- |
+| POST | `tenants/{tenant}/people` | `sports.write`, plus `administrative.write` si un champ administratif est fourni |
+| GET | `tenants/{tenant}/people/{person}` | `sports.read` ou `administrative.read`, puis projection par champ |
+| PATCH | `tenants/{tenant}/people/{person}` | droit d’écriture de chaque catégorie fournie ; `version` actuelle requise |
+
+Sanctum/session/MFA, tenant explicite et budget TEN-005 existants. Les mutations
+conservent CSRF et `tenant.confirmed`/`X-Tenant-Revision`. Une UUID de personne
+étrangère ou absente renvoie 404 ; les permissions ne sont jamais implicites
+pour un propriétaire/administrateur. Les comptes techniques actifs sont refusés.
+
+POST exige `pseudonym` (80 caractères max), `language` (catalogue tenant configuré),
+`timezone` IANA et `status` (`candidate`, `trial`, `active`, `unavailable`,
+`substitute`, `former`). `biography_public` est facultative/null, 4 000 caractères.
+Champs administratifs facultatifs/null : `user_id` entier positif, `first_name`
+et `last_name` (120 caractères), `contact_email` (254), `contact_phone` (32),
+`biography_internal` (4 000). Le lien vise un compte vérifié déjà effectif dans
+ce tenant ; il ne donne aucun droit. Aucun rapprochement par pseudo/e-mail.
+
+PATCH ne modifie que les champs présents et exige au moins un champ métier.
+Un null explicite efface un champ nullable avec son droit d’écriture ; un champ
+omis est conservé. `version` UUID évite d’écraser une modification concurrente.
+`id`, `organization_id`, permissions et toutes les clés inconnues sont refusés.
+Le statut ne lance aucune révocation des accès, à traiter dans HUM-004.
+
+Réponse : `data.id`/`data.version`, champs généraux avec `sports.read`, champs
+administratifs avec `administrative.read`. Les clés non autorisées sont absentes,
+y compris après écriture ; écrire ne donne pas le droit de lire. Le nom « public »
+de la biographie ne crée pas de route publique. Rendre ces textes avec échappement.
+`meta.request_id` et notifications de succès/erreur suivent le contrat commun.
+
+| Statut/code | Situation |
+| --- | --- |
+| 409 `PERSON_VERSION_STALE` | version concurrente |
+| 409 `PERSON_ACCOUNT_UNAVAILABLE` | compte absent, non vérifié, étranger ou sans adhésion effective ; message identique |
+| 409 `PERSON_ACCOUNT_ALREADY_LINKED` | compte déjà lié à une fiche du même tenant |
+| 422 `VALIDATION_FAILED` | champ invalide/inconnu, version absente ou patch vide |
+| 500 `INTERNAL_ERROR` | panne de persistance/audit, mutation annulée |
+
+Le client existant gère cookies, CSRF et révision ; exemple après connexion/MFA
+et confirmation de l’organisation :
+
+```ts
+import { createPerson, getPerson, updatePerson } from '../api/people'
+
+const created = await createPerson(organizationId, {
+  pseudonym: 'Camille', language: 'fr', timezone: 'Europe/Paris', status: 'active',
+}, activeRevision)
+const current = await getPerson(organizationId, created.data.id, activeRevision)
+await updatePerson(organizationId, current.data.id, {
+  pseudonym: 'Camille UCG', version: current.data.version,
+}, activeRevision)
+```
+
+Les méthodes publiques du Service valident aussi leurs DTO et revérifient
+les droits. `PeopleDirectory` fournit le snapshot filtré aux modules autorisés.
+Les listes/recherche/écrans restent HUM-003, les profils de jeu HUM-002 et les
+affectations/départs HUM-004. Aucun DELETE, import, photo ou export métier ajouté.

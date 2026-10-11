@@ -301,7 +301,8 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   correctif local vérifié avec caches mémoire/base sur SQLite et PostgreSQL.
   Suite complète SQLite avec cache CI, Pint et PHPStan 8 verts ; frontend/Chromium
   validés lors de la livraison. API/CLI disponibles ; pas d’écran React de journal.
-  Futurs modules à raccorder aux ports typés. Push du correctif et CI à confirmer.
+  Correctif `0b85252` poussé ; push, migration et CI confirmés par l’utilisateur
+  avant HUM-001. Futurs modules à raccorder aux ports typés.
 
 ### UCG-IAM-007 — Fournir les tokens API limités
 
@@ -318,6 +319,24 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : fiche personne tenant, compte facultatif, pseudonyme, identité restreinte, langue, fuseau, statuts et biographies publique/interne.
 - **Acceptation** : une personne sans compte est possible ; un compte commun peut référencer des fiches distinctes sans fuite entre tenants.
 - **Références CDC** : HUM-01, HUM-02, HUM-04, HUM-07.
+- **État** : implémenté et validé localement le 11 octobre 2026.
+  Table `people` tenant, compte nullable unique par organisation, identifiants
+  immuables SQL/Eloquent, statuts descriptifs et biographies distinctes. Identité,
+  coordonnées et biographie interne chiffrées et cachées par défaut. Pas de copie
+  d’identité globale ni rapprochement par pseudonyme ; plusieurs fiches sans compte.
+  Lien réservé aux comptes vérifiés déjà effectifs dans le tenant, sans admission
+  ni droits ajoutés. Service/Repository, DTO/port public, Form Requests/Policy,
+  projection IAM-004, API POST/GET/PATCH unitaire et client TypeScript raccordés.
+  Droits explicites `sports.read/write` et `administrative.read/write`, MFA et
+  confirmation tenant conservés ; PATCH avec version et champs omis préservés.
+  Audit IAM-006 transactionnel avec états fermés sans valeurs privées ; catalogue
+  de sauvegarde opérateur complété. Suppression physique/rollback non vide refusés.
+  Migration additive `Pending` sur la base principale ; aucun backfill, personne
+  réelle ou accès créé. Photos/imports, profils de jeu, listes/recherche/écrans
+  et départ restent dans les lots suivants. SQLite : 620 tests, 617 réussis ;
+  PostgreSQL 17 : 620 tests, 618 réussis, bases temporaires supprimées. Pint,
+  PHPStan niveau 8, lint/build et 38 tests frontend verts. Le workflow PostgreSQL
+  couvre People. Push utilisateur, CI et sauvegarde/migration à faire avant usage.
 
 ### UCG-HUM-002 — Gérer profils de jeu et comptes externes
 

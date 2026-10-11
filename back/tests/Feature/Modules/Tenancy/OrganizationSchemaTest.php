@@ -97,6 +97,8 @@ class OrganizationSchemaTest extends TestCase
         $rolesMigration = require database_path('migrations/2026_10_11_120303_create_organization_roles_and_role_assignments.php');
         $supportMigration = require database_path('migrations/2026_10_11_183828_create_platform_roles_and_support_accesses.php');
         $transverseAuditMigration = require database_path('migrations/2026_10_11_203439_create_transverse_audit_events.php');
+        $peopleMigration = require database_path('migrations/2026_10_11_215159_create_people_table.php');
+        $peopleMigration->down();
         $transverseAuditMigration->down();
         $supportMigration->down();
         $rolesMigration->down();
@@ -116,6 +118,7 @@ class OrganizationSchemaTest extends TestCase
         $rolesMigration->up();
         $supportMigration->up();
         $transverseAuditMigration->up();
+        $peopleMigration->up();
         $this->assertTrue(Schema::hasTable('organizations'));
         $this->assertTrue(Schema::hasTable('organization_settings'));
         $this->assertTrue(Schema::hasTable('organization_lifecycle_events'));

@@ -24,6 +24,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
         'organization_roles' => 'id', 'organization_role_assignments' => 'id',
         'organization_support_accesses' => 'id', 'organization_support_events' => 'id',
         'organization_audit_events' => 'id',
+        'people' => 'id',
         'tenant_storage_usage' => 'organization_id', 'tenant_artifacts' => 'id',
         'tenant_portability_operations' => 'id',
     ];
@@ -41,6 +42,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
         'organization_support_accesses' => ['id', 'organization_id', 'actor_user_id', 'platform_role_version', 'reason', 'actions', 'status', 'starts_at', 'expires_at', 'created_at', 'updated_at'],
         'organization_support_events' => ['id', 'organization_id', 'support_access_id', 'actor_user_id', 'action', 'request_id', 'ip_address', 'occurred_at'],
         'organization_audit_events' => ['id', 'organization_id', 'actor_user_id', 'action', 'target_type', 'target_id', 'reason_code', 'before', 'after', 'request_id', 'ip_address', 'occurred_at'],
+        'people' => ['id', 'organization_id', 'user_id', 'pseudonym', 'language', 'timezone', 'status', 'biography_public', 'biography_internal', 'first_name', 'last_name', 'contact_email', 'contact_phone', 'version', 'created_at', 'updated_at'],
         'tenant_storage_usage' => ['organization_id', 'bytes'],
         'tenant_artifacts' => ['id', 'organization_id', 'name', 'disk', 'bytes', 'ready', 'created_at', 'updated_at'],
         'tenant_portability_operations' => ['id', 'organization_id', 'actor_user_id', 'request_id', 'kind', 'status', 'reason', 'disk', 'bytes', 'sha256', 'expires_at', 'details', 'created_at', 'updated_at'],
