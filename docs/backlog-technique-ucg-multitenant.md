@@ -346,6 +346,25 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : jeu, identifiant externe stable, région, rang, rôle, comptes liés et fraîcheur.
 - **Acceptation** : plusieurs profils par personne ; unicités et rapprochements limités au bon contexte.
 - **Références CDC** : HUM-03, HUM-08.
+- **État** : implémenté et validé localement le 11 octobre 2026.
+  Profils par personne/jeu/plateforme/région et comptes liés distincts, tenant-owned.
+  Contexte et fournisseur immuables ; identifiant stable nullable enrichissable une
+  fois, puis protégé. Unicités SQL par tenant/contexte, FK composites, archivage
+  conservant les réservations et historique, aucune fusion par pseudonyme.
+  API POST/GET/PATCH et listes paginées, Policy/Form Requests, Services/Repositories,
+  projection IAM-004 et audit IAM-006 atomique sans valeurs d’alias/identifiant/rang.
+  Fraîcheur basée sur observation manuelle UTC, jamais sur modification DB ; propriété
+  externe non vérifiée. Aucun OAuth, token, connecteur ou droit d’accès ajouté.
+  Catalogue initial configurable : League of Legends, VALORANT, Counter-Strike 2,
+  Rocket League, plateformes compatibles PC/PlayStation/Xbox/Switch, zones applicatives.
+  Ajout/retrait/activation possible sans changer de schema/enum ; le port pourra
+  être implémenté par Teams sans cycle. Catalogue complet et UI restent TEAM-001.
+  Client TypeScript et sauvegardes opérateur raccordés ; limites et anti-N+1 testés.
+  Migration additive de deux tables `Pending` sur la base principale, aucun backfill
+  ou profil/compte réel. SQLite : 718 tests, 715 réussis ; PostgreSQL 17 : 718 tests,
+  716 réussis, bases temporaires supprimées. Pint/PHPStan 8, lint/build et 38 tests
+  frontend verts. Tests PostgreSQL ajoutés à la CI. Un seul commit regroupe code,
+  tests et docs. Push utilisateur/CI puis sauvegarde/migration avant usage.
 
 ### UCG-HUM-003 — Livrer fiches, listes et recherche paginées
 

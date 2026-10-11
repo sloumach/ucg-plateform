@@ -970,3 +970,69 @@ concurrentes ; profiler contention et latence avant de changer sa granularité.
 Aucun benchmark de millions d’utilisateurs ni cache durable d’autorisation.
 Le client TypeScript `front/src/api/people.ts` utilise les protections CSRF et
 la révision tenant existantes. Voir les exemples dans `docs/conventions-api.md`.
+
+### Profils de jeu et comptes externes — UCG-HUM-002
+
+`People` fournit plusieurs profils par personne, chacun dans un contexte immuable
+jeu/plateforme/région. Rang et rôle de jeu sont des libellés manuels, indépendants
+des permissions et de l’éligibilité sportive. Chaque profil peut avoir plusieurs
+comptes externes ; aucune connexion éditeur, vérification de propriété ou collecte
+de mots de passe/tokens n’est ajoutée.
+
+`config/game_profiles.php` propose League of Legends, VALORANT, Counter-Strike 2
+et Rocket League, avec les plateformes compatibles PC, PlayStation, Xbox et Switch
+selon le jeu. Les associations initiales s’appuient sur les pages officielles :
+[League of Legends](https://www.leagueoflegends.com/en-sg/download/),
+[VALORANT](https://playvalorant.com/en-gb/platform-selection/),
+[Counter-Strike 2](https://www.counter-strike.net/cs2),
+[Rocket League](https://www.rocketleague.com/play). PC désigne une famille de
+plateformes, pas une validation des systèmes d’exploitation ou générations de consoles.
+Les régions `global`, `eu`, `na`, `apac` sont des zones de contexte applicatif,
+pas les shards officiels des éditeurs. Le rôle/rang ne sont pas normalisés pour
+comparaison entre jeux ; le catalogue complet reste TEAM-001.
+
+Ajouter une clé stable de jeu/plateforme/fournisseur/région dans la configuration
+permet son utilisation sans migration ni enum PHP/TypeScript à modifier. Les liens
+jeu → plateformes → fournisseurs sont explicites. `enabled_games` choisit les jeux
+par défaut ; `tenant_enabled_games[UUID]` remplace cette liste pour un tenant.
+`active=false`, le retrait d’une entrée, ou une liste d’activation vide bloque
+les nouvelles utilisations. Les profils historiques restent lisibles et
+archivables ; ne jamais réutiliser une clé pour une autre référence.
+Le port public `GameProfileCatalogue` pourra être implémenté par Teams, qui dépend
+déjà de People, sans dépendance inverse ni cycle. Aucune UI de catalogue dans ce lot.
+
+Les API profils/comptes sont sous `tenants/{tenant}/people/{person}/game-profiles`
+et `/{profile}/external-accounts`, avec GET paginés/unitaire, POST et PATCH.
+`sports.read/write` et la projection IAM-004 séparent lecture/écriture ; aucun
+droit métier implicite. Auth/session/MFA, CSRF, confirmation et révision tenant
+restent actifs. Chaque PATCH exige sa version courante ; aucun déplacement de
+profil, changement de fournisseur ou remplacement d’un identifiant établi.
+Un identifiant encore inconnu peut être renseigné une fois. Les comptes sans
+identifiant stable exigent un nom, sans déduplication automatique par ce nom.
+
+Unicité d’un profil par personne/jeu/plateforme/région ; unicité d’un identifiant
+externe dans organisation/jeu/plateforme/région/fournisseur, avec casse conservée
+et caractères ASCII imprimables sans espaces. L’archivage conserve cette réservation.
+Ces liens ne créent ni compte global, ni adhésion, ni permissions. Les listes
+sont bornées à 100 éléments ; les limites techniques initiales, archives incluses,
+sont 50 profils/personne et 20 comptes/profil.
+
+`observed_at` est une date ISO avec secondes/fuseau, non future, convertie en UTC.
+La fraîcheur dérive de cette date : `unknown`, `recent`, `stale`, seuil serveur
+`freshness_days=30` par défaut. Elle ne constitue aucune vérification de propriété
+ou du rang. Changer rang/rôle ou identifiant/nom sans nouvelle observation remet
+la date à null ; les autres champs omis sont conservés.
+
+La migration additive `2026_10_11_223914_create_person_game_profiles_and_external_accounts`
+ajoute deux tables avec FK composites tenant/contexte, unicités, index et gardes
+d’identité/suppression SQL. Aucun backfill ni enregistrement métier automatique.
+Appliquer après sauvegarde avec `php artisan migrate` depuis `back/` avant usage.
+Rollback vide possible ; rollback avec profils/comptes refusé.
+
+Les mutations et leur audit sont atomiques, sans rang, nom ni identifiant externe
+dans les états du journal. Le catalogue de sauvegarde opérateur inclut uniquement
+les profils/comptes de son tenant. Les comptages de comptes sont chargés en bloc,
+la projection partage les contrôles pour la page ; pas de requête par ligne.
+Profiler contention des verrous et plans d’exécution avant forte charge ; aucun
+benchmark de millions d’utilisateurs. Les écrans et la recherche restent HUM-003.
+Le client TypeScript est `front/src/api/gameProfiles.ts` ; exemples dans le contrat API.

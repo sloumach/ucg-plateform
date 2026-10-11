@@ -637,3 +637,55 @@ Migration additive sans backfill ; attente de verrou PostgreSQL bornée à 5 s.
 Rollback vide possible, rollback avec personnes refusé ; correction en avant
 sur une base utilisée. Aucune liste massive, publication, photo/import ou UI
 créée dans ce lot. HUM-002/HUM-003/HUM-004 portent les parcours suivants.
+
+## Profils de jeu et comptes externes — UCG-HUM-002
+
+`People` possède `person_game_profiles` et `person_external_accounts`, leurs
+modèles/factories, deux repositories et services, DTO de mutation, validation
+partagée, Policy, Form Requests et Resources. Les listes par parent sont paginées
+et stables par UUID ; `withCount` fournit le total des comptes, archives incluses,
+et `projectMany` contrôle la page sans N+1. Aucune relation vers un modèle voisin.
+
+Le port public `GameProfileCatalogue` décrit les références disponibles par tenant
+et vérifie jeu/plateforme/région/fournisseur. L’adaptateur de configuration initial
+est borné et fermé ; mauvaises formes ou activations nulles refusées. Ajout/retrait
+ou désactivation ne modifie aucune ligne historique. Un retrait autorise encore
+lecture et archivage seul, sans réactivation/édition utilisant la référence absente.
+Les clés sont stables et ne doivent jamais être réutilisées pour un autre objet.
+Teams pourra implémenter ce contrat dans TEAM-001 avec ses modèles et le lier dans
+son provider : dépendance Teams → API publique People, sans cycle People → Teams.
+Le catalogue complet global/activation tenant, modes/cartes/versions et son UI
+restent TEAM-001 ; aucun module ou table globale fictif n’est introduit ici.
+
+Profil : identité tenant/personne/jeu/plateforme/région immuable et unique pour
+la personne. Compte : identité tenant/profil/contexte/fournisseur immuable ;
+un identifiant externe nullable peut être complété une fois, puis devient immuable.
+Son unicité comprend le tenant et le contexte complet, avec casse conservée.
+Un alias seul n’entraîne aucun rapprochement. L’archivage conserve les uniques.
+Les FK composites refusent les références inter-tenant et les copies de contexte
+incohérentes. Les triggers/événements Eloquent refusent mutations d’identité et
+suppression physique. Une procédure future de réaffectation/conservation devra
+être distincte, autorisée et auditée.
+
+Les services verrouillent organisation puis personne/profil puis compte,
+revérifient les droits actuels, versions, catalogue et limites dans la transaction.
+`sports.read` et `sports.write` sont distincts ; les données sont uniquement
+sportives, sans identité administrative copiée. MFA/confirmation HTTP conservés.
+Rang/rôle de jeu et liens externes n’accordent aucun droit ou éligibilité.
+
+`GameProfileFreshness` valide le seuil avant mutation et calcule la récence à
+partir de `observed_at`, jamais `updated_at`. Données manuelles et propriété
+non vérifiée explicites ; dates futures refusées, UTC à la persistance.
+Les modifications de données observées sans date explicite invalident l’ancienne
+observation, tout en conservant les autres champs omis du PATCH.
+
+Le port IAM-006 audite dans la transaction `domain.changed` sur l’organisation,
+avec UUID personne/profil/compte, statut, présence d’identifiant, version, date
+et noms des champs soumis ; aucune valeur de rang, alias ou identifiant externe.
+Une panne d’audit annule l’écriture. Portabilité opérateur : les colonnes des
+deux tables sont ajoutées au catalogue fermé, toujours filtrées par tenant.
+
+Migration additive sans backfill, verrou PostgreSQL borné à 5 s ; rollback vide
+testé et refusé après utilisation. Pas de purge, OAuth, connecteur, vérification
+éditeur, UI ou import. Les zones initiales sont applicatives, pas des shards
+officiels. Profiler les index/verrous avant optimisation ; pas de benchmark de charge.

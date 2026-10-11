@@ -2,11 +2,20 @@
 
 namespace App\Modules\People\Providers;
 
+use App\Modules\People\Application\Contracts\GameProfileCatalogue;
 use App\Modules\People\Application\Contracts\PeopleDirectory;
 use App\Modules\People\Application\Services\PersonService;
+use App\Modules\People\Domain\Contracts\ExternalGameAccountRepository;
+use App\Modules\People\Domain\Contracts\GameProfileRepository;
 use App\Modules\People\Domain\Contracts\PersonRepository;
+use App\Modules\People\Domain\Models\ExternalGameAccount;
+use App\Modules\People\Domain\Models\GameProfile;
 use App\Modules\People\Domain\Models\Person;
+use App\Modules\People\Infrastructure\Catalogue\ConfiguredGameProfileCatalogue;
+use App\Modules\People\Infrastructure\Persistence\EloquentExternalGameAccountRepository;
+use App\Modules\People\Infrastructure\Persistence\EloquentGameProfileRepository;
 use App\Modules\People\Infrastructure\Persistence\EloquentPersonRepository;
+use App\Modules\People\Presentation\Policies\GameProfilePolicy;
 use App\Modules\People\Presentation\Policies\PersonPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
@@ -16,12 +25,17 @@ final class PeopleServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(GameProfileCatalogue::class, ConfiguredGameProfileCatalogue::class);
+        $this->app->bind(GameProfileRepository::class, EloquentGameProfileRepository::class);
+        $this->app->bind(ExternalGameAccountRepository::class, EloquentExternalGameAccountRepository::class);
         $this->app->bind(PersonRepository::class, EloquentPersonRepository::class);
         $this->app->bind(PeopleDirectory::class, PersonService::class);
     }
 
     public function boot(): void
     {
+        Gate::policy(GameProfile::class, GameProfilePolicy::class);
+        Gate::policy(ExternalGameAccount::class, GameProfilePolicy::class);
         Gate::policy(Person::class, PersonPolicy::class);
         Route::middleware(['api', 'auth:sanctum', 'identity.session', 'audit.failures', 'mfa'])
             ->prefix('api/v1')->name('api.v1.')->group(__DIR__.'/../Presentation/Routes/api.php');

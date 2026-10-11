@@ -9,8 +9,8 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité et validé localement : `UCG-HUM-001` — personnes tenant, lien facultatif
-  au compte, permissions par catégorie et audit transactionnel sans données privées.
+- Dernier ticket traité et validé localement : `UCG-HUM-002` — profils de jeu, comptes externes,
+  catalogue serveur extensible, unicités tenant/contexte et fraîcheur manuelle.
 - IAM-006 et son correctif `0b85252` poussés ; push, migration et CI validés
   par l’utilisateur dans cette discussion. Migration confirmée en lecture seule :
   `Ran`, batch 9. L’échec initial `38174777644` reste documenté ci-dessous.
@@ -18,8 +18,16 @@
   concordent. Migration appliquée par l’utilisateur, confirmée en lecture seule :
   `Ran`, batch 10. Aucune migration ni donnée métier réelle créée par l’agent.
 - CI HUM-001 du commit `d9a4066` vérifiées vertes sur GitHub : backend
-  `38180615309`, frontend `38180615233`. Ticket clôturé ; prochain ticket HUM-002.
+  `38180615309`, frontend `38180615233`. Documentation `35fe2bf` poussée ensuite ;
+  push et CI de ces modifications confirmés par l’utilisateur avant HUM-002.
+- Prochaine action : push utilisateur HUM-002, confirmation des CI, puis
+  sauvegarde/migration avant usage. Code, tests et docs sont dans le même commit.
+  Migration HUM-002
+  `Pending` ; aucun profil ni compte externe réel créé par l’agent.
 - Format de commit convenu : `UCG-ID: description`, sans préfixe `feat(...)`.
+- Accord utilisateur : un seul commit de tâche regroupe code, tests et docs de
+  reprise. Aucun commit documentaire séparé après la tâche ; les confirmations
+  push/migration/CI ultérieures sont intégrées aux docs du prochain travail.
 - IAM-005 poussé avec le renommage `70440a6` puis fusion `63b8626` ; CI vertes
   confirmées par l’utilisateur (backend `38171624409`, frontend `38171624442`).
   Migration IAM-005 `Ran`, batch 8, vérifiée en lecture seule.
@@ -29,8 +37,8 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Prochain ticket P0 : `UCG-HUM-002`
-  (profils de jeu et comptes externes). HUM-003 ajoutera listes/recherche/écrans.
+- Après CI/migration HUM-002, prochain ticket P0 : `UCG-HUM-003`
+  (fiches, listes, recherche paginée et écrans de gestion des personnes).
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
@@ -839,6 +847,68 @@ Vérifications de clôture :
 - README, contrats API, architecture, backlog et point de reprise mis à jour.
   Prochain ticket : HUM-002 ; listes/recherche/écrans restent HUM-003.
 
+### UCG-HUM-002 — Profils de jeu et comptes externes
+
+- `People` possède deux tables tenant, profils et comptes externes, modèles/factories,
+  repositories/services distincts, DTO, validation partagée, Policy, Form Requests
+  et Resources. GET unitaire/paginé, POST et PATCH avec version ; client TypeScript
+  complet utilisant cookies/CSRF/révision. Aucun écran créé dans ce lot.
+- Un profil par personne/jeu/plateforme/région, plusieurs profils/personne et comptes
+  liés/profil. Contexte immuable, FK composites tenant/contexte, unicités SQL,
+  archivage conservant les réservations et historique. Identifiant stable nullable,
+  complétable une fois puis immuable ; aucun rapprochement par alias/pseudonyme.
+  Unicité de l’identifiant sur organisation/jeu/plateforme/région/fournisseur,
+  casse conservée, ASCII sans espaces. Aucun global account/admission/droit créé.
+- Catalogue demandé par l’utilisateur : League of Legends, VALORANT, Counter-Strike 2,
+  Rocket League et plateformes compatibles PC/PlayStation/Xbox/Switch selon le jeu.
+  Zones initiales applicatives global/eu/na/apac, pas des shards officiels.
+  Configuration serveur extensible, activations par tenant, ajouts/retraits et
+  désactivation sans migration/enum. Historique lisible et archivable après retrait ;
+  clés à conserver stables et non réutilisables pour un autre objet.
+  Le port public `GameProfileCatalogue` pourra être implémenté par Teams ;
+  aucun cycle People → Teams. Catalogue complet et UI restent TEAM-001.
+- Droits explicites `sports.read/write`, champs projetés via IAM-004 ; écrire ne
+  donne pas lecture, propriétaire/administrateur sans droits métier implicites.
+  Comptes techniques refusés, MFA et confirmation tenant conservés. Services
+  revérifiant état/accès/version/catalogue/limites dans la transaction verrouillée.
+- Rangs/rôles de jeu : libellés manuels, pas des permissions/éligibilités ou métriques
+  comparables entre jeux. Comptes : source manuelle, propriété non vérifiée ;
+  aucun OAuth, connecteur, appel éditeur, mot de passe ou token.
+- Observation UTC non future ; fraîcheur unknown/recent/stale calculée à la lecture,
+  seuil serveur 30 jours. Changer une donnée observée sans date remet l’observation
+  à null, sans effacer les autres champs omis. Configuration du seuil vérifiée
+  avant écriture pour éviter un échec de sérialisation après commit.
+- Audit IAM-006 dans la transaction, cible organisation et UUID personne/profil/compte
+  dans états fermés, statut, présence d’identifiant, version/date/champs soumis ;
+  aucun identifiant externe, alias ou rang copié. Une panne d’audit annule l’écriture.
+  Catalogue de sauvegarde opérateur complété, seulement les lignes du tenant.
+- Listes bornées à 100, comptes comptés avec withCount et projection de page en bloc.
+  Limites techniques, archives incluses : 50 profils/personne, 20 comptes/profil.
+  Nombre de requêtes constant comparé avec 1 et 21 profils, caches array/database,
+  après initialisation du quota et avec temps figé. Aucune optimisation de cache
+  d’autorisation durable ni prétention de benchmark de millions d’utilisateurs.
+- Migration additive `2026_10_11_223914_create_person_game_profiles_and_external_accounts`
+  sans backfill, attente de verrou PostgreSQL de 5 s, gardes SQL/Eloquent d’identité
+  et suppression. Identité minimale des comptes protégée en SQL. Rollback vide
+  testé ; rollback non vide refusé. Migrations déployées antérieures inchangées ;
+  tests de rollback existants complétés pour les nouvelles dépendances FK.
+- Validations finales SQLite complètes avec cache tenant database : 718 tests,
+  715 réussis, 3 130 assertions, 3 exclusions attendues. PostgreSQL 17 : 718 tests,
+  716 réussis, 3 131 assertions, 2 exclusions Redis attendues ; base temporaire
+  `ucg_hum002_verify_20261011_231014` supprimée. Premier passage : données des tests
+  d’identité raccourcies pour exercer les triggers plutôt que les limites varchar ;
+  assertions SQLSTATE maintenues, dernière suite PostgreSQL entièrement verte.
+- Pint/PHPStan niveau 8 sans erreur ; lint/build et 38 tests Vitest verts.
+  Trois nouveaux fichiers de tests ajoutés au workflow PostgreSQL.
+  Playwright non relancé : aucun écran/flux visuel modifié.
+- Contrôle principal en lecture seule : HUM-001 Ran batch 10, HUM-002 Pending.
+  Aucun profil/compte réel, migration, purge ou e-mail réel par l’agent.
+  Push utilisateur, CI puis sauvegarde/migration avant utilisation.
+- README, API, architecture, backlog et point de reprise inclus dans le même
+  commit de tâche. Accord utilisateur enregistré : pas de commit séparé pour
+  les confirmations documentaires ultérieures ; reprise dans le prochain travail.
+  Prochaine tâche P0 : HUM-003, fiches/listes/recherche paginée et écrans.
+
 ## Décision de périmètre — retrait de l’organisation de tournois
 
 - Décision utilisateur du 11 octobre 2026 : retirer des documents le parcours
@@ -887,4 +957,6 @@ ensuite ce fichier pour qu'il reflète la réalité.
    prochaine étape.
 4. Mentionner les validations, les blocages et les éléments restant à faire.
 5. Commiter ce fichier avec le code concerné, puis pousser selon le workflow
-   convenu avec l'utilisateur.
+   convenu avec l'utilisateur : un seul commit de tâche couvre code, tests et docs.
+6. Intégrer les confirmations ultérieures du push, des CI et migrations dans les
+   docs du prochain travail ; ne pas créer de commit séparé de clôture documentaire.

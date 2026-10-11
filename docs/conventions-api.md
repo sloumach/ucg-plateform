@@ -748,3 +748,95 @@ Les méthodes publiques du Service valident aussi leurs DTO et revérifient
 les droits. `PeopleDirectory` fournit le snapshot filtré aux modules autorisés.
 Les listes/recherche/écrans restent HUM-003, les profils de jeu HUM-002 et les
 affectations/départs HUM-004. Aucun DELETE, import, photo ou export métier ajouté.
+
+## Profils de jeu et comptes externes — UCG-HUM-002
+
+Base profils : `tenants/{tenant}/people/{person}/game-profiles`.
+Base comptes : base profils + `/{profile}/external-accounts`.
+
+| Méthode | Route | Permission |
+| --- | --- | --- |
+| GET | `tenants/{tenant}/game-profile-catalogue` | `sports.read` |
+| GET | base profils ou comptes | `sports.read`, pagination `per_page` 1..100, `page` 1..100000 |
+| GET | base profils + `/{profile}` ou base comptes + `/{account}` | `sports.read` |
+| POST | base profils ou comptes | `sports.write`, confirmation tenant |
+| PATCH | ressource profile/compte | `sports.write`, confirmation et `version` requise |
+
+Auth/session/MFA, CSRF, révision et quotas tenant existants. Toutes les actions
+emploient une Form Request et une Policy, puis revérifient dans les Services.
+Une personne/profil/compte d’un autre tenant ou parent renvoie 404. Les comptes
+techniques actifs et les droits métiers implicites restent refusés.
+
+Création profil : `game_key` (64 caractères), `platform_key`, `region_key` (32),
+clés minuscules alphanumériques avec tirets, validées contre le catalogue serveur.
+Facultatifs : `rank` et `game_role` (texte/null, 80), `observed_at` (date/null),
+`status` (`active` par défaut, ou `archived`). Une seule fiche par personne/contexte.
+Ces libellés ne valent ni permission, ni éligibilité, ni mesure comparable entre jeux.
+
+Création compte : `provider_key` configuré pour le jeu/plateforme (32),
+`external_id` facultatif/null (191, ASCII imprimable sans espaces, casse conservée),
+`display_name` facultatif/null (120), `observed_at`, `status`. Au moins un identifiant
+stable ou un nom est nécessaire. Le serveur copie le contexte du profil, jamais
+un payload client. Même nom sans identifiant possible plusieurs fois ; aucune fusion.
+Unicité de l’identifiant stable sur tenant/jeu/plateforme/région/fournisseur, y compris
+après archivage. Aucune recherche globale ni retour de la fiche en conflit.
+
+PATCH conserve les champs omis et refuse toute clé d’identité/contexte, même null.
+Un identifiant externe absent peut être renseigné une fois ; un identifiant établi
+ne peut être remplacé/effacé. Le fournisseur et le profil parent restent immuables.
+L’archivage seul reste autorisé après retrait d’une référence ou archivage du parent.
+Réactivation et autres éditions nécessitent le contexte toujours disponible.
+Pas de DELETE ou réaffectation automatique ; conservation de l’historique.
+
+`observed_at` utilise `YYYY-MM-DDTHH:mm:ss±HH:mm`, non future, convertie en UTC.
+`freshness` vaut `unknown`, `recent` ou `stale` selon la date et le seuil serveur
+(30 jours par défaut, configurable). Changer rang/rôle ou identifiant/nom sans date
+met l’observation à null. `data_source=manual` et `ownership_verified=false`
+sur les comptes indiquent que la plateforme n’a vérifié ni propriété ni informations
+chez un éditeur. Aucun mot de passe, token ou secret n’est accepté comme champ.
+
+La réponse ne contient que `id`/`version` et les champs autorisés par `sports.read` ;
+écrire n’accorde pas le droit de lire. Les comptes ont leur propre pagination.
+Le nombre de comptes d’un profil comprend les archives, sans tableau imbriqué massif.
+`meta.request_id`, pagination et notifications suivent les conventions communes.
+Les limites techniques initiales sont 50 profils/personne et 20 comptes/profil,
+archives incluses ; pas de plan commercial implicite.
+
+Le catalogue renvoie au maximum 100 jeux, leurs plateformes/fournisseurs et zones
+actifs, filtrés par activation du tenant. Les clés restent des strings extensibles ;
+aucun enum fixe ne bloque les ajouts. Les régions initiales `global`, `eu`, `na`,
+`apac` sont des zones applicatives, pas des shards d’éditeur. Configuration actuelle
+dans `config/game_profiles.php`, future gestion complète dans TEAM-001.
+
+| Statut/code | Situation |
+| --- | --- |
+| 409 `GAME_CONTEXT_UNAVAILABLE` | référence absente/désactivée ou non activée pour le tenant |
+| 409 `GAME_CATALOGUE_INVALID` | configuration serveur invalide |
+| 409 `GAME_PROFILE_ALREADY_EXISTS` | contexte déjà présent pour cette personne |
+| 409 `EXTERNAL_ACCOUNT_ALREADY_LINKED` | identifiant déjà réservé dans le même contexte tenant |
+| 409 `GAME_PROFILE_VERSION_STALE` / `EXTERNAL_ACCOUNT_VERSION_STALE` | version obsolète |
+| 409 `EXTERNAL_ACCOUNT_IDENTITY_IMMUTABLE` | remplacement/effacement d’identifiant établi |
+| 409 `GAME_PROFILE_ARCHIVED` | modification de compte dans un profil archivé |
+| 409 `GAME_PROFILE_LIMIT_REACHED` / `EXTERNAL_ACCOUNT_LIMIT_REACHED` | limite technique atteinte |
+| 422 `VALIDATION_FAILED` | entrée, pagination, version ou patch vide invalide |
+| 500 `INTERNAL_ERROR` | panne de persistance/audit, transaction annulée |
+
+Exemple après connexion, MFA et confirmation tenant ; le client gère CSRF et cookies :
+
+```ts
+import { getGameProfileCatalogue, createGameProfile, createExternalGameAccount, listGameProfiles } from '../api/gameProfiles'
+
+const catalogue = await getGameProfileCatalogue(organizationId, activeRevision)
+// Choisir des clés disponibles dans catalogue.data.games.
+const profile = await createGameProfile(organizationId, personId, {
+  game_key: 'valorant', platform_key: 'pc', region_key: 'eu',
+}, activeRevision)
+await createExternalGameAccount(organizationId, personId, profile.data.id, {
+  provider_key: 'riot', display_name: 'Camille#EU',
+}, activeRevision)
+const page = await listGameProfiles(organizationId, personId, { perPage: 20, page: 1, revision: activeRevision })
+// Afficher les textes avec échappement et gérer les erreurs via les composants partagés.
+```
+
+Aucun écran, OAuth, synchronisation éditeur, import ou publication publique dans
+ce lot. Les interfaces et recherche restent HUM-003 ; catalogue complet TEAM-001.

@@ -1,0 +1,32 @@
+<?php
+
+return [
+    'profile_saved' => 'Le profil de jeu a été enregistré.',
+    'account_saved' => 'Le compte externe a été enregistré.',
+    'immutable' => 'Le contexte et les identifiants établis sont immuables.',
+    'history_retained' => 'Conservez cet historique en utilisant le statut archivé.',
+    'context_unavailable' => 'Ce jeu, cette plateforme, cette région ou ce fournisseur n’est pas disponible dans cette organisation.',
+    'catalogue_invalid' => 'La configuration des profils de jeu est indisponible. Contactez un administrateur.',
+    'profile_duplicate' => 'Cette personne possède déjà un profil dans ce contexte de jeu.',
+    'account_duplicate' => 'Cet identifiant externe est déjà lié dans ce contexte de jeu et cette organisation.',
+    'profile_stale' => 'Le profil a été modifié. Rechargez-le avant de réessayer.',
+    'account_stale' => 'Le compte externe a été modifié. Rechargez-le avant de réessayer.',
+    'profile_archived' => 'Réactivez le profil de jeu avant de modifier ses comptes.',
+    'profile_limit' => 'Cette personne a atteint la limite de profils de jeu.',
+    'account_limit' => 'Ce profil a atteint la limite de comptes externes.',
+    'validation' => [
+        'required' => 'Ce champ est obligatoire.',
+        'string' => 'Ce champ doit être un texte.',
+        'max' => 'Ce champ ne doit pas dépasser :max caractères.',
+        'choice' => 'La valeur sélectionnée n’est pas autorisée.',
+        'integer' => 'Ce champ doit être un entier.',
+        'between' => 'La valeur doit être comprise entre :min et :max.',
+        'format' => 'Le format de ce champ est invalide.',
+        'date' => 'Utilisez une date ISO 8601 avec fuseau horaire et secondes.',
+        'future' => 'La date d’observation ne peut pas être future.',
+        'uuid' => 'La version doit être un UUID valide.',
+        'immutable' => 'Ce champ ne peut pas être fourni.',
+        'empty' => 'Indiquez au moins un champ à modifier.',
+        'account_identity' => 'Renseignez un identifiant stable ou un nom d’affichage.',
+    ],
+];
