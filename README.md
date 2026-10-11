@@ -911,9 +911,10 @@ php artisan audit:retention
 ~~~
 
 La migration additive `2026_10_11_203439_create_transverse_audit_events` ajoute
-deux tables append-only et les index de consultation. IAM-005 est appliquée
-(batch 8) ; IAM-006 reste à appliquer par l’utilisateur **après sauvegarde**,
-avec `php artisan migrate` depuis `back/`. Un push ne lance pas cette migration.
+deux tables append-only et les index de consultation. Sur la base locale, IAM-005
+est appliquée (batch 8) et IAM-006 également (batch 9), après migration utilisateur.
+Pour une base non à jour, appliquer `php artisan migrate` depuis `back/`
+**après sauvegarde**. Un push ne lance pas cette migration.
 Les tests utilisent SQLite et une base PostgreSQL temporaire distincte.
 
 Cette API omet motifs libres et profils privés des anciens journaux, sans réécrire

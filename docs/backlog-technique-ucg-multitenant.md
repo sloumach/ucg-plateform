@@ -295,10 +295,13 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   sans contenu de requête. Pagination par curseur chiffré lié au compte/tenant/filtres,
   100 événements maximum, aucune lecture globale de données tenant.
   Conservation sans limite demandée par l’utilisateur, aucune purge ni scheduler.
-  Deux nouvelles tables append-only, migration additive encore `Pending` sur la base
-  principale ; rollback refusé après audit. SQLite/PostgreSQL, Pint, PHPStan 8,
-  frontend et Chromium validés. API/CLI disponibles ; pas d’écran React de journal.
-  Futurs modules à raccorder aux ports typés. Push/CI et migration utilisateur à faire.
+  Deux nouvelles tables append-only, migration appliquée par l’utilisateur (`Ran`,
+  batch 9) ; rollback refusé après audit. Commit `2c24782` poussé. Backend CI
+  `38174777644` en échec sur l’initialisation du quota dans le test de comptage SQL ;
+  correctif local vérifié avec caches mémoire/base sur SQLite et PostgreSQL.
+  Suite complète SQLite avec cache CI, Pint et PHPStan 8 verts ; frontend/Chromium
+  validés lors de la livraison. API/CLI disponibles ; pas d’écran React de journal.
+  Futurs modules à raccorder aux ports typés. Push du correctif et CI à confirmer.
 
 ### UCG-IAM-007 — Fournir les tokens API limités
 

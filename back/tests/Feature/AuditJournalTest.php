@@ -339,10 +339,22 @@ class AuditJournalTest extends TestCase
         }
     }
 
-    public function test_audit_query_count_is_constant_and_each_source_is_bounded(): void
+    /** @return array<string, array{string}> */
+    public static function auditCacheStores(): array
     {
+        return ['memory' => ['array'], 'database' => ['database']];
+    }
+
+    #[DataProvider('auditCacheStores')]
+    public function test_audit_query_count_is_constant_and_each_source_is_bounded(string $cacheStore): void
+    {
+        config(['tenancy.cache_store' => $cacheStore]);
+        $this->freezeTime();
         $org = $this->owner();
         OrganizationAuditEvent::factory()->create(['organization_id' => $org->id]);
+        // Initialize the request quota before comparing steady-state journal reads.
+        $this->getJson($this->path($org).'?per_page=20&action=domain.changed')->assertOk();
+        DB::flushQueryLog();
         DB::enableQueryLog();
         $small = $this->getJson($this->path($org).'?per_page=20&action=domain.changed')->assertOk();
         $smallCount = count(DB::getQueryLog());

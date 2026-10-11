@@ -11,9 +11,11 @@
 - Branche de travail : `staging`.
 - Dernier ticket traité et validé localement : `UCG-IAM-006` — journaux global/tenant,
   autorisation dédiée, états fermés et conservation sans limite demandée par l’utilisateur.
-- Prochaine action : push utilisateur d’IAM-006, confirmation backend/frontend CI,
-  puis sauvegarde et `php artisan migrate` depuis `back/` avant usage local.
-  Aucune migration ni purge IAM-006 sur la base principale pendant le développement.
+- IAM-006 poussé (`2c24782`) ; migration appliquée par l’utilisateur et confirmée
+  en lecture seule : `Ran`, batch 9. Backend CI run `38174777644` en échec sur
+  le test de comptage SQL, reproduit et corrigé localement (voir ci-dessous).
+- Prochaine action : push utilisateur du correctif IAM-006 puis confirmation CI.
+  Ce correctif ne change ni code applicatif ni schéma ; aucune migration à relancer.
 - Format de commit convenu : `UCG-ID: description`, sans préfixe `feat(...)`.
 - IAM-005 poussé avec le renommage `70440a6` puis fusion `63b8626` ; CI vertes
   confirmées par l’utilisateur (backend `38171624409`, frontend `38171624442`).
@@ -39,7 +41,7 @@
 - IAM-001 poussé (`98f2ed3`) : CI confirmées vertes par l’utilisateur.
 - IAM-001/IAM-002/IAM-003 : migrations appliquées par l’utilisateur sur
   `ucg_platform`, statut `Ran`, batch 7 confirmé en lecture seule. IAM-004 n’ajoute
-  aucune migration. IAM-005 est `Ran`, batch 8 ; IAM-006 reste `Pending`.
+  aucune migration. IAM-005 est `Ran`, batch 8 ; IAM-006 est `Ran`, batch 9.
   Aucun e-mail réel envoyé.
 - Au démarrage, vérifier l'état réel avec `git status --short --branch` et
   `git log -8 --oneline --decorate`.
@@ -748,14 +750,37 @@ Vérifications de clôture :
 - Le premier passage PostgreSQL a corrigé le délimiteur SQL du test de panne d’audit ;
   la dernière exécution complète PostgreSQL est verte. Les suites backend sont
   exécutées successivement pour préserver leurs fichiers temporaires partagés.
-- Base principale contrôlée en lecture seule : IAM-005 `Ran` batch 8, IAM-006
-  `Pending`. Aucun rôle réel attribué, aucune migration/purge ni e-mail réel.
-  Push utilisateur, CI puis sauvegarde/migration à faire avant usage local.
+- À la livraison initiale, base principale contrôlée en lecture seule : IAM-005
+  `Ran` batch 8, IAM-006 `Pending`. Aucun rôle réel attribué, aucune migration/purge
+  ni e-mail réel par l’agent. Push et migration ensuite effectués par l’utilisateur ;
+  IAM-006 confirmée `Ran`, batch 9. Voir le correctif CI ci-dessous.
 - API/CLI et permission dans l’interface de rôles ; aucun écran React de journal.
   Les modules métier futurs doivent raccorder le port typé dans la transaction de
   leur action, avec des états fermés. Surveiller capacité/index/backups et profiler
   avant optimisation ; aucun benchmark de millions de lignes.
   README, API, architecture, backlog et workflow PostgreSQL mis à jour.
+
+### Correctif CI IAM-006 — isolation du comptage SQL
+
+- Journal GitHub du job `114574756525`, run `38174777644` lu avec la connexion Git
+  existante, sans affichage/enregistrement des identifiants. Pint/PHPStan verts ;
+  échec SQLite : 46 requêtes sur petite page contre 44 sur grande page.
+  Les étapes PostgreSQL/Redis n’ont pas été exécutées dans ce run.
+- Cause reproduite localement avec `TENANCY_CACHE_STORE=database`, valeur de
+  `.env.example` utilisée en CI. Le premier appel initialise le quota et exécute
+  deux requêtes supplémentaires ; la vérification précédente utilisait le cache mémoire.
+- Test conservé et renforcé : cas mémoire/base via DataProvider, temps figé,
+  initialisation du quota avant les deux mesures, journal SQL vidé avant mesure.
+  L’égalité stricte, les quatre sources bornées à 21 lignes, l’absence d’OFFSET,
+  le curseur et la corrélation request ID restent vérifiés. Aucun quota désactivé,
+  aucun changement applicatif, workflow, dépendance ou migration.
+- Validation : suite SQLite complète avec cache tenant en base, 547 tests,
+  544 réussis, 2 382 assertions, 3 exclusions attendues. Tests du journal :
+  41/41, 168 assertions sur PostgreSQL 17 avec cache tenant en base ; base isolée
+  `ucg_iam006_ci_fix_20261011` créée puis supprimée. Pint/PHPStan niveau 8 verts.
+- Push/migration initiale confirmés par l’utilisateur ; contrôle en lecture seule
+  IAM-006 `Ran` batch 9 sur `ucg_platform`. Aucun besoin de relancer migrate pour
+  ce correctif. Push utilisateur du correctif et confirmation CI encore à faire.
 
 ## Décision de périmètre — retrait de l’organisation de tournois
 

@@ -576,7 +576,8 @@ Pagination par curseur date/source/UUID : au plus `per_page+1` lignes par source
 trois globales ou quatre tenant, puis fusion. Maximum 404 lignes projetées pour
 une page de 100, sans COUNT, OFFSET, profils ni requête par événement. Paramètres
 liés et aucun identifiant SQL fourni par le client. Le curseur chiffré lie
-compte/tenant/filtres. Un test compare les requêtes avec 1 et 101 événements.
+compte/tenant/filtres. Un test compare les requêtes avec 1 et 101 événements,
+avec caches mémoire et base : quota initialisé avant mesure et temps figé.
 
 Migration additive, deux tables et index chronologiques manquants. Attente de verrou
 PostgreSQL limitée à cinq secondes, sans borner la durée de création des index.
