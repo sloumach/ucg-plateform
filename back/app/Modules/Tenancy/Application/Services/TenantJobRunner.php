@@ -4,11 +4,14 @@ namespace App\Modules\Tenancy\Application\Services;
 
 use App\Exceptions\DomainConflictException;
 use App\Modules\Identity\Application\Contracts\AccountDirectory;
+use App\Modules\Identity\Application\Contracts\PrivilegedAccountDirectory;
+use App\Modules\Tenancy\Application\Contracts\TenantAuthorization;
 use App\Modules\Tenancy\Application\Contracts\TenantExecutionContext;
 use App\Modules\Tenancy\Domain\Contracts\TenantWorkRepository;
 use App\Modules\Tenancy\Domain\Exceptions\TenantExecutionRejectedException;
 use App\Support\Queue\JobContext;
 use Closure;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Str;
 use Psr\Log\LoggerInterface;
@@ -20,6 +23,8 @@ final readonly class TenantJobRunner
         private TenantResolver $resolver, private TenantWorkRepository $organizations,
         private TenantExecutionScope $scope, private LoggerInterface $logger,
         private AccountDirectory $accounts,
+        private PrivilegedAccountDirectory $privileged,
+        private TenantAuthorization $authorization,
     ) {}
 
     /**
@@ -28,7 +33,7 @@ final readonly class TenantJobRunner
      * @param  Closure(): T  $operation
      * @return T
      */
-    public function user(JobContext $transport, Closure $operation): mixed
+    public function user(JobContext $transport, Closure $operation, ?string $permission = null, string $scopeType = 'organization', ?string $scopeId = null): mixed
     {
         $this->validate($transport);
         $actorUserId = $transport->actorUserId ?? null;
@@ -43,8 +48,15 @@ final readonly class TenantJobRunner
             throw new TenantExecutionRejectedException($exception->errorCode());
         }
 
-        if ($actor->canAdminister() && ! $this->accounts->hasConfirmedMfa($actorUserId)) {
+        if ($this->privileged->hasOrganizationPrivileges($actorUserId) && ! $this->accounts->hasConfirmedMfa($actorUserId)) {
             throw new TenantExecutionRejectedException('MFA_ENROLLMENT_REQUIRED');
+        }
+        if ($permission !== null) {
+            try {
+                $this->authorization->authorize($actor, $permission, $scopeType, $scopeId);
+            } catch (AuthorizationException) {
+                throw new TenantExecutionRejectedException('TENANT_PERMISSION_REVOKED');
+            }
         }
 
         return $this->execute(new TenantExecutionContext($actor->organizationId, $actor->requestId,

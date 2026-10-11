@@ -7,10 +7,11 @@
 
 - Dernière mise à jour : 11 octobre 2026.
 - Branche de travail : `staging`.
-- Dernier ticket implémenté et validé localement : `UCG-IAM-002` —
-  MFA TOTP, récupération auditée et révocation des anciennes sessions.
-- Prochaine action : push utilisateur du commit IAM-002 puis confirmation de sa CI.
-- Ensuite, priorité P0 : `UCG-IAM-003` (rôles et permissions contextuels) ;
+- Dernier ticket implémenté et validé localement : `UCG-IAM-003` —
+  rôles configurables, affectations contextuelles, délégation bornée et audit.
+- Prochaine action : push utilisateur du commit IAM-003 puis confirmation de sa CI.
+- IAM-002 poussé (`d61c131`) ; CI distante non confirmée dans cette discussion.
+- Ensuite, priorité P0 : `UCG-IAM-004` (Policies et visibilité par champ) ;
   `UCG-TEN-008` (branding/domaines) reste P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
@@ -22,7 +23,7 @@
 - TEN-007 : migration additive appliquée, table de suivi vide ; aucune opération
   métier de maintenance exécutée sur les données actuelles. Push/CI à confirmer.
 - IAM-001 poussé (`98f2ed3`) : CI confirmées vertes par l’utilisateur.
-- IAM-001/IAM-002 : migrations validées sur SQLite et PostgreSQL temporaire ;
+- IAM-001/IAM-002/IAM-003 : migrations validées sur SQLite et PostgreSQL temporaire ;
   elles restent en attente sur `ucg_platform`. Aucun e-mail réel envoyé.
 - Au démarrage, vérifier l'état réel avec `git status --short --branch` et
   `git log -8 --oneline --decorate`.
@@ -578,6 +579,43 @@ Vérifications de clôture :
 - README, conventions API, architecture et backlog mis à jour.
   Workflow PostgreSQL enrichi avec les tests MFA et récupération IAM-001 ;
   validation distante IAM-002 à confirmer après push.
+
+### UCG-IAM-003 — Rôles et permissions contextuels
+
+- Catalogue fermé séparant actions sportives, administratives, financières et
+  gouvernance. Rôles configurables par organisation, permissions explicites,
+  statut actif/inactif, version UUID et clé immuable. Aucun rôle plateforme.
+- Affectations tenant/compte/rôle/périmètre versionnées, période UTC et statuts
+  actif/suspendu/révoqué. Délégation limitée aux droits, périmètres et périodes
+  du gestionnaire ; auto-attribution et auto-escalade refusées. Le propriétaire
+  reste seul gestionnaire des définitions, sans droits métier implicites.
+- Suspension d’adhésion prioritaire ; départ/révocation révoquent ses affectations
+  dans la transaction et l’audit. Une réadmission ne restaure pas les anciennes.
+- Contrat public `TenantAuthorization`, Gate/Policy, Form Requests, DTO/Resources,
+  Service/Repository. Relecture des droits en HTTP/services/jobs ; contexte
+  périmé sans autorité, MFA global relié aux permissions privilégiées effectives.
+- Organisation entière disponible. Équipe/jeu/cohorte/événement sont préparés,
+  testés avec annuaire factice et refusés jusqu’au raccordement des ressources
+  réelles par leurs modules ; IAM-004/005 restent distincts.
+- Interface française paginée, confirmations du tenant, versions conservées,
+  gestion accessible des erreurs/focus, lecture des seules affectations du membre.
+  Exports complets enrichis sans données d’un autre tenant ni profil Identity privé.
+- Migration additive, contraintes composites, identité protégée et sujets d’audit
+  immuables. Retour arrière sans historique testé ; rollback refusé après audit.
+  Aucune conversion d’adhésion, dépendance ajoutée ou migration sur `ucg_platform`.
+- Validation SQLite complète : 423 tests, 420 réussis, 1 948 assertions,
+  3 exclusions attendues. PostgreSQL 17 : 376 tests, 374 réussis, 1 747 assertions,
+  2 exclusions Redis attendues. Seed aléatoire 10043. Pint et PHPStan niveau 8
+  réussis. Frontend : 37 tests Vitest, lint, build et 4 tests Chromium réussis.
+  Le navigateur IAM-003 simule l’API ; les tests PHP utilisent les bases réelles.
+- Les suites backend doivent être exécutées successivement : leurs tests
+  `Storage::fake` partagent le répertoire temporaire malgré les bases isolées.
+  La dernière vérification PostgreSQL isolée est verte. La première exécution
+  a aussi permis de corriger le test de rollback pour ses nouvelles dépendances.
+- Migrations IAM-001/002/003 toujours en attente sur la base principale, contrôlées
+  en lecture seule. Base PostgreSQL temporaire supprimée après vérification.
+  Workflow PostgreSQL enrichi avec IAM-003 ; README, API, architecture et backlog
+  mis à jour. Commit local à pousser par l’utilisateur, CI distante à confirmer.
 
 ## Documents de référence
 

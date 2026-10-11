@@ -218,8 +218,9 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Références CDC** : SEC-01, SEC-02.
 - **État** : implémenté localement le 11 octobre 2026 ; enrôlement TOTP,
   challenge, récupération auditée, remplacement d’authentificateur, révocation
-  des sessions et contrôles HTTP/jobs/Horizon. Validation distante à confirmer
-  après push ; migrations IAM-001/IAM-002 non appliquées à la base principale.
+  des sessions et contrôles HTTP/jobs/Horizon. Commit `d61c131` poussé par
+  l’utilisateur ; CI distante à confirmer. Migrations IAM-001/IAM-002
+  non appliquées à la base principale.
 
 ### UCG-IAM-003 — Construire les rôles et permissions contextuels
 
@@ -227,6 +228,14 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : rôles configurables par tenant, périmètres équipe/jeu/cohorte/événement, périodes d’effet et suspension prioritaire.
 - **Acceptation** : un même compte possède des droits différents selon tenant et affectation ; aucune auto-attribution de rôle supérieur.
 - **Références CDC** : IAM-01 à IAM-04, IAM-09.
+- **État** : implémenté localement le 11 octobre 2026 : catalogue fermé, rôles
+  configurables, affectations versionnées, périodes, suspension, délégation
+  limitée, anti-auto-escalade, MFA et audit transactionnel. Interface React,
+  exports complets et vérification HTTP/services/jobs. Organisation disponible ;
+  types équipe/jeu/cohorte/événement préparés et refusés jusqu’au raccordement des
+  ressources réelles par leurs modules. IAM-004 reste à faire pour la visibilité
+  par champ, IAM-005 pour la plateforme/support. Migration non appliquée à
+  `ucg_platform` ; push et CI IAM-003 à confirmer.
 
 ### UCG-IAM-004 — Appliquer les Policies et la visibilité par champ
 

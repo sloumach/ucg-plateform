@@ -94,6 +94,8 @@ class OrganizationSchemaTest extends TestCase
         $isolationMigration = require database_path('migrations/2026_10_10_152734_enforce_tenant_database_isolation.php');
         $storageMigration = require database_path('migrations/2026_10_10_160242_create_tenant_artifact_ledger_tables.php');
         $portabilityMigration = require database_path('migrations/2026_10_10_204152_create_tenant_portability_operations_table.php');
+        $rolesMigration = require database_path('migrations/2026_10_11_120303_create_organization_roles_and_role_assignments.php');
+        $rolesMigration->down();
         $portabilityMigration->down();
         $storageMigration->down();
         $isolationMigration->down();
@@ -107,6 +109,7 @@ class OrganizationSchemaTest extends TestCase
         $isolationMigration->up();
         $storageMigration->up();
         $portabilityMigration->up();
+        $rolesMigration->up();
         $this->assertTrue(Schema::hasTable('organizations'));
         $this->assertTrue(Schema::hasTable('organization_settings'));
         $this->assertTrue(Schema::hasTable('organization_lifecycle_events'));
@@ -116,6 +119,8 @@ class OrganizationSchemaTest extends TestCase
         $this->assertTrue(Schema::hasTable('tenant_storage_usage'));
         $this->assertTrue(Schema::hasTable('tenant_artifacts'));
         $this->assertTrue(Schema::hasTable('tenant_portability_operations'));
+        $this->assertTrue(Schema::hasTable('organization_roles'));
+        $this->assertTrue(Schema::hasTable('organization_role_assignments'));
     }
 
     public function test_settings_cannot_reference_a_nonexistent_organization(): void

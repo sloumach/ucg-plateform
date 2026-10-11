@@ -11,6 +11,7 @@ import {
   type TenantRole,
 } from '../../api/tenancy'
 import { t } from '../../i18n/fr'
+import { RoleManagementPanel } from './RoleManagementPanel'
 import { Button } from '../Button'
 import { FormField } from '../FormField'
 import { Pagination } from '../data/Pagination'
@@ -71,13 +72,12 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
         tenancyRequest<Page<Invitation>>('my-invitations?per_page=10&page=' + nextPages.inbox, { signal: controller.signal }),
       ])
       const active = selection.data
-      const canManage = active.context?.permissions.includes('memberships.manage')
       const options = { signal: controller.signal, revision: active.revision ?? undefined }
       const prefix = 'tenants/' + active.context?.organization_id
-      const [memberships, invitations] = canManage ? await Promise.all([
-        tenancyRequest<Page<Membership>>(prefix + '/memberships?per_page=10&page=' + nextPages.memberships, options),
-        tenancyRequest<Page<Invitation>>(prefix + '/invitations?per_page=10&page=' + nextPages.invitations, options),
-      ]) : [null, null]
+      const [memberships, invitations] = await Promise.all([
+        active.context?.permissions.includes('memberships.manage') ? tenancyRequest<Page<Membership>>(prefix + '/memberships?per_page=10&page=' + nextPages.memberships, options) : null,
+        active.context?.permissions.includes('invitations.manage') ? tenancyRequest<Page<Invitation>>(prefix + '/invitations?per_page=10&page=' + nextPages.invitations, options) : null,
+      ])
       if (version !== generation.current || controller.signal.aborted) return
       setWorkspace({ active, organizations, inbox, memberships, invitations })
       onContextChange?.(active.context)
@@ -224,6 +224,7 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
       )}
       {workspace && (
         <>
+          {selected && <RoleManagementPanel key={selected.organization_id} active={workspace.active} disabled={disabled} onChanged={() => void reload(pages)} />}
           <div className="grid gap-3">
             {workspace.organizations.data.length === 0 && <p className="text-slate-400">{t('tenant.empty')}</p>}
             <div className="flex flex-wrap gap-3">
@@ -254,9 +255,9 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
             ))}
             <Pagination currentPage={workspace.inbox.meta.current_page} totalPages={workspace.inbox.meta.last_page} disabled={disabled} onPageChange={(page) => changePage('inbox', page)} />
           </div>
-          {selected && workspace.memberships && workspace.invitations && (
+          {selected && (workspace.memberships || workspace.invitations) && (
             <>
-              <form noValidate className="grid gap-4 rounded-xl border border-white/10 p-5 md:grid-cols-2" onSubmit={invite}>
+              {workspace.invitations && <form noValidate className="grid gap-4 rounded-xl border border-white/10 p-5 md:grid-cols-2" onSubmit={invite}>
                 <h3 className="text-xl font-bold md:col-span-2">{t('tenant.invite')}</h3>
                 <FormField name="email" type="email" required label={t('tenant.email')} disabled={disabled} error={errorTarget?.endsWith('/invitations') ? error?.fieldErrors.email?.[0] : undefined} />
                 <label className="grid gap-2">{t('tenant.role')}<select name="role" className={selectClass} disabled={disabled}>
@@ -266,16 +267,16 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
                 <FormField name="starts_at" type="datetime-local" step="1" label={t('tenant.start')} hint={t('tenant.dateHint')} disabled={disabled} error={errorTarget?.endsWith('/invitations') ? error?.fieldErrors.starts_at?.[0] : undefined} />
                 <FormField name="ends_at" type="datetime-local" step="1" label={t('tenant.end')} disabled={disabled} error={errorTarget?.endsWith('/invitations') ? error?.fieldErrors.ends_at?.[0] : undefined} />
                 <Button type="submit" variant="primary" disabled={disabled}>{t('tenant.send')}</Button>
-              </form>
-              <div className="grid gap-3">
+              </form>}
+              {workspace.memberships && <div className="grid gap-3">
                 <h3 className="text-xl font-bold">{t('tenant.members')}</h3>
                 {workspace.memberships.data.length === 0 && <p className="text-slate-400">{t('tenant.noMembers')}</p>}
                 {workspace.memberships.data.map((member) => (
                   <MembershipEditor key={member.id} membership={member} active={workspace.active} disabled={disabled} errors={errorTarget?.endsWith('/memberships/' + member.id) ? error?.fieldErrors ?? {} : {}} onAction={setAction} />
                 ))}
                 <Pagination currentPage={workspace.memberships.meta.current_page} totalPages={workspace.memberships.meta.last_page} disabled={disabled} onPageChange={(page) => changePage('memberships', page)} />
-              </div>
-              <div className="grid gap-3">
+              </div>}
+              {workspace.invitations && <div className="grid gap-3">
                 <h3 className="text-xl font-bold">{t('tenant.manageInvitations')}</h3>
                 {workspace.invitations.data.length === 0 && <p className="text-slate-400">{t('tenant.noInvitations')}</p>}
                 {workspace.invitations.data.map((invitation) => (
@@ -290,7 +291,7 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
                   </div>
                 ))}
                 <Pagination currentPage={workspace.invitations.meta.current_page} totalPages={workspace.invitations.meta.last_page} disabled={disabled} onPageChange={(page) => changePage('invitations', page)} />
-              </div>
+              </div>}
             </>
           )}
           {selected && ownMembership && <Button disabled={disabled} onClick={() => setAction({

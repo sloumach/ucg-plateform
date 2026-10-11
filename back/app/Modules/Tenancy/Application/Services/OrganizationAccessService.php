@@ -3,16 +3,19 @@
 namespace App\Modules\Tenancy\Application\Services;
 
 use App\Modules\Identity\Application\Contracts\AccountDirectory;
+use App\Modules\Tenancy\Application\Contracts\TenantAuthorization;
+use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use App\Modules\Tenancy\Domain\Contracts\MembershipRepository;
 use App\Modules\Tenancy\Domain\Contracts\OrganizationRepository;
 use App\Modules\Tenancy\Domain\MembershipRole;
 use App\Modules\Tenancy\Domain\Models\Organization;
 use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Support\Str;
 
 final readonly class OrganizationAccessService
 {
-    public function __construct(private OrganizationRepository $organizations, private MembershipRepository $memberships, private AccountDirectory $accounts) {}
+    public function __construct(private OrganizationRepository $organizations, private MembershipRepository $memberships, private AccountDirectory $accounts, private TenantAuthorization $authorization) {}
 
     public function find(string $id, int $actorUserId): Organization
     {
@@ -59,10 +62,29 @@ final readonly class OrganizationAccessService
 
     /** Administrators may manage ordinary members, but only the owner delegates administration. */
     /** @param list<string> $roles */
-    public function requireRoleDelegation(Organization $organization, int $actorUserId, array $roles): void
+    public function requireRoleDelegation(Organization $organization, int $actorUserId, array $roles, string $permission = 'memberships.manage'): void
     {
-        $this->requireAdministration($organization, $actorUserId);
+        $this->requirePermission($organization, $actorUserId, $permission);
         if ($organization->owner_user_id !== $actorUserId && in_array(MembershipRole::Administrator->value, $roles, true)) {
+            throw new AuthorizationException;
+        }
+    }
+
+    public function canPerform(Organization $organization, int $actorUserId, string $permission): bool
+    {
+        return $this->authorization->allows(new TenantContext($organization->id, $actorUserId, $organization->slug,
+            $organization->timezone, $organization->language, (string) Str::uuid()), $permission);
+    }
+
+    public function requirePermission(Organization $organization, int $actorUserId, string $permission): void
+    {
+        if (in_array($permission, ['organization.update', 'memberships.manage', 'invitations.manage'], true)
+            && $this->canAdminister($organization, $actorUserId)) {
+            $this->requireAdministration($organization, $actorUserId);
+
+            return;
+        }
+        if (! $this->canPerform($organization, $actorUserId, $permission)) {
             throw new AuthorizationException;
         }
     }

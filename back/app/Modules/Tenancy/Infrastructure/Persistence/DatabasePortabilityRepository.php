@@ -21,6 +21,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
         'organizations' => 'id', 'organization_settings' => 'organization_id',
         'organization_lifecycle_events' => 'id', 'organization_memberships' => 'id',
         'organization_invitations' => 'id', 'organization_access_events' => 'id',
+        'organization_roles' => 'id', 'organization_role_assignments' => 'id',
         'tenant_storage_usage' => 'organization_id', 'tenant_artifacts' => 'id',
         'tenant_portability_operations' => 'id',
     ];
@@ -33,6 +34,8 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
         'organization_memberships' => ['id', 'organization_id', 'user_id', 'status', 'roles', 'starts_at', 'ends_at', 'created_at', 'updated_at'],
         'organization_invitations' => ['id', 'organization_id', 'email', 'roles', 'status', 'invited_by', 'responded_by', 'starts_at', 'ends_at', 'expires_at', 'responded_at', 'created_at', 'updated_at'],
         'organization_access_events' => ['id', 'organization_id', 'actor_user_id', 'action', 'subject_id', 'before', 'after', 'request_id', 'occurred_at'],
+        'organization_roles' => ['id', 'organization_id', 'key', 'name', 'permissions', 'active', 'privileged', 'version', 'created_at', 'updated_at'],
+        'organization_role_assignments' => ['id', 'organization_id', 'role_id', 'user_id', 'membership_id', 'scope_type', 'scope_id', 'status', 'starts_at', 'ends_at', 'version', 'created_at', 'updated_at'],
         'tenant_storage_usage' => ['organization_id', 'bytes'],
         'tenant_artifacts' => ['id', 'organization_id', 'name', 'disk', 'bytes', 'ready', 'created_at', 'updated_at'],
         'tenant_portability_operations' => ['id', 'organization_id', 'actor_user_id', 'request_id', 'kind', 'status', 'reason', 'disk', 'bytes', 'sha256', 'expires_at', 'details', 'created_at', 'updated_at'],
@@ -55,7 +58,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
             $actual = $schema->getColumnListing($table);
             $expected = self::COLUMNS[$table];
             // Generated FK projections are derived from subject_id and are not restore inputs.
-            $generated = $table === 'organization_access_events' ? ['membership_id', 'invitation_id'] : [];
+            $generated = $table === 'organization_access_events' ? ['membership_id', 'invitation_id', 'role_id', 'role_assignment_id'] : [];
             if (array_diff($actual, [...$expected, ...$generated]) !== [] || array_diff($expected, $actual) !== []) {
                 throw new DomainConflictException(__('tenancy.portability.catalog'), 'PORTABILITY_CATALOG_INCOMPLETE');
             }

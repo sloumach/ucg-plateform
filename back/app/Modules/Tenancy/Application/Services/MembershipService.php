@@ -30,12 +30,13 @@ final readonly class MembershipService
         private AccessAuditRepository $audit,
         private ConnectionInterface $database,
         private Factory $validator,
+        private RoleManagementService $roles,
     ) {}
 
     /** @return LengthAwarePaginator<int, OrganizationMembership> */
     public function list(TenantContext $context, int $perPage, int $page): LengthAwarePaginator
     {
-        $this->access->requireAdministration($this->access->find($context->organizationId, $context->actorUserId), $context->actorUserId);
+        $this->access->requirePermission($this->access->find($context->organizationId, $context->actorUserId), $context->actorUserId, 'memberships.manage');
 
         return $this->memberships->paginate($context->organizationId, $perPage, $page);
     }
@@ -74,6 +75,9 @@ final readonly class MembershipService
             }
             $before = $membership->toArray();
             $result = $this->memberships->save($membership, $attributes);
+            if ($data->status === MembershipStatus::Revoked) {
+                $this->roles->revokeMembership($context, $result->id);
+            }
             $this->record($context, 'membership.updated', $result, $before);
 
             return $result;
@@ -99,6 +103,8 @@ final readonly class MembershipService
             }
             $before = $membership->toArray();
             $result = $this->memberships->save($membership, ['status' => MembershipStatus::Revoked]);
+            $this->roles->revokeMembership(new TenantContext($organization->id, $userId, $organization->slug,
+                $organization->timezone, $organization->language, $requestId), $result->id);
             $this->audit->record(['organization_id' => $organization->id, 'actor_user_id' => $userId,
                 'action' => 'membership.left', 'subject_id' => $result->id, 'before' => $before,
                 'after' => $result->toArray(), 'request_id' => $requestId, 'occurred_at' => now()]);

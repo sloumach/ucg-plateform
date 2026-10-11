@@ -1,6 +1,8 @@
 <?php
 
 return [
+    // Owning modules register tenant resource validators before enabling these scopes.
+    'authorization_scope_resolvers' => [],
     'portability' => [
         // Technical archive lifetime and budgets, not retention rules for business data.
         'export_lifetime_hours' => 24,

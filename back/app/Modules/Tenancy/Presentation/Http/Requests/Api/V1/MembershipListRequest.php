@@ -10,7 +10,8 @@ final class MembershipListRequest extends FormRequest
 {
     public function authorize(TenantContext $context): bool
     {
-        return $this->user()?->can('manage', $context) ?? false;
+        return $this->user()?->can('tenant.permission', [$context,
+            $this->routeIs('api.v1.invitations.index') ? 'invitations.manage' : 'memberships.manage']) ?? false;
     }
 
     /** @return array<string, array<mixed>> */

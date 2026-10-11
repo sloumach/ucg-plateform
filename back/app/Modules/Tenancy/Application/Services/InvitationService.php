@@ -64,7 +64,7 @@ final readonly class InvitationService
     /** @return LengthAwarePaginator<int, OrganizationInvitation> */
     public function list(TenantContext $context, int $perPage, int $page): LengthAwarePaginator
     {
-        $this->access->requireAdministration($this->access->find($context->organizationId, $context->actorUserId), $context->actorUserId);
+        $this->access->requirePermission($this->access->find($context->organizationId, $context->actorUserId), $context->actorUserId, 'invitations.manage');
 
         return $this->invitations->paginateForOrganization($context->organizationId, $perPage, $page);
     }
@@ -81,7 +81,7 @@ final readonly class InvitationService
         return $this->database->transaction(function () use ($context, $attributes): OrganizationInvitation {
             $organization = $this->organizations->lock($context->organizationId);
             $this->requireActive($organization->acceptsBusinessOperations());
-            $this->access->requireRoleDelegation($organization, $context->actorUserId, $attributes['roles']);
+            $this->access->requireRoleDelegation($organization, $context->actorUserId, $attributes['roles'], 'invitations.manage');
             foreach ($this->invitations->pendingForEmail($organization->id, $attributes['email']) as $previous) {
                 if ($previous->effectiveStatus(now()) !== InvitationStatus::Expired) {
                     throw new DomainConflictException(__('tenancy.errors.invitation_pending'), 'INVITATION_ALREADY_PENDING');
@@ -154,7 +154,7 @@ final readonly class InvitationService
             $this->requireActive($organization->acceptsBusinessOperations());
             $invitation = $this->invitations->find($id, true);
             $context->assertOrganization($invitation->organization_id);
-            $this->access->requireRoleDelegation($organization, $context->actorUserId, $invitation->roles);
+            $this->access->requireRoleDelegation($organization, $context->actorUserId, $invitation->roles, 'invitations.manage');
             $this->requirePending($invitation);
             $before = $invitation->attributesToArray();
             $this->invitations->save($invitation, ['status' => InvitationStatus::Revoked, 'responded_by' => $context->actorUserId, 'responded_at' => now()]);

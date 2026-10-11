@@ -3,6 +3,7 @@
 namespace App\Modules\Tenancy\Application\Services;
 
 use App\Exceptions\DomainConflictException;
+use App\Modules\Tenancy\Application\Contracts\TenantAuthorization;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use App\Modules\Tenancy\Domain\Contracts\ApprovedTenantDomains;
 use App\Modules\Tenancy\Domain\Exceptions\TenantContextRequiredException;
@@ -14,6 +15,7 @@ final readonly class TenantResolver
     public function __construct(
         private OrganizationAccessService $access,
         private ApprovedTenantDomains $domains,
+        private TenantAuthorization $authorization,
     ) {}
 
     public function resolve(?string $routeOrganizationId, string $host, int $actorUserId, string $requestId): TenantContext
@@ -42,11 +44,17 @@ final readonly class TenantResolver
             throw new ModelNotFoundException;
         }
 
-        return new TenantContext(
+        $context = new TenantContext(
             $organization->id, $actorUserId, $organization->slug,
             $organization->timezone, $organization->language, $requestId,
             $isOwner ? ['owner'] : ($membership->roles ?? []),
             $isOwner, $organization->name, $membership?->id,
+        );
+
+        return new TenantContext(
+            $context->organizationId, $context->actorUserId, $context->slug, $context->timezone,
+            $context->language, $context->requestId, $context->roles, $context->isOwner,
+            $context->organizationName, $context->membershipId, $this->authorization->permissions($context),
         );
     }
 }

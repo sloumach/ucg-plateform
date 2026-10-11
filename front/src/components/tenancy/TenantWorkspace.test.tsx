@@ -57,7 +57,7 @@ describe('TenantWorkspace', () => {
     expect(await screen.findByText('Organisation active : Beta')).toBeVisible()
     expect(screen.queryByRole('heading', { name: 'Inviter un membre' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Quitter cette organisation' })).toBeEnabled()
-    expect(request.mock.calls.filter(([path]) => path.startsWith('tenants/' + beta))).toHaveLength(0)
+    expect(request.mock.calls.filter(([path]) => path.startsWith('tenants/' + beta)).map(([path]) => path)).toEqual(['tenants/' + beta + '/my-role-assignments?per_page=10&page=1'])
   })
 
   it('demande un consentement ciblé avant confirmation de contexte puis mutation avec la même révision', async () => {

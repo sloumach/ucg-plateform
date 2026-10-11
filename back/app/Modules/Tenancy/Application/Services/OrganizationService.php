@@ -104,7 +104,7 @@ final readonly class OrganizationService
         return $this->database->transaction(function () use ($context, $details): Organization {
             $organization = $this->organizations->lock($context->organizationId);
             $this->access->find($organization->id, $context->actorUserId);
-            $this->access->requireAdministration($organization, $context->actorUserId);
+            $this->access->requirePermission($organization, $context->actorUserId, 'organization.update');
             if (! $organization->acceptsBusinessOperations()) {
                 throw new DomainConflictException(__('tenancy.errors.inactive'), 'ORGANIZATION_INACTIVE');
             }

@@ -12,7 +12,7 @@ final class UpdateMembershipRequest extends FormRequest
 {
     public function authorize(TenantContext $context): bool
     {
-        return $this->user()?->can('manage', $context) ?? false;
+        return $this->user()?->can('tenant.permission', [$context, 'memberships.manage']) ?? false;
     }
 
     /** @return array<string, array<mixed>> */

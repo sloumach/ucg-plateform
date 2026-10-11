@@ -109,7 +109,7 @@ Identity ne dépend toujours pas de Tenancy : il déclare le port public
 et administrateurs effectifs. `AccountDirectory.hasConfirmedMfa` permet aux
 services d’administration et aux jobs Tenancy de vérifier l’enrôlement sans
 importer le modèle utilisateur. La seule capacité plateforme actuelle concernée
-est la liste opérateur Horizon ; IAM-003 raccordera les futurs rôles.
+est la liste opérateur Horizon ; IAM-003 raccorde les rôles configurables privilégiés.
 
 Les routes métier suivent `auth:sanctum` → `identity.session` → `mfa` → `tenant`
 → confirmation éventuelle → binding/Policy. La preuve de session est liée au
@@ -393,3 +393,60 @@ La restriction ne fusionne ni identités ni historiques et ne remplace pas les P
 4. Ajouter migrations réversibles, contraintes, index et tests d’isolation nécessaires.
 5. Exécuter les tests d’architecture, PHPUnit, Pint et les vérifications frontend.
 6. Refuser toute nouvelle dépendance circulaire ; extraire un contrat ou publier un événement.
+
+## Autorisation contextuelle — UCG-IAM-003
+
+Tenancy possède `OrganizationRole`, `OrganizationRoleAssignment` et le catalogue
+fermé `Permission`. `RoleManagementService` orchestre DTO validés, autorisation
+fraîche, verrous, périodes, versions et audit ; `RoleRepository` isole Eloquent.
+Les contrôleurs utilisent Form Requests, Policy/Gate et Resources. Les clés
+étrangères composites lient tenant/rôle et tenant/adhésion/compte ; des triggers
+bloquent le changement d’identité. Le journal d’accès projette les nouveaux sujets
+par colonnes générées et conserve sa protection append-only.
+
+Le contrat public `TenantAuthorization` expose `allows`, `authorize` et le
+snapshot organisation `permissions`. Il recharge organisation, adhésion,
+affectation effective, rôle actif et MFA depuis la base. Un ancien contexte ne
+peut imposer ses indicateurs propriétaire/rôle à cette décision. Le Gate
+`tenant.permission` vérifie aussi que le compte authentifié correspond au contexte.
+La gouvernance historique reste sans droits métier implicites.
+
+Les autres modules doivent injecter ce contrat et demander la permission exacte
+avec type/UUID de ressource, sans importer les modèles internes de Tenancy.
+`TenantJobRunner::user` accepte permission, type et ID optionnels et les revérifie
+à l’exécution d’un job utilisateur :
+
+```php
+$runner->user($transport, fn () => $reportService->build(), 'sports.read', 'team', $teamId);
+```
+
+Cet exemple reste refusé tant que Teams ne fournit pas son annuaire. Les tâches
+planifiées système gardent leur contrat distinct. `PrivilegedAccountDirectory`
+inclut les droits configurables privilégiés effectifs dans la politique MFA globale.
+
+`RegisteredAuthorizationScopes` valide l’organisation par défaut. Chaque module
+propriétaire doit implémenter `AuthorizationScopeDirectory`, prouver l’existence
+et l’appartenance de ses ressources au tenant et enregistrer sa classe dans
+`tenancy.authorization_scope_resolvers` sous `team`, `game`, `cohort` ou `event`.
+La configuration ne provient jamais d’un payload utilisateur. Sans adaptateur
+ou pour un UUID inconnu, le droit est refusé. Les tests utilisent un annuaire
+factice avec deux équipes valides pour prouver les limites de délégation.
+
+Les droits nécessitent une adhésion actuellement effective, sauf propriétaire.
+Suspension, expiration et rôle inactif priment. Départ/révocation d’adhésion
+révoquent les anciennes affectations sous verrou organisation, dans la même
+transaction avec audit ; une réadmission ne les restaure pas. Les mutations
+sérialisées et versions UUID empêchent les mises à jour depuis un état périmé.
+
+Listes paginées, chargement des rôles en bloc, requêtes `exists`, index composés
+et plafond de 100 rôles par tenant bornent le travail. Aucun cache durable de
+permissions n’est introduit ; profiler avant optimisation distribuée et respecter
+versions/expirations/révocations. La portabilité inclut les deux nouvelles tables ;
+les projections générées d’audit sont reconnues mais ne sont pas des entrées de
+restauration. La purge existante conserve les historiques d’accès et leurs sujets.
+
+La migration additive borne l’attente de verrou PostgreSQL à cinq secondes ;
+ses colonnes générées peuvent réécrire un grand journal. Le rollback fonctionne
+sans audit de rôles et refuse de supprimer un historique IAM-003 déjà audité.
+Préférer une correction en avant après usage. IAM-004 reste responsable des
+projections de champs métier ; IAM-005 de la plateforme et du support.

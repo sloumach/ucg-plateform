@@ -14,7 +14,7 @@ final class OrganizationAccessEvent extends Model
 
     protected $guarded = ['*'];
 
-    protected $hidden = ['membership_id', 'invitation_id'];
+    protected $hidden = ['membership_id', 'invitation_id', 'role_id', 'role_assignment_id'];
 
     protected static function booted(): void
     {

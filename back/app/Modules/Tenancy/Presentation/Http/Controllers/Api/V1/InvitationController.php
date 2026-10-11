@@ -29,7 +29,7 @@ final class InvitationController extends Controller
 
     public function destroy(TenancyActionRequest $request, TenantContext $context, string $tenant, string $invitation): InvitationResource
     {
-        $this->gate->authorize('manage', $context);
+        $this->gate->authorize('tenant.permission', [$context, 'invitations.manage']);
 
         return InvitationResource::make($this->invitations->revoke($context, $invitation))
             ->additional(['notification' => ['type' => 'success', 'message' => __('tenancy.notifications.revoked')]]);

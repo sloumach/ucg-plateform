@@ -7,6 +7,8 @@ use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\MembershipControlle
 use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\MyInvitationController;
 use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\MyMembershipController;
 use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\OrganizationController;
+use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\RoleAssignmentController;
+use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\RoleController;
 use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\TenantContextController;
 use Illuminate\Support\Facades\Route;
 
@@ -31,6 +33,14 @@ Route::delete('my-memberships/{membership}', [MyMembershipController::class, 'de
     ->whereUuid('membership')->block(10, 10)->name('my-memberships.destroy');
 
 Route::prefix('tenants/{tenant}')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
+    Route::get('permission-catalogue', [RoleController::class, 'catalogue'])->name('roles.catalogue');
+    Route::get('roles', [RoleController::class, 'index'])->name('roles.index');
+    Route::post('roles', [RoleController::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('roles.store');
+    Route::put('roles/{role}', [RoleController::class, 'update'])->whereUuid('role')->middleware('tenant.confirmed')->block(10, 10)->name('roles.update');
+    Route::get('role-assignments', [RoleAssignmentController::class, 'index'])->name('role-assignments.index');
+    Route::get('my-role-assignments', [RoleAssignmentController::class, 'mine'])->name('role-assignments.mine');
+    Route::post('role-assignments', [RoleAssignmentController::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('role-assignments.store');
+    Route::put('role-assignments/{assignment}', [RoleAssignmentController::class, 'update'])->whereUuid('assignment')->middleware('tenant.confirmed')->block(10, 10)->name('role-assignments.update');
     Route::get('memberships', [MembershipController::class, 'index'])->block(10, 10)->name('memberships.index');
     Route::put('memberships/{membership}', [MembershipController::class, 'update'])
         ->whereUuid('membership')->middleware('tenant.confirmed')->block(10, 10)->name('memberships.update');

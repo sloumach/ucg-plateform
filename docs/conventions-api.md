@@ -370,3 +370,102 @@ multi-organisations par défaut, est documentée dans le README et ORG-03.
 Elle ne supprime ni compte, ni appartenance, ni historique automatiquement.
 L’acceptation demande un compte existant à adresse vérifiée ; la création
 et la vérification Identity restent hors de TEN-003.
+
+## Rôles et permissions contextuels — UCG-IAM-003
+
+Ces routes exigent session Sanctum, e-mail vérifié, contexte tenant autorisé et
+preuve MFA si le compte est privilégié. Les services revérifient les droits ;
+`context.permissions` est un snapshot d’affichage. Les mutations exigent CSRF,
+sélection confirmée et `X-Tenant-Revision`, selon le parcours tenant existant.
+
+| Endpoint sous /api/v1/tenants/{tenant} | Autorisation et réponse |
+| --- | --- |
+| `GET permission-catalogue` | `roles.assign` ; catalogue fermé, scope_types disponibles, can_manage |
+| `GET roles` | `roles.assign` ; liste paginée |
+| `POST roles` | `roles.manage` (propriétaire) ; 201 et notification |
+| `PUT roles/{uuid}` | `roles.manage` ; version obligatoire, 200 |
+| `GET role-assignments` | `roles.assign` ; affectations du tenant paginées |
+| `GET my-role-assignments` | `organization.view` ; uniquement celles du compte |
+| `POST role-assignments` | `roles.assign`, limites de délégation ; 201 |
+| `PUT role-assignments/{uuid}` | Même contrôle ; version obligatoire, 200 |
+
+Les listes acceptent `per_page=1..100` et `page=1..100000`. Les UUID d’un autre
+tenant donnent 404 ; les listes exposent les identifiants des comptes, sans profil
+Identity privé. Une version périmée donne 409 `AUTHORIZATION_VERSION_STALE` :
+relire et demander une nouvelle confirmation, sans rejouer automatiquement.
+
+Définition : `key` (slug stable, 80 caractères maximum), `name` (120 maximum),
+`permissions` (liste non vide, distincte, issue du catalogue), `active` (booléen),
+`version` pour PUT. UUID, clé et tenant immuables. `privileged` est calculé par
+le serveur et interdit en entrée. Le catalogue configurable est :
+
+- `organization.view`, `organization.update`, `memberships.manage`,
+  `invitations.manage`, `roles.assign` ;
+- `sports.read`, `sports.write`, `sports.validate`, `sports.publish` ;
+- `administrative.read`, `administrative.write`, `administrative.validate` ;
+- `financial.read`, `financial.write`, `financial.validate`.
+
+Seules `organization.view` et `sports.read` sont non privilégiées. La gouvernance
+exige le périmètre organisation. `roles.manage` reste réservé au propriétaire ;
+wildcards, clés système et permissions plateforme sont exclus.
+
+Affectation : `role_id`, `user_id` (membre actif ou propriétaire), `scope_type`,
+`scope_id`, `status` (`active/suspended/revoked`), `starts_at`, `ends_at` nullable,
+`version` pour PUT. Dates ISO 8601 avec décalage, stockées en UTC : début inclus,
+fin exclue et strictement postérieure au début. La période doit rester dans
+l’adhésion cible et dans les droits du délégué. Identité cible, rôle et périmètre
+immuables : révoquer puis créer pour les changer. La révocation est définitive.
+
+Le délégué doit détenir `roles.assign` au niveau organisation et chacune des
+permissions accordées sur le périmètre cible pour toute la période demandée.
+Un droit organisation couvre un périmètre précis validé ; une équipe ne couvre
+pas une autre équipe. Une suspension/révocation conservant exactement la période
+exige les droits actuels, sans prolonger une autorité passée. Auto-attribution,
+réactivation ou extension de ses propres droits sont refusées. Le propriétaire
+ne peut élargir ou réactiver une définition qui lui est encore affectée ; un
+délégué autorisé peut lui attribuer des permissions métier.
+
+Aujourd’hui `scope_types` vaut `["organization"]` et `scope_id` égale le tenant.
+Équipe/jeu/cohorte/événement restent fermés jusqu’au raccordement de leurs modules.
+IAM-004 devra filtrer les champs avec ces contrôles ; définir une permission
+n’implémente pas un module métier absent.
+
+Exemple React après connexion, MFA et sélection, avec le client partagé :
+
+```ts
+import { tenancyRequest } from './api/tenancy'
+import type { ApiSuccessResponse } from './api/contracts'
+import type { OrganizationRole } from './api/roles'
+
+// Tenant/révision relus, action confirmée explicitement par la personne.
+await tenancyRequest('active-organization/confirmation', {
+  method: 'POST', body: { organization_id: organizationId, revision, confirm: true },
+})
+const created = await tenancyRequest<ApiSuccessResponse<OrganizationRole>>(
+  'tenants/' + organizationId + '/roles', {
+    method: 'POST', revision,
+    body: { key: 'coach', name: 'Coach', permissions: ['sports.read'], active: true },
+  },
+)
+await tenancyRequest('tenants/' + organizationId + '/role-assignments', {
+  method: 'POST', revision,
+  body: { role_id: created.data.id, user_id: memberAccountId,
+    scope_type: 'organization', scope_id: organizationId, status: 'active',
+    starts_at: new Date().toISOString().slice(0, 19) + '+00:00', ends_at: null },
+})
+// Relire la version et confirmer de nouveau avant une modification réelle.
+await tenancyRequest('tenants/' + organizationId + '/roles/' + created.data.id, {
+  method: 'PUT', revision,
+  body: { key: created.data.key, name: 'Coach lecture', permissions: ['sports.read'],
+    active: true, version: created.data.version },
+})
+// Le client prépare CSRF ; restituer notification et erreurs via les composants partagés.
+```
+
+Conflits 409 : `ROLE_SELF_ESCALATION_FORBIDDEN`, `ROLE_DELEGATION_DENIED`,
+`ROLE_PERIOD_OUTSIDE_MEMBERSHIP`, `ROLE_SCOPE_INCOMPATIBLE`,
+`AUTHORIZATION_SCOPE_UNAVAILABLE`, `ROLE_SUBJECT_INVALID`, `ROLE_INACTIVE`,
+`ROLE_ALREADY_EXISTS`, `ROLE_ASSIGNMENT_ALREADY_EXISTS`, `ROLE_ASSIGNMENT_REVOKED`,
+`ROLE_ASSIGNMENT_IDENTITY_IMMUTABLE`, `ROLE_IDENTITY_IMMUTABLE`, `ROLE_LIMIT_REACHED`.
+La validation donne 422 ; l’autorisation 403. Les mutations et révocations dues au
+départ sont auditées dans leur transaction, avec référence contrainte au même tenant.

@@ -4,6 +4,10 @@ Plateforme de gestion esports multi-tenant d'Ultra Cyber Game.
 
 ## Structure
 
+Le ticket `UCG-IAM-003` fournit désormais les rôles configurables et leurs
+affectations par organisation. Voir [le contrat API](docs/conventions-api.md)
+et [l’état de livraison](docs/etat-projet.md).
+
 - `back/` : API Laravel 13 sous PHP 8.5.
 - `front/` : application React 19, TypeScript et Vite 8.
 - `docs/` : cahier des charges et backlog technique.
@@ -66,7 +70,7 @@ mot de passe, `auth/me` expose `mfa.required`, `mfa.enabled` et `mfa.verified`.
 L’espace d’organisation, les mutations métier et l’autorisation des canaux
 privés restent bloqués jusqu’à l’activation puis au challenge. Horizon exige
 également une preuve MFA courante, y compris en local. Aucun rôle plateforme
-supplémentaire n’est créé avant IAM-003.
+supplémentaire n’est créé par IAM-003 ; leur séparation reste IAM-005.
 
 L’activation depuis le panneau de sécurité demande le mot de passe courant et
 une adresse e-mail vérifiée. Ajouter manuellement la clé à une application TOTP
@@ -99,6 +103,43 @@ IAM-002 supprime les facteurs enregistrés ; privilégier une correction en avan
 sur une base utilisée. Conserver les clés de chiffrement lors d’une rotation.
 La politique utilise des requêtes d’existence indexées, sans parcourir toutes les
 organisations du compte ni mettre en cache durablement ses privilèges.
+
+### Rôles et permissions contextuels — UCG-IAM-003
+
+Le panneau « Rôles et affectations » permet au propriétaire de créer, modifier
+et désactiver des rôles à permissions explicites. Les gestionnaires détenant
+`roles.assign` peuvent affecter ces rôles dans les limites de leurs propres
+permissions, périmètres et périodes. Un membre ordinaire consulte uniquement ses
+affectations. Les mutations demandent confirmation du tenant, révision de session
+et, pour une modification, version courante de la ressource.
+
+Les rôles complètent les adhésions `member`/`administrator`. Suspendre une adhésion
+retire tous les accès ; la révoquer ou quitter l’organisation révoque ses
+affectations dans la même transaction. Une réadmission ne les restaure pas.
+Un rôle désactivé ou une affectation suspendue, future ou expirée ne donne aucun
+droit. Les droits sportifs, administratifs et financiers ne sont jamais implicites
+pour un propriétaire ou administrateur ; l’auto-attribution et l’extension de ses
+propres droits sont refusées. Les permissions privilégiées alimentent le MFA global.
+
+**Périmètre disponible aujourd’hui : organisation entière.** Les types équipe,
+jeu, cohorte et événement sont préparés et refusés jusqu’à validation de leurs
+ressources réelles par leurs modules, via `AuthorizationScopeDirectory`.
+IAM-004 traitera la visibilité par champ ; IAM-005 les rôles plateforme/support.
+
+La migration additive IAM-003 ajoute deux tables, des contraintes composites
+et les projections du journal d’accès immuable. Elle ne convertit aucune adhésion.
+Les exports complets incluent rôles et affectations. Le retour arrière refuse de
+supprimer un historique IAM-003 déjà audité : préférer une correction en avant.
+Les colonnes générées peuvent réécrire un grand journal PostgreSQL ; prévoir une
+fenêtre adaptée. L’attente de verrou est bornée à cinq secondes.
+
+Appliquer IAM-001, IAM-002 et IAM-003 avec sauvegarde et `php artisan migrate`
+avant usage de cette version. Les trois migrations restent en attente sur
+`ucg_platform` ; seule une base temporaire a servi aux tests PostgreSQL.
+Les listes sont paginées (1 à 100 éléments), les rôles limités à 100 par tenant,
+les relations chargées en bloc et les droits revérifiés en base à chaque opération.
+À grande échelle, profiler les index ; tout futur cache d’autorisation devra
+respecter versions, expirations et révocations immédiates.
 
 
 Exemple de demande de récupération :
@@ -614,7 +655,8 @@ consulter/répondre aux invitations et quitter explicitement une adhésion.
 Le propriétaire et les administrateurs peuvent inviter des membres et gérer
 leurs rôles, statuts et périodes. Seul le propriétaire délègue ou retire le rôle
 `administrator` ; `owner` reste un accès de gouvernance implicite et non assignable.
-Les rôles métier détaillés et leurs périmètres restent `IAM-003`.
+Les rôles métier configurables sont fournis par IAM-003 ; leurs périmètres de
+ressources seront raccordés par les modules propriétaires.
 
 Une adhésion possède un UUID immuable, un couple organisation/compte unique,
 des rôles, un statut `active`/`suspended`/`revoked` et une période
@@ -672,7 +714,7 @@ les admissions à des organisations différentes. La propriété d’une autre
 organisation non archivée compte comme une appartenance indéfinie.
 Ne pas activer ce mode sur des données existantes sans examiner et résoudre
 explicitement les conflits ; aucune révocation automatique n’est effectuée.
-Une restriction par rôle métier reste une extension distincte avec `IAM-003`.
+Les restrictions contextuelles utilisent le contrat `TenantAuthorization` d’IAM-003.
 Le détail des endpoints et exemples est dans `docs/conventions-api.md`.
 
 ## Isolation PostgreSQL — UCG-TEN-004

@@ -22,6 +22,7 @@ final class OrganizationPolicy
 
     public function update(Authenticatable $user, Organization $organization): bool
     {
-        return $this->access->canAdminister($organization, (int) $user->getAuthIdentifier());
+        return $this->access->canAdminister($organization, (int) $user->getAuthIdentifier())
+            || $this->access->canPerform($organization, (int) $user->getAuthIdentifier(), 'organization.update');
     }
 }

@@ -13,7 +13,10 @@ final readonly class TenantContext extends DataTransferObject
 {
     public const string ATTRIBUTE = 'ucg_tenant_context';
 
-    /** @param list<string> $roles */
+    /**
+     * @param  list<string>  $roles
+     * @param  list<string>|null  $effectivePermissions
+     */
     public function __construct(
         public string $organizationId,
         public int $actorUserId,
@@ -25,6 +28,7 @@ final readonly class TenantContext extends DataTransferObject
         public bool $isOwner = false,
         public string $organizationName = '',
         public ?string $membershipId = null,
+        public ?array $effectivePermissions = null,
     ) {
         if (! Str::isUuid($organizationId) || ! Str::isUuid($requestId) || $actorUserId < 1) {
             throw new InvalidArgumentException('A tenant context requires valid organization, actor and request identifiers.');
@@ -53,6 +57,10 @@ final readonly class TenantContext extends DataTransferObject
     /** @return list<string> */
     public function permissions(): array
     {
+        if ($this->effectivePermissions !== null) {
+            return $this->effectivePermissions;
+        }
+
         return $this->canAdminister()
             ? ['organization.view', 'organization.update', 'memberships.manage', 'invitations.manage']
             : ['organization.view'];
