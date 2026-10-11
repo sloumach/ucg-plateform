@@ -4,6 +4,7 @@ namespace App\Modules\Tenancy\Application\Services;
 
 use App\Exceptions\DomainConflictException;
 use App\Modules\Identity\Application\Contracts\AccountDirectory;
+use App\Modules\Identity\Application\Contracts\PlatformAccountDirectory;
 use App\Modules\Tenancy\Application\Contracts\TenantExecutionContext;
 use App\Modules\Tenancy\Application\Data\OrganizationAuditData;
 use App\Modules\Tenancy\Application\Validation\OrganizationInput;
@@ -18,6 +19,7 @@ use App\Modules\Tenancy\Domain\Models\Organization;
 use App\Support\Cache\TenantCacheStore;
 use App\Support\Storage\TenantResourceNamespace;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Validation\Factory;
@@ -31,6 +33,7 @@ final readonly class OrganizationPortabilityService
     public function __construct(
         private OrganizationRepository $organizations, private PortabilityRepository $operations,
         private PortabilityArchive $archives, private PortabilityQueue $queue, private AccountDirectory $accounts,
+        private PlatformAccountDirectory $platform,
         private Connection $database, private Factory $validator, private Repository $config,
         private TenantTechnicalLimits $limits, private TenantCacheStore $locks,
         private TenantExecutionScope $scope, private LoggerInterface $logger, private Application $app,
@@ -46,6 +49,9 @@ final readonly class OrganizationPortabilityService
             ], OrganizationInput::messages())->validate();
         if (! $this->accounts->verifiedAccountExists($audit->actorUserId)) {
             throw new InvalidOrganizationAccountException;
+        }
+        if ($this->platform->isTechnical($audit->actorUserId)) {
+            throw new AuthorizationException(__('platform.backup_forbidden'));
         }
 
         return $this->organizations->lock(strtolower($organizationId));

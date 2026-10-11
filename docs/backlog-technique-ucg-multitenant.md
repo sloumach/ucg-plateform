@@ -236,7 +236,7 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   exports complets et vérification HTTP/services/jobs. Organisation disponible ;
   types équipe/jeu/cohorte/événement préparés et refusés jusqu’au raccordement des
   ressources réelles par leurs modules. IAM-004 fournit le socle de projection
-  par champ ; IAM-005 reste à faire pour la plateforme/support. Migration
+  par champ ; IAM-005 fournit la séparation plateforme/support ci-dessous. Migration
   appliquée par l’utilisateur à `ucg_platform`, batch 7 confirmé. Commits
   `f78e0cd`, documentation `f9ea660` et correctif mobile `72fb380` poussés ;
   les deux CI du dernier commit sont vertes, y compris Playwright à 375/320 px.
@@ -259,8 +259,10 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   administratives et financières, leurs recherches, exports et notifications
   doivent utiliser ce contrat avant diffusion. Ces parcours n’existent pas encore ;
   aucun endpoint métier fictif n’est ajouté. Le backup opérateur complet conserve
-  son autorisation propriétaire/MFA et son catalogue fermé, sans filtrage partiel
-  qui rendrait la restauration incomplète. Push et CI IAM-004 restent à confirmer.
+  son accès opérateur serveur avec acteur vérifié et son catalogue fermé, sans filtrage partiel
+  qui rendrait la restauration incomplète. IAM-005 refuse ces sauvegardes aux comptes
+  techniques actifs. IAM-004 poussé (`7bfd765`) ; backend et frontend verts
+  (runs `38163603035` et `38163602940`).
 
 ### UCG-IAM-005 — Séparer administration tenant et plateforme
 
@@ -268,6 +270,16 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : propriétaire, admin d’organisation, superadmin plateforme et accès exceptionnel limité dans le temps.
 - **Acceptation** : motif, tenant, durée et actions du support sont audités ; expiration automatique ; aucune approbation métier par un compte technique.
 - **Références CDC** : IAM-09, SEC-14.
+- **État** : implémenté et validé localement le 11 octobre 2026. Rôles globaux
+  explicites, bootstrap CLI unique, MFA, dernier superadmin protégé, audit immuable
+  avant/après. Support limité à deux diagnostics sans données métier, tenant/motif/
+  durée/actions explicites, TTL de 30 minutes maximum, révocation et liaison à la
+  version du rôle. Les comptes techniques actifs ne peuvent ni utiliser des droits
+  métier tenant ni accéder aux sauvegardes complètes. Horizon exige superadmin
+  explicite, e-mail autorisé et MFA de session. API/CLI disponibles ; pas d’écran
+  React support. Migration additive de quatre tables `Pending` sur la base
+  principale : sauvegarde puis `migrate` à exécuter par l’utilisateur avant usage.
+  Push utilisateur et CI IAM-005 à confirmer ; journal transverse/rétention IAM-006.
 
 ### UCG-IAM-006 — Mettre en place le journal d’audit
 

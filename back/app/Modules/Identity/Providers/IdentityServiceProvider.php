@@ -3,14 +3,19 @@
 namespace App\Modules\Identity\Providers;
 
 use App\Modules\Identity\Application\Contracts\AccountDirectory;
+use App\Modules\Identity\Application\Contracts\PlatformAccountDirectory;
 use App\Modules\Identity\Domain\Contracts\MfaRepository;
+use App\Modules\Identity\Domain\Contracts\PlatformRoleRepository;
 use App\Modules\Identity\Domain\Contracts\SecurityAuditRepository;
 use App\Modules\Identity\Domain\Contracts\UserRepositoryInterface;
 use App\Modules\Identity\Domain\Models\User;
 use App\Modules\Identity\Infrastructure\Persistence\EloquentAccountDirectory;
 use App\Modules\Identity\Infrastructure\Persistence\EloquentMfaRepository;
+use App\Modules\Identity\Infrastructure\Persistence\EloquentPlatformAccountDirectory;
+use App\Modules\Identity\Infrastructure\Persistence\EloquentPlatformRoleRepository;
 use App\Modules\Identity\Infrastructure\Persistence\EloquentSecurityAuditRepository;
 use App\Modules\Identity\Infrastructure\Persistence\EloquentUserRepository;
+use App\Modules\Identity\Presentation\Console\ConfigurePlatformRoleCommand;
 use App\Modules\Identity\Presentation\Policies\UserPolicy;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
@@ -33,6 +38,8 @@ final class IdentityServiceProvider extends ServiceProvider
         $this->app->bind(SecurityAuditRepository::class, EloquentSecurityAuditRepository::class);
         $this->app->bind(MfaRepository::class, EloquentMfaRepository::class);
         $this->app->bind(AccountDirectory::class, EloquentAccountDirectory::class);
+        $this->app->bind(PlatformAccountDirectory::class, EloquentPlatformAccountDirectory::class);
+        $this->app->bind(PlatformRoleRepository::class, EloquentPlatformRoleRepository::class);
         $this->app->bind(
             SessionGuard::class,
             fn ($app): SessionGuard => $app->make('auth')->guard('web'),
@@ -41,6 +48,9 @@ final class IdentityServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        if ($this->app->runningInConsole()) {
+            $this->commands([ConfigurePlatformRoleCommand::class]);
+        }
         Gate::policy(User::class, UserPolicy::class);
         RateLimiter::for('mfa', static fn (Request $request): array => [
             Limit::perMinute(5)->by('mfa-account:'.(string) $request->user()?->getAuthIdentifier()),

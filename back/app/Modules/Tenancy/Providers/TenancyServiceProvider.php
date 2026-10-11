@@ -30,12 +30,14 @@ use App\Modules\Tenancy\Domain\Contracts\PortabilityArchive;
 use App\Modules\Tenancy\Domain\Contracts\PortabilityQueue;
 use App\Modules\Tenancy\Domain\Contracts\PortabilityRepository;
 use App\Modules\Tenancy\Domain\Contracts\RoleRepository;
+use App\Modules\Tenancy\Domain\Contracts\SupportAccessRepository;
 use App\Modules\Tenancy\Domain\Contracts\TenantWorkRepository;
 use App\Modules\Tenancy\Domain\Exceptions\TenantContextRequiredException;
 use App\Modules\Tenancy\Domain\Models\Organization;
 use App\Modules\Tenancy\Domain\Models\OrganizationInvitation;
 use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
 use App\Modules\Tenancy\Domain\Models\OrganizationRole;
+use App\Modules\Tenancy\Domain\Models\OrganizationSupportAccess;
 use App\Modules\Tenancy\Infrastructure\Mail\MailInvitationNotifier;
 use App\Modules\Tenancy\Infrastructure\Persistence\DatabaseArtifactLedger;
 use App\Modules\Tenancy\Infrastructure\Persistence\DatabasePortabilityRepository;
@@ -45,6 +47,7 @@ use App\Modules\Tenancy\Infrastructure\Persistence\EloquentMembershipRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentOrganizationRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentPrivilegedAccountDirectory;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentRoleRepository;
+use App\Modules\Tenancy\Infrastructure\Persistence\EloquentSupportAccessRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentTenantWorkRepository;
 use App\Modules\Tenancy\Infrastructure\Queue\LaravelPortabilityQueue;
 use App\Modules\Tenancy\Infrastructure\Queue\LaravelTenantScheduleQueue;
@@ -63,6 +66,7 @@ use App\Modules\Tenancy\Presentation\Policies\InvitationPolicy;
 use App\Modules\Tenancy\Presentation\Policies\MembershipPolicy;
 use App\Modules\Tenancy\Presentation\Policies\OrganizationPolicy;
 use App\Modules\Tenancy\Presentation\Policies\RolePolicy;
+use App\Modules\Tenancy\Presentation\Policies\SupportAccessPolicy;
 use App\Modules\Tenancy\Presentation\Policies\TenantContextPolicy;
 use App\Support\Storage\TenantResourceNamespace;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -79,6 +83,7 @@ final class TenancyServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(RoleRepository::class, EloquentRoleRepository::class);
+        $this->app->bind(SupportAccessRepository::class, EloquentSupportAccessRepository::class);
         $this->app->bind(TenantAuthorization::class, TenantPermissionService::class);
         $this->app->bind(TenantDataVisibility::class, TenantDataProjectionService::class);
         $this->app->bind(AuthorizationScopeDirectory::class, RegisteredAuthorizationScopes::class);
@@ -123,6 +128,9 @@ final class TenancyServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(OrganizationRole::class, RolePolicy::class);
+        Gate::policy(OrganizationSupportAccess::class, SupportAccessPolicy::class);
+        RateLimiter::for('platform-support', fn (Request $request): Limit => Limit::perMinute(30)
+            ->by('platform-support:'.(string) $request->user()?->getAuthIdentifier()));
         Gate::define('tenant.permission', fn (Authenticatable $user, TenantContext $context, string $permission, string $type = 'organization', ?string $id = null): bool => (int) $user->getAuthIdentifier() === $context->actorUserId
             && $this->app->make(TenantAuthorization::class)->allows($context, $permission, $type, $id));
         Gate::policy(Organization::class, OrganizationPolicy::class);

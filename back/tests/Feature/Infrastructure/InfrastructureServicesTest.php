@@ -3,6 +3,7 @@
 namespace Tests\Feature\Infrastructure;
 
 use App\Contracts\Storage\ArtifactStorage;
+use App\Modules\Identity\Domain\Models\PlatformRole;
 use App\Modules\Identity\Domain\Models\User;
 use App\Support\Queue\JobContext;
 use App\Support\Queue\QueueName;
@@ -114,6 +115,7 @@ class InfrastructureServicesTest extends TestCase
     public function test_horizon_dashboard_allows_an_allowlisted_operator(): void
     {
         $user = User::factory()->withMfa()->create(['email' => 'operator@ucg.test']);
+        PlatformRole::factory()->superadmin()->create(['user_id' => $user->id]);
         config(['horizon.authorized_emails' => ['operator@ucg.test']]);
         $this->actingAsWithMfa($user)->getJson('/api/v1/auth/me')->assertOk();
 

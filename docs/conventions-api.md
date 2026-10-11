@@ -532,6 +532,80 @@ restaurer le contexte et projeter au traitement, sans réutiliser les droits du
 moment de la mise en queue. Le mail existant n’expose que le nom d’organisation
 et le lien d’accès ; son worker exige désormais `invitations.manage` actuel.
 
-Les exports complets de maintenance restent opérateur uniquement : propriétaire
-avec MFA, catalogue fermé, aucune URL publique. Ils ne sont pas des exports métier
-et ne subissent pas une projection partielle incompatible avec leur restauration.
+Les exports complets de maintenance restent réservés à un opérateur autorisé sur
+le serveur avec acteur vérifié, catalogue fermé et aucune URL publique. IAM-005
+refuse les acteurs techniques actifs, avant génération et lecture. Ces sauvegardes
+ne subissent pas une projection partielle incompatible avec leur restauration.
+
+## Accès plateforme et support — UCG-IAM-005
+
+Préfixe `/api/v1/platform` ; session Sanctum Identity valide, e-mail vérifié,
+rôle global actif `superadmin`/`support`, MFA confirmé et preuve de session actuelle.
+Quota de 30 requêtes/minute/opérateur. Les permissions tenant et les e-mails
+Horizon ne donnent pas ce rôle. Pas de token API support ni d’impersonation.
+
+| Route relative au préfixe | Résultat |
+| --- | --- |
+| `GET support-accesses` | Ses propres accès seulement, paginés |
+| `POST tenants/{tenant}/support-accesses` | Ouverture explicite, 201 |
+| `DELETE tenants/{tenant}/support-accesses/{access}` | Révocation définitive/idempotente, 200 |
+| `GET tenants/{tenant}/support-accesses/{access}/organization` | Diagnostic `organization.inspect`, 200 |
+| `GET tenants/{tenant}/support-accesses/{access}/access-summary` | Diagnostic `access.inspect`, 200 |
+
+UUID tenant/accès dans l’URL. Corps d’ouverture : `reason` (10..500 caractères
+après trim, sans secret), `duration_minutes` (entier 1..30), `actions` (liste
+distincte de 1..2 valeurs parmi `organization.inspect`, `access.inspect`),
+`confirm=true`. L’acteur, les dates, le statut et le rôle sont imposés par le
+serveur ; `organization_id` dans le corps est interdit. Liste :
+`per_page=1..100` (20 par défaut), `page=1..100000`.
+
+La Resource contient seulement `id`, `organization_id`, `actor_user_id`, `reason`,
+`actions`, `status`, `starts_at`, `expires_at`. Statut temporel `active/expired` ou
+`revoked` ; il ne prouve pas une autorisation : chaque diagnostic vérifie aussi
+le rôle et sa version actuelle. Début inclus, fin exclue, UTC. Aucune extension.
+Cinq accès actifs maximum par couple tenant/opérateur, sinon 409
+`SUPPORT_ACCESS_LIMIT`. La liste ne contient jamais les accès d’un autre opérateur.
+
+Le diagnostic organisation expose `organization_id`, `status`, `timezone`,
+`language`. Le diagnostic accès expose `organization_id`, `memberships`, `roles`,
+`role_assignments` : des compteurs de lignes, sans noms, e-mails ni profils.
+Aucune donnée sportive/admin/finance, aucune action de validation/publication.
+Un tenant suspendu peut être diagnostiqué sans rendre ses opérations métier actives.
+
+Validation : 422 ; MFA manquant : 403 avec le code Identity correspondant ;
+session révoquée/changement de version MFA : 401 ; rôle/action/période refusés :
+403 ; accès d’un autre tenant ou opérateur : 404. Après révocation ou changement
+de version du rôle plateforme, un ancien accès ne peut pas être réutilisé.
+Les réponses conservent `meta.request_id`/`X-Request-ID`, notifications compatibles
+Flasher sur ouverture/révocation et pagination standard.
+
+Exemple client avec une session opérateur déjà connectée et MFA vérifié ; le
+client partagé prépare CSRF et transmet les cookies. Aucun tenant actif ou
+confirmation de tenant métier n’est requis pour ce parcours explicite :
+
+```ts
+import { tenancyRequest } from './api/tenancy'
+import type { ApiSuccessResponse } from './api/contracts'
+
+type SupportAccess = { id: string; organization_id: string; expires_at: string }
+const opened = await tenancyRequest<ApiSuccessResponse<SupportAccess>>(
+  'platform/tenants/' + targetTenantId + '/support-accesses', {
+    method: 'POST',
+    body: { reason: 'Diagnostic incident de connexion', duration_minutes: 15,
+      actions: ['organization.inspect'], confirm: true },
+  },
+)
+const accessPath = 'platform/tenants/' + targetTenantId + '/support-accesses/' + opened.data.id
+const diagnostic = await tenancyRequest<ApiSuccessResponse<{
+  organization_id: string; status: string; timezone: string; language: string
+}>>(accessPath + '/organization')
+await tenancyRequest(accessPath, { method: 'DELETE' })
+// Restituer notifications/erreurs via les composants partagés.
+```
+
+L’accès et son audit sont créés atomiquement. Une lecture réussie n’est diffusée
+qu’après écriture de sa trace ; l’indisponibilité de l’audit fait échouer la requête.
+Les refus de diagnostic de son propre accès sont conservés sans lire les données.
+Les refus avant identification d’un accès restent à couvrir par le journal
+transverse IAM-006. La rétention des journaux n’est pas encore configurée.
+Aucun écran React support ou endpoint d’attribution des rôles globaux dans ce lot.

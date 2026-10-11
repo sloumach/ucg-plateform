@@ -95,6 +95,8 @@ class OrganizationSchemaTest extends TestCase
         $storageMigration = require database_path('migrations/2026_10_10_160242_create_tenant_artifact_ledger_tables.php');
         $portabilityMigration = require database_path('migrations/2026_10_10_204152_create_tenant_portability_operations_table.php');
         $rolesMigration = require database_path('migrations/2026_10_11_120303_create_organization_roles_and_role_assignments.php');
+        $supportMigration = require database_path('migrations/2026_10_11_183828_create_platform_roles_and_support_accesses.php');
+        $supportMigration->down();
         $rolesMigration->down();
         $portabilityMigration->down();
         $storageMigration->down();
@@ -110,6 +112,7 @@ class OrganizationSchemaTest extends TestCase
         $storageMigration->up();
         $portabilityMigration->up();
         $rolesMigration->up();
+        $supportMigration->up();
         $this->assertTrue(Schema::hasTable('organizations'));
         $this->assertTrue(Schema::hasTable('organization_settings'));
         $this->assertTrue(Schema::hasTable('organization_lifecycle_events'));
@@ -121,6 +124,10 @@ class OrganizationSchemaTest extends TestCase
         $this->assertTrue(Schema::hasTable('tenant_portability_operations'));
         $this->assertTrue(Schema::hasTable('organization_roles'));
         $this->assertTrue(Schema::hasTable('organization_role_assignments'));
+        $this->assertTrue(Schema::hasTable('platform_roles'));
+        $this->assertTrue(Schema::hasTable('platform_role_events'));
+        $this->assertTrue(Schema::hasTable('organization_support_accesses'));
+        $this->assertTrue(Schema::hasTable('organization_support_events'));
     }
 
     public function test_settings_cannot_reference_a_nonexistent_organization(): void

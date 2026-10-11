@@ -9,6 +9,8 @@ use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\MyMembershipControl
 use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\OrganizationController;
 use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\RoleAssignmentController;
 use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\RoleController;
+use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\SupportAccessController;
+use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\SupportDiagnosticController;
 use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\TenantContextController;
 use Illuminate\Support\Facades\Route;
 
@@ -49,4 +51,14 @@ Route::prefix('tenants/{tenant}')->whereUuid('tenant')->middleware('tenant')->gr
         ->middleware(['tenant.confirmed', 'throttle:tenant-invitations'])->block(10, 10)->name('invitations.store');
     Route::delete('invitations/{invitation}', [InvitationController::class, 'destroy'])
         ->whereUuid('invitation')->middleware('tenant.confirmed')->block(10, 10)->name('invitations.destroy');
+});
+
+Route::prefix('platform')->middleware('throttle:platform-support')->group(function (): void {
+    Route::get('support-accesses', [SupportAccessController::class, 'index'])->name('platform.support.index');
+    Route::prefix('tenants/{tenant}/support-accesses')->whereUuid('tenant')->group(function (): void {
+        Route::post('/', [SupportAccessController::class, 'store'])->block(10, 10)->name('platform.support.store');
+        Route::delete('{access}', [SupportAccessController::class, 'destroy'])->whereUuid('access')->block(10, 10)->name('platform.support.destroy');
+        Route::get('{access}/organization', [SupportDiagnosticController::class, 'organization'])->whereUuid('access')->block(10, 10)->name('platform.support.organization');
+        Route::get('{access}/access-summary', [SupportDiagnosticController::class, 'accessSummary'])->whereUuid('access')->block(10, 10)->name('platform.support.access-summary');
+    });
 });

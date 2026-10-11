@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Modules\Identity\Application\Services\MfaService;
 use App\Modules\Identity\Application\Services\MfaSession;
+use App\Modules\Identity\Domain\Models\PlatformRole;
 use App\Modules\Identity\Domain\Models\User;
 use App\Modules\Identity\Domain\Totp;
 use App\Modules\Tenancy\Application\Services\TenantJobRunner;
@@ -365,6 +366,7 @@ class MfaAuthenticationTest extends TestCase
     public function test_horizon_requires_a_live_mfa_proof_even_for_an_allowlisted_operator(): void
     {
         $operator = User::factory()->withMfa()->create();
+        PlatformRole::factory()->superadmin()->create(['user_id' => $operator->id]);
         config(['horizon.authorized_emails' => [$operator->email]]);
         $this->loginAccount($operator);
         $this->assertFalse(Gate::forUser($operator)->allows('viewHorizon'));
