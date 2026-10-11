@@ -6,6 +6,7 @@ use App\Http\Api\RequestId;
 use App\Modules\Identity\Application\Contracts\PrivilegedAccountDirectory;
 use App\Modules\Tenancy\Application\Contracts\AuthorizationScopeDirectory;
 use App\Modules\Tenancy\Application\Contracts\TenantArtifacts;
+use App\Modules\Tenancy\Application\Contracts\TenantAuditJournal;
 use App\Modules\Tenancy\Application\Contracts\TenantAuthorization;
 use App\Modules\Tenancy\Application\Contracts\TenantCache;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
@@ -34,6 +35,7 @@ use App\Modules\Tenancy\Domain\Contracts\SupportAccessRepository;
 use App\Modules\Tenancy\Domain\Contracts\TenantWorkRepository;
 use App\Modules\Tenancy\Domain\Exceptions\TenantContextRequiredException;
 use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Modules\Tenancy\Domain\Models\OrganizationAuditEvent;
 use App\Modules\Tenancy\Domain\Models\OrganizationInvitation;
 use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
 use App\Modules\Tenancy\Domain\Models\OrganizationRole;
@@ -48,6 +50,7 @@ use App\Modules\Tenancy\Infrastructure\Persistence\EloquentOrganizationRepositor
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentPrivilegedAccountDirectory;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentRoleRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentSupportAccessRepository;
+use App\Modules\Tenancy\Infrastructure\Persistence\EloquentTenantAuditJournal;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentTenantWorkRepository;
 use App\Modules\Tenancy\Infrastructure\Queue\LaravelPortabilityQueue;
 use App\Modules\Tenancy\Infrastructure\Queue\LaravelTenantScheduleQueue;
@@ -67,6 +70,7 @@ use App\Modules\Tenancy\Presentation\Policies\MembershipPolicy;
 use App\Modules\Tenancy\Presentation\Policies\OrganizationPolicy;
 use App\Modules\Tenancy\Presentation\Policies\RolePolicy;
 use App\Modules\Tenancy\Presentation\Policies\SupportAccessPolicy;
+use App\Modules\Tenancy\Presentation\Policies\TenantAuditPolicy;
 use App\Modules\Tenancy\Presentation\Policies\TenantContextPolicy;
 use App\Support\Storage\TenantResourceNamespace;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -82,6 +86,7 @@ final class TenancyServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(TenantAuditJournal::class, EloquentTenantAuditJournal::class);
         $this->app->bind(RoleRepository::class, EloquentRoleRepository::class);
         $this->app->bind(SupportAccessRepository::class, EloquentSupportAccessRepository::class);
         $this->app->bind(TenantAuthorization::class, TenantPermissionService::class);
@@ -127,6 +132,7 @@ final class TenancyServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Gate::policy(OrganizationAuditEvent::class, TenantAuditPolicy::class);
         Gate::policy(OrganizationRole::class, RolePolicy::class);
         Gate::policy(OrganizationSupportAccess::class, SupportAccessPolicy::class);
         RateLimiter::for('platform-support', fn (Request $request): Limit => Limit::perMinute(30)
@@ -140,7 +146,7 @@ final class TenancyServiceProvider extends ServiceProvider
         RateLimiter::for('tenant-invitations', fn (Request $request): Limit => Limit::perMinute(10)
             ->by(TenantResourceNamespace::key((string) $request->route('tenant'), 'rate',
                 'invitations:'.(string) $request->user()?->getAuthIdentifier())));
-        Route::middleware(['api', 'auth:sanctum', 'identity.session', 'mfa'])->prefix('api/v1')->name('api.v1.')
+        Route::middleware(['api', 'auth:sanctum', 'identity.session', 'audit.failures', 'mfa'])->prefix('api/v1')->name('api.v1.')
             ->group(__DIR__.'/../Presentation/Routes/api.php');
         if ($this->app->runningInConsole()) {
             $this->commands([ProvisionOrganizationCommand::class, TransitionOrganizationCommand::class,

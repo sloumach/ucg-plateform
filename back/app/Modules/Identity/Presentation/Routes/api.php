@@ -4,8 +4,12 @@ use App\Modules\Identity\Presentation\Http\Controllers\Api\V1\AuthController;
 use App\Modules\Identity\Presentation\Http\Controllers\Api\V1\EmailVerificationController;
 use App\Modules\Identity\Presentation\Http\Controllers\Api\V1\MfaController;
 use App\Modules\Identity\Presentation\Http\Controllers\Api\V1\PasswordRecoveryController;
+use App\Modules\Identity\Presentation\Http\Controllers\Api\V1\PlatformAuditController;
 use App\Modules\Identity\Presentation\Http\Controllers\Api\V1\SessionController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/platform/audit-events', [PlatformAuditController::class, 'index'])
+    ->middleware(['auth:sanctum', 'identity.session', 'audit.failures', 'mfa', 'throttle:audit'])->block(10, 10)->name('platform.audit.index');
 
 Route::middleware('throttle:login')
     ->post('/auth/login', [AuthController::class, 'login'])

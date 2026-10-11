@@ -545,5 +545,51 @@ les vérifications et la liste paginée ; aucun cache durable de droits.
 
 Migration additive PostgreSQL/SQLite, attente de verrou PostgreSQL bornée à 5 s,
 pas de backfill ni compte créé. Le rollback vide est testé ; après usage il
-refuse de supprimer l’historique. Le journal transverse et la rétention restent
-IAM-006 ; l’interface de support React n’est pas implémentée dans ce lot.
+refuse de supprimer l’historique. Le journal transverse et la conservation sont
+livrés par IAM-006 ci-dessous ; l’interface de support React reste à implémenter.
+
+## Journal transverse et conservation — UCG-IAM-006
+
+Les ports publics `PlatformAuditJournal` (Identity) et `TenantAuditJournal` (Tenancy)
+isolent la persistance. DTOs et fusion chronologique bornée résident dans
+`Support/Audit` ; seuls les repositories propriétaires définissent leurs tables,
+colonnes et projections. Les services orchestrent autorisation courante, transaction
+et trace de consultation ; Form Requests, Policies et Resource encadrent les routes.
+Aucun modèle interne d’un autre module n’est utilisé.
+
+Identity agrège sécurité, rôles plateforme et `identity_audit_events` global.
+Tenancy agrège cycle de vie, accès, support et `organization_audit_events` filtrés
+par le tenant résolu. Aucun accès tenant implicite pour le superadmin ; les comptes
+techniques actifs sont refusés. `audit.view` est privilégiée et limitée à
+l’organisation. Une lecture n’est diffusée qu’après écriture de sa trace.
+Le middleware de refus est placé après validation de session et avant MFA/résolution
+tenant ; il trace les 403/404 sans contenu de requête ni tenant demandé.
+
+Les colonnes sélectionnées excluent motifs libres et secrets des sources.
+`AuditState` applique des clés/valeurs fermées : projection des anciens états,
+rejet strict pour les nouveaux événements. Ceux-ci utilisent action/cible/motif
+typés, request ID, IP et avant/après utile. Les nouveaux états JSON sont des objets
+de 4 Ko maximum en SQL. Gardes Eloquent/SQL append-only et FK restrictives empêchent
+les modifications/suppressions ordinaires. Aucun backfill des cinq sources existantes.
+
+Pagination par curseur date/source/UUID : au plus `per_page+1` lignes par source,
+trois globales ou quatre tenant, puis fusion. Maximum 404 lignes projetées pour
+une page de 100, sans COUNT, OFFSET, profils ni requête par événement. Paramètres
+liés et aucun identifiant SQL fourni par le client. Le curseur chiffré lie
+compte/tenant/filtres. Un test compare les requêtes avec 1 et 101 événements.
+
+Migration additive, deux tables et index chronologiques manquants. Attente de verrou
+PostgreSQL limitée à cinq secondes, sans borner la durée de création des index.
+Préparer une fenêtre ou un déploiement progressif dédié pour les gros historiques ;
+aucun benchmark de millions de lignes. Rollback vide testé, suppression d’un historique
+non vide refusée. Portabilité : seul le nouveau journal de son tenant est inclus,
+Identity reste exclu.
+
+Décision utilisateur : conservation sans limite, aucune purge ni tâche de suppression.
+`AuditRetentionPolicy` refuse une configuration contradictoire ; `audit:retention`
+est en lecture seule. Surveiller stockage/index/backups et profiler avant optimisation.
+Une rétention bornée demandera un lot opérationnel distinct et des protections
+explicites. Aucun cache durable des décisions d’accès. Les futurs modules métier
+doivent écrire via le port de leur périmètre, dans la transaction de l’action, avec
+des états fermés. Aucun module métier fictif ni écran de journal créé dans ce lot ;
+l’interface de rôles propose `audit.view` avec son badge MFA.

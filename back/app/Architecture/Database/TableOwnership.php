@@ -9,6 +9,7 @@ final class TableOwnership
         'users' => 'Identity : compte de connexion partagé, pas une personne métier.',
         'password_reset_tokens' => 'Identity : récupération du compte global.',
         'identity_security_events' => 'Identity : audit append-only des événements de sécurité du compte global.',
+        'identity_audit_events' => 'Identity : consultations et refus globaux minimaux, aucun contenu métier tenant.',
         'platform_roles' => 'Identity : rôles opérateur explicites, aucun accès tenant implicite.',
         'platform_role_events' => 'Identity : journal append-only des attributions plateforme par outillage opérateur.',
         'personal_access_tokens' => 'Identity : authentification Sanctum ; aucun droit tenant implicite.',

@@ -2,6 +2,7 @@
 
 use App\Http\Api\ApiExceptionRenderer;
 use App\Http\Middleware\AssignRequestId;
+use App\Modules\Identity\Presentation\Http\Middleware\AuditAccessFailures;
 use App\Modules\Identity\Presentation\Http\Middleware\RequireMfa;
 use App\Modules\Identity\Presentation\Http\Middleware\ValidateIdentitySession;
 use App\Modules\Tenancy\Presentation\Http\Middleware\RequireTenantConfirmation;
@@ -31,9 +32,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'tenant' => ResolveTenantContext::class, 'tenant.confirmed' => RequireTenantConfirmation::class,
             'mfa' => RequireMfa::class, 'identity.session' => ValidateIdentitySession::class,
+            'audit.failures' => AuditAccessFailures::class,
         ]);
         $middleware->appendToPriorityList(AuthenticatesRequests::class, ValidateIdentitySession::class);
         $middleware->appendToPriorityList(ValidateIdentitySession::class, RequireMfa::class);
+        $middleware->prependToPriorityList(RequireMfa::class, AuditAccessFailures::class);
         $middleware->prependToPriorityList(SubstituteBindings::class, ResolveTenantContext::class);
         $middleware->appendToPriorityList(ResolveTenantContext::class, RequireTenantConfirmation::class);
     })

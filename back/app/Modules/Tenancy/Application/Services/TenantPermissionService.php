@@ -27,7 +27,7 @@ final readonly class TenantPermissionService implements TenantAuthorization
         if ($action === null || ($action->organizationOnly() && $scopeType !== 'organization') || ! $this->scopes->exists($context->organizationId, $scopeType, $scopeId)) {
             return false;
         }
-        if (! $action->organizationOnly() && $this->platform->isTechnical($context->actorUserId)) {
+        if ((! $action->organizationOnly() || $action === Permission::AuditView) && $this->platform->isTechnical($context->actorUserId)) {
             return false;
         }
         try {
@@ -82,6 +82,6 @@ final readonly class TenantPermissionService implements TenantAuthorization
         $technical = $this->platform->isTechnical($context->actorUserId);
 
         return array_values(array_filter($permissions, fn (string $permission): bool => ($action = Permission::tryFrom($permission)) !== null
-            && (! $action->privileged() || $mfa) && (! $technical || $action->organizationOnly())));
+            && (! $action->privileged() || $mfa) && (! $technical || ($action->organizationOnly() && $action !== Permission::AuditView))));
     }
 }

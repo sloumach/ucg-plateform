@@ -11,6 +11,7 @@ use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\RoleAssignmentContr
 use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\RoleController;
 use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\SupportAccessController;
 use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\SupportDiagnosticController;
+use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\TenantAuditController;
 use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\TenantContextController;
 use Illuminate\Support\Facades\Route;
 
@@ -35,6 +36,7 @@ Route::delete('my-memberships/{membership}', [MyMembershipController::class, 'de
     ->whereUuid('membership')->block(10, 10)->name('my-memberships.destroy');
 
 Route::prefix('tenants/{tenant}')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
+    Route::get('audit-events', [TenantAuditController::class, 'index'])->middleware('throttle:audit')->block(10, 10)->name('tenants.audit.index');
     Route::get('permission-catalogue', [RoleController::class, 'catalogue'])->name('roles.catalogue');
     Route::get('roles', [RoleController::class, 'index'])->name('roles.index');
     Route::post('roles', [RoleController::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('roles.store');

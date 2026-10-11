@@ -44,6 +44,7 @@ export const frenchMessages = {
   'roles.permission.memberships.manage': 'Gérer les adhésions ordinaires',
   'roles.permission.invitations.manage': 'Gérer les invitations ordinaires',
   'roles.permission.roles.assign': 'Déléguer des rôles dans les limites autorisées',
+  'roles.permission.audit.view': 'Consulter le journal d’audit de l’organisation',
   'roles.permission.sports.read': 'Consulter les données sportives',
   'roles.permission.sports.write': 'Modifier les données sportives',
   'roles.permission.sports.validate': 'Valider les données sportives',

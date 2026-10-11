@@ -9,19 +9,24 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité et validé localement : `UCG-IAM-005` — rôles plateforme
-  explicites, support temporaire borné et audité, séparation des permissions métier.
-- Prochaine action : push utilisateur d’IAM-005, confirmation backend/frontend CI,
+- Dernier ticket traité et validé localement : `UCG-IAM-006` — journaux global/tenant,
+  autorisation dédiée, états fermés et conservation sans limite demandée par l’utilisateur.
+- Prochaine action : push utilisateur d’IAM-006, confirmation backend/frontend CI,
   puis sauvegarde et `php artisan migrate` depuis `back/` avant usage local.
-  Aucune initialisation de rôle plateforme n’a été exécutée sur la base principale.
+  Aucune migration ni purge IAM-006 sur la base principale pendant le développement.
+- Format de commit convenu : `UCG-ID: description`, sans préfixe `feat(...)`.
+- IAM-005 poussé avec le renommage `70440a6` puis fusion `63b8626` ; CI vertes
+  confirmées par l’utilisateur (backend `38171624409`, frontend `38171624442`).
+  Migration IAM-005 `Ran`, batch 8, vérifiée en lecture seule.
 - IAM-004 poussé (`7bfd765`) ; CI backend/frontend vertes vérifiées
   (runs `38163603035` et `38163602940`).
 - IAM-003 (`f78e0cd`), ajustement du périmètre (`f9ea660`) et correctif mobile
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Ensuite, priorité P0 : `UCG-IAM-006` (journal transverse et rétention) ;
-  `UCG-TEN-008` (branding/domaines) reste P1.
+- Après CI/migration IAM-006, prochain socle métier P0 : `UCG-HUM-001`
+  (personnes tenant et lien facultatif au compte global), à confirmer avec l’utilisateur.
+  `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
   pour `4f7854b` (runs `38065130499` et `38065130513`).
@@ -34,7 +39,7 @@
 - IAM-001 poussé (`98f2ed3`) : CI confirmées vertes par l’utilisateur.
 - IAM-001/IAM-002/IAM-003 : migrations appliquées par l’utilisateur sur
   `ucg_platform`, statut `Ran`, batch 7 confirmé en lecture seule. IAM-004 n’ajoute
-  aucune migration. IAM-005 reste `Pending` et ne modifie pas cette base.
+  aucune migration. IAM-005 est `Ran`, batch 8 ; IAM-006 reste `Pending`.
   Aucun e-mail réel envoyé.
 - Au démarrage, vérifier l'état réel avec `git status --short --branch` et
   `git log -8 --oneline --decorate`.
@@ -712,6 +717,45 @@ Vérifications de clôture :
   est inclus. Aucun écran React support, restauration, journal transverse ou
   politique de rétention ajouté. IAM-006 est le prochain ticket P0 après CI/migration.
   Workflow PostgreSQL et les documents existants actualisés ; push/CI à confirmer.
+
+### UCG-IAM-006 — Journal transverse et conservation
+
+- API globale réservée au superadmin, sources Identity uniquement ; API tenant
+  avec permission privilégiée `audit.view` à l’échelle de l’organisation.
+  Propriétaire/admin autorisés, comptes techniques refusés même propriétaires.
+  Auth/session, e-mail vérifié, preuve MFA actuelle et Policies ; droits relus.
+- Sources existantes réunies sans copie ni backfill. Resource fermée, motifs
+  catégoriels, données privées et clés inconnues omises ; les anciens historiques
+  ne sont pas réécrits. Nouveaux événements typés et états strictement validés.
+- Lecture réussie tracée transactionnellement avant diffusion ; panne d’audit : 500
+  sans données. Refus authentifiés 403/404 des routes tenant et du journal global
+  tracés avec acteur/route serveur/code/request ID/IP, sans contenu de requête
+  ni tenant demandé. Les invités/sessions invalidées ne passent pas par ce middleware.
+- Pages 1..100, filtres fermés, curseur chiffré lié au compte/tenant/filtres ;
+  ordre date/source/UUID, sans COUNT/OFFSET ni requêtes par événement.
+  Nombre de requêtes constant testé avec 1 puis 101 événements.
+- Décision utilisateur : conservation sans limite pour le moment. Pas de purge,
+  scheduler ou exclusion automatique des anciens événements. CLI `audit:retention`
+  en lecture seule ; configuration contradictoire refusée.
+- Migration additive de deux tables avec FK restrictives, index et gardes SQL
+  append-only/forme JSON. Rollback vide testé, rollback non vide refusé.
+  Portabilité inclut uniquement les nouveaux événements de son tenant, jamais Identity.
+- Validation SQLite complète : 546 tests, 543 réussis, 2 364 assertions,
+  3 exclusions attendues. PostgreSQL 17 : 499 tests, 497 réussis, 2 163 assertions,
+  2 exclusions Redis attendues ; base `ucg_iam006_verify_20261011` supprimée.
+  Pint, PHPStan niveau 8, lint/build frontend, 38 tests Vitest et 4 tests Chromium
+  avec `CI=true` réussis. Les E2E existants simulent l’API ; tests PHP sur bases réelles.
+- Le premier passage PostgreSQL a corrigé le délimiteur SQL du test de panne d’audit ;
+  la dernière exécution complète PostgreSQL est verte. Les suites backend sont
+  exécutées successivement pour préserver leurs fichiers temporaires partagés.
+- Base principale contrôlée en lecture seule : IAM-005 `Ran` batch 8, IAM-006
+  `Pending`. Aucun rôle réel attribué, aucune migration/purge ni e-mail réel.
+  Push utilisateur, CI puis sauvegarde/migration à faire avant usage local.
+- API/CLI et permission dans l’interface de rôles ; aucun écran React de journal.
+  Les modules métier futurs doivent raccorder le port typé dans la transaction de
+  leur action, avec des états fermés. Surveiller capacité/index/backups et profiler
+  avant optimisation ; aucun benchmark de millions de lignes.
+  README, API, architecture, backlog et workflow PostgreSQL mis à jour.
 
 ## Décision de périmètre — retrait de l’organisation de tournois
 

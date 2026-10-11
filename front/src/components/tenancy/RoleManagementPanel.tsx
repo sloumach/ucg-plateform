@@ -22,6 +22,7 @@ const permissionNames: Record<PermissionKey, Parameters<typeof t>[0]> = {
   'administrative.read': 'roles.permission.administrative.read', 'administrative.write': 'roles.permission.administrative.write',
   'administrative.validate': 'roles.permission.administrative.validate', 'financial.read': 'roles.permission.financial.read',
   'financial.write': 'roles.permission.financial.write', 'financial.validate': 'roles.permission.financial.validate',
+  'audit.view': 'roles.permission.audit.view',
 }
 function permissionName(permission: PermissionKey) { return permissionNames[permission] ? t(permissionNames[permission]) : permission }
 function scopeName(scope: ScopeType) { return t(('roles.scope.' + scope) as Parameters<typeof t>[0]) }

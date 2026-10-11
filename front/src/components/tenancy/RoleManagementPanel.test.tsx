@@ -30,7 +30,7 @@ describe('Contextual role management', () => {
     request.mockReset()
     request.mockImplementation(async (path, options) => {
       if (options?.method) return { data: role, notification: { type: 'success', message: 'Droits enregistrés.' } }
-      if (path.includes('permission-catalogue')) return { data: { permissions: [{ key: 'sports.read', privileged: false, organization_only: false }], scope_types: ['organization'], can_manage: true } }
+      if (path.includes('permission-catalogue')) return { data: { permissions: [{ key: 'sports.read', privileged: false, organization_only: false }, { key: 'audit.view', privileged: true, organization_only: true }], scope_types: ['organization'], can_manage: true } }
       if (path.includes('role-assignments')) return page([assignment])
       return page([role])
     })
@@ -54,6 +54,20 @@ describe('Contextual role management', () => {
     expect(request).toHaveBeenCalledWith('tenants/' + org + '/roles', expect.objectContaining({
       method: 'POST', revision: version, body: { key: 'analyste', name: 'Analyste', permissions: ['sports.read'], active: true },
     }))
+  })
+  it('permet de choisir la consultation du journal avec son libellé français', async () => {
+    const user = userEvent.setup()
+    show()
+    await user.click(await screen.findByRole('button', { name: 'Créer un rôle' }))
+    const editor = screen.getByRole('form', { name: 'Enregistrer le rôle' })
+    await user.type(within(editor).getByLabelText('Clé du rôle'), 'auditeur')
+    await user.type(within(editor).getByLabelText('Nom du rôle'), 'Auditeur')
+    await user.click(within(editor).getByRole('checkbox', { name: /Consulter le journal d’audit de l’organisation.*MFA/ }))
+    await user.click(within(editor).getByRole('button', { name: 'Enregistrer le rôle' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
+    await waitFor(() => expect(request).toHaveBeenCalledWith('tenants/' + org + '/roles', expect.objectContaining({
+      method: 'POST', body: expect.objectContaining({ permissions: ['audit.view'] }),
+    })))
   })
   it('conserve la version et la clé lors de la modification du rôle', async () => {
     const user = userEvent.setup()

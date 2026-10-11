@@ -606,6 +606,84 @@ await tenancyRequest(accessPath, { method: 'DELETE' })
 L’accès et son audit sont créés atomiquement. Une lecture réussie n’est diffusée
 qu’après écriture de sa trace ; l’indisponibilité de l’audit fait échouer la requête.
 Les refus de diagnostic de son propre accès sont conservés sans lire les données.
-Les refus avant identification d’un accès restent à couvrir par le journal
-transverse IAM-006. La rétention des journaux n’est pas encore configurée.
+Le journal transverse IAM-006 ci-dessous couvre également les refus authentifiés
+403/404 des routes tenant, dont ceux avant identification d’un accès support.
+La conservation est désormais sans limite, sans purge.
 Aucun écran React support ou endpoint d’attribution des rôles globaux dans ce lot.
+
+## Journal d’audit — UCG-IAM-006
+
+| Route GET | Autorisation | Sources |
+| --- | --- | --- |
+| `platform/audit-events` | superadmin actif | `identity.security`, `identity.platform_roles`, `identity.audit` |
+| `tenants/{tenant}/audit-events` | propriétaire/admin ou grant effectif `audit.view` | `tenancy.lifecycle`, `tenancy.access`, `tenancy.support`, `tenancy.audit` |
+
+Session valide, e-mail vérifié et preuve MFA actuelle sont requis. Un rôle support
+ne donne pas accès au journal global. Un compte technique actif est refusé pour
+le journal tenant. `audit.view` est privilégiée et limitée à l’organisation entière.
+Un grant révoqué/expiré ne donne plus accès. Le contexte tenant est résolu côté
+serveur avec les règles existantes de révision du tenant actif.
+
+Filtres facultatifs : `source` (catalogue ci-dessus), `action` (valeur littérale),
+`actor_user_id` (entier positif), `from`/`until` (ISO 8601 avec secondes et offset,
+exemple `2026-10-11T12:00:00+00:00`), `per_page` (1..100, défaut 20), `cursor`.
+`until` doit être postérieur ou égal à `from`. `page`, `sort`,
+`organization_id` et `user_id` sont refusés. Encoder dates et curseurs.
+
+`data[]` contient `id`, `source`, `organization_id` (null pour Identity),
+`actor_user_id` (null si acteur non établi), `action`, `target:{type,id}`,
+`before`/`after` (objets), `reason_code`, `request_id`, `ip_address`
+(null si absente de la source) et `occurred_at` UTC.
+Les motifs catégoriels sont `authentication_event`, `governance_change`,
+`support_operation`, `authorized_review`, `authorization_refused` ou `domain_change`.
+Motifs libres, profils, e-mails, subject hashes et user agents sont omis.
+Les états restituent seulement les clés/valeurs autorisées : statut, flags,
+rôle/version, permissions, périmètre et dates techniques. Les anciennes clés
+inconnues sont omises, les historiques d’origine ne sont pas réécrits. Les nouveaux
+écrivains rejettent les clés/valeurs non autorisées avant persistance.
+
+`meta` contient `request_id`, `per_page`, `next_cursor` (null en dernière page)
+et `retention:{mode:"unlimited",purge_enabled:false}`. Aucun total/page/last_page :
+ne pas utiliser le type client `Page<T>` fondé sur l’offset.
+Ordre décroissant date/source/UUID, curseur chiffré lié au compte/tenant/filtres.
+Curseur modifié ou réutilisé ailleurs : 422. Les consultations sont elles-mêmes
+tracées avant diffusion ; une panne d’audit produit 500 sans données du journal.
+
+Invité/session révoquée : 401 ; permission/MFA manquants : 403 ; tenant étranger :
+404 ; filtre/curseur invalide : 422 ; quota de lecture 30/minute par compte : 429.
+Les refus authentifiés 403/404 des routes tenant et du journal global ajoutent une
+trace Identity minimale : acteur, nom de route serveur, code HTTP, request ID, IP.
+Aucune URL, query, corps ou UUID du tenant demandé n’est enregistré dans cette trace.
+Les invités et sessions déjà invalidées ne passent pas par ce middleware ; les routes
+d’authentification conservent leur journal de sécurité IAM-001.
+
+Exemple tenant sélectionné, session connectée et MFA validé via le client partagé :
+
+~~~ts
+import { tenancyRequest } from './api/tenancy'
+type AuditEvent = {
+  id: string; source: string; organization_id: string | null
+  actor_user_id: number | null; action: string; target: { type: string; id: string | null }
+  before: Record<string, unknown>; after: Record<string, unknown>
+  reason_code: string; request_id: string; ip_address: string | null; occurred_at: string
+}
+type AuditPage = {
+  data: AuditEvent[]
+  meta: { request_id: string; per_page: number; next_cursor: string | null
+    retention: { mode: 'unlimited'; purge_enabled: false } }
+}
+const filters = new URLSearchParams({ source: 'tenancy.access', per_page: '20' })
+const path = 'tenants/' + activeTenantId + '/audit-events'
+const first = await tenancyRequest<AuditPage>(path + '?' + filters, { revision: activeRevision })
+if (first.meta.next_cursor) {
+  filters.set('cursor', first.meta.next_cursor)
+  const next = await tenancyRequest<AuditPage>(path + '?' + filters, { revision: activeRevision })
+  // Afficher next.data et traiter les erreurs via les composants partagés.
+}
+~~~
+
+Conservation sans limite décidée par l’utilisateur : aucune purge physique,
+programmée ni exclusion automatique des événements anciens. `audit:retention`
+affiche la politique sans écrire. Une politique bornée future nécessitera une
+décision et une implémentation dédiées avec protection des événements de sécurité
+et procédures en cours ; changer une configuration ne l’active pas.

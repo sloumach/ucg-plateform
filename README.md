@@ -636,7 +636,7 @@ explicitement ces protections, sans contournement par une mise à jour ordinaire
 
 Les adhésions/invitations sont ajoutées par `TEN-003`, décrit ci-dessous.
 L’isolation SQL des tables existantes et le contrat des futures tables sont
-livrés par `TEN-004`, décrit ci-dessous. L’audit transverse reste `IAM-006`.
+livrés par `TEN-004`, décrit ci-dessous. L’audit transverse est décrit dans la section IAM-006 ci-dessous.
 
 La CI teste ce module sur une base PostgreSQL 17 dédiée en plus de la suite SQLite.
 
@@ -883,3 +883,45 @@ Les commandes et l’API sont disponibles ; aucun écran support React n’est a
 Voir les routes et l’exemple de client dans `docs/conventions-api.md`.
 Le rollback fonctionne avant utilisation et refuse de supprimer des accès/audits
 existants : après usage, privilégier une migration corrective en avant.
+
+### Journal d’audit — UCG-IAM-006
+
+Deux consultations authentifiées, avec e-mail vérifié et preuve MFA de session :
+
+- `GET /api/v1/platform/audit-events` : superadmin actif, événements Identity
+  globaux uniquement.
+- `GET /api/v1/tenants/{tenant}/audit-events` : propriétaire/admin ou permission
+  privilégiée `audit.view` effective pour l’organisation entière. Les comptes
+  techniques actifs y sont refusés même s’ils sont propriétaires.
+
+Les journaux existants sont réunis à la lecture sans copie ni backfill. Les pages
+sont bornées à 100 et utilisent un curseur lié au compte, au tenant et aux filtres.
+Les lectures réussies sont tracées avant diffusion. Les refus authentifiés 403/404
+des routes tenant et du journal global sont tracés sans corps, URL, paramètres ni
+identifiant de tenant demandé. Voir filtres et exemple dans
+[les conventions API](docs/conventions-api.md#journal-daudit--ucg-iam-006).
+
+**Décision utilisateur : conservation sans limite pour le moment.**
+`config/audit.php` fixe `mode=unlimited` et `purge_enabled=false`.
+Aucune purge ni tâche de suppression n’est livrée. Contrôle en lecture seule :
+
+~~~powershell
+cd back
+php artisan audit:retention
+~~~
+
+La migration additive `2026_10_11_203439_create_transverse_audit_events` ajoute
+deux tables append-only et les index de consultation. IAM-005 est appliquée
+(batch 8) ; IAM-006 reste à appliquer par l’utilisateur **après sauvegarde**,
+avec `php artisan migrate` depuis `back/`. Un push ne lance pas cette migration.
+Les tests utilisent SQLite et une base PostgreSQL temporaire distincte.
+
+Cette API omet motifs libres et profils privés des anciens journaux, sans réécrire
+les historiques d’origine. Les nouveaux événements acceptent uniquement des
+métadonnées typées et des états fermés, sans contenu de contrat ni payload métier.
+Le rollback refuse de supprimer les événements déjà enregistrés : après usage,
+prévoir une correction en avant. Pour de gros historiques, préparer une fenêtre
+adaptée pour les index, profiler les requêtes et surveiller stockage et sauvegardes.
+Aucun benchmark de millions de lignes ni écran React de journal dans ce lot.
+La permission apparaît dans la gestion des rôles ; les futurs modules devront
+raccorder les ports d’audit.

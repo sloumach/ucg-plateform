@@ -1,0 +1,53 @@
+<?php
+
+namespace App\Support\Audit;
+
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+
+final class AuditState
+{
+    /** @param array<string, mixed> $state
+     * @return array<string, bool|int|string|list<string>|null>
+     */
+    public static function project(array $state, bool $strict = false): array
+    {
+        $result = [];
+        foreach ($state as $key => $value) {
+            $valid = match ($key) {
+                'active', 'privileged', 'confirmed' => is_bool($value),
+                'status' => is_string($value) && in_array($value, ['active', 'suspended', 'revoked', 'expired', 'pending', 'accepted', 'declined', 'closing', 'archived', 'published', 'draft'], true),
+                'role' => is_string($value) && in_array($value, ['member', 'administrator', 'superadmin', 'support'], true),
+                'version','role_id','scope_id','membership_id' => is_string($value) && Str::isUuid($value),
+                'scope_type' => is_string($value) && in_array($value, ['organization', 'team', 'game', 'cohort', 'event'], true),
+                'starts_at','ends_at','expires_at' => $value === null || (is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?$/D', $value) === 1),
+                'http_status' => is_int($value) && in_array($value, [401, 403, 404], true),
+                'roles' => self::listWithin($value, ['member', 'administrator']),
+                'permissions' => self::listWithin($value, ['organization.view', 'organization.update', 'memberships.manage', 'invitations.manage', 'roles.manage', 'roles.assign', 'audit.view', 'sports.read', 'sports.write', 'sports.validate', 'sports.publish', 'administrative.read', 'administrative.write', 'administrative.validate', 'financial.read', 'financial.write', 'financial.validate']),
+                'actions' => self::listWithin($value, ['organization.inspect', 'access.inspect']),
+                default => false,
+            };
+            if (! $valid) {
+                if ($strict) {
+                    throw ValidationException::withMessages(['audit' => __('audit.unsafe_state')]);
+                }
+
+                continue;
+            }
+            if (is_array($value)) {
+                $result[$key] = array_values(array_filter($value, 'is_string'));
+            } elseif (is_string($value) || is_int($value) || is_bool($value) || $value === null) {
+                $result[$key] = $value;
+            }
+        }
+
+        return $result;
+    }
+
+    /** @param list<string> $allowed */
+    private static function listWithin(mixed $value, array $allowed): bool
+    {
+        return is_array($value) && array_is_list($value) && count($value) <= count($allowed)
+            && count(array_filter($value, fn (mixed $item): bool => is_string($item) && in_array($item, $allowed, true))) === count($value);
+    }
+}

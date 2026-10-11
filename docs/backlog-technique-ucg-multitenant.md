@@ -277,9 +277,9 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   version du rôle. Les comptes techniques actifs ne peuvent ni utiliser des droits
   métier tenant ni accéder aux sauvegardes complètes. Horizon exige superadmin
   explicite, e-mail autorisé et MFA de session. API/CLI disponibles ; pas d’écran
-  React support. Migration additive de quatre tables `Pending` sur la base
-  principale : sauvegarde puis `migrate` à exécuter par l’utilisateur avant usage.
-  Push utilisateur et CI IAM-005 à confirmer ; journal transverse/rétention IAM-006.
+  React support. Migration additive appliquée par l’utilisateur : `Ran`, batch 8.
+  Push avec renommage `70440a6` puis fusion `63b8626` ; CI backend/frontend vertes
+  confirmées. Le journal transverse/rétention est livré par IAM-006 ci-dessous.
 
 ### UCG-IAM-006 — Mettre en place le journal d’audit
 
@@ -287,6 +287,18 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : acteur, tenant, action, cible, avant/après utile, motif, adresse technique et identifiant de corrélation.
 - **Acceptation** : journal non modifiable par les utilisateurs ordinaires, sans secrets ni contenu excessif, avec rétention définie.
 - **Références CDC** : SEC-07, SEC-08.
+- **État** : implémenté et validé localement le 11 octobre 2026. Consultation
+  séparée Identity/superadmin et Tenancy/`audit.view`, MFA et droits actuels requis,
+  refus des comptes techniques dans le journal tenant. Sources existantes réunies
+  sans copie, projections fermées, motif catégoriel, états typés pour les nouveaux
+  événements. Consultations tracées avant diffusion et refus authentifiés 403/404
+  sans contenu de requête. Pagination par curseur chiffré lié au compte/tenant/filtres,
+  100 événements maximum, aucune lecture globale de données tenant.
+  Conservation sans limite demandée par l’utilisateur, aucune purge ni scheduler.
+  Deux nouvelles tables append-only, migration additive encore `Pending` sur la base
+  principale ; rollback refusé après audit. SQLite/PostgreSQL, Pint, PHPStan 8,
+  frontend et Chromium validés. API/CLI disponibles ; pas d’écran React de journal.
+  Futurs modules à raccorder aux ports typés. Push/CI et migration utilisateur à faire.
 
 ### UCG-IAM-007 — Fournir les tokens API limités
 
