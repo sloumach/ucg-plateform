@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Modules\Identity\Application\Contracts\PlatformAccountDirectory;
 use App\Modules\Identity\Application\Services\MfaSession;
 use App\Modules\Identity\Domain\Contracts\MfaRepository;
 use App\Modules\Identity\Domain\Models\User;
@@ -32,6 +33,8 @@ class HorizonServiceProvider extends HorizonApplicationServiceProvider
             $authorizedEmails = config('horizon.authorized_emails', []);
 
             return $user !== null
+                && app(PlatformAccountDirectory::class)->isSuperadmin((int) $user->getKey())
+                && $user->hasVerifiedEmail()
                 && is_array($authorizedEmails)
                 && in_array($user->email, $authorizedEmails, true)
                 && app(MfaSession::class)->verified(

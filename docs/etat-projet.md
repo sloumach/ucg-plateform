@@ -9,15 +9,18 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité et validé localement : `UCG-IAM-004` — socle partagé
-  de projection par champ, raccordement de l’API rôles et permissions du mail.
-  Les futurs modules métier devront raccorder leurs canaux lors de leur livraison.
-- Prochaine action : push utilisateur d’IAM-004 puis confirmation des deux CI.
+- Dernier ticket traité et validé localement : `UCG-IAM-005` — rôles plateforme
+  explicites, support temporaire borné et audité, séparation des permissions métier.
+- Prochaine action : push utilisateur d’IAM-005, confirmation backend/frontend CI,
+  puis sauvegarde et `php artisan migrate` depuis `back/` avant usage local.
+  Aucune initialisation de rôle plateforme n’a été exécutée sur la base principale.
+- IAM-004 poussé (`7bfd765`) ; CI backend/frontend vertes vérifiées
+  (runs `38163603035` et `38163602940`).
 - IAM-003 (`f78e0cd`), ajustement du périmètre (`f9ea660`) et correctif mobile
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Ensuite, priorité P0 : `UCG-IAM-005` (administration tenant/plateforme) ;
+- Ensuite, priorité P0 : `UCG-IAM-006` (journal transverse et rétention) ;
   `UCG-TEN-008` (branding/domaines) reste P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
@@ -31,7 +34,8 @@
 - IAM-001 poussé (`98f2ed3`) : CI confirmées vertes par l’utilisateur.
 - IAM-001/IAM-002/IAM-003 : migrations appliquées par l’utilisateur sur
   `ucg_platform`, statut `Ran`, batch 7 confirmé en lecture seule. IAM-004 n’ajoute
-  aucune migration et ne modifie pas cette base. Aucun e-mail réel envoyé.
+  aucune migration. IAM-005 reste `Pending` et ne modifie pas cette base.
+  Aucun e-mail réel envoyé.
 - Au démarrage, vérifier l'état réel avec `git status --short --branch` et
   `git log -8 --oneline --decorate`.
 - Vérifier également que les derniers commits locaux ont été poussés.
@@ -668,10 +672,46 @@ Vérifications de clôture :
   futurs doivent raccorder ce port avant livraison, après sélection des records
   autorisés et contrôle des champs recherchables/triables. Aucun parcours métier
   fictif n’est créé. La sauvegarde opérateur complète TEN-007 conserve ses contrôles
-  propriétaire/MFA et son catalogue fermé, sans projection partielle.
+  opérateur serveur avec acteur vérifié et son catalogue fermé, sans projection
+  partielle. IAM-005 refuse désormais les acteurs techniques actifs.
 - Aucune migration IAM-004 ni écriture sur la base principale. Migrations précédentes
   appliquées par l’utilisateur et vérifiées en lecture seule. README, API,
-  architecture et backlog actualisés ; push utilisateur et CI IAM-004 à confirmer.
+  architecture et backlog actualisés ; commit `7bfd765` poussé et CI backend/frontend
+  vertes (runs `38163603035` et `38163602940`).
+
+### UCG-IAM-005 — Administration plateforme et support
+
+- Identity possède les rôles globaux `superadmin`/`support` et leur audit avant/après.
+  CLI `identity:platform-role`, bootstrap unique sans création automatique de compte,
+  comptes vérifiés/MFA requis et dernier superadmin actif protégé. Version UUID
+  renouvelée à chaque changement ; un ancien accès ne revit pas après réattribution.
+- Tenancy possède les accès support et leurs événements. API authentifiée/MFA,
+  Policy, Form Requests, DTO/Resources, Service et Repository. Tenant et opérateur
+  figés, raison 10..500 caractères, durée 1..30 minutes, actions fermées et
+  confirmation explicite. Maximum cinq accès actifs par tenant/opérateur.
+- Deux diagnostics : statut/fuseau/langue et compteurs adhésions/rôles/affectations.
+  Aucune donnée métier, aucun contexte tenant/impersonation. Expiration contrôlée
+  à chaque requête sans scheduler ; ouverture/lecture/refus propre accès/révocation
+  transactionnels. Audits append-only en Eloquent et SQL, FK composites tenant.
+- Permissions métier refusées aux comptes techniques actifs même avec une
+  affectation tenant. Sauvegardes complètes refusées aussi, y compris aux propriétaires
+  techniques, avant mise en queue, traitement et lecture. Horizon demande superadmin
+  actif, e-mail autorisé/vérifié et preuve MFA de session actuelle.
+- Validation backend complète : 506 tests, 503 réussis, 3 exclusions attendues.
+  PostgreSQL 17 : 459 tests, 457 réussis, 2 exclusions Redis attendues ;
+  base temporaire `ucg_iam005_verify_20261011` supprimée après vérification.
+  Retour arrière/réapplication de migrations testé avec le bon ordre des FK.
+  Pint et PHPStan niveau 8 réussis. Frontend : lint, 37 tests Vitest, build et
+  4 tests Chromium avec `CI=true` réussis ; ces E2E existants simulent l’API.
+- Migration additive de quatre tables, index et gardes SQL, aucun backfill.
+  `migrate:status` en lecture seule : nouvelle migration `Pending`, anciennes
+  IAM-001/002/003 `Ran` batch 7. Aucune écriture sur `ucg_platform`, aucun rôle
+  réel attribué et aucun e-mail réel. Après sauvegarde, l’utilisateur lance `migrate`.
+  Le rollback refuse les accès/audits existants : préférer une correction en avant.
+- Rôles globaux exclus des backups tenant ; seul l’historique support du tenant
+  est inclus. Aucun écran React support, restauration, journal transverse ou
+  politique de rétention ajouté. IAM-006 est le prochain ticket P0 après CI/migration.
+  Workflow PostgreSQL et les documents existants actualisés ; push/CI à confirmer.
 
 ## Décision de périmètre — retrait de l’organisation de tournois
 

@@ -3,6 +3,7 @@
 namespace App\Modules\Tenancy\Application\Services;
 
 use App\Modules\Identity\Application\Contracts\AccountDirectory;
+use App\Modules\Identity\Application\Contracts\PlatformAccountDirectory;
 use App\Modules\Tenancy\Application\Contracts\AuthorizationScopeDirectory;
 use App\Modules\Tenancy\Application\Contracts\TenantAuthorization;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
@@ -16,13 +17,17 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 final readonly class TenantPermissionService implements TenantAuthorization
 {
     public function __construct(private OrganizationRepository $organizations, private MembershipRepository $memberships,
-        private RoleRepository $roles, private AuthorizationScopeDirectory $scopes, private AccountDirectory $accounts) {}
+        private RoleRepository $roles, private AuthorizationScopeDirectory $scopes, private AccountDirectory $accounts,
+        private PlatformAccountDirectory $platform) {}
 
     public function allows(TenantContext $context, string $permission, string $scopeType = 'organization', ?string $scopeId = null): bool
     {
         $action = Permission::tryFrom($permission);
         $scopeId ??= $context->organizationId;
         if ($action === null || ($action->organizationOnly() && $scopeType !== 'organization') || ! $this->scopes->exists($context->organizationId, $scopeType, $scopeId)) {
+            return false;
+        }
+        if (! $action->organizationOnly() && $this->platform->isTechnical($context->actorUserId)) {
             return false;
         }
         try {
@@ -74,8 +79,9 @@ final readonly class TenantPermissionService implements TenantAuthorization
         $base = $owner || in_array('administrator', $membership->roles, true) ? Permission::governance($owner) : ['organization.view'];
         $permissions = array_values(array_unique([...$base, ...$this->roles->grantedPermissions($organization->id, $context->actorUserId, $membership?->id)]));
         $mfa = $this->accounts->hasConfirmedMfa($context->actorUserId);
+        $technical = $this->platform->isTechnical($context->actorUserId);
 
         return array_values(array_filter($permissions, fn (string $permission): bool => ($action = Permission::tryFrom($permission)) !== null
-            && (! $action->privileged() || $mfa)));
+            && (! $action->privileged() || $mfa) && (! $technical || $action->organizationOnly())));
     }
 }

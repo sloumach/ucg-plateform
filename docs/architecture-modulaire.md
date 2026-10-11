@@ -467,7 +467,7 @@ La migration additive borne l’attente de verrou PostgreSQL à cinq secondes ;
 ses colonnes générées peuvent réécrire un grand journal. Le rollback fonctionne
 sans audit de rôles et refuse de supprimer un historique IAM-003 déjà audité.
 Préférer une correction en avant après usage. IAM-004 fournit le socle de
-projection ci-dessous ; IAM-005 reste responsable de la plateforme et du support.
+projection ci-dessous ; IAM-005 sépare la plateforme et le support, décrit plus bas.
 
 ## Visibilité des sorties — UCG-IAM-004
 
@@ -502,7 +502,48 @@ Les modules métier et leurs canaux de recherche/export/notification n’existen
 pas encore. Chacun devra raccorder ce port avant livraison, filtrer ses prédicats
 de recherche/tri et sélectionner seulement les records autorisés. Une projection
 ne remplace pas l’autorisation de l’action ni le filtrage des requêtes. Les backups
-opérateur TEN-007 restent complets, sous autorisation propriétaire/MFA, avec leur
-catalogue fermé et leurs contrôles avant génération et lecture ; un schéma nouveau
+opérateur TEN-007 restent complets, réservés à un accès autorisé au serveur avec
+acteur vérifié, catalogue fermé et contrôles avant génération et lecture. IAM-005
+refuse les acteurs techniques actifs ; un schéma nouveau
 non intégré bloque la sauvegarde. Aucun endpoint métier, migration ou dépendance
 n’est ajouté par IAM-004.
+
+## Séparation plateforme/support — UCG-IAM-005
+
+Identity possède les tables globales `platform_roles` et `platform_role_events`,
+explicitement classées dans `TableOwnership`. Le port public
+`Identity/Application/Contracts/PlatformAccountDirectory` fournit les décisions
+actuelles et la version du rôle ; Tenancy ne lit pas les modèles internes Identity.
+`PlatformRoleService` utilise un repository, valide les comptes vérifiés/MFA
+et sérialise les changements sur l’événement d’initialisation immuable.
+La contrainte unique de bootstrap empêche deux initialisations concurrentes ;
+le dernier superadmin actif est protégé. L’audit avant/après est transactionnel.
+
+Tenancy possède `organization_support_accesses` et `organization_support_events`.
+Form Requests, Policy, controllers minces, DTO/Resources fermées, service et
+repository séparent validation, orchestration et persistance. Les routes support
+utilisent auth/session/MFA et un quota de 30 requêtes par minute et opérateur.
+Elles ne construisent aucun `TenantContext` et ne modifient pas `TenantResolver`.
+
+Chaque accès est immuable sauf sa révocation définitive ; durée maximale
+30 minutes, actions fermées, identité tenant/opérateur/version de rôle figée.
+Le service verrouille l’organisation et l’accès, vérifie les droits courants,
+puis audite le diagnostic avant diffusion. Un refus de période/action/version
+sur son propre accès est commité avant le 403. Les audits SQL refusent update/delete
+et les FK composites refusent les références de support entre tenants.
+
+`TenantPermissionService` refuse les permissions métier aux comptes techniques
+actifs, même si une affectation tenant existe. `OrganizationPortabilityService`
+refuse aussi ces acteurs, au lancement, au traitement et à la lecture ; le rôle
+support ne constitue pas une autorisation de sauvegarde complète. Horizon exige
+superadmin actif, e-mail vérifié/autorisé et MFA de session courant.
+
+Le catalogue de sauvegarde conserve l’historique support de son seul tenant ;
+les rôles et audits plateforme globaux sont exclus. Aucune restauration n’est
+ajoutée. Les index tenant/opérateur/expiration et opérateur/date/UUID couvrent
+les vérifications et la liste paginée ; aucun cache durable de droits.
+
+Migration additive PostgreSQL/SQLite, attente de verrou PostgreSQL bornée à 5 s,
+pas de backfill ni compte créé. Le rollback vide est testé ; après usage il
+refuse de supprimer l’historique. Le journal transverse et la rétention restent
+IAM-006 ; l’interface de support React n’est pas implémentée dans ce lot.

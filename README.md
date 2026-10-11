@@ -71,7 +71,7 @@ mot de passe, `auth/me` expose `mfa.required`, `mfa.enabled` et `mfa.verified`.
 L’espace d’organisation, les mutations métier et l’autorisation des canaux
 privés restent bloqués jusqu’à l’activation puis au challenge. Horizon exige
 également une preuve MFA courante, y compris en local. Aucun rôle plateforme
-supplémentaire n’est créé par IAM-003 ; leur séparation reste IAM-005.
+supplémentaire n’est créé par IAM-003 ; IAM-005 ajoute ci-dessous des rôles explicites, sans attribution automatique.
 
 L’activation depuis le panneau de sécurité demande le mot de passe courant et
 une adresse e-mail vérifiée. Ajouter manuellement la clé à une application TOTP
@@ -125,8 +125,8 @@ propres droits sont refusées. Les permissions privilégiées alimentent le MFA 
 **Périmètre disponible aujourd’hui : organisation entière.** Les types équipe,
 jeu, cohorte et événement sont préparés et refusés jusqu’à validation de leurs
 ressources réelles par leurs modules, via `AuthorizationScopeDirectory`.
-IAM-004 fournit la projection par champ décrite ci-dessous ; IAM-005 reste
-responsable des rôles plateforme/support.
+IAM-004 fournit la projection par champ décrite ci-dessous ; IAM-005 sépare
+les rôles plateforme/support et les permissions tenant.
 
 La migration additive IAM-003 ajoute deux tables, des contraintes composites
 et les projections du journal d’accès immuable. Elle ne convertit aucune adhésion.
@@ -168,7 +168,9 @@ métier ne sont pas encore implémentés. Leur livraison devra raccorder le mêm
 contrat avant toute sortie, après filtrage des enregistrements autorisés. Une
 projection déjà calculée ne doit pas être réutilisée comme preuve dans un job ou
 un cache partagé. Les sauvegardes complètes de maintenance restent un parcours
-opérateur distinct, propriétaire avec MFA et catalogue de tables/colonnes fermé.
+opérateur serveur distinct, avec acteur vérifié et catalogue de tables/colonnes
+fermé. IAM-005 en interdit l’usage aux comptes techniques actifs, y compris lors
+de la génération en queue et de la lecture.
 
 Exemple de demande de récupération :
 
@@ -830,3 +832,54 @@ bloque le pipeline ; les rapports sont conservés comme artefacts pendant 14 jou
 - `docs/backlog-technique-ucg-multitenant.md`
 - `docs/architecture-modulaire.md`
 - `docs/conventions-api.md`
+
+### Administration plateforme et support — UCG-IAM-005
+
+Les propriétaires et administrateurs gardent leur gouvernance tenant. Les rôles
+globaux `superadmin` et `support` sont attribués explicitement depuis un accès
+autorisé au serveur ; aucune adresse e-mail, adhésion ou installation ne les crée.
+Un rôle technique actif interdit les permissions métier sportives, administratives
+et financières, même si une affectation tenant existe. Les comptes techniques
+ne peuvent pas utiliser les sauvegardes complètes de maintenance.
+
+Après sauvegarde de la base cible, depuis `back/`, appliquer `php artisan migrate`.
+La migration `2026_10_11_183828_create_platform_roles_and_support_accesses` ajoute
+quatre tables sans modifier les comptes ni les tenants existants. Sur ce poste,
+elle reste `Pending` ; la base principale n’a pas été migrée par Codex.
+
+Le premier superadmin doit déjà avoir un e-mail vérifié et un MFA confirmé.
+L’initialisation est possible une seule fois ; ensuite un superadmin actuel
+doit être déclaré comme acteur. Ces commandes exigent un accès serveur autorisé :
+`--actor` attribue l’audit et ne remplace pas l’authentification de l’opérateur
+au serveur. Aucun endpoint HTTP d’attribution de rôle plateforme n’est exposé.
+
+```powershell
+php artisan identity:platform-role ID_SUPERADMIN --bootstrap --reason="Initialisation plateforme approuvée"
+php artisan identity:platform-role ID_SUPPORT --role=support --actor=ID_SUPERADMIN --reason="Affectation support approuvée"
+php artisan identity:platform-role ID_SUPPORT --role=support --actor=ID_SUPERADMIN --revoke --reason="Fin de mission support approuvée"
+```
+
+Remplacer les identifiants par des comptes approuvés. Le dernier superadmin actif
+ne peut pas être révoqué/rétrogradé. Chaque changement renouvelle la version du
+rôle et écrit l’audit avant/après dans la même transaction. Réattribuer un rôle
+ne réactive pas un ancien accès support. Horizon exige désormais ce rôle
+`superadmin` actif, la liste `horizon.authorized_emails` et une preuve MFA courante.
+
+L’API `/api/v1/platform` exige une session authentifiée avec MFA courant.
+L’ouverture précise un tenant, un motif de 10 à 500 caractères, une durée de
+1 à 30 minutes, une ou deux actions fermées et `confirm=true`. Cinq accès actifs
+maximum par tenant/opérateur ; aucune prolongation. Les seuls diagnostics sont
+`organization.inspect` (statut/fuseau/langue) et `access.inspect` (compteurs des
+adhésions/rôles/affectations). Aucun profil privé ni donnée métier n’est renvoyé.
+
+Début inclus, expiration exclue : le contrôle se fait à chaque requête et ne
+dépend d’aucun scheduler. Ouverture, lecture, refus d’un diagnostic sur son propre
+accès et révocation sont audités ; les journaux sont immuables en SQL et Eloquent.
+Un accès est lié à son tenant, son opérateur et la version du rôle plateforme.
+Il ne crée aucun contexte tenant métier. Les listes sont paginées et indexées ;
+les autorisations restent relues en base, sans cache durable.
+
+Les commandes et l’API sont disponibles ; aucun écran support React n’est ajouté.
+Voir les routes et l’exemple de client dans `docs/conventions-api.md`.
+Le rollback fonctionne avant utilisation et refuse de supprimer des accès/audits
+existants : après usage, privilégier une migration corrective en avant.
