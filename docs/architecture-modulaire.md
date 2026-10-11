@@ -466,5 +466,43 @@ restauration. La purge existante conserve les historiques d’accès et leurs su
 La migration additive borne l’attente de verrou PostgreSQL à cinq secondes ;
 ses colonnes générées peuvent réécrire un grand journal. Le rollback fonctionne
 sans audit de rôles et refuse de supprimer un historique IAM-003 déjà audité.
-Préférer une correction en avant après usage. IAM-004 reste responsable des
-projections de champs métier ; IAM-005 de la plateforme et du support.
+Préférer une correction en avant après usage. IAM-004 fournit le socle de
+projection ci-dessous ; IAM-005 reste responsable de la plateforme et du support.
+
+## Visibilité des sorties — UCG-IAM-004
+
+Les modules consomment exclusivement les ports publics `TenantDataVisibility`,
+`TenantDataRecord` et `FieldVisibility` sous `Tenancy/Application/Contracts`.
+`TenantDataProjectionService` s’appuie sur `TenantAuthorization` et le répertoire
+de périmètres ; il ne lit aucune table métier. Chaque module prépare un DTO de
+données candidates après sélection tenant-scoped et autorisation de l’action.
+Le schéma de champs appartient au code serveur, jamais à une requête cliente.
+
+La projection refuse les tenants étrangers, vérifie le périmètre réel et l’accès
+actuel, puis conserve seulement les champs déclarés et autorisés. Les structures
+imbriquées sont projetées récursivement ; aucun modèle, objet ou tableau associatif
+ne peut traverser une feuille sans schéma enfant. Un administrateur n’obtient pas
+implicitement `sports.read`, `administrative.read` ou `financial.read`. Les deux
+dernières permissions exigent un MFA confirmé.
+
+Un appel est borné à 200 records. Les décisions identiques sont mutualisées dans
+cet appel, par permission et périmètre ; aucune décision n’est conservée dans le
+service, un cache partagé ou un payload de queue. Chaque nouveau chunk ou livraison
+relit les autorisations. Le test de requêtes compare une projection et 100 records.
+Les enfants appartiennent au même périmètre que leur record ; les collections de
+ressources de périmètres différents doivent préparer plusieurs records distincts.
+
+`RoleProjectionService` constitue le raccordement existant : DTO explicite avant
+`RoleResource`, contrôles `roles.assign`, pagination HTTP préservée. Les autres
+Resources actuelles conservent leurs allow-lists et Policies. L’autorisation du
+mail d’invitation utilise désormais `invitations.manage` relu par le worker ;
+les délégations sont acceptées et les délégations révoquées ne livrent pas le mail.
+
+Les modules métier et leurs canaux de recherche/export/notification n’existent
+pas encore. Chacun devra raccorder ce port avant livraison, filtrer ses prédicats
+de recherche/tri et sélectionner seulement les records autorisés. Une projection
+ne remplace pas l’autorisation de l’action ni le filtrage des requêtes. Les backups
+opérateur TEN-007 restent complets, sous autorisation propriétaire/MFA, avec leur
+catalogue fermé et leurs contrôles avant génération et lecture ; un schéma nouveau
+non intégré bloque la sauvegarde. Aucun endpoint métier, migration ou dépendance
+n’est ajouté par IAM-004.

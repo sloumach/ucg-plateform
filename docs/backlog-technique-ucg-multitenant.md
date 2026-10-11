@@ -222,7 +222,7 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   challenge, récupération auditée, remplacement d’authentificateur, révocation
   des sessions et contrôles HTTP/jobs/Horizon. Commit `d61c131` poussé par
   l’utilisateur ; CI backend/frontend vérifiées vertes. Migrations IAM-001/IAM-002
-  non appliquées à la base principale.
+  appliquées ensuite par l’utilisateur à la base principale, batch 7 confirmé.
 
 ### UCG-IAM-003 — Construire les rôles et permissions contextuels
 
@@ -235,11 +235,11 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   limitée, anti-auto-escalade, MFA et audit transactionnel. Interface React,
   exports complets et vérification HTTP/services/jobs. Organisation disponible ;
   types équipe/jeu/cohorte/événement préparés et refusés jusqu’au raccordement des
-  ressources réelles par leurs modules. IAM-004 reste à faire pour la visibilité
-  par champ, IAM-005 pour la plateforme/support. Migration non appliquée à
-  `ucg_platform`. Commits `f78e0cd` et documentation `f9ea660` poussés ; backend,
-  lint, unitaires et build verts. Échec Playwright sur le débordement mobile :
-  correctif local validé à 375/320 px, à pousser puis confirmer sur GitHub.
+  ressources réelles par leurs modules. IAM-004 fournit le socle de projection
+  par champ ; IAM-005 reste à faire pour la plateforme/support. Migration
+  appliquée par l’utilisateur à `ucg_platform`, batch 7 confirmé. Commits
+  `f78e0cd`, documentation `f9ea660` et correctif mobile `72fb380` poussés ;
+  les deux CI du dernier commit sont vertes, y compris Playwright à 375/320 px.
 
 ### UCG-IAM-004 — Appliquer les Policies et la visibilité par champ
 
@@ -247,6 +247,20 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : Policies partagées, projections DTO/Resource et filtrage des données sportives, administratives et financières.
 - **Acceptation** : un champ interdit n’est jamais envoyé au frontend, aux exports, aux recherches ou aux notifications.
 - **Dépendances** : UCG-IAM-003, UCG-TEN-002.
+
+- **État** : socle implémenté et validé localement le 11 octobre 2026 pour les
+  modules disponibles : contrat public `TenantDataVisibility`, schémas fermés,
+  projection récursive, permissions actuelles, contrôle tenant/périmètre,
+  raccordement aux Resources des rôles. Envoi des invitations déléguées corrigé
+  avec contrôle de permission au traitement. Matrice sportif/admin/finance,
+  révocation, MFA, isolation, formes imbriquées et requêtes bornées vérifiées.
+  Aucune migration, dépendance ou modification de la base principale.
+- **Raccordements à réaliser avec les modules métier** : les données sportives,
+  administratives et financières, leurs recherches, exports et notifications
+  doivent utiliser ce contrat avant diffusion. Ces parcours n’existent pas encore ;
+  aucun endpoint métier fictif n’est ajouté. Le backup opérateur complet conserve
+  son autorisation propriétaire/MFA et son catalogue fermé, sans filtrage partiel
+  qui rendrait la restauration incomplète. Push et CI IAM-004 restent à confirmer.
 
 ### UCG-IAM-005 — Séparer administration tenant et plateforme
 

@@ -9,14 +9,15 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket implémenté et validé localement : `UCG-IAM-003` —
-  rôles configurables, affectations contextuelles, délégation bornée et audit.
-- Prochaine action : push du correctif mobile IAM-003 puis confirmation de sa CI.
-- IAM-003 (`f78e0cd`) et ajustement du périmètre (`f9ea660`) poussés.
-  Backend, lint, unitaires et build verts ; Playwright a détecté un débordement
-  mobile. Correctif local validé, CI distante à revérifier après son push.
+- Dernier ticket traité et validé localement : `UCG-IAM-004` — socle partagé
+  de projection par champ, raccordement de l’API rôles et permissions du mail.
+  Les futurs modules métier devront raccorder leurs canaux lors de leur livraison.
+- Prochaine action : push utilisateur d’IAM-004 puis confirmation des deux CI.
+- IAM-003 (`f78e0cd`), ajustement du périmètre (`f9ea660`) et correctif mobile
+  `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
+  (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Ensuite, priorité P0 : `UCG-IAM-004` (Policies et visibilité par champ) ;
+- Ensuite, priorité P0 : `UCG-IAM-005` (administration tenant/plateforme) ;
   `UCG-TEN-008` (branding/domaines) reste P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
@@ -28,8 +29,9 @@
 - TEN-007 : migration additive appliquée, table de suivi vide ; aucune opération
   métier de maintenance exécutée sur les données actuelles. Push/CI à confirmer.
 - IAM-001 poussé (`98f2ed3`) : CI confirmées vertes par l’utilisateur.
-- IAM-001/IAM-002/IAM-003 : migrations validées sur SQLite et PostgreSQL temporaire ;
-  elles restent en attente sur `ucg_platform`. Aucun e-mail réel envoyé.
+- IAM-001/IAM-002/IAM-003 : migrations appliquées par l’utilisateur sur
+  `ucg_platform`, statut `Ran`, batch 7 confirmé en lecture seule. IAM-004 n’ajoute
+  aucune migration et ne modifie pas cette base. Aucun e-mail réel envoyé.
 - Au démarrage, vérifier l'état réel avec `git status --short --branch` et
   `git log -8 --oneline --decorate`.
 - Vérifier également que les derniers commits locaux ont été poussés.
@@ -576,9 +578,10 @@ Vérifications de clôture :
   et 3 tests Playwright réussis. Le test navigateur MFA simule l’API ;
   les tests PHP couvrent les transactions et requêtes réelles.
 - Base temporaire `ucg_iam002_verify_20261011` supprimée après vérification.
-  Migrations IAM-001 et IAM-002 toujours en attente sur la base principale.
+  À cette étape, migrations IAM-001/IAM-002 en attente sur la base principale ;
+  elles ont ensuite été appliquées par l’utilisateur, voir le point de reprise.
   Aucun enrôlement automatique, nouvelle dépendance ou e-mail externe.
-  Avant usage de la nouvelle version, appliquer les migrations additives.
+  Une nouvelle installation doit appliquer les migrations additives avant usage.
   Un rollback IAM-002 supprimerait les facteurs : privilégier une correction
   en avant après un enrôlement réel.
 - README, conventions API, architecture et backlog mis à jour.
@@ -617,10 +620,11 @@ Vérifications de clôture :
   `Storage::fake` partagent le répertoire temporaire malgré les bases isolées.
   La dernière vérification PostgreSQL isolée est verte. La première exécution
   a aussi permis de corriger le test de rollback pour ses nouvelles dépendances.
-- Migrations IAM-001/002/003 toujours en attente sur la base principale, contrôlées
-  en lecture seule. Base PostgreSQL temporaire supprimée après vérification.
+- À cette étape, migrations IAM-001/002/003 en attente sur la base principale,
+  contrôlées en lecture seule ; elles ont ensuite été appliquées par l’utilisateur.
+  Base PostgreSQL temporaire supprimée après vérification.
   Workflow PostgreSQL enrichi avec IAM-003 ; README, API, architecture et backlog
-  mis à jour. Commit local à pousser par l’utilisateur, CI distante à confirmer.
+  mis à jour. Les commits ont ensuite été poussés ; voir le correctif CI ci-dessous.
 
 ### Correctif CI IAM-003 — débordement des formulaires mobiles
 
@@ -636,9 +640,38 @@ Vérifications de clôture :
 - Test existant renforcé : dates saisies et conservées, absence de débordement
   à 375 et 320 px. Validation : 37 tests Vitest, build, lint et 4 tests Chromium
   avec `CI=true` (un worker, serveurs de test dédiés) réussis sous Windows.
-  Le runner Linux GitHub reste à confirmer après push du correctif.
-- Contrôle `migrate:status` en lecture seule : IAM-001/002/003 toujours Pending
-  sur `ucg_platform`. Aucune migration ou modification de données effectuée.
+  Le runner Linux GitHub est confirmé vert après push de `72fb380`.
+- Le premier contrôle `migrate:status` indiquait Pending ; l’utilisateur a ensuite
+  exécuté `migrate`. Le contrôle en lecture seule confirme désormais IAM-001/002/003
+  `Ran`, batch 7, sur `ucg_platform`.
+
+### UCG-IAM-004 — Policies et projection des champs
+
+- Contrat public `TenantDataVisibility` et DTOs `TenantDataRecord`/`FieldVisibility`.
+  Le module propriétaire déclare son schéma dans le code ; les champs inconnus ou
+  interdits sont omis récursivement. Une structure sans schéma enfant est refusée.
+- Autorisation d’action conservée dans les Policies/Gate existants, projection
+  fondée sur `TenantAuthorization` actuel, tenant et périmètre vérifiés. Les droits
+  propriétaire/admin et d’écriture ne donnent pas implicitement la lecture métier.
+  MFA, révocation, suspension et périodes sont ceux d’IAM-003.
+- API rôles raccordée avant Resource, même contrat JSON et statuts 201/200,
+  notifications, pagination et request ID. Le mail d’invitation utilise désormais
+  `invitations.manage` au traitement : délégué autorisé accepté, grant révoqué refusé.
+- Pages/chunks limités à 200 records, contrôles partagés pendant un seul appel,
+  aucun cache durable de décisions. Requêtes comparées pour 1 et 100 records.
+- Validation SQLite complète : 455 tests, 452 réussis, 1 998 assertions,
+  3 exclusions attendues. PostgreSQL 17 : 408 tests, 406 réussis, 1 797 assertions,
+  2 exclusions Redis attendues. Base `ucg_iam004_verify_20261011` créée pour ces
+  tests puis supprimée. Pint et PHPStan niveau 8 réussis. Workflow PostgreSQL
+  enrichi avec les tests de projection ; frontend et dépendances inchangés.
+- Limite explicite : modules métier, recherches, exports et notifications métier
+  futurs doivent raccorder ce port avant livraison, après sélection des records
+  autorisés et contrôle des champs recherchables/triables. Aucun parcours métier
+  fictif n’est créé. La sauvegarde opérateur complète TEN-007 conserve ses contrôles
+  propriétaire/MFA et son catalogue fermé, sans projection partielle.
+- Aucune migration IAM-004 ni écriture sur la base principale. Migrations précédentes
+  appliquées par l’utilisateur et vérifiées en lecture seule. README, API,
+  architecture et backlog actualisés ; push utilisateur et CI IAM-004 à confirmer.
 
 ## Décision de périmètre — retrait de l’organisation de tournois
 

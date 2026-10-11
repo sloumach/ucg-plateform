@@ -427,7 +427,7 @@ délégué autorisé peut lui attribuer des permissions métier.
 
 Aujourd’hui `scope_types` vaut `["organization"]` et `scope_id` égale le tenant.
 Équipe/jeu/cohorte/événement restent fermés jusqu’au raccordement de leurs modules.
-IAM-004 devra filtrer les champs avec ces contrôles ; définir une permission
+IAM-004 fournit le contrat de projection ci-dessous ; définir une permission
 n’implémente pas un module métier absent.
 
 Exemple React après connexion, MFA et sélection, avec le client partagé :
@@ -469,3 +469,69 @@ Conflits 409 : `ROLE_SELF_ESCALATION_FORBIDDEN`, `ROLE_DELEGATION_DENIED`,
 `ROLE_ASSIGNMENT_IDENTITY_IMMUTABLE`, `ROLE_IDENTITY_IMMUTABLE`, `ROLE_LIMIT_REACHED`.
 La validation donne 422 ; l’autorisation 403. Les mutations et révocations dues au
 départ sont auditées dans leur transaction, avec référence contrainte au même tenant.
+
+## Projection des champs — UCG-IAM-004
+
+Les Policies et le Gate `tenant.permission` contrôlent l’action. Le contrat public
+`TenantDataVisibility` contrôle ensuite chaque champ de sortie, à partir d’un
+`TenantDataRecord` préparé par le module propriétaire et d’un schéma serveur
+`FieldVisibility`. Le client ne choisit ni permission, ni schéma, ni tenant source.
+Un champ absent du schéma ou interdit est omis ; sa valeur n’est pas remplacée
+par `null`. Une valeur autorisée réellement nulle reste nulle.
+
+| Données | Permission de lecture |
+| --- | --- |
+| Informations communes d’une organisation accessible | `organization.view` |
+| Sportives | `sports.read` |
+| Administratives confidentielles | `administrative.read` |
+| Financières restreintes | `financial.read` |
+| Configuration des rôles | `roles.assign` |
+
+Les droits propriétaire/admin n’impliquent pas une lecture métier. Écriture,
+validation et publication ne remplacent pas une permission de lecture. MFA,
+dates d’effet, suspension et révocation sont vérifiés par `TenantAuthorization`.
+Un tenant étranger provoque un 404 ; accès/périmètre refusé, un 403. Un schéma
+inconnu ou une structure incompatible est une erreur de programmation serveur
+et ne produit aucune réponse partiellement filtrée.
+
+Exemple dans un service métier après lecture d’un enregistrement autorisé :
+
+```php
+use App\Modules\Tenancy\Application\Contracts\FieldVisibility;
+use App\Modules\Tenancy\Application\Contracts\TenantDataRecord;
+
+// $visibility est injecté via TenantDataVisibility ; contexte résolu côté serveur.
+$data = $visibility->project($context,
+    new TenantDataRecord($recordOrganizationId, $candidateData, $scopeType, $scopeId), [
+        'name' => new FieldVisibility('organization.view'),
+        'rank' => new FieldVisibility('sports.read'),
+        'salary' => new FieldVisibility('financial.read'),
+        'profile' => new FieldVisibility('organization.view', [
+            'address' => new FieldVisibility('administrative.read'),
+        ]),
+    ]);
+// La Resource, l’export ou la notification reçoit seulement $data.
+```
+
+Les objets et listes d’objets exigent un schéma explicite pour leurs enfants ;
+une feuille peut contenir seulement un scalaire, null ou une liste de scalaires.
+Les enfants partagent le tenant et le périmètre du record ; des ressources de
+périmètres différents doivent être projetées comme records distincts. Le
+repository reste responsable de la sélection des enregistrements autorisés.
+
+`projectMany` accepte au plus 200 records par page/chunk et partage ses contrôles
+de permission/périmètre pendant cet appel uniquement. Le prochain appel relit
+les droits. Les sorties des rôles conservent leurs huit champs, leurs statuts
+201/200, notifications Flasher, pagination et identifiant de requête.
+
+Il n’existe pas encore de recherche ni d’export métier sportif/admin/finance.
+Leur raccordement est obligatoire lors de leur implémentation : filtrer les
+champs recherchables/triables et les enregistrements avant requête, puis projeter
+les résultats, extraits, compteurs et fichiers avant diffusion. Les jobs doivent
+restaurer le contexte et projeter au traitement, sans réutiliser les droits du
+moment de la mise en queue. Le mail existant n’expose que le nom d’organisation
+et le lien d’accès ; son worker exige désormais `invitations.manage` actuel.
+
+Les exports complets de maintenance restent opérateur uniquement : propriétaire
+avec MFA, catalogue fermé, aucune URL publique. Ils ne sont pas des exports métier
+et ne subissent pas une projection partielle incompatible avec leur restauration.

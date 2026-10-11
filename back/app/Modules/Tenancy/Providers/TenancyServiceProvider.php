@@ -9,11 +9,13 @@ use App\Modules\Tenancy\Application\Contracts\TenantArtifacts;
 use App\Modules\Tenancy\Application\Contracts\TenantAuthorization;
 use App\Modules\Tenancy\Application\Contracts\TenantCache;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
+use App\Modules\Tenancy\Application\Contracts\TenantDataVisibility;
 use App\Modules\Tenancy\Application\Contracts\TenantExecutionContext;
 use App\Modules\Tenancy\Application\Contracts\TenantJobMiddleware;
 use App\Modules\Tenancy\Application\Contracts\TenantResourceLimits;
 use App\Modules\Tenancy\Application\Contracts\TenantScheduleQueue;
 use App\Modules\Tenancy\Application\Services\TenantArtifactService;
+use App\Modules\Tenancy\Application\Services\TenantDataProjectionService;
 use App\Modules\Tenancy\Application\Services\TenantExecutionScope;
 use App\Modules\Tenancy\Application\Services\TenantPermissionService;
 use App\Modules\Tenancy\Application\Services\TenantTechnicalLimits;
@@ -78,6 +80,7 @@ final class TenancyServiceProvider extends ServiceProvider
     {
         $this->app->bind(RoleRepository::class, EloquentRoleRepository::class);
         $this->app->bind(TenantAuthorization::class, TenantPermissionService::class);
+        $this->app->bind(TenantDataVisibility::class, TenantDataProjectionService::class);
         $this->app->bind(AuthorizationScopeDirectory::class, RegisteredAuthorizationScopes::class);
         $this->app->bind(PrivilegedAccountDirectory::class, EloquentPrivilegedAccountDirectory::class);
         $this->app->bind(PortabilityRepository::class, DatabasePortabilityRepository::class);

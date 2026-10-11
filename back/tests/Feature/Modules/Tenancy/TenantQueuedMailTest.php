@@ -8,6 +8,8 @@ use App\Modules\Tenancy\Application\Services\TenantResolver;
 use App\Modules\Tenancy\Domain\Models\Organization;
 use App\Modules\Tenancy\Domain\Models\OrganizationInvitation;
 use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
+use App\Modules\Tenancy\Domain\Models\OrganizationRole;
+use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use App\Modules\Tenancy\Infrastructure\Mail\MailInvitationNotifier;
 use App\Modules\Tenancy\Infrastructure\Mail\OrganizationInvitationMail;
 use App\Support\Queue\JobContext;
@@ -104,6 +106,48 @@ class TenantQueuedMailTest extends TestCase
 
         $this->assertDatabaseCount('failed_jobs', 1);
         $this->assertDatabaseCount('jobs', 0);
+    }
+
+    public function test_delegated_inviter_can_deliver_mail_with_a_current_grant(): void
+    {
+        $membership = OrganizationMembership::factory()->withMfaAccount()->create();
+        $role = OrganizationRole::factory()->create(['organization_id' => $membership->organization_id,
+            'permissions' => ['invitations.manage'], 'privileged' => true]);
+        OrganizationRoleAssignment::factory()->create(['organization_id' => $membership->organization_id,
+            'role_id' => $role->id, 'membership_id' => $membership->id, 'user_id' => $membership->user_id]);
+        $context = app(TenantResolver::class)->resolve($membership->organization_id, '', $membership->user_id, (string) Str::uuid());
+        (new OrganizationInvitationMail('Organisation', 'https://example.test/', $context->toJobContext()))
+            ->onConnection('database')->to('recipient@example.test')->queue(app(QueueManager::class));
+        $factory = $this->mock(Factory::class);
+        $mailer = $this->mock(Mailer::class);
+        $factory->shouldReceive('mailer')->once()->with(null)->andReturn($mailer);
+        $mailer->shouldReceive('send')->once();
+
+        $this->work();
+
+        $this->assertDatabaseCount('jobs', 0);
+        $this->assertDatabaseCount('failed_jobs', 0);
+        $this->assertFalse(app(TenantExecutionScope::class)->active());
+    }
+
+    public function test_revoked_delegation_refuses_mail_queued_while_grant_was_active(): void
+    {
+        $membership = OrganizationMembership::factory()->withMfaAccount()->create();
+        $role = OrganizationRole::factory()->create(['organization_id' => $membership->organization_id,
+            'permissions' => ['invitations.manage'], 'privileged' => true]);
+        $assignment = OrganizationRoleAssignment::factory()->create(['organization_id' => $membership->organization_id,
+            'role_id' => $role->id, 'membership_id' => $membership->id, 'user_id' => $membership->user_id]);
+        $context = app(TenantResolver::class)->resolve($membership->organization_id, '', $membership->user_id, (string) Str::uuid());
+        (new OrganizationInvitationMail('Organisation', 'https://example.test/', $context->toJobContext()))
+            ->onConnection('database')->queue(app(QueueManager::class));
+        $assignment->forceFill(['status' => 'revoked'])->save();
+        $this->mock(Factory::class)->shouldNotReceive('mailer');
+
+        $this->work();
+
+        $this->assertDatabaseCount('failed_jobs', 1);
+        $this->assertDatabaseCount('jobs', 0);
+        $this->assertFalse(app(TenantExecutionScope::class)->active());
     }
 
     private function work(): void

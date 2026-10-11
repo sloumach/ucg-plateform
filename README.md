@@ -4,8 +4,9 @@ Plateforme de gestion esports multi-tenant d'Ultra Cyber Game.
 
 ## Structure
 
-Le ticket `UCG-IAM-003` fournit désormais les rôles configurables et leurs
-affectations par organisation. Voir [le contrat API](docs/conventions-api.md)
+Les tickets `UCG-IAM-003/004` fournissent les rôles configurables, leurs
+affectations et la projection des champs selon les permissions serveur.
+Voir [le contrat API](docs/conventions-api.md)
 et [l’état de livraison](docs/etat-projet.md).
 
 - `back/` : API Laravel 13 sous PHP 8.5.
@@ -124,7 +125,8 @@ propres droits sont refusées. Les permissions privilégiées alimentent le MFA 
 **Périmètre disponible aujourd’hui : organisation entière.** Les types équipe,
 jeu, cohorte et événement sont préparés et refusés jusqu’à validation de leurs
 ressources réelles par leurs modules, via `AuthorizationScopeDirectory`.
-IAM-004 traitera la visibilité par champ ; IAM-005 les rôles plateforme/support.
+IAM-004 fournit la projection par champ décrite ci-dessous ; IAM-005 reste
+responsable des rôles plateforme/support.
 
 La migration additive IAM-003 ajoute deux tables, des contraintes composites
 et les projections du journal d’accès immuable. Elle ne convertit aucune adhésion.
@@ -133,9 +135,11 @@ supprimer un historique IAM-003 déjà audité : préférer une correction en av
 Les colonnes générées peuvent réécrire un grand journal PostgreSQL ; prévoir une
 fenêtre adaptée. L’attente de verrou est bornée à cinq secondes.
 
-Appliquer IAM-001, IAM-002 et IAM-003 avec sauvegarde et `php artisan migrate`
-avant usage de cette version. Les trois migrations restent en attente sur
-`ucg_platform` ; seule une base temporaire a servi aux tests PostgreSQL.
+Pour une nouvelle installation, appliquer IAM-001, IAM-002 et IAM-003 avec
+sauvegarde et `php artisan migrate` avant usage. Sur le poste actuel, ces trois
+migrations ont été appliquées par l’utilisateur ; `migrate:status` confirme
+`Ran`, batch 7. IAM-004 ne crée aucune migration. Ses tests PostgreSQL utilisent
+une base temporaire indépendante, supprimée après validation.
 Un push GitHub ne met pas à jour la structure de la base locale. Les migrations
 ajoutent les tables/champs attendus par le nouveau code ; la sauvegarde préalable
 est une copie de la base permettant de revenir à son état avant intervention.
@@ -144,6 +148,27 @@ les relations chargées en bloc et les droits revérifiés en base à chaque op�
 À grande échelle, profiler les index ; tout futur cache d’autorisation devra
 respecter versions, expirations et révocations immédiates.
 
+
+### Visibilité par champ — UCG-IAM-004
+
+`TenantDataVisibility` filtre une liste de champs définie dans le code serveur.
+Un champ non déclaré ou sans permission est omis, y compris dans les objets
+et collections imbriqués. Les champs sportifs, administratifs et financiers
+utilisent respectivement `sports.read`, `administrative.read` et `financial.read`.
+Propriétaire et administrateur ne reçoivent pas automatiquement ces permissions
+métier ; le MFA reste exigé pour les champs privilégiés.
+
+L’API des rôles utilise cette projection avant sa Resource, avec pagination et
+contrat JSON conservés. Les e-mails d’invitation revérifient `invitations.manage`
+au moment du traitement, y compris pour un expéditeur délégué et après révocation.
+Les autres Resources existantes conservent leurs listes explicites de champs.
+
+Les modules sportifs/administratifs/financiers, leurs recherches et leurs exports
+métier ne sont pas encore implémentés. Leur livraison devra raccorder le même
+contrat avant toute sortie, après filtrage des enregistrements autorisés. Une
+projection déjà calculée ne doit pas être réutilisée comme preuve dans un job ou
+un cache partagé. Les sauvegardes complètes de maintenance restent un parcours
+opérateur distinct, propriétaire avec MFA et catalogue de tables/colonnes fermé.
 
 Exemple de demande de récupération :
 
