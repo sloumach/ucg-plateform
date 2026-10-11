@@ -116,7 +116,7 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
   }
   const fieldError = (name: string, path: string) => path === errorTarget ? error?.fieldErrors[name]?.[0] : undefined
 
-  return <section aria-labelledby={'roles-title-' + orgId} className="grid gap-4 rounded-2xl border border-white/10 p-5">
+  return <section aria-labelledby={'roles-title-' + orgId} className="grid min-w-0 grid-cols-1 gap-4 rounded-2xl border border-white/10 p-5">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h3 id={'roles-title-' + orgId} className="text-xl font-bold">{t('roles.title')}</h3>
       <Button disabled={busy || parentDisabled} onClick={() => void load()}>{t('roles.refresh')}</Button>
@@ -144,7 +144,7 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
         </div>)}
         <Pagination currentPage={data.roles.meta.current_page} totalPages={data.roles.meta.last_page} disabled={disabled} onPageChange={(page) => { setEditing(undefined); setRolePage(page) }} />
       </>}
-      {canAssign && data.roles && data.catalogue && <form noValidate aria-label={t('roles.assign')} className="grid gap-3 rounded-xl border border-white/10 p-4 md:grid-cols-2" onSubmit={(event) => {
+      {canAssign && data.roles && data.catalogue && <form noValidate aria-label={t('roles.assign')} className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-white/10 p-4 md:grid-cols-2" onSubmit={(event) => {
         const form = new FormData(event.currentTarget)
         propose(event, t('roles.assign'), 'tenants/' + orgId + '/role-assignments', 'POST', {
           role_id: form.get('role_id'), user_id: form.get('user_id'), scope_type: form.get('scope_type'),
@@ -168,7 +168,7 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
       </form>}
       <h4 className="font-semibold">{t(canAssign ? 'roles.assignments' : 'roles.myAssignments')}</h4>
       {data.assignments.data.length === 0 && <p>{t('roles.noAssignments')}</p>}
-      {data.assignments.data.map((assignment) => <form key={assignment.id} noValidate className="grid gap-3 rounded-xl border border-white/10 p-4 md:grid-cols-2" aria-label={t('roles.assignment', { name: assignment.role_name, id: assignment.user_id })}
+      {data.assignments.data.map((assignment) => <form key={assignment.id} noValidate className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-white/10 p-4 md:grid-cols-2" aria-label={t('roles.assignment', { name: assignment.role_name, id: assignment.user_id })}
         onSubmit={(event) => {
           const form = new FormData(event.currentTarget)
           propose(event, t('roles.saveAssignment'), 'tenants/' + orgId + '/role-assignments/' + assignment.id, 'PUT', {
@@ -196,7 +196,7 @@ function RoleEditor({ role, catalogue, disabled, errors, onCancel, onSubmit }: {
   role: OrganizationRole | null; catalogue: PermissionCatalogue; disabled: boolean; errors: Record<string, string[]>
   onCancel: () => void; onSubmit: (event: FormEvent<HTMLFormElement>, body: Record<string, unknown>) => void
 }) {
-  return <form noValidate aria-label={t('roles.saveRole')} className="grid gap-3 rounded-xl border border-cyan-400/30 p-4" onSubmit={(event) => {
+  return <form noValidate aria-label={t('roles.saveRole')} className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-cyan-400/30 p-4" onSubmit={(event) => {
     const form = new FormData(event.currentTarget)
     onSubmit(event, { key: form.get('key'), name: form.get('name'), permissions: form.getAll('permissions'), active: form.has('active'), ...(role ? { version: role.version } : {}) })
   }}>

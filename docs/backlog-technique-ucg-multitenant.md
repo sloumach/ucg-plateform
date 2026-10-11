@@ -221,7 +221,7 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **État** : implémenté localement le 11 octobre 2026 ; enrôlement TOTP,
   challenge, récupération auditée, remplacement d’authentificateur, révocation
   des sessions et contrôles HTTP/jobs/Horizon. Commit `d61c131` poussé par
-  l’utilisateur ; CI distante à confirmer. Migrations IAM-001/IAM-002
+  l’utilisateur ; CI backend/frontend vérifiées vertes. Migrations IAM-001/IAM-002
   non appliquées à la base principale.
 
 ### UCG-IAM-003 — Construire les rôles et permissions contextuels
@@ -237,7 +237,9 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   types équipe/jeu/cohorte/événement préparés et refusés jusqu’au raccordement des
   ressources réelles par leurs modules. IAM-004 reste à faire pour la visibilité
   par champ, IAM-005 pour la plateforme/support. Migration non appliquée à
-  `ucg_platform` ; push et CI IAM-003 à confirmer.
+  `ucg_platform`. Commits `f78e0cd` et documentation `f9ea660` poussés ; backend,
+  lint, unitaires et build verts. Échec Playwright sur le débordement mobile :
+  correctif local validé à 375/320 px, à pousser puis confirmer sur GitHub.
 
 ### UCG-IAM-004 — Appliquer les Policies et la visibilité par champ
 

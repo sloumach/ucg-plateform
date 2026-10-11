@@ -11,8 +11,11 @@
 - Branche de travail : `staging`.
 - Dernier ticket implémenté et validé localement : `UCG-IAM-003` —
   rôles configurables, affectations contextuelles, délégation bornée et audit.
-- Prochaine action : push utilisateur du commit IAM-003 puis confirmation de sa CI.
-- IAM-002 poussé (`d61c131`) ; CI distante non confirmée dans cette discussion.
+- Prochaine action : push du correctif mobile IAM-003 puis confirmation de sa CI.
+- IAM-003 (`f78e0cd`) et ajustement du périmètre (`f9ea660`) poussés.
+  Backend, lint, unitaires et build verts ; Playwright a détecté un débordement
+  mobile. Correctif local validé, CI distante à revérifier après son push.
+- IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
 - Ensuite, priorité P0 : `UCG-IAM-004` (Policies et visibilité par champ) ;
   `UCG-TEN-008` (branding/domaines) reste P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
@@ -618,6 +621,24 @@ Vérifications de clôture :
   en lecture seule. Base PostgreSQL temporaire supprimée après vérification.
   Workflow PostgreSQL enrichi avec IAM-003 ; README, API, architecture et backlog
   mis à jour. Commit local à pousser par l’utilisateur, CI distante à confirmer.
+
+### Correctif CI IAM-003 — débordement des formulaires mobiles
+
+- Journal du job Playwright `114506974660`, run `38151927266`, consulté via la
+  connexion Git existante, sans enregistrer les identifiants. Échec à la ligne 63
+  de `roles.spec.ts` : largeur du document supérieure au viewport de 375 px.
+  Le parcours de création/confirmation réussissait, les trois autres E2E aussi.
+- Défaut reproduit sous Windows en remplissant les champs de date avec secondes.
+  Les largeurs intrinsèques des contrôles et les colonnes implicites agrandissaient
+  les formulaires. `FormField` et les grilles de rôles utilisent maintenant une
+  colonne explicite qui peut rétrécir, avec `min-w-0` sur les champs/conteneurs.
+  Le débordement n’est pas masqué et aucune assertion n’a été retirée.
+- Test existant renforcé : dates saisies et conservées, absence de débordement
+  à 375 et 320 px. Validation : 37 tests Vitest, build, lint et 4 tests Chromium
+  avec `CI=true` (un worker, serveurs de test dédiés) réussis sous Windows.
+  Le runner Linux GitHub reste à confirmer après push du correctif.
+- Contrôle `migrate:status` en lecture seule : IAM-001/002/003 toujours Pending
+  sur `ucg_platform`. Aucune migration ou modification de données effectuée.
 
 ## Décision de périmètre — retrait de l’organisation de tournois
 

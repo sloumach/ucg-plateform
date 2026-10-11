@@ -136,6 +136,9 @@ fenêtre adaptée. L’attente de verrou est bornée à cinq secondes.
 Appliquer IAM-001, IAM-002 et IAM-003 avec sauvegarde et `php artisan migrate`
 avant usage de cette version. Les trois migrations restent en attente sur
 `ucg_platform` ; seule une base temporaire a servi aux tests PostgreSQL.
+Un push GitHub ne met pas à jour la structure de la base locale. Les migrations
+ajoutent les tables/champs attendus par le nouveau code ; la sauvegarde préalable
+est une copie de la base permettant de revenir à son état avant intervention.
 Les listes sont paginées (1 à 100 éléments), les rôles limités à 100 par tenant,
 les relations chargées en bloc et les droits revérifiés en base à chaque opération.
 À grande échelle, profiler les index ; tout futur cache d’autorisation devra
