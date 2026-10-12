@@ -111,6 +111,8 @@ class PersonSchemaTest extends TestCase
 
         $profilesMigration = require database_path('migrations/2026_10_11_223914_create_person_game_profiles_and_external_accounts.php');
         $lifecycleMigration = require database_path('migrations/2026_10_12_173809_create_person_lifecycle_tables.php');
+        $importMigration = require database_path('migrations/2026_10_12_211057_create_person_import_tables.php');
+        $importMigration->down();
         $lifecycleMigration->down();
         $profilesMigration->down();
         $migration->down();
@@ -118,6 +120,7 @@ class PersonSchemaTest extends TestCase
         $migration->up();
         $profilesMigration->up();
         $lifecycleMigration->up();
+        $importMigration->up();
 
         $this->assertTrue(Schema::hasTable('people'));
         $this->assertDatabaseCount('people', 0);

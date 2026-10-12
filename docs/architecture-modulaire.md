@@ -776,3 +776,51 @@ les fiches existantes. Révision/version, confirmation tenant et confirmation
 métier, réponses tardives ignorées, rechargement des droits après départ.
 La fiche scellée interdit dans l’UI la modification statut/compte et des profils,
 mais garde la régularisation administrative. L’autorisation serveur reste décisive.
+
+## Import de création People — HUM-005
+
+PersonImport porte le staging tenant d’un CSV ; PersonImportRow conserve un résultat
+par première ligne physique du record. Source stockée via TenantArtifacts après
+chiffrement, nom serveur fixe et budget existant. En-têtes et values/errors de lignes
+utilisent des casts encrypted:array, champs cachés hors projection autorisée. Pas
+de compte lié, rôle, invitation, profil de jeu ou mise à jour d’une personne existante.
+
+Form Request stricte et policy exigent sports.read/write + administrative.read/write
+pour toutes les opérations. Service d’import orchestre dépôt, preview, confirmation
+et lecture ; parser isolé pour UTF-8/BOM, quotes, champs multilignes et lignes
+physiques ; règles PersonInput réutilisées. Source ≤1 Mio/1000 lignes/32 colonnes,
+cellule ≤32768 octets, quotas tenant supplémentaires. Préparation synchrone bornée,
+création asynchrone. Aucun modèle/CSV ni donnée privée dans le payload des jobs.
+
+Application dépend du port PersonImportQueue ; LaravelPersonImportQueue en
+Infrastructure construit ProcessPersonImport, qui hérite du port TenantJob.
+Le middleware TEN-006 rétablit un contexte frais ; le service réautorise les quatre
+droits sous verrou organisation/import. Lots de 25, 3 tentatives deadlock, writes
+PersonService/audit/statut de ligne atomiques. Source/mapping confirmés immuables,
+lignes créées ignorées au rejeu. Échec définitif : failed et code fermé ; état queued
+durable si dispatch échoue, reprise HTTP explicitement confirmée. La transaction
+ne couvre pas toute l’importation : les lots déjà validés sont conservés.
+
+HMAC tenant/séparateur/octets du fichier, unique par tenant, évite un second registre
+au redépôt identique. Déduplication des candidats par pseudonyme : fichier via
+trim/mb_strtolower, personnes existantes via LOWER(TRIM) natif PG/SQLite. Index
+`(organization_id, LOWER(TRIM(pseudonym)))` et recherche DISTINCT bornée par blocs
+de 100 clés. Le verrou organisation sérialise cette vérification avec les créations
+PersonService et les autres imports ; aucune unicité globale de pseudonyme ajoutée
+aux fiches manuelles. Pas de normalisation des accents ou d’identité devinée par
+nom/e-mail chiffré. Doublon apparu entre preview et exécution : skipped explicite.
+
+Migration additive : FK composites tenant/artifact/import/personne, index tenant,
+identité/source immuables, mapping confirmé et lignes créées protégés. Histoire
+confirmée non supprimable, rollback refusé si registres non vides. Anciennes
+migrations déployées inchangées ; tests de rollback adaptent l’ordre des dépendances.
+Les deux tables et leur ciphertext rejoignent le catalogue fermé de portabilité.
+Sources conservées dans le stockage privé et comptées dans le quota ; aucune durée
+de purge métier arbitraire ajoutée.
+
+Listes et lignes par pages de 10, page 1..10000 ; comptages regroupés et projections
+explicites sous les quatre permissions. Rapport CSV hors traitement : ligne, statut,
+codes fermés et UUID de personne, jamais la valeur source ou une formule tableur.
+Audit du registre limité à id/état/version ; audit des fiches via PersonService.
+TEN-006 fournit les logs structurés des jobs. Profiler coût par ligne et contention
+avant augmentation des limites ; aucun benchmark de millions de lignes.

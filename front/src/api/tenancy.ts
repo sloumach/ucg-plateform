@@ -59,18 +59,21 @@ const baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/
 
 export async function tenancyRequest<T>(
   path: string,
-  options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; revision?: string; signal?: AbortSignal } = {},
+  options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; revision?: string; signal?: AbortSignal; download?: boolean } = {},
 ): Promise<T> {
   const method = options.method ?? 'GET'
   if (method !== 'GET') await prepareCsrfCookie()
+  const multipart = options.body instanceof FormData
+  const headers: Record<string, string> = method === 'GET' ? { Accept: options.download ? 'text/csv' : 'application/json' } : mutationHeaders()
+  if (multipart) delete headers['Content-Type']
   const response = await fetch(`${baseUrl}/${path}`, {
     method,
     credentials: 'include',
     headers: {
-      ...(method === 'GET' ? { Accept: 'application/json' } : mutationHeaders()),
+      ...headers,
       ...(options.revision ? { 'X-Tenant-Revision': options.revision } : {}),
     },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    body: options.body === undefined ? undefined : multipart ? options.body as FormData : JSON.stringify(options.body),
     signal: options.signal,
   })
   if (!response.ok) {
@@ -80,5 +83,5 @@ export async function tenancyRequest<T>(
     }
     throw error
   }
-  return (await response.json()) as T
+  return (options.download ? await response.blob() : await response.json()) as T
 }

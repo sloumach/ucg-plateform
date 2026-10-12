@@ -15,6 +15,8 @@ final class AuditState
         $result = [];
         foreach ($state as $key => $value) {
             $valid = match ($key) {
+                'person_import_id' => is_string($value) && Str::isUuid($value),
+                'person_import_status' => is_string($value) && in_array($value, ['uploaded', 'previewed', 'queued', 'processing', 'completed', 'failed'], true),
                 'period_changed_fields' => self::listWithin($value, ['kind', 'role_key', 'starts_at', 'ends_at', 'status']),
                 'departure_item_changed_fields' => self::listWithin($value, ['kind', 'title', 'notes', 'status', 'due_at']),
                 'lifecycle_kind' => is_string($value) && in_array($value, ['assignment', 'unavailability', 'equipment', 'obligation'], true),

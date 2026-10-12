@@ -6,8 +6,19 @@ use App\Modules\People\Presentation\Http\Controllers\Api\V1\GameProfileControlle
 use App\Modules\People\Presentation\Http\Controllers\Api\V1\PersonController;
 use App\Modules\People\Presentation\Http\Controllers\Api\V1\PersonDepartureController;
 use App\Modules\People\Presentation\Http\Controllers\Api\V1\PersonDepartureItemController;
+use App\Modules\People\Presentation\Http\Controllers\Api\V1\PersonImportController;
 use App\Modules\People\Presentation\Http\Controllers\Api\V1\PersonPeriodController;
 use Illuminate\Support\Facades\Route;
+
+Route::prefix('tenants/{tenant}/people-imports')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
+    $controller = PersonImportController::class;
+    Route::get('/', [$controller, 'index'])->name('people-imports.index');
+    Route::post('/', [$controller, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('people-imports.store');
+    Route::get('{import}', [$controller, 'show'])->whereUuid('import')->name('people-imports.show');
+    Route::get('{import}/report', [$controller, 'report'])->whereUuid('import')->name('people-imports.report');
+    Route::post('{import}/preview', [$controller, 'preview'])->whereUuid('import')->middleware('tenant.confirmed')->block(10, 10)->name('people-imports.preview');
+    Route::post('{import}/confirm', [$controller, 'confirm'])->whereUuid('import')->middleware('tenant.confirmed')->block(10, 10)->name('people-imports.confirm');
+});
 
 Route::get('tenants/{tenant}/game-profile-catalogue', [GameProfileCatalogueController::class, 'index'])
     ->whereUuid('tenant')->middleware('tenant')->name('game-profiles.catalogue');

@@ -9,8 +9,8 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité et validé localement : `UCG-HUM-004` — affectations
-  datées, indisponibilité, départ formel et suivi des équipements/obligations.
+- Dernier ticket traité : `UCG-HUM-005` — import CSV privé de personnes,
+  prévisualisation, confirmation, rapport et reprise idempotente.
 - IAM-006 et son correctif `0b85252` poussés ; push, migration et CI validés
   par l’utilisateur dans cette discussion. Migration confirmée en lecture seule :
   `Ran`, batch 9. L’échec initial `38174777644` reste documenté ci-dessous.
@@ -27,14 +27,14 @@
   `staging` et `origin/staging` concordaient au début de HUM-004.
 - HUM-004 (`510d9c0`) poussé par l’utilisateur ; CI backend
   [38306904589](https://github.com/sloumach/ucg-plateform/actions/runs/38306904589)
-  échouée au formatage PHP. Correctif local : espacements dans deux tests,
-  contrôle Pint global identique à la CI réussi ; aucun changement métier.
-- Prochaine action : push utilisateur du correctif HUM-004, validation des CI, sauvegarde
-  puis migration depuis `back/` (`php artisan migrate`). Migration additive
-  `2026_10_12_173809_create_person_lifecycle_tables` vérifiée `Pending` en lecture
-  seule. Code, tests et docs sont dans le même commit. Aucun départ, personne,
-  profil ou compte externe réel créé/modifié par l’agent ; aucune migration
-  appliquée sur la base principale et aucun e-mail envoyé.
+  échouée au formatage PHP. Correctif `51fb9b1` poussé ; CI confirmées réussies
+  par l’utilisateur avant HUM-005. Branche synchronisée au début de HUM-005.
+  Migration HUM-004 appliquée par l’utilisateur, vérifiée `Ran`, batch 12.
+- Prochaine action : push utilisateur HUM-005, validation des CI, sauvegarde
+  puis migration depuis `back/` (`php artisan migrate`). Nouvelle migration
+  `2026_10_12_211057_create_person_import_tables`, vérifiée Pending en lecture seule, non appliquée sur la base
+  principale par l’agent. Code, tests, CI et docs dans le même commit. Aucun
+  fichier utilisateur réel importé, personne réelle créée, compte lié ou e-mail envoyé.
 - Format de commit convenu : `UCG-ID: description`, sans préfixe `feat(...)`.
 - Accord utilisateur : un seul commit de tâche regroupe code, tests et docs de
   reprise. Aucun commit documentaire séparé après la tâche ; les confirmations
@@ -48,8 +48,8 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après push/CI/migration HUM-004, prochain ticket P0 : `UCG-HUM-005`
-  (import CSV privé, prévisualisation, confirmation et reprise idempotente).
+- Après push/CI/migration HUM-005, prochain ticket P0 : `UCG-TEAM-001`
+  (catalogue administrable de jeux, plateformes, modes, régions, rôles et cartes).
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
@@ -1050,6 +1050,76 @@ Vérifications de clôture :
   pour des espaces. Aucune migration principale ni donnée métier réelle modifiée.
 - Code de correction et ce point de reprise regroupés dans le même commit.
   Nouveau push/CI à confirmer par l’utilisateur avant migration/HUM-005.
+
+### UCG-HUM-005 — Import CSV privé et confirmé
+
+- Import de création uniquement. Aucun écrasement d’une fiche existante, liaison
+  de compte, invitation ou attribution de rôle. Statuts descriptifs conservés :
+  une ligne former ne déclenche pas le départ HUM-004. Profils de jeu/équipes et
+  rapprochement d’identité administrative ne font pas partie de cet import.
+- Droits sports.read + sports.write + administrative.read + administrative.write
+  requis pour dépôt, prévisualisation, confirmation, liste et rapport. Le CSV peut
+  contenir des colonnes privées non encore mappées ; propriétaire sans grants et
+  acteur technique refusés. HTTP session/MFA/CSRF/révision/confirmation tenant.
+- UTF-8 avec BOM facultatif, virgule ou point-virgule explicite, guillemets échappés
+  et champs multilignes. CSV mal formé/contrôles binaires/en-têtes vides ou répétés
+  refusés avant réservation de fichier. Limites supplémentaires par fichier :
+  1 Mio, 1000 lignes de données, 32 colonnes et 32768 octets par cellule ; quotas
+  tenant import_bytes/import_rows/artifact_bytes/storage_bytes toujours appliqués.
+- Source chiffrée avant stockage via TenantArtifacts, préfixe privé du tenant et
+  comptabilité durable existants. Nom fixe sans nom utilisateur. En-têtes et valeurs/
+  erreurs de lignes chiffrés en base. Échec de création du registre : seul l’objet
+  nouvellement réservé est nettoyé ; nettoyage incertain signalé et quota conservé.
+- Empreinte HMAC tenant + séparateur + octets du fichier, unique dans le tenant :
+  redépôt identique retrouve le même import. Mapping field → index de colonne et
+  valeurs par défaut langue/fuseau/statut ; liste fermée, sans user_id. Re-mapping
+  autorisé avant confirmation seulement, version optimiste ; aucune fiche créée
+  au dépôt ou en prévisualisation, seules métadonnées et lignes de staging persistées.
+- Validation PersonInput par ligne et numéro de première ligne physique du record.
+  Pseudonymes répétés dans le fichier ou déjà présents dans le tenant signalés,
+  sans modifier/réactiver la personne existante. Comparaison existante LOWER/TRIM
+  native au moteur, index tenant sur l’expression ; fichier normalisé par trim et
+  mb_strtolower. Pas de rapprochement par e-mail/nom chiffré ni identité devinée.
+  Une reconnaissance explicite des lignes invalides/doublons précède leur exclusion.
+- Contrat PersonImportQueue → adaptateur Laravel → ProcessPersonImport (TenantJob,
+  queue reports, contexte UUID/acteur/requête seulement). Droits et état du tenant
+  revalidés par middleware puis service sous verrou organisation/import. Lots de
+  25, création via PersonService, audit et statut de ligne dans la même transaction.
+  Doublons apparus depuis la prévisualisation ignorés avec un code distinct.
+- Commit par lot : échec annule tout le lot courant, lots précédents conservés.
+  Relances/rejeux sautent les lignes créées. Après échec définitif, état failed et
+  code fermé sans texte d’exception ; reprise HTTP confirmée des seules lignes
+  restantes. Échec de dispatch après commit : état queued durable, reprise explicite.
+  Le worker local existant doit écouter reports (`composer queue:work:local`).
+- Deux tables tenant, FK composites vers artifact/import/personne, index et gardes
+  PG/SQLite. Identité/source immuables ; mapping confirmé et lignes créées protégés,
+  historique confirmé non supprimable. Rollback refuse tout registre non vide.
+  Tests d’anciens rollbacks adaptés à l’ordre réel de dépendance, migrations
+  déployées intactes. Dump de portabilité inclut les tables et leurs champs chiffrés.
+- API /people-imports avec Form Request stricte, policy, repositories et Resource
+  projetée. Listes et lignes par pages de 10, page bornée 1..10000. Comptages en bloc,
+  absence de N+1 de liste vérifiée. Rapport CSV privé : numéro/statut/codes/id de
+  personne uniquement, aucune valeur source ni formule tableur. Rapport après
+  preview/fin/interruption ; pendant traitement, actualiser avant téléchargement.
+- UI dans Personnes, uniquement avec les quatre droits : fichier, séparateur,
+  mapping, prévisualisation paginée, confirmation métier et tenant, suivi manuel,
+  reprise et rapport. Multipart garde CSRF/révision sans imposer de boundary ;
+  réponses tardives ignorées, composant remonté par tenant/révision, rendu échappé.
+- Confirmation push/CI/migration HUM-004 intégrée à ce commit. Aucune importation
+  métier réelle ni migration principale par l’agent. Prochain P0 : TEAM-001 après
+  confirmation utilisateur du push, des CI et de la migration HUM-005.
+- Validation finale : 57 nouveaux tests backend / 179 assertions. Suites complètes
+  avec cache database : SQLite 881 tests / 878 réussis / 3740 assertions / 3
+  exclusions attendues ; PostgreSQL 17 881 / 879 / 3741 / 2 exclusions Redis
+  attendues. Contrôle PG ciblé schema/import/architecture 68 tests / 235 assertions
+  vert. Bases `ucg_hum005_verify_20261012_213959`, `_214346` et `_214458` supprimées
+  après leurs vérifications ; dernière suite complète après correction des dépendances.
+  Ancien test de rollback stockage adapte maintenant son ordre aux FK nouvelles.
+- Pint global, contrôle complet `composer format:check`, Pint dirty, PHPStan niveau 8
+  et architecture verts. Frontend : 77 tests, lint/build, 8 Playwright verts.
+  API métier simulées au navigateur et mobile 375/320 sans débordement global.
+  CI PG enrichie des 5 fichiers de tests ; SQLite intégral existant. Migration
+  principale HUM-005 vérifiée Pending, HUM-004 Ran batch 12.
 
 ## Décision de périmètre — retrait de l’organisation de tournois
 

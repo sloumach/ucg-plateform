@@ -3,6 +3,30 @@ import { tenancyRequest } from './tenancy'
 import { ApiClientError } from './errors'
 
 describe('tenancyRequest', () => {
+  it('envoie un CSV multipart avec CSRF et sans imposer une frontière Content-Type', async () => {
+    document.cookie = 'XSRF-TOKEN=csrf%20token; path=/'
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(null, { status: 204 })).mockResolvedValueOnce(Response.json({ data: { id: 'import-id' } }))
+    vi.stubGlobal('fetch', fetchMock)
+    const body = new FormData()
+    body.set('file', new File(['pseudo\nAlex'], 'people.csv', { type: 'text/csv' }))
+    body.set('delimiter', ',')
+    await tenancyRequest('tenants/tenant-id/people-imports', { method: 'POST', body, revision: 'revision-id' })
+    const options = fetchMock.mock.calls[1][1]
+    expect(options.body).toBe(body)
+    expect(options.headers['X-XSRF-TOKEN']).toBe('csrf token')
+    expect(options.headers['X-Tenant-Revision']).toBe('revision-id')
+    expect(options.headers).not.toHaveProperty('Content-Type')
+    expect(options.credentials).toBe('include')
+  })
+  it('télécharge un rapport avec session et signal sans interpréter du CSV comme du JSON', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('line,status\r\n2,invalid', { headers: { 'Content-Type': 'text/csv' } }))
+    vi.stubGlobal('fetch', fetchMock)
+    const controller = new AbortController()
+    const result = await tenancyRequest<Blob>('tenants/tenant-id/people-imports/import-id/report', { download: true, signal: controller.signal })
+    expect(result.type).toBe('text/csv')
+    expect(await result.text()).toContain('2,invalid')
+    expect(fetchMock.mock.calls[0][1]).toEqual(expect.objectContaining({ signal: controller.signal, credentials: 'include', headers: { Accept: 'text/csv' } }))
+  })
   afterEach(() => {
     vi.unstubAllGlobals()
     document.cookie = 'XSRF-TOKEN=; max-age=0; path=/'

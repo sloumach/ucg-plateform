@@ -415,6 +415,8 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   Push `510d9c0` confirmé ; CI backend `38306904589` arrêtée au formatage de deux
   tests. Espacements corrigés, Pint global/PHPStan et 30 tests ciblés verts ;
   correctif et point de reprise dans un seul commit, nouveau push/CI à confirmer.
+  Correctif `51fb9b1` poussé et CI confirmées vertes par l’utilisateur avant HUM-005 ;
+  migration HUM-004 appliquée par l’utilisateur, vérifiée Ran, batch 12.
 
 ### UCG-HUM-005 — Importer les personnes par CSV
 
@@ -422,6 +424,24 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : dépôt privé, prévisualisation, mapping, validation, doublons, erreurs par ligne et reprise idempotente.
 - **Acceptation** : aucune écriture avant confirmation ; relance sans doublon ; rapport téléchargeable dans le tenant.
 - **Références CDC** : HUM-06, REC-06, REC-07.
+- **État** : implémenté et validé localement le 12 octobre 2026.
+  Import privé de création uniquement, sans liaison de compte ni écrasement de
+  personne existante. Dépôt/staging chiffrés, parser UTF-8/quotes/multilignes borné,
+  mapping fermé, validation réutilisée, preview paginé et codes par ligne ; aucun
+  write de fiche avant confirmation métier/tenant et reconnaissance des exclusions.
+  Candidats en doublon par pseudonyme tenant, pas de rapprochement d’identité deviné.
+  HMAC tenant/fichier/séparateur unique ; création par lots de 25 sur reports via
+  port queue People, contexte frais et revalidation des quatre grants read/write.
+  Résultat/audit par ligne atomiques, lots antérieurs préservés, reprise sans rejouer
+  les créations. Rapport privé sans cellules source ni formules. Tables/FK/index
+  tenant, gardes SQL et portabilité ; rollbacks de tests adaptés, schéma déployé intact.
+  UI complète, transport multipart CSRF/révision, états, pagination et réponses tardives.
+  57 tests backend ajoutés ; SQLite complet 881 tests/878 réussis, 3740 assertions,
+  PostgreSQL 17 881/879, 3741 assertions, exclusions attendues ; bases temporaires
+  supprimées. 77 tests frontend et 8 parcours Playwright verts, mobile 375/320.
+  Pint global/dirty, PHPStan niveau 8, lint/build verts ; CI PG enrichie. Migration
+  principale Pending, aucun CSV/personne réel importé. Code/tests/CI/docs dans un
+  seul commit ; push/CI, sauvegarde puis migration utilisateur avant TEAM-001.
 
 ### UCG-HUM-006 — Implémenter le recrutement et les essais
 

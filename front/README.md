@@ -87,3 +87,29 @@ PersonLifecyclePanel.test.tsx couvre permissions, confirmation, erreurs, fiche
 clôturée et modifications partielles ; lifecycle.spec.ts exerce période, checklist,
 départ et régularisation sur mobile 375/320 sans débordement global. Les API métier
 sont simulées : aucune mutation réelle ni migration principale par les navigateurs.
+
+### Import CSV privé — HUM-005
+
+PersonImportsPanel est intégré à Personnes et exige les quatre droits explicites
+sports.read/write et administrative.read/write. L’ouverture charge les imports du
+tenant courant, par pages de 10. Dépôt multipart, mapping vers une liste fermée de
+champs, defaults langue/fuseau/statut, prévisualisation et erreurs par ligne ;
+aucun compte lié ou écrasement. Les valeurs reçues sont rendues comme texte échappé.
+
+Chaque mutation conserve CSRF/révision et demande la confirmation de l’organisation ;
+l’import exige aussi confirmation métier et reconnaissance des lignes refusées.
+Après traitement, actualiser le suivi et les personnes. Reprise des seuls éléments
+restants ; téléchargement du rapport via fetch avec session, aucune URL publique.
+Le composant est remonté par tenant/révision, les lectures sont annulables et les
+réponses tardives ignorées. API TypeScript : `src/api/personImports.ts`.
+
+PersonImportsPanel.test.tsx couvre droits, fichier multipart, confirmation/annulation,
+mapping, rendu échappé, conflits, pagination, rapport et réponses tardives. Le helper
+tenancyRequest conserve le transport JSON existant et omet Content-Type pour le
+multipart, afin que le navigateur ajoute sa boundary. Un rapport CSV retourne un
+Blob, avec le même traitement des erreurs d’authentification/contexte.
+
+imports.spec.ts couvre dépôt → preview → confirmation → rapport, mobile 375/320
+sans débordement global. API métier simulées : aucune importation réelle dans le
+navigateur. Validation frontend totale : 77 tests Vitest, lint/build et 8 parcours
+Playwright verts.

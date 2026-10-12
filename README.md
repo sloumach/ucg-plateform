@@ -1102,3 +1102,42 @@ attendues ; 65 tests frontend et 7 parcours Playwright verts, mobile 375/320.
 Pint, PHPStan niveau 8, lint/build verts ; base PostgreSQL de test supprimée.
 Pagination et limites par personne bornent les lectures ; profilage des verrous
 nécessaire à volume réel. Prochain P0 après validation : HUM-005, import CSV.
+
+### Import CSV de personnes — UCG-HUM-005
+
+Le panneau Personnes propose un import privé de création, avec fichier UTF-8,
+séparateur virgule/point-virgule, choix des colonnes et prévisualisation paginée.
+Le dépôt et la prévisualisation créent uniquement le staging technique. Les fiches
+sont créées après confirmation métier et confirmation de l’organisation affichée.
+Les lignes invalides ou en doublon exigent une reconnaissance explicite pour être
+exclues. Le rapport téléchargeable contient lignes, états et codes, sans valeurs privées.
+
+Les quatre droits sports.read/write et administrative.read/write sont requis.
+Aucun compte lié, invitation, rôle ou écrasement de fiche existante. Les candidats
+en doublon sont détectés par pseudonyme dans ce tenant, y compris anciens membres ;
+pas de rapprochement automatique par nom ou e-mail chiffré. Source et staging
+privés chiffrés. Limites par fichier dans `back/config/person_imports.php` :
+1 Mio, 1000 lignes, 32 colonnes, en plus des quotas techniques du tenant.
+
+Le traitement utilise la queue `reports` et des lots transactionnels de 25.
+Les droits sont revérifiés avant chaque lot ; les créations et leur audit sont
+enregistrés avec le résultat de ligne. Les lots terminés sont conservés après un
+échec ; une reprise confirmée traite les seules lignes restantes. Le redépôt du
+même fichier/séparateur retrouve le registre existant. Actualiser le suivi puis la
+liste des personnes après traitement. Pour le worker local déjà configuré :
+
+```powershell
+cd back
+composer queue:work:local
+```
+
+HUM-004 et son correctif `51fb9b1` sont poussés, CI validées par l’utilisateur,
+migration appliquée (batch 12). Après push/CI HUM-005 et sauvegarde, appliquer depuis
+`back/` la migration `2026_10_12_211057_create_person_import_tables` avec
+`php artisan migrate`. Elle ajoute les tables, contraintes et index du suivi
+d’import ; rollback refusé si un registre existe. La base principale reste à la
+main de l’utilisateur. Aucun CSV réel ni donnée métier réelle importé par l’agent.
+
+API et exemples : `docs/conventions-api.md`. Code, tests, CI et docs de reprise
+regroupés dans le même commit. Prochain P0 après validation : TEAM-001, catalogue
+administrable de jeux et plateformes.

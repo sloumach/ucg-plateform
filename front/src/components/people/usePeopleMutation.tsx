@@ -8,8 +8,8 @@ import { useNotifications } from '../feedback/notificationContext'
 import { apiError } from './peopleFormValues'
 import type { ApiClientError } from '../../api/errors'
 
-type Pending = { label: string; path: string; method: 'POST' | 'PATCH'; body: Record<string, unknown>; form: HTMLFormElement }
-export function usePeopleMutation(active: ActiveOrganization, onSaved: () => void, onInvalid: () => void) {
+type Pending = { label: string; path: string; method: 'POST' | 'PATCH'; body: Record<string, unknown> | FormData; form: HTMLFormElement }
+export function usePeopleMutation<T = unknown>(active: ActiveOrganization, onSaved: (data: T) => void, onInvalid: () => void) {
   const [pending, setPending] = useState<Pending | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<ApiClientError | null>(null)
@@ -21,7 +21,7 @@ export function usePeopleMutation(active: ActiveOrganization, onSaved: () => voi
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
   useEffect(() => { if (pending) region.current?.focus(); else if (!busy) returnFocus.current?.focus() }, [pending, busy])
 
-  function propose(event: FormEvent<HTMLFormElement>, name: string, path: string, body: Record<string, unknown>, editing = false) {
+  function propose(event: FormEvent<HTMLFormElement>, name: string, path: string, body: Record<string, unknown> | FormData, editing = false) {
     event.preventDefault()
     setError(null); setTarget(null)
     if (editing && Object.keys(body).filter((key) => key !== 'version').length === 0) {
@@ -38,10 +38,10 @@ export function usePeopleMutation(active: ActiveOrganization, onSaved: () => voi
       if (!active.confirmed) await tenancyRequest('active-organization/confirmation', { method: 'POST', body: { organization_id: active.context.organization_id, revision: active.revision, confirm: true } })
       // A tenant switch can unmount this panel while confirmation is in flight.
       if (!alive.current) return
-      const result = await tenancyRequest<ApiSuccessResponse<unknown>>(action.path, { method: action.method, body: action.body, revision: active.revision })
+      const result = await tenancyRequest<ApiSuccessResponse<T>>(action.path, { method: action.method, body: action.body, revision: active.revision })
       if (!alive.current) return
       notify(result.notification ?? { type: 'success', message: t('tenant.done') })
-      setPending(null); onSaved()
+      setPending(null); onSaved(result.data)
     } catch (failure) {
       if (!alive.current) return
       const next = apiError(failure)

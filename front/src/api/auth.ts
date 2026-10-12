@@ -142,7 +142,7 @@ export async function prepareCsrfCookie(): Promise<void> {
   }
 }
 
-export function mutationHeaders(): HeadersInit {
+export function mutationHeaders(): Record<string, string> {
   const csrfToken = document.cookie
     .split('; ')
     .find((cookie) => cookie.startsWith('XSRF-TOKEN='))

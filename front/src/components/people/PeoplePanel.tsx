@@ -14,6 +14,7 @@ import { usePeopleMutation } from './usePeopleMutation'
 import { PersonField, SelectField } from './peopleForms'
 import { apiError, changedValues, label, personAdminFields, personSportsFields, personStatuses, shouldReloadContext } from './peopleFormValues'
 import { PersonLifecyclePanel } from './PersonLifecyclePanel'
+import { PersonImportsPanel } from './PersonImportsPanel'
 
 export function PeoplePanel({ active, disabled: parentDisabled, onInvalid }: {
   active: ActiveOrganization; disabled: boolean; onInvalid: () => void
@@ -128,6 +129,7 @@ export function PeoplePanel({ active, disabled: parentDisabled, onInvalid }: {
     </div>
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
     {mutation.feedback}
+    <PersonImportsPanel key={'imports-' + organizationId + revision} active={active} disabled={disabled} onInvalid={onInvalid} onImported={() => setRefresh((value) => value + 1)} />
     {!canRead && <p>{t('people.noRead')}</p>}
     {canRead && <form key={JSON.stringify(filters)} noValidate aria-label={t('people.apply')} onSubmit={apply} className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
       <SelectField name="view" title={label('view')} defaultValue={filters.view ?? 'general'} disabled={disabled}>

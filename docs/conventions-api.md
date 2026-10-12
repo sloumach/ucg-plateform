@@ -1000,3 +1000,109 @@ await departPerson(organizationId, personId, {
 Ces helpers assurent CSRF/révision et enveloppes typées ; la confirmation tenant
 reste celle du hook de mutation. Aucun appel automatique à un fournisseur externe,
 aucune pièce jointe ou opération financière ajoutée par HUM-004.
+
+## HUM-005 — Import privé de personnes par CSV
+
+Base : `/api/v1/tenants/{tenant}/people-imports`. Tous les endpoints exigent les
+quatre grants explicites sports.read/write et administrative.read/write dans le
+tenant actif. Le fichier peut contenir une identité privée avant tout mapping ;
+les seules permissions d’écriture ou de lecture ne suffisent pas. Auth/session,
+MFA, tenant résolu, CSRF et révision habituels ; mutations confirmées dans le tenant.
+
+| Méthode / route | Entrée | Résultat |
+| --- | --- | --- |
+| GET `/` | page 1..10000 | 10 imports, counts regroupés et pagination |
+| POST `/` | multipart : file, delimiter | registre uploaded, aucune fiche créée |
+| GET `/{import}` | page 1..10000 | registre + 10 lignes projetées + pagination |
+| POST `/{import}/preview` | version, mapping, defaults | lignes ready/invalid/duplicate, aucune fiche créée |
+| POST `/{import}/confirm` | version, confirm, acknowledge_rejected | queued ou résultat courant, puis lots asynchrones |
+| GET `/{import}/report` | aucun payload nécessaire | CSV privé sans valeurs source |
+
+Identifiants UUID, champs inconnus refusés. L’enveloppe JSON reste Resource/success,
+avec notification interactive sur mutations. Le CSV est une réponse attachment,
+Content-Type text/csv UTF-8, private/no-store et nosniff. Rapport indisponible pendant
+queued/processing (409) ; actualiser pour voir la fin ou reprendre après interruption.
+
+Upload : extension .csv, contenu MIME texte/CSV validé puis parser UTF-8 strict,
+BOM facultatif, virgule ou point-virgule explicite. Quotes doublées et cellules
+multilignes acceptées, en-têtes non vides/uniques ≤80 caractères ; lignes vides
+ignorées. Max 1 Mio, 1000 records de données, 32 colonnes, 32768 octets/cellule ;
+les quotas import/storage/artifact tenant peuvent être plus stricts. Source chiffrée
+au repos ; ni nom utilisateur, URL publique ou téléchargement de source brut exposés.
+L’upload identique (mêmes octets/séparateur dans ce tenant) retrouve le même registre.
+
+Mapping : objet champ → index entier 0..31 réellement présent, sans réutiliser une
+colonne ; pseudonym obligatoire. Champs permis : pseudonym, language, timezone,
+status, biography_public, first_name, last_name, contact_email, contact_phone,
+biography_internal. Pas de user_id, rôle, profil de jeu, période ou donnée de départ.
+defaults doit contenir language/timezone/status valides selon PersonInput ; il
+s’applique aux champs obligatoires non mappés. Une valeur vide dans une colonne
+obligatoire mappée reste invalide, elle ne reprend pas silencieusement le défaut.
+Le mapping et staging peuvent être remplacés avant confirmation, avec version UUID.
+Après confirmation ils sont figés. Les numéros désignent le début physique du record
+dans le fichier, y compris lorsqu’une cellule contient plusieurs lignes.
+
+Validation PersonInput par ligne. Pseudonyme répété dans le fichier :
+DUPLICATE_IN_FILE ; candidat existant dans le tenant : EXISTING_PERSON ; aucune
+modification ou réactivation d’un ancien membre. Comparaison native LOWER/TRIM
+pour l’existant, trim/mb_strtolower dans le fichier ; pas de rapprochement par
+identité administrative chiffrée ni normalisation des accents. Les noms identiques
+et e-mails ne sont pas des clés d’identité fiables dans cet import de création.
+
+Confirm exige confirm accepté et acknowledge_rejected=true s’il existe des lignes
+invalides/doublons. Un preview sans ligne prête est refusé (409). Traitement par
+lots transactionnels de 25 sur reports ; droits/tenant revérifiés avant chaque lot.
+Un candidat créé depuis le preview devient skipped avec
+EXISTING_PERSON_AT_EXECUTION. Une ligne créée porte person_id et n’est plus rejouée.
+Les lots précédents restent conservés si un lot suivant échoue. Une reprise POST
+confirm avec version courante et confirmation explicite remet uniquement les lignes
+restantes en queue. Rejeu avec version de confirmation initiale admis sous droits
+actuels ; completed reste un résultat sans nouvelles créations. Aucune invitation,
+liaison de compte, attribution de rôle ou mise à jour de fiche existante.
+
+États registre : uploaded, previewed, queued, processing, completed, failed.
+États ligne : ready, invalid, duplicate, created, skipped. Erreurs de ligne fermées :
+COLUMN_COUNT, DUPLICATE_IN_FILE, EXISTING_PERSON, EXISTING_PERSON_AT_EXECUTION et
+INVALID_<CHAMP>. failure_code PROCESSING_INTERRUPTED n’expose aucun texte d’exception.
+Rapport : line,status,errors,person_id, codes séparés par | ; aucune cellule source,
+nom, e-mail ou formule tableur. Seuls les lecteurs autorisés de ce tenant peuvent
+le télécharger. Pas de purge arbitraire des sources ; leur quota reste comptabilisé.
+
+Erreurs HTTP : 422 fichier/mapping/confirmation métier/pagination invalide,
+403 droits ou MFA manquants, 404 registre hors tenant, 409 version obsolète,
+mapping figé, confirmation tenant absente, exclusions non reconnues ou rien à créer.
+429 quotas tenant/rate limiting selon les conventions TEN existantes. Ne pas
+rejouer automatiquement une erreur de version ou d’autorisation.
+
+Exemple dans le gestionnaire de confirmation humaine, après connexion/sélection
+et confirmation serveur du tenant via le hook habituel :
+
+```ts
+import { tenancyRequest } from '../api/tenancy'
+import { personImportsPath, type PersonImport } from '../api/personImports'
+import type { ApiSuccessResponse } from '../api/contracts'
+
+const root = personImportsPath(organizationId)
+const body = new FormData()
+body.set('file', selectedCsv)
+body.set('delimiter', ';')
+const uploaded = await tenancyRequest<ApiSuccessResponse<PersonImport>>(root, {
+  method: 'POST', body, revision: activeRevision,
+})
+const preview = await tenancyRequest<ApiSuccessResponse<PersonImport>>(`${root}/${uploaded.data.id}/preview`, {
+  method: 'POST', revision: activeRevision,
+  body: { version: uploaded.data.version, mapping: { pseudonym: 0, contact_email: 1 },
+    defaults: { language: 'fr', timezone: 'Europe/Paris', status: 'active' } },
+})
+// Afficher preview.data.rows/counts ; attendre confirmation humaine et reconnaissance
+// des lignes exclues. Aucun appel de création automatique après le preview.
+await tenancyRequest<ApiSuccessResponse<PersonImport>>(`${root}/${uploaded.data.id}/confirm`, {
+  method: 'POST', revision: activeRevision,
+  body: { version: preview.data.version, confirm: true, acknowledge_rejected: exclusionsAcknowledged },
+})
+```
+
+Le helper retire Content-Type pour FormData, conserve CSRF/session/révision et
+laisse le navigateur fournir sa boundary. Téléchargement typé via
+downloadPersonImportReport(organizationId, importId, activeRevision), qui retourne
+un Blob. Environnement asynchrone : un worker doit écouter reports.

@@ -18,6 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
+        'person_imports' => 'id', 'person_import_rows' => 'id',
         'organizations' => 'id', 'organization_settings' => 'organization_id',
         'organization_lifecycle_events' => 'id', 'organization_memberships' => 'id',
         'organization_invitations' => 'id', 'organization_access_events' => 'id',
@@ -33,6 +34,8 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'person_imports' => ['id', 'organization_id', 'actor_user_id', 'execution_actor_id', 'artifact_id', 'fingerprint', 'delimiter', 'headers', 'mapping', 'defaults', 'row_count', 'status', 'version', 'confirmed_version', 'failure_code', 'created_at', 'updated_at'],
+        'person_import_rows' => ['id', 'organization_id', 'import_id', 'line', 'status', 'values', 'errors', 'person_id', 'created_at', 'updated_at'],
         'person_periods' => ['id', 'organization_id', 'person_id', 'kind', 'role_key', 'starts_at', 'ends_at', 'status', 'version', 'created_at', 'updated_at'],
         'person_departure_items' => ['id', 'organization_id', 'person_id', 'kind', 'title', 'notes', 'status', 'due_at', 'completed_at', 'version', 'created_at', 'updated_at'],
         'person_departures' => ['id', 'organization_id', 'person_id', 'user_id', 'actor_user_id', 'reason_key', 'departed_at', 'previous_version', 'person_version', 'pending_items_count', 'created_at', 'updated_at'],
