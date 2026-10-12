@@ -9,8 +9,8 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité et validé localement : `UCG-HUM-003` — listes, recherche,
-  filtres paginés et écrans de fiches/personnes/profils/comptes externes.
+- Dernier ticket traité et validé localement : `UCG-HUM-004` — affectations
+  datées, indisponibilité, départ formel et suivi des équipements/obligations.
 - IAM-006 et son correctif `0b85252` poussés ; push, migration et CI validés
   par l’utilisateur dans cette discussion. Migration confirmée en lecture seule :
   `Ran`, batch 9. L’échec initial `38174777644` reste documenté ci-dessous.
@@ -23,9 +23,14 @@
 - HUM-002 (`3c799ff`) poussé et migré par l’utilisateur ; branche synchronisée
   avec `origin/staging` avant HUM-003. Migration confirmée en lecture seule :
   `Ran`, batch 11. CI validée par l’utilisateur le 12 octobre 2026.
-- Prochaine action : push utilisateur HUM-003 et validation des CI. Ce ticket
-  ne crée aucune migration. Code, tests et docs sont dans le même commit.
-  Aucun profil, compte externe ou personne réelle créé par l’agent.
+- HUM-003 (`2382db8`) poussé ; CI validées par l’utilisateur avant HUM-004.
+  `staging` et `origin/staging` concordaient au début de HUM-004.
+- Prochaine action : push utilisateur HUM-004, validation des CI, sauvegarde
+  puis migration depuis `back/` (`php artisan migrate`). Migration additive
+  `2026_10_12_173809_create_person_lifecycle_tables` vérifiée `Pending` en lecture
+  seule. Code, tests et docs sont dans le même commit. Aucun départ, personne,
+  profil ou compte externe réel créé/modifié par l’agent ; aucune migration
+  appliquée sur la base principale et aucun e-mail envoyé.
 - Format de commit convenu : `UCG-ID: description`, sans préfixe `feat(...)`.
 - Accord utilisateur : un seul commit de tâche regroupe code, tests et docs de
   reprise. Aucun commit documentaire séparé après la tâche ; les confirmations
@@ -39,8 +44,8 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après CI HUM-003, prochain ticket P0 : `UCG-HUM-004`
-  (affectations datées, indisponibilité, départ et révocation des accès).
+- Après push/CI/migration HUM-004, prochain ticket P0 : `UCG-HUM-005`
+  (import CSV privé, prévisualisation, confirmation et reprise idempotente).
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
@@ -972,6 +977,58 @@ Vérifications de clôture :
   Pas de cache de fiches privées ni de benchmark de millions d’utilisateurs.
 - README, contrats API, architecture, backlog, frontend README et point de reprise
   actualisés dans le même commit de tâche. Prochain P0 : HUM-004 après push/CI.
+
+### UCG-HUM-004 — Affectations, indisponibilité et départ formel
+
+- Mission organisationnelle datée : joueur, remplaçant, capitaine, coach,
+  analyste ou staff. Indisponibilités distinctes, sans motif médical. Intervalles
+  semi-ouverts, chevauchement interdit pour un même type/rôle, dates adjacentes
+  autorisées. Aucun roster d’équipe créé : Teams n’est pas encore implémenté.
+- Départ immédiat et explicite, version de personne requise, permissions
+  sports.write + administrative.write + memberships.manage + invitations.manage,
+  session MFA et confirmation tenant. Transaction unique : clôture/annulation des
+  périodes, statut former, registre immuable, révocation de l’adhésion et de tous
+  ses rôles, invitations en attente du compte lié révoquées dans ce tenant.
+  Autres organisations, compte global et historique conservés. Le propriétaire
+  doit transférer la propriété avant départ ; délégation administrative respectée.
+- Équipements/obligations génériques privés : libellé et notes chiffrés, échéance,
+  états open/resolved/waived et date de résolution serveur. Reconnaissance explicite
+  des éléments ouverts avant départ ; les accès sont révoqués immédiatement et
+  la régularisation reste possible ensuite. Aucune décharge financière/contractuelle
+  automatique. Statut descriptif seul et indisponibilité ne révoquent aucun droit.
+- Personne ayant un départ enregistré : statut former et compte lié scellés,
+  pas de nouvelles affectations/profils/comptes externes ; archivage des profils
+  existants permis par l’API. Biographie et checklist restent modifiables selon
+  droits. Une seule clôture par personne ; réadmission métier contrôlée future.
+  Le départ TEN générique ne crée pas automatiquement un registre People.
+- Port public People `PersonDepartureParticipant`, participants database-only
+  dans la même transaction, destiné à Teams/Contracts sans dépendance inverse.
+  Port Tenancy `TenantDepartureAccess`, verrous compte → organisation → personne,
+  3 tentatives en cas de deadlock ; échec participant/audit annule toute l’opération.
+- Migration additive PostgreSQL/SQLite : 3 tables, FK composites tenant/personne,
+  index, gardes SQL d’immuabilité/cohérence, interdiction de DELETE et rollback
+  refusé si données présentes. Aucun backfill ; export de portabilité tenant inclut
+  ces tables avec les champs privés conservés chiffrés.
+- API imbriquée périodes/checklist/départ, Form Requests strictes, policies,
+  DTO/Resource, projections IAM-004, audit sans notes/libellés. Pagination 1..100,
+  page 1..10000, limites par personne : 1000 périodes et 200 éléments au total,
+  y compris clos/archivés. Projection en bloc ; absence de N+1 vérifiée pour 1/21
+  périodes avec cache database. Profilage des verrous à volume réel reste nécessaire.
+- UI raccordée aux fiches : pages de 10, versions, dates locales normalisées,
+  confirmation contextualisée, départ confirmé séparément et rappel des éléments
+  ouverts, consultation du départ et régularisation. Les droits sont rechargés
+  après révocation, y compris départ de soi-même ; réponses tardives ignorées.
+- 61 tests backend ajoutés, 272 assertions. Suites complètes avec cache database :
+  SQLite 824 tests / 821 réussis / 3561 assertions / 3 exclusions attendues ;
+  PostgreSQL 17 824 / 822 / 3562 / 2 exclusions Redis attendues. Base temporaire
+  `ucg_hum004_verify_20261012_184820` supprimée ; base principale non migrée.
+  Pint et PHPStan niveau 8 verts. 65 tests frontend, lint/build et 7 parcours
+  Playwright verts ; mobile 375/320 sans débordement global. API métier simulées
+  pour les parcours navigateur ; aucune mutation métier réelle.
+- CI PostgreSQL enrichie des 4 fichiers de tests HUM-004, SQLite intégral existant.
+  README, contrats API, architecture, backlog et point de reprise dans le même
+  commit. Confirmation push/CI HUM-003 intégrée à ce lot. Prochain P0 : HUM-005
+  après confirmation utilisateur du push, des CI et de la migration HUM-004.
 
 ## Décision de périmètre — retrait de l’organisation de tournois
 

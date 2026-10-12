@@ -4,12 +4,18 @@ namespace App\Modules\People\Infrastructure\Persistence;
 
 use App\Modules\People\Domain\Contracts\PersonRepository;
 use App\Modules\People\Domain\Models\Person;
+use App\Modules\People\Domain\Models\PersonDeparture;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Str;
 
 final class EloquentPersonRepository implements PersonRepository
 {
+    public function hasDeparted(string $organizationId, string $personId): bool
+    {
+        return PersonDeparture::query()->forPerson($organizationId, $personId)->exists();
+    }
+
     public function paginate(string $organizationId, array $filters, bool $sports, bool $administrative): LengthAwarePaginator
     {
         $columns = ['people.id', 'people.organization_id', 'people.version'];

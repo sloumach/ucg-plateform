@@ -66,3 +66,24 @@ npm run test:e2e
 ```
 
 Sans ces options, la CI conserve Chromium et les vidéos en cas d’échec.
+
+### Cycle de vie des personnes — HUM-004
+
+PersonLifecyclePanel affiche périodes datées, indisponibilité, checklist privée
+et départ selon les permissions explicites. La checklist reste régularisable
+après clôture. Le départ nécessite la confirmation de l’organisation et une
+confirmation métier distincte, avec reconnaissance des éléments encore ouverts.
+Le compte lié actuellement affiché est celui dont les accès seront retirés.
+La réponse recharge les droits du tenant, y compris lors d’un départ de soi-même.
+Statut et compte lié sont figés sur une fiche ayant un départ enregistré.
+
+Les listes utilisent des pages de 10, versions optimistes et lectures annulables ;
+les champs datetime-local sont normalisés avant comparaison des modifications.
+API TypeScript : `src/api/personLifecycle.ts`. Les mutations transmettent CSRF,
+révision tenant et uniquement les champs modifiés. Aucune donnée médicale collectée.
+
+Validation totale : 65 tests Vitest, lint/build et 7 parcours Playwright verts.
+PersonLifecyclePanel.test.tsx couvre permissions, confirmation, erreurs, fiche
+clôturée et modifications partielles ; lifecycle.spec.ts exerce période, checklist,
+départ et régularisation sur mobile 375/320 sans débordement global. Les API métier
+sont simulées : aucune mutation réelle ni migration principale par les navigateurs.

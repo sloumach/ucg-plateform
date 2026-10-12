@@ -26,12 +26,16 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
         'organization_audit_events' => 'id',
         'people' => 'id',
         'person_game_profiles' => 'id', 'person_external_accounts' => 'id',
+        'person_periods' => 'id', 'person_departure_items' => 'id', 'person_departures' => 'id',
         'tenant_storage_usage' => 'organization_id', 'tenant_artifacts' => 'id',
         'tenant_portability_operations' => 'id',
     ];
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'person_periods' => ['id', 'organization_id', 'person_id', 'kind', 'role_key', 'starts_at', 'ends_at', 'status', 'version', 'created_at', 'updated_at'],
+        'person_departure_items' => ['id', 'organization_id', 'person_id', 'kind', 'title', 'notes', 'status', 'due_at', 'completed_at', 'version', 'created_at', 'updated_at'],
+        'person_departures' => ['id', 'organization_id', 'person_id', 'user_id', 'actor_user_id', 'reason_key', 'departed_at', 'previous_version', 'person_version', 'pending_items_count', 'created_at', 'updated_at'],
         'organizations' => ['id', 'name', 'slug', 'owner_user_id', 'status', 'timezone', 'language', 'country', 'created_at', 'updated_at'],
         'organization_settings' => ['organization_id', 'week_starts_on', 'date_format', 'created_at', 'updated_at'],
         'organization_lifecycle_events' => ['id', 'organization_id', 'actor_user_id', 'action', 'from_status', 'to_status', 'reason', 'request_id', 'occurred_at'],

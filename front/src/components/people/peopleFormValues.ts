@@ -28,7 +28,9 @@ export function changedValues(form: HTMLFormElement, before: Record<string, unkn
     const value = String(entry)
     const original = before?.[name] ?? ''
     const baseline = dateFields.includes(name) ? localDate(String(original)) : String(original)
-    if (!before || value !== baseline) result[name] = dateFields.includes(name) ? isoDate(value) : name === 'user_id' ? (value ? Number(value) : null) : (value || null)
+    // datetime-local omits zero seconds in its value, even with step=1.
+    const unchanged = dateFields.includes(name) ? isoDate(value) === isoDate(baseline) : value === baseline
+    if (!before || !unchanged) result[name] = dateFields.includes(name) ? isoDate(value) : name === 'user_id' ? (value ? Number(value) : null) : (value || null)
   }
   return result
 }

@@ -13,12 +13,12 @@ import { apiError, changedValues, label, localDate, shouldReloadContext } from '
 import { usePeopleMutation } from './usePeopleMutation'
 
 type Catalogue = GameProfileCatalogue['data']
-export function GameProfilesPanel({ active, personId, catalogue, disabled: parentDisabled, onInvalid }: {
-  active: ActiveOrganization; personId: string; catalogue: Catalogue | null; disabled: boolean; onInvalid: () => void
+export function GameProfilesPanel({ active, personId, catalogue, disabled: parentDisabled, onInvalid, closed = false }: {
+  active: ActiveOrganization; personId: string; catalogue: Catalogue | null; disabled: boolean; onInvalid: () => void; closed?: boolean
 }) {
   const organizationId = active.context?.organization_id
   const revision = active.revision ?? undefined
-  const canWrite = Boolean(active.context?.permissions.includes('sports.write'))
+  const canWrite = !closed && Boolean(active.context?.permissions.includes('sports.write'))
   const [profiles, setProfiles] = useState<Page<GameProfile> | null>(null)
   const [accounts, setAccounts] = useState<Page<ExternalGameAccount> | null>(null)
   const [selected, setSelected] = useState<GameProfile | null>(null)

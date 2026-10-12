@@ -7,6 +7,8 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 interface PersonRepository
 {
+    public function hasDeparted(string $organizationId, string $personId): bool;
+
     /** @param array<string, mixed> $filters
      * @return LengthAwarePaginator<int, Person>
      */

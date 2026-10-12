@@ -388,6 +388,7 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   parcours Playwright complets et deux scénarios HUM-003 verts, mobile 375/320.
   Pint/PHPStan 8, lint/build verts. Code/tests/docs dans un seul commit ; push/CI
   utilisateur avant HUM-004. Confirmation HUM-002 intégrée au même commit.
+  Commit `2382db8` poussé et CI validées par l’utilisateur avant HUM-004.
 
 ### UCG-HUM-004 — Gérer affectations, statuts et départ
 
@@ -395,6 +396,22 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : affectations datées, indisponibilité, ancien membre, révocation des accès, équipements et obligations restantes.
 - **Acceptation** : le départ ferme les droits du tenant concerné sans supprimer l’historique ni les autres adhésions du compte.
 - **Références CDC** : HUM-04, HUM-05, IAM-04.
+- **État** : implémenté et validé localement le 12 octobre 2026.
+  Missions organisationnelles datées et indisponibilités, intervalles semi-ouverts
+  sans chevauchement de même type/rôle ; rosters Teams ultérieurs via port People.
+  Checklist privée chiffrée équipements/obligations, régularisable après départ.
+  Départ versionné confirmé et atomique : fermeture des périodes, registre immuable,
+  statut former, révocation adhésion/rôles/invitations du seul tenant concerné.
+  Propriétaire protégé, autres tenants et historique préservés, auto-départ supporté.
+  Statut descriptif/indisponibilité seuls sans révocation. Compte/statut scellés après
+  départ ; réadmission métier future. Aucun module Contracts ni calcul financier.
+  API autorisée/typée, audit fermé, pagination bornée, limites 1000 périodes/200
+  éléments par personne, gardes SQL PG/SQLite et portabilité tenant. Écrans raccordés.
+  61 tests backend ajoutés ; SQLite complet 824/821 réussis, PG17 824/822,
+  exclusions attendues ; 65 tests frontend et 7 Playwright verts, mobile 375/320.
+  Pint/PHPStan 8, lint/build verts ; CI PG enrichie. Migration principale Pending,
+  aucune opération métier réelle. Code/tests/docs dans un seul commit ; push/CI,
+  sauvegarde puis migration par l’utilisateur avant HUM-005.
 
 ### UCG-HUM-005 — Importer les personnes par CSV
 

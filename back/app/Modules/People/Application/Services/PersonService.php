@@ -87,6 +87,11 @@ final readonly class PersonService implements PeopleDirectory
                 if ($person !== null && $person->version !== $data->version) {
                     throw new DomainConflictException(__('people.stale'), 'PERSON_VERSION_STALE');
                 }
+                if ($person !== null && $this->people->hasDeparted($context->organizationId, $person->id)
+                    && ((array_key_exists('status', $attributes) && $attributes['status'] !== 'former')
+                        || (array_key_exists('user_id', $attributes) && $attributes['user_id'] !== $person->user_id))) {
+                    throw new DomainConflictException(__('people_lifecycle.departed'), 'PERSON_ALREADY_DEPARTED');
+                }
                 $before = $person === null ? [] : $this->auditState($person);
                 $values = [...$attributes, 'version' => (string) Str::uuid()];
                 $saved = $person === null ? $this->people->create($context->organizationId, $values) : $this->people->update($person, $values);

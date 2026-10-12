@@ -8,6 +8,13 @@ use Illuminate\Support\Str;
 
 final class EloquentAccountDirectory implements AccountDirectory
 {
+    public function lockAccountEmail(int $userId): ?string
+    {
+        $account = User::query()->whereKey($userId)->lockForUpdate()->first();
+
+        return $account === null ? null : Str::lower(trim($account->email));
+    }
+
     public function hasConfirmedMfa(int $userId): bool
     {
         return User::query()->whereKey($userId)->whereNotNull('mfa_confirmed_at')

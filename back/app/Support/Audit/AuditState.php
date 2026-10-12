@@ -15,6 +15,13 @@ final class AuditState
         $result = [];
         foreach ($state as $key => $value) {
             $valid = match ($key) {
+                'period_changed_fields' => self::listWithin($value, ['kind', 'role_key', 'starts_at', 'ends_at', 'status']),
+                'departure_item_changed_fields' => self::listWithin($value, ['kind', 'title', 'notes', 'status', 'due_at']),
+                'lifecycle_kind' => is_string($value) && in_array($value, ['assignment', 'unavailability', 'equipment', 'obligation'], true),
+                'lifecycle_status' => is_string($value) && in_array($value, ['active', 'closed', 'cancelled', 'open', 'resolved', 'waived'], true),
+                'lifecycle_id' => is_string($value) && Str::isUuid($value),
+                'departed_at' => is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/D', $value) === 1,
+                'pending_items_count' => is_int($value) && $value >= 0 && $value <= 200,
                 'active', 'privileged', 'confirmed', 'account_linked', 'external_id_available' => is_bool($value),
                 'game_profile_changed_fields' => self::listWithin($value, ['game_key', 'platform_key', 'region_key', 'rank', 'game_role', 'observed_at', 'status']),
                 'external_account_changed_fields' => self::listWithin($value, ['provider_key', 'external_id', 'display_name', 'observed_at', 'status']),

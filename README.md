@@ -1068,3 +1068,37 @@ Validation : 45 nouveaux tests backend ; suite SQLite 763/760 réussis et Postgr
 17 763/761, exclusions attendues. 57 tests Vitest, Pint/PHPStan 8, lint/build et
 parcours Playwright verts, contrôles mobile 375/320. Les plans de recherche doivent
 être profilés à volume réel ; aucun benchmark de millions d’utilisateurs.
+
+### Affectations, indisponibilité et départ — UCG-HUM-004
+
+Les fiches proposent désormais les missions organisationnelles datées et les
+indisponibilités, ainsi qu’une checklist privée d’équipements/obligations. Les
+rosters d’équipes et contrats seront raccordés dans leurs modules ultérieurs.
+Les libellés et notes de checklist sont chiffrés ; aucune raison médicale collectée.
+
+« Confirmer le départ » ferme les périodes, enregistre la personne comme ancien
+membre et retire adhésion, rôles et invitations en attente du compte lié dans
+l’organisation affichée, en une seule transaction. Les autres organisations et
+l’historique sont conservés. Le propriétaire doit transférer la propriété avant
+départ. Les éléments ouverts exigent une reconnaissance explicite et restent
+régularisables ensuite ; ils ne retardent pas la révocation des accès. Le statut
+descriptif seul et l’indisponibilité ne retirent aucun accès. Une personne clôturée
+ne peut plus changer de statut/compte lié ; réadmission métier contrôlée ultérieure.
+
+HUM-003 (`2382db8`) a été poussé et ses CI validées par l’utilisateur. HUM-004
+ajoute `2026_10_12_173809_create_person_lifecycle_tables` : après push et CI,
+sauvegarder la base puis exécuter depuis `back/` :
+
+```powershell
+php artisan migrate
+```
+
+Migration principale vérifiée Pending, aucune migration ni opération métier
+réelle effectuée par l’agent. Rollback refusé si les tables lifecycle contiennent
+des données. Documentation et tests inclus dans le commit de tâche.
+
+Validation locale : 821 tests SQLite et 822 PostgreSQL réussis, exclusions
+attendues ; 65 tests frontend et 7 parcours Playwright verts, mobile 375/320.
+Pint, PHPStan niveau 8, lint/build verts ; base PostgreSQL de test supprimée.
+Pagination et limites par personne bornent les lectures ; profilage des verrous
+nécessaire à volume réel. Prochain P0 après validation : HUM-005, import CSV.

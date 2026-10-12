@@ -4,18 +4,25 @@ namespace App\Modules\People\Providers;
 
 use App\Modules\People\Application\Contracts\GameProfileCatalogue;
 use App\Modules\People\Application\Contracts\PeopleDirectory;
+use App\Modules\People\Application\Services\PersonDepartureService;
 use App\Modules\People\Application\Services\PersonService;
 use App\Modules\People\Domain\Contracts\ExternalGameAccountRepository;
 use App\Modules\People\Domain\Contracts\GameProfileRepository;
+use App\Modules\People\Domain\Contracts\PersonLifecycleRepository;
 use App\Modules\People\Domain\Contracts\PersonRepository;
 use App\Modules\People\Domain\Models\ExternalGameAccount;
 use App\Modules\People\Domain\Models\GameProfile;
 use App\Modules\People\Domain\Models\Person;
+use App\Modules\People\Domain\Models\PersonDeparture;
+use App\Modules\People\Domain\Models\PersonDepartureItem;
+use App\Modules\People\Domain\Models\PersonPeriod;
 use App\Modules\People\Infrastructure\Catalogue\ConfiguredGameProfileCatalogue;
 use App\Modules\People\Infrastructure\Persistence\EloquentExternalGameAccountRepository;
 use App\Modules\People\Infrastructure\Persistence\EloquentGameProfileRepository;
+use App\Modules\People\Infrastructure\Persistence\EloquentPersonLifecycleRepository;
 use App\Modules\People\Infrastructure\Persistence\EloquentPersonRepository;
 use App\Modules\People\Presentation\Policies\GameProfilePolicy;
+use App\Modules\People\Presentation\Policies\PersonLifecyclePolicy;
 use App\Modules\People\Presentation\Policies\PersonPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
@@ -25,6 +32,8 @@ final class PeopleServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(PersonLifecycleRepository::class, EloquentPersonLifecycleRepository::class);
+        $this->app->when(PersonDepartureService::class)->needs('$participants')->giveTagged('people.departure-participants');
         $this->app->bind(GameProfileCatalogue::class, ConfiguredGameProfileCatalogue::class);
         $this->app->bind(GameProfileRepository::class, EloquentGameProfileRepository::class);
         $this->app->bind(ExternalGameAccountRepository::class, EloquentExternalGameAccountRepository::class);
@@ -34,6 +43,9 @@ final class PeopleServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Gate::policy(PersonPeriod::class, PersonLifecyclePolicy::class);
+        Gate::policy(PersonDepartureItem::class, PersonLifecyclePolicy::class);
+        Gate::policy(PersonDeparture::class, PersonLifecyclePolicy::class);
         Gate::policy(GameProfile::class, GameProfilePolicy::class);
         Gate::policy(ExternalGameAccount::class, GameProfilePolicy::class);
         Gate::policy(Person::class, PersonPolicy::class);

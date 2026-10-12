@@ -37,6 +37,9 @@ describe('Fiches et recherche de personnes', () => {
     request.mockReset()
     request.mockImplementation(async (path, options) => {
       if (options?.method) return { data: person, notification: { type: 'success', message: 'Enregistré.' } }
+      if (path.endsWith('/departure')) return { data: { departed: false, person_version: revision } }
+      if (path.includes('/departure-items')) return { ...page([]), meta: { ...page([]).meta, pending_items_count: 0 } }
+      if (path.includes('/periods')) return { ...page([]), meta: { ...page([]).meta, unavailable_now: false } }
       if (path.includes('game-profile-catalogue')) return { data: catalogue }
       if (path.includes('external-accounts')) return page([account])
       if (path.includes('game-profiles')) return page([profile])

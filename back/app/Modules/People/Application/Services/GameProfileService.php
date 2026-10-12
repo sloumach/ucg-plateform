@@ -58,6 +58,10 @@ final readonly class GameProfileService
                 $this->guard->lock($context);
                 $this->authorization->authorize($context, 'sports.write');
                 $this->people->find($context->organizationId, $personId, true);
+                $departureArchivingOnly = $id !== null && ($attributes['status'] ?? null) === 'archived' && array_diff(array_keys($attributes), ['status']) === [];
+                if ($this->people->hasDeparted($context->organizationId, $personId) && ! $departureArchivingOnly) {
+                    throw new DomainConflictException(__('people_lifecycle.departed'), 'PERSON_ALREADY_DEPARTED');
+                }
                 $profile = $id === null ? null : $this->profiles->find($context->organizationId, $personId, $id, true);
                 if ($profile !== null && $profile->version !== $data->version) {
                     throw new DomainConflictException(__('game_profiles.profile_stale'), 'GAME_PROFILE_VERSION_STALE');

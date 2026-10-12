@@ -723,3 +723,56 @@ Les références retirées restent consultables et archivables. Aucune suppressi
 physique ni révocation d’accès via statut descriptif ; HUM-004 reste responsable
 du départ effectif. Catalogue administrable complet reste TEAM-001. Aucun OAuth,
 publication publique ou nouveau cache de fiches privées ajouté.
+
+## Cycle de vie People — HUM-004
+
+People ajoute trois agrégats tenant/personne : PersonPeriod (mission
+organisationnelle/indisponibilité), PersonDepartureItem (équipement/obligation),
+PersonDeparture (registre de départ). Form Requests → DTO → services → repository
+→ projections IAM-004/Resource. Controllers minces, policies explicites ; aucun
+contenu privé de checklist dans les audits. Libellés/notes chiffrés via casts.
+
+Périodes et checklist prennent le verrou organisation puis personne, autorisent
+de nouveau sous verrou, contrôlent version/capacité et écrivent l’audit dans la
+transaction. Le chevauchement des intervalles semi-ouverts de même type/rôle est
+contrôlé sous verrou personne ; les dates adjacentes sont permises. Limites 1000
+périodes et 200 éléments par personne, pagination 100/page et page 10000 maximum,
+projections en bloc. La clôture parcourt les périodes actives par lazyById(100).
+Pas de cache supplémentaire des fiches privées ni de benchmark de forte charge ;
+profilage des plans et de la contention avant optimisation.
+
+Le port public Tenancy `TenantDepartureAccess` orchestre une transaction avec
+3 tentatives deadlock : verrou compte global (y compris non vérifié), organisation,
+personne ; autorisation sous verrou et contrôle de délégation ; callback People ;
+révocation invitations/adhésion/tous rôles du compte dans cette organisation.
+Le compte global et les autres tenants sont préservés. Le propriétaire est protégé.
+La réponse d’action est préautorisée avant révocation pour permettre l’auto-départ.
+Audit ou participant défaillant annule toute la clôture et la révocation.
+
+People publie `Application/Contracts/PersonDepartureParticipant` et le tag
+`people.departure-participants`. Teams/Contracts pourront fournir des participants
+database-only, retry-safe et synchrones dans cette transaction ; aucun appel réseau,
+fichier ou job externe dans le callback. Teams peut dépendre du port People ; People
+ne dépend jamais d’un service interne Teams/Contracts. Aucun participant concret
+ajouté tant que ces modules n’existent pas ; aucune affectation de roster implicite.
+
+Migration additive PG/SQLite : FK composites `(organization_id, person_id)`, index
+tenant/personne/type/statut, gardes SQL d’immuabilité/date/état ; DELETE interdit.
+Une seule clôture/personne, registre immuable. Trigger people interdit de modifier
+status/user_id après départ ; les services bloquent nouvelles périodes/profils/
+comptes externes, avec archivage API possible. Biographie et checklist restent
+modifiables selon droits. Réadmission métier future ; les opérations génériques
+Tenancy ne créent pas automatiquement le registre People. Le statut descriptif
+seul et l’indisponibilité ne modifient pas les accès.
+
+Migration sans backfill, lock_timeout PG 5s et rollback refusé si tables non vides.
+Portabilité : les 3 tables rejoignent le dump tenant, champs privés chiffrés.
+Les éléments ouverts exigent reconnaissance avant départ mais ne retardent pas
+la révocation ; le registre mémorise leur nombre à la clôture. Aucun calcul de
+dette, paiement ou décharge contractuelle automatique.
+
+PersonLifecyclePanel compose périodes, checklist, départ et profils de jeu dans
+les fiches existantes. Révision/version, confirmation tenant et confirmation
+métier, réponses tardives ignorées, rechargement des droits après départ.
+La fiche scellée interdit dans l’UI la modification statut/compte et des profils,
+mais garde la régularisation administrative. L’autorisation serveur reste décisive.

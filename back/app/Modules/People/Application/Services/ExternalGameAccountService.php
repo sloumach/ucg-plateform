@@ -8,6 +8,7 @@ use App\Modules\People\Application\Data\ExternalGameAccountData;
 use App\Modules\People\Application\Validation\GameProfileInput;
 use App\Modules\People\Domain\Contracts\ExternalGameAccountRepository;
 use App\Modules\People\Domain\Contracts\GameProfileRepository;
+use App\Modules\People\Domain\Contracts\PersonRepository;
 use App\Modules\People\Domain\GameProfileStatus;
 use App\Modules\People\Domain\Models\ExternalGameAccount;
 use App\Modules\Tenancy\Application\Contracts\TenantAuditJournal;
@@ -28,7 +29,7 @@ use Illuminate\Validation\ValidationException;
 
 final readonly class ExternalGameAccountService
 {
-    public function __construct(private ExternalGameAccountRepository $accounts, private GameProfileRepository $profiles,
+    public function __construct(private ExternalGameAccountRepository $accounts, private GameProfileRepository $profiles, private PersonRepository $people,
         private GameProfileCatalogue $catalogue, private TenantAuthorization $authorization,
         private TenantBusinessGuard $guard, private TenantAuditJournal $audit, private ConnectionInterface $database,
         private Factory $validator, private GameProfileFreshness $freshness) {}
@@ -61,6 +62,11 @@ final readonly class ExternalGameAccountService
             return $this->database->transaction(function () use ($context, $personId, $profileId, $data, $attributes, $id, $ipAddress): ExternalGameAccount {
                 $this->guard->lock($context);
                 $this->authorization->authorize($context, 'sports.write');
+                $this->people->find($context->organizationId, $personId, true);
+                $departureArchivingOnly = $id !== null && ($attributes['status'] ?? null) === 'archived' && array_diff(array_keys($attributes), ['status']) === [];
+                if ($this->people->hasDeparted($context->organizationId, $personId) && ! $departureArchivingOnly) {
+                    throw new DomainConflictException(__('people_lifecycle.departed'), 'PERSON_ALREADY_DEPARTED');
+                }
                 $profile = $this->profiles->find($context->organizationId, $personId, $profileId, true);
                 $account = $id === null ? null : $this->accounts->find($context->organizationId, $profileId, $id, true);
                 if ($account !== null && $account->version !== $data->version) {

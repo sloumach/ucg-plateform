@@ -13,7 +13,7 @@ import { AsyncState } from '../feedback/AsyncState'
 import { usePeopleMutation } from './usePeopleMutation'
 import { PersonField, SelectField } from './peopleForms'
 import { apiError, changedValues, label, personAdminFields, personSportsFields, personStatuses, shouldReloadContext } from './peopleFormValues'
-import { GameProfilesPanel } from './GameProfilesPanel'
+import { PersonLifecyclePanel } from './PersonLifecyclePanel'
 
 export function PeoplePanel({ active, disabled: parentDisabled, onInvalid }: {
   active: ActiveOrganization; disabled: boolean; onInvalid: () => void
@@ -31,6 +31,7 @@ export function PeoplePanel({ active, disabled: parentDisabled, onInvalid }: {
   const [data, setData] = useState<Page<Person> | null>(null)
   const [catalogue, setCatalogue] = useState<GameProfileCatalogue['data'] | null>(null)
   const [person, setPerson] = useState<Person | null>(null)
+  const [closed, setClosed] = useState(false)
   const [editing, setEditing] = useState<Person | null | undefined>(undefined)
   const [view, setView] = useState<PeopleView>('general')
   const [loading, setLoading] = useState(canRead)
@@ -79,7 +80,7 @@ export function PeoplePanel({ active, disabled: parentDisabled, onInvalid }: {
     const current = ++generation.current
     read.current?.abort()
     const controller = new AbortController(); read.current = controller
-    setPerson(null); setEditing(undefined); setError(null); setLoading(true)
+    setPerson(null); setEditing(undefined); setError(null); setLoading(true); setClosed(false)
     try {
       const result = await getPerson(organizationId, id, revision, controller.signal)
       if (alive.current && current === generation.current && !controller.signal.aborted) { setPerson(result.data); setView('general') }
@@ -155,7 +156,7 @@ export function PeoplePanel({ active, disabled: parentDisabled, onInvalid }: {
         const values = changedValues(event.currentTarget, editing)
         mutation.propose(event, label('save') + ' — ' + (editing?.pseudonym ?? values.pseudonym ?? editing?.id ?? ''), path, { ...values, ...(editing ? { version: editing.version } : {}) }, editing !== null)
       }}>
-        {editorFields.map((name) => <PersonField key={name} name={name} value={editing?.[name]} language={context.language} timezone={context.timezone} disabled={disabled} error={mutation.errors(path)[name]?.[0]} />)}
+        {editorFields.map((name) => <PersonField key={name} name={name} value={editing?.[name]} language={context.language} timezone={context.timezone} disabled={disabled || (closed && editing !== null && ['status','user_id'].includes(name))} error={mutation.errors(path)[name]?.[0]} />)}
         <p className="text-sm text-slate-400 md:col-span-2">{label('statusHint')} {editorFields.includes('user_id') && label('linkHint')}</p>
         <div className="flex flex-wrap gap-3"><Button type="submit" disabled={disabled}>{label('save')}</Button><Button disabled={disabled} onClick={() => setEditing(undefined)}>{t('tenant.cancel')}</Button></div>
       </form> : person && <>
@@ -163,7 +164,7 @@ export function PeoplePanel({ active, disabled: parentDisabled, onInvalid }: {
           <option value="general">{label('general')}</option>{sports && <option value="sports">{label('sports')}</option>}{administrative && <option value="administrative">{label('administrative')}</option>}
         </SelectField>
         <dl className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">{fields.filter((name) => Object.hasOwn(person, name)).map((name) => <div key={name} className="min-w-0"><dt className="text-sm text-slate-400">{label(name)}</dt><dd className="whitespace-pre-wrap break-words">{name === 'status' ? label('status.' + person.status) : String(person[name] ?? label('none'))}</dd></div>)}</dl>
-        {sports && view !== 'administrative' && <GameProfilesPanel key={person.id} active={active} personId={person.id} catalogue={catalogue} disabled={disabled} onInvalid={onInvalid} />}
+        <PersonLifecyclePanel key={person.id} active={active} person={person} view={view} catalogue={catalogue} disabled={disabled} onInvalid={onInvalid} onClosed={setClosed} />
       </>}
     </section>}
   </section>

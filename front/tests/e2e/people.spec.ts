@@ -35,6 +35,7 @@ test('personnes : création confirmée, recherche, profils et comptes sur mobile
       context: { organization_id: org, name: 'Alpha', slug: 'alpha', timezone: 'UTC', language: 'fr', roles: ['member'], permissions: ['organization.view', 'sports.read', 'sports.write'], is_owner: false, actor_user_id: 42, membership_id: 'membership' }, revision, confirmed,
     }
     if (path.endsWith('/game-profile-catalogue')) data = catalogue
+    if (path.endsWith('/departure')) data = { departed: false, person_version: revision }
     const peoplePath = 'tenants/' + org + '/people'
     if (path === peoplePath) {
       if (method === 'POST') {
@@ -74,7 +75,7 @@ test('personnes : création confirmée, recherche, profils et comptes sur mobile
         data = accounts[0]; status = 201
       } else data = accounts
     }
-    const meta = { request_id: 'browser-people', current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 1 }
+    const meta = { request_id: 'browser-people', current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 1, unavailable_now: false, pending_items_count: 0 }
     await route.fulfill({ status, headers, json: { data, meta, ...(notification ? { notification } : {}) } })
   })
   await page.goto('/')
@@ -143,6 +144,7 @@ test('changer d’organisation efface la fiche et une confirmation en attente sa
     if (path === 'active-organization' && method === 'POST') selected = route.request().postDataJSON().organization_id
     if (path === 'active-organization') data = { context: { organization_id: selected, name: selected === alpha ? 'Alpha' : 'Beta', slug: 'test', timezone: 'UTC', language: 'fr', roles: ['member'], permissions: selected === alpha ? ['organization.view', 'sports.read', 'sports.write'] : ['organization.view'], is_owner: false, actor_user_id: 42, membership_id: 'membership' }, revision, confirmed: false }
     if (path.endsWith('/game-profile-catalogue')) data = { games: [] }
+    if (path.endsWith('/departure')) data = { departed: false, person_version: revision }
     if (path === 'tenants/' + alpha + '/people') data = [{ id: '44444444-4444-4444-8444-444444444444', version: revision, pseudonym: 'SECRET_ALPHA', language: 'fr', timezone: 'UTC', status: 'active', game_profiles_count: 0 }]
     if (path.includes('/people') && method !== 'GET') writes++
     await route.fulfill({ status: 200, headers, json: { data, meta: { request_id: 'browser-isolation', current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 1 } } })

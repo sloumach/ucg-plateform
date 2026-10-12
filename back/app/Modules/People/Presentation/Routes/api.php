@@ -4,6 +4,9 @@ use App\Modules\People\Presentation\Http\Controllers\Api\V1\ExternalGameAccountC
 use App\Modules\People\Presentation\Http\Controllers\Api\V1\GameProfileCatalogueController;
 use App\Modules\People\Presentation\Http\Controllers\Api\V1\GameProfileController;
 use App\Modules\People\Presentation\Http\Controllers\Api\V1\PersonController;
+use App\Modules\People\Presentation\Http\Controllers\Api\V1\PersonDepartureController;
+use App\Modules\People\Presentation\Http\Controllers\Api\V1\PersonDepartureItemController;
+use App\Modules\People\Presentation\Http\Controllers\Api\V1\PersonPeriodController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('tenants/{tenant}/game-profile-catalogue', [GameProfileCatalogueController::class, 'index'])
@@ -25,6 +28,16 @@ Route::prefix('tenants/{tenant}/people/{person}/game-profiles')->whereUuid(['ten
 });
 
 Route::prefix('tenants/{tenant}/people')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
+    Route::prefix('{person}')->whereUuid('person')->group(function (): void {
+        Route::get('periods', [PersonPeriodController::class, 'index'])->name('people.periods.index');
+        Route::post('periods', [PersonPeriodController::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('people.periods.store');
+        Route::patch('periods/{record}', [PersonPeriodController::class, 'update'])->whereUuid('record')->middleware('tenant.confirmed')->block(10, 10)->name('people.periods.update');
+        Route::get('departure-items', [PersonDepartureItemController::class, 'index'])->name('people.departure-items.index');
+        Route::post('departure-items', [PersonDepartureItemController::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('people.departure-items.store');
+        Route::patch('departure-items/{record}', [PersonDepartureItemController::class, 'update'])->whereUuid('record')->middleware('tenant.confirmed')->block(10, 10)->name('people.departure-items.update');
+        Route::get('departure', [PersonDepartureController::class, 'show'])->name('people.departure.show');
+        Route::post('departure', [PersonDepartureController::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('people.departure.store');
+    });
     Route::get('/', [PersonController::class, 'index'])->name('people.index');
     Route::get('{person}', [PersonController::class, 'show'])->whereUuid('person')->block(10, 10)->name('people.show');
     Route::post('/', [PersonController::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('people.store');

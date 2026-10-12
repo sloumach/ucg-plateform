@@ -908,3 +908,95 @@ if (first) {
 Les protections d’historique
 restent en place : pas de DELETE. Le statut former ne révoque aucun accès ; départ
 effectif dans HUM-004. Aucune migration, export métier ou import dans HUM-003.
+
+## HUM-004 — Périodes, checklist et départ des personnes
+
+Base : `/api/v1/tenants/{tenant}/people/{person}`. UUID tenant/personne/record,
+session authentifiée MFA, tenant actif et autorisation métier restent obligatoires.
+Les mutations exigent également CSRF, `X-Tenant-Revision` et confirmation tenant,
+avec limitation de fréquence existante. Aucune suppression physique.
+
+| Route | Méthode | Permission |
+| --- | --- | --- |
+| `/periods` | GET | sports.read |
+| `/periods` | POST | sports.write |
+| `/periods/{record}` | PATCH | sports.write |
+| `/departure-items` | GET | administrative.read |
+| `/departure-items` | POST | administrative.write |
+| `/departure-items/{record}` | PATCH | administrative.write |
+| `/departure` | GET | sports.read ou administrative.read |
+| `/departure` | POST | sports.write + administrative.write + memberships.manage + invitations.manage |
+
+Lecture paginée `page=1..10000`, `per_page=1..100` (client 10). Résultats bornés
+au tenant et à la personne ; ressources projetées IAM-004, aucune lecture accordée
+par le seul droit d’écriture. Auteur sans lecture reçoit les métadonnées id/version
+du résultat. GET departure expose departed/person_version et, si départ enregistré,
+id/person_id/departed_at ; reason_key/pending_items_count uniquement aux lecteurs
+administratifs. Aucun identifiant du compte historique ni acteur dans cette vue.
+
+Période : kind `assignment|unavailability`, starts_at ISO8601 secondes + offset,
+ends_at nullable, role_key obligatoire pour assignment (`player|substitute|captain|
+coach|analyst|staff`), absent/null pour unavailability. Aucun motif médical.
+Intervalle `[début, fin)` avec fin strictement après début ; chevauchement des périodes
+non annulées de même type/rôle refusé, adjacence autorisée. `status=active|cancelled`
+à la création/modification ; closed réservé à la clôture serveur. PATCH exige
+version UUID et accepte starts_at/ends_at/status uniquement. Une période close ou
+annulée reste consultable mais ne se modifie plus. 1000 périodes maximum par personne,
+historique inclus. GET ajoute meta.unavailable_now et effective sur chaque période.
+
+Checklist : kind `equipment|obligation`, title non blanc ≤120, notes nullable ≤4000,
+due_at ISO8601 nullable, status `open|resolved|waived`. Kind immuable. PATCH exige
+version ; title/notes/due_at/status seuls modifiables. Date completed_at calculée
+par le serveur, remise à null en réouverture ; waived exige une note non blanche.
+200 éléments maximum, historique inclus. GET ajoute meta.pending_items_count,
+nombre total d’éléments ouverts de cette personne. Title/notes chiffrés au repos ;
+jamais dans l’audit ni projection sportive. Régularisation autorisée après départ.
+
+POST departure exige version de personne, reason_key
+`resignation|end_of_contract|decision|other`, confirm accepté et
+acknowledge_pending=true si des éléments sont ouverts. Pas de date caller : départ
+immédiat. Champs inconnus refusés. Transaction unique ferme/annule les périodes,
+inscrit le départ, marque former, retire adhésion/rôles/invitations en attente du
+compte actuellement lié dans ce tenant. Aucune révocation dans un autre tenant.
+Le propriétaire doit d’abord transférer la propriété ; la délégation des rôles
+administratifs reste réservée au propriétaire. Auto-départ permis si autorisé.
+Réponse d’action : id/person_id/person_version/departed, sans nouvelle lecture après
+révocation. Rejeu autorisé avec même version source/motif renvoie le même départ ;
+aucun rejeu si l’acteur a perdu ses droits. Une seule clôture par personne.
+
+Statut descriptif seul ou indisponibilité n’altèrent pas IAM. Après départ formel,
+status/user_id scellés, périodes et nouveaux profils/comptes externes refusés ;
+archivage des profils existants permis. Réadmission métier contrôlée future.
+Le départ générique Tenancy ne crée pas automatiquement un registre People.
+
+Erreurs : 422 payload invalide/inconnu ; 403 droits/MFA insuffisants ;
+404 tenant/personne/record absent du contexte ; 409 confirmation tenant manquante,
+révision obsolète, conflit de version,
+chevauchement, limite atteinte, propriétaire protégé, éléments non reconnus ou
+personne déjà clôturée. Ne jamais rejouer automatiquement un conflit.
+
+Exemple à intégrer au gestionnaire de confirmation explicite, après sélection
+tenant et confirmation serveur via le client tenancy existant :
+
+```ts
+import { createPersonPeriod, createDepartureItem, departPerson } from '../api/personLifecycle'
+
+await createPersonPeriod(organizationId, personId, {
+  kind: 'assignment', role_key: 'player',
+  starts_at: '2026-10-12T09:00:00+02:00', ends_at: null,
+}, activeRevision)
+await createDepartureItem(organizationId, personId, {
+  kind: 'equipment', title: 'Maillot à restituer', status: 'open',
+}, activeRevision)
+// Dans le bouton « Confirmer le départ », après affichage du compte concerné
+// et reconnaissance humaine des éléments ouverts ; version de fiche courante.
+await departPerson(organizationId, personId, {
+  version: personVersion, reason_key: 'resignation',
+  confirm: true, acknowledge_pending: true,
+}, activeRevision)
+// Recharger l’organisation active et ses droits après la révocation.
+```
+
+Ces helpers assurent CSRF/révision et enveloppes typées ; la confirmation tenant
+reste celle du hook de mutation. Aucun appel automatique à un fournisseur externe,
+aucune pièce jointe ou opération financière ajoutée par HUM-004.
