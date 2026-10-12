@@ -63,6 +63,6 @@ class PersonLifecyclePolicyTest extends TestCase
         $user = User::factory()->withMfa()->create();
         $this->grantPeopleAccess($org, $user, ['sports.write', 'administrative.write', 'memberships.manage', 'invitations.manage']);
         PlatformRole::factory()->create(['user_id' => $user->id]);
-        $this->assertFalse(Gate::forUser($user)->allows('depart',[PersonDeparture::class, $this->personContext($org,$user)]));
+        $this->assertFalse(Gate::forUser($user)->allows('depart', [PersonDeparture::class, $this->personContext($org, $user)]));
     }
 }

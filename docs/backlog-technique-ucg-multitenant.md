@@ -412,6 +412,9 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   Pint/PHPStan 8, lint/build verts ; CI PG enrichie. Migration principale Pending,
   aucune opération métier réelle. Code/tests/docs dans un seul commit ; push/CI,
   sauvegarde puis migration par l’utilisateur avant HUM-005.
+  Push `510d9c0` confirmé ; CI backend `38306904589` arrêtée au formatage de deux
+  tests. Espacements corrigés, Pint global/PHPStan et 30 tests ciblés verts ;
+  correctif et point de reprise dans un seul commit, nouveau push/CI à confirmer.
 
 ### UCG-HUM-005 — Importer les personnes par CSV
 

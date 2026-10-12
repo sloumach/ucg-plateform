@@ -142,6 +142,6 @@ class PersonLifecycleSchemaTest extends TestCase
         $this->assertCount(1, $items);
         $this->assertSame($item->id, $items[0]['data']['id']);
         $this->assertNotSame('SECRET_SERIAL', $items[0]['data']['title']);
-        $this->assertStringNotContainsString('OTHER_SECRET',json_encode($rows,JSON_THROW_ON_ERROR));
+        $this->assertStringNotContainsString('OTHER_SECRET', json_encode($rows, JSON_THROW_ON_ERROR));
     }
 }

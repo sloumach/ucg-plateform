@@ -25,7 +25,11 @@
   `Ran`, batch 11. CI validée par l’utilisateur le 12 octobre 2026.
 - HUM-003 (`2382db8`) poussé ; CI validées par l’utilisateur avant HUM-004.
   `staging` et `origin/staging` concordaient au début de HUM-004.
-- Prochaine action : push utilisateur HUM-004, validation des CI, sauvegarde
+- HUM-004 (`510d9c0`) poussé par l’utilisateur ; CI backend
+  [38306904589](https://github.com/sloumach/ucg-plateform/actions/runs/38306904589)
+  échouée au formatage PHP. Correctif local : espacements dans deux tests,
+  contrôle Pint global identique à la CI réussi ; aucun changement métier.
+- Prochaine action : push utilisateur du correctif HUM-004, validation des CI, sauvegarde
   puis migration depuis `back/` (`php artisan migrate`). Migration additive
   `2026_10_12_173809_create_person_lifecycle_tables` vérifiée `Pending` en lecture
   seule. Code, tests et docs sont dans le même commit. Aucun départ, personne,
@@ -1030,6 +1034,23 @@ Vérifications de clôture :
   commit. Confirmation push/CI HUM-003 intégrée à ce lot. Prochain P0 : HUM-005
   après confirmation utilisateur du push, des CI et de la migration HUM-004.
 
+### UCG-HUM-004 — Correctif du contrôle de formatage CI
+
+- Run backend `38306904589`, job `115003045756` : étape Check PHP formatting
+  échouée, analyse statique/tests/PG/Redis non exécutés. Push `510d9c0` confirmé.
+- Reproduction avec `composer format:check` : `method_argument_space` dans
+  PersonLifecyclePolicyTest et PersonLifecycleSchemaTest. Correction uniquement
+  des espaces dans trois appels ; aucune logique métier ou migration modifiée.
+- Le contrôle local limité aux fichiers dirty n’avait pas couvert ces nouveaux
+  fichiers avant indexation. Clôture renforcée : contrôle complet identique à la
+  CI (`composer format:check`) avant chaque commit PHP, nouveaux fichiers inclus.
+- Après correction : Pint global et dirty verts, PHPStan niveau 8 vert,
+  30 tests ciblés policy/schema et 92 assertions réussis sur SQLite en mémoire.
+  Suites complètes HUM-004 précédentes conservées ; pas de nouveau test artificiel
+  pour des espaces. Aucune migration principale ni donnée métier réelle modifiée.
+- Code de correction et ce point de reprise regroupés dans le même commit.
+  Nouveau push/CI à confirmer par l’utilisateur avant migration/HUM-005.
+
 ## Décision de périmètre — retrait de l’organisation de tournois
 
 - Décision utilisateur du 11 octobre 2026 : retirer des documents le parcours
@@ -1072,7 +1093,10 @@ ensuite ce fichier pour qu'il reflète la réalité.
 
 ## Clôture d'une étape
 
-1. Exécuter les tests et contrôles pertinents.
+1. Exécuter les tests et contrôles pertinents. Pour toute modification PHP,
+   formater les fichiers concernés puis exécuter depuis `back/` le contrôle
+   complet `composer format:check`, identique à la CI ; `--dirty` seul ne couvre
+   pas nécessairement les nouveaux fichiers non indexés.
 2. Vérifier `git status` et les changements effectués.
 3. Mettre à jour le point de reprise, le travail terminé, les décisions et la
    prochaine étape.
