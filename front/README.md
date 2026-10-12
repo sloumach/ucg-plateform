@@ -36,3 +36,33 @@ npm run test:e2e
 
 Le test Playwright démarre automatiquement Laravel et Vite et vérifie notamment
 le parcours de connexion ainsi que son ordre de navigation au clavier.
+
+## Fiches et profils — UCG-HUM-003
+
+Le panneau Personnes apparaît dans l’organisation active selon les permissions
+explicites. Il fournit recherche par début de pseudonyme, filtres/tri, pagination,
+vues de fiches, création et modification, profils de jeu et comptes externes.
+Les références disponibles proviennent du catalogue serveur ; les références
+retirées restent consultables et archivables. Aucun accès implicite propriétaire.
+
+Les panneaux sont remontés lors d’un changement d’organisation/révision/permissions,
+les lectures sont annulées et les réponses obsolètes ignorées. Les formulaires
+calculent les champs modifiés, transmettent la version et demandent confirmation
+dans l’organisation affichée. Une modification de rang ou d’alias n’envoie pas
+automatiquement l’ancienne date d’observation. La création sans droit de lecture
+reste possible pour un auteur sportif, sans charger de données privées.
+
+Tests : PeoplePanel.test.tsx couvre permissions, mutations, erreurs 422/409,
+dates, références retirées et requêtes tardives. Les deux parcours people.spec.ts
+utilisent des API métier simulées et vérifient aussi le changement de tenant et
+le mobile 375/320 ; aucun profil réel n’est créé par les tests navigateur.
+
+Si le Chromium de Playwright est absent mais Chrome est déjà installé :
+
+```powershell
+$env:PLAYWRIGHT_BROWSER_CHANNEL = 'chrome'
+$env:PLAYWRIGHT_VIDEO = 'off' # seulement si FFmpeg Playwright est aussi absent
+npm run test:e2e
+```
+
+Sans ces options, la CI conserve Chromium et les vidéos en cas d’échec.

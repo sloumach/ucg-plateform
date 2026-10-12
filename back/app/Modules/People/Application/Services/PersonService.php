@@ -6,7 +6,9 @@ use App\Exceptions\DomainConflictException;
 use App\Modules\People\Application\Contracts\PeopleDirectory;
 use App\Modules\People\Application\Contracts\PersonRecord;
 use App\Modules\People\Application\Data\PersonData;
+use App\Modules\People\Application\Data\PersonListQuery;
 use App\Modules\People\Application\Validation\PersonInput;
+use App\Modules\People\Application\Validation\PersonListInput;
 use App\Modules\People\Domain\Contracts\PersonRepository;
 use App\Modules\People\Domain\Models\Person;
 use App\Modules\Tenancy\Application\Contracts\TenantAuditJournal;
@@ -21,6 +23,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Validation\Factory;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -40,6 +43,31 @@ final readonly class PersonService implements PeopleDirectory
     public function create(TenantContext $context, PersonData $data, ?string $ipAddress = null): PersonRecord
     {
         return $this->save($context, $data, null, $ipAddress);
+    }
+
+    /** @return LengthAwarePaginator<int, array<string, mixed>> */
+    public function paginate(TenantContext $context, PersonListQuery $input): LengthAwarePaginator
+    {
+        $this->authorizeRead($context);
+        $unknown = array_diff(array_keys($input->attributes), array_keys(PersonListInput::rules()));
+        if ($unknown !== []) {
+            throw ValidationException::withMessages(array_fill_keys($unknown, __('people.validation.immutable')));
+        }
+        $filters = $this->validator->make($input->attributes, PersonListInput::rules(), PersonListInput::messages())->validate();
+        $view = $filters['view'] ?? 'general';
+        if (array_intersect(array_keys($filters), PersonListInput::SPORTS_FILTERS) !== []
+            || in_array($filters['sort'] ?? 'id', ['pseudonym', 'status'], true) || $view === 'sports') {
+            $this->authorization->authorize($context, 'sports.read');
+        }
+        if (isset($filters['account_linked']) || $view === 'administrative') {
+            $this->authorization->authorize($context, 'administrative.read');
+        }
+        $sports = $view !== 'administrative' && $this->authorization->allows($context, 'sports.read');
+        $administrative = $view !== 'sports' && $this->authorization->allows($context, 'administrative.read');
+        $page = $this->people->paginate($context->organizationId, $filters, $sports, $administrative);
+        $page->setCollection(collect($this->projection->summaries($context, array_values($page->items()), $sports, $administrative)));
+
+        return $page;
     }
 
     public function update(TenantContext $context, string $personId, PersonData $data, ?string $ipAddress = null): PersonRecord

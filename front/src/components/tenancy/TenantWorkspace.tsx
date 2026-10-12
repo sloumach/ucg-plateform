@@ -12,6 +12,7 @@ import {
 } from '../../api/tenancy'
 import { t } from '../../i18n/fr'
 import { RoleManagementPanel } from './RoleManagementPanel'
+import { PeoplePanel } from '../people/PeoplePanel'
 import { Button } from '../Button'
 import { FormField } from '../FormField'
 import { Pagination } from '../data/Pagination'
@@ -195,6 +196,8 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
     setPages((current) => ({ ...current, [list]: page }))
   }
 
+  const invalidatePeopleContext = useCallback(() => { void reload(pages) }, [reload, pages])
+
   const active = workspace?.active
   const selected = active?.context
   const ownMembership = selected?.membership_id
@@ -225,6 +228,7 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
       {workspace && (
         <>
           {selected && <RoleManagementPanel key={selected.organization_id} active={workspace.active} disabled={disabled} onChanged={() => void reload(pages)} />}
+          {selected && <PeoplePanel key={selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
           <div className="grid gap-3">
             {workspace.organizations.data.length === 0 && <p className="text-slate-400">{t('tenant.empty')}</p>}
             <div className="flex flex-wrap gap-3">

@@ -689,3 +689,37 @@ Migration additive sans backfill, verrou PostgreSQL borné à 5 s ; rollback vid
 testé et refusé après utilisation. Pas de purge, OAuth, connecteur, vérification
 éditeur, UI ou import. Les zones initiales sont applicatives, pas des shards
 officiels. Profiler les index/verrous avant optimisation ; pas de benchmark de charge.
+
+### Liste et interface People — UCG-HUM-003
+
+`PersonController::index` autorise via la Policy existante, reçoit un
+`ListPeopleRequest` et transmet un `PersonListQuery` au Service. Ce dernier
+revérifie les bornes, les clés fermées et les permissions requises pour chaque
+filtre/tri/vue, y compris sur un résultat vide. `EloquentPersonRepository` exige
+l’organisation et limite les colonnes lues selon les vues et droits effectifs.
+`PersonProjectionService::summaries` emploie projectMany IAM-004, avec un schéma
+fermé, une page de 100 au maximum et aucun déchiffrement administratif non autorisé
+en liste. La Resource garde son contrat de détail et sait rendre les résumés.
+
+`Person::gameProfiles` reste interne au module People ; les FK HUM-002 garantissent
+le contexte. withCount charge les nombres sans hydrater tous les profils/comptes.
+Le filtre jeu/plateforme utilise un EXISTS tenant sur un même profil actif.
+La recherche est un préfixe littéral, bindé avec échappement SQL des wildcards ;
+tri fermé et UUID comme départage. Les index tenant/id et tenant/statut/id existants
+sont conservés ; aucun changement du schéma déployé. Profilage des plans nécessaire
+avant index fonctionnel, moteur externe ou pagination cursor à forte profondeur.
+LOWER suit le comportement natif du moteur ; pas de normalisation des accents.
+
+React réutilise les composants de formulaires, tables, pagination, alertes et
+notifications. PeoplePanel est monté pour l’organisation/révision/permissions
+courantes ; les lectures annulables et gardes de génération empêchent une réponse
+obsolète de réafficher le tenant précédent. GameProfilesPanel charge des pages
+distinctes à l’ouverture d’une fiche. Le hook de mutation confirme l’organisation,
+transmet CSRF/révision/version et évite un envoi après démontage pendant confirmation.
+Les formulaires calculent les seuls champs modifiés, préservant les champs privés
+omis et évitant de réaffirmer une ancienne observation lors d’un changement de rang.
+
+Les références retirées restent consultables et archivables. Aucune suppression
+physique ni révocation d’accès via statut descriptif ; HUM-004 reste responsable
+du départ effectif. Catalogue administrable complet reste TEAM-001. Aucun OAuth,
+publication publique ou nouveau cache de fiches privées ajouté.

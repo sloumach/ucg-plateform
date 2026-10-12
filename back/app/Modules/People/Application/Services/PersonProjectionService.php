@@ -14,6 +14,41 @@ final readonly class PersonProjectionService
 {
     public function __construct(private TenantDataVisibility $visibility) {}
 
+    /** @param list<Person> $people
+     * @return list<array<string, mixed>>
+     */
+    public function summaries(TenantContext $context, array $people, bool $sports, bool $administrative): array
+    {
+        $fields = ['id' => new FieldVisibility('organization.view'), 'version' => new FieldVisibility('organization.view')];
+        $names = [];
+        if ($sports) {
+            foreach (['pseudonym', 'language', 'timezone', 'status', 'game_profiles_count'] as $name) {
+                $fields[$name] = new FieldVisibility('sports.read');
+                $names[] = $name;
+            }
+        }
+        if ($administrative) {
+            foreach (['user_id', 'first_name', 'last_name', 'contact_email'] as $name) {
+                $fields[$name] = new FieldVisibility('administrative.read');
+                $names[] = $name;
+            }
+        }
+        $records = [];
+        foreach ($people as $person) {
+            $data = ['id' => $person->id, 'version' => $person->version];
+            foreach ($names as $name) {
+                $data[$name] = match ($name) {
+                    'status' => $person->status->value,
+                    'game_profiles_count' => (int) $person->getAttribute($name),
+                    default => $person->getAttribute($name),
+                };
+            }
+            $records[] = new TenantDataRecord($person->organization_id, $data);
+        }
+
+        return $this->visibility->projectMany($context, $records, $fields);
+    }
+
     public function project(TenantContext $context, Person $person): PersonRecord
     {
         $fields = [];

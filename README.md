@@ -1036,3 +1036,35 @@ la projection partage les contrôles pour la page ; pas de requête par ligne.
 Profiler contention des verrous et plans d’exécution avant forte charge ; aucun
 benchmark de millions d’utilisateurs. Les écrans et la recherche restent HUM-003.
 Le client TypeScript est `front/src/api/gameProfiles.ts` ; exemples dans le contrat API.
+
+### Fiches, listes et recherche des personnes — UCG-HUM-003
+
+L’organisation active affiche désormais un panneau **Personnes** selon les droits
+explicites. Il permet de créer/modifier une fiche, consulter ses vues générale,
+sportive et administrative, et gérer les profils de jeu et comptes externes.
+Les données sont effacées lors d’un changement d’organisation ou de droits.
+Chaque écriture est confirmée pour l’organisation affichée, utilise la révision
+tenant et la version de la fiche ; seules les valeurs modifiées sont envoyées.
+
+GET `/api/v1/tenants/{tenant}/people` ajoute liste, filtres, tri et pagination.
+Recherche par début de pseudonyme (2..80 caractères), filtres statut/langue et
+jeu/plateforme sur un même profil actif : sports.read requis. Le filtre compte
+lié exige administrative.read. Aucun filtre sur une identité chiffrée ; une
+permission d’écriture n’accorde pas la lecture. Les résumés excluent biographies
+et téléphone, avec comptages de profils en bloc et pagination limitée à 100.
+
+Les rangs, rôles et comptes externes restent déclaratifs, avec date d’observation.
+Modifier un rang/alias sans nouvelle date remet la fraîcheur à inconnue. Les
+références retirées restent visibles et archivables. Le statut ancien membre
+reste descriptif : le départ et la révocation effective seront traités dans HUM-004.
+Le catalogue initial et les plateformes se configurent toujours dans
+`back/config/game_profiles.php` ; gestion complète du catalogue prévue dans TEAM-001.
+
+HUM-003 n’ajoute aucune migration. HUM-002 (`3c799ff`) a été poussé et migré par
+l’utilisateur (batch 11), puis sa CI validée avant ce lot. Après push HUM-003,
+valider les CI avant HUM-004. Aucun enregistrement métier réel créé par l’agent.
+
+Validation : 45 nouveaux tests backend ; suite SQLite 763/760 réussis et PostgreSQL
+17 763/761, exclusions attendues. 57 tests Vitest, Pint/PHPStan 8, lint/build et
+parcours Playwright verts, contrôles mobile 375/320. Les plans de recherche doivent
+être profilés à volume réel ; aucun benchmark de millions d’utilisateurs.

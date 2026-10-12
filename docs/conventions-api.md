@@ -840,3 +840,71 @@ const page = await listGameProfiles(organizationId, personId, { perPage: 20, pag
 
 Aucun écran, OAuth, synchronisation éditeur, import ou publication publique dans
 ce lot. Les interfaces et recherche restent HUM-003 ; catalogue complet TEAM-001.
+
+## Liste et recherche des personnes — UCG-HUM-003
+
+GET `tenants/{tenant}/people` exige sports.read ou administrative.read au périmètre
+organisation courant ; auth/session/MFA, révision et quotas existants s’appliquent.
+La Resource renvoie `data` (résumés), `meta.request_id`, métadonnées de pagination
+et liens conservant les filtres validés. Aucune donnée d’une autre organisation
+n’entre dans les résultats, compteurs ou tris.
+
+| Paramètre | Valeurs / comportement | Droit supplémentaire |
+| --- | --- | --- |
+| page | 1..10000, défaut 1 | — |
+| per_page | 1..100, défaut 20 | — |
+| view | general (défaut), sports, administrative | droit de lecture de la vue ciblée |
+| sort | id (défaut), pseudonym, status ; départage UUID | sports.read pour pseudonym/status |
+| direction | asc (défaut), desc | — |
+| q | préfixe de pseudonyme, 2..80 caractères, %/_/! littéraux | sports.read |
+| status | candidate, trial, active, unavailable, substitute, former | sports.read |
+| language | langue prise en charge par tenancy.languages | sports.read |
+| game_key / platform_key | clés valides, 64/32 caractères ; même profil actif | sports.read |
+| account_linked | linked ou unlinked | administrative.read |
+
+Les paramètres inconnus/vides/invalides donnent 422 `VALIDATION_FAILED` avec
+`errors` localisés. Un filtre/tri/vue sans permission donne 403 même sur liste vide,
+afin de ne pas révéler une valeur masquée par un nombre de résultats. Aucun filtre
+first_name/last_name/contact_email ou autre identité administrative chiffrée n’est
+accepté ; aucune recherche sur les alias/identifiants externes. La casse est traitée
+par LOWER natif ; accents non normalisés. Des clés de jeu historiques peuvent être
+filtrées, mais seules les occurrences de profil actif correspondent.
+
+Résumé : id/version, puis pseudonym/language/timezone/status/game_profiles_count
+si sports.read et vue générale/sportive ; user_id/first_name/last_name/contact_email
+si administrative.read et vue générale/administrative. Biographies et téléphone
+restent réservés au détail. game_profiles_count comprend les archives. Aucun tableau
+de profils/comptes n’est imbriqué ; utiliser leurs endpoints paginés HUM-002.
+
+Les routes POST, GET unitaire et PATCH de HUM-001/HUM-002 conservent leurs contrats.
+Le frontend utilise les valeurs modifiées seulement et la version de détail,
+confirme l’organisation avant écriture, conserve les brouillons sur 422, recharge
+sur conflit sans rejeu automatique et efface les données lors d’un changement de
+tenant/révision/droits. Les vues de détail affichent les champs permis reçus du
+serveur ; masquer un champ dans l’interface ne remplace jamais IAM-004.
+
+Exemple après connexion et sélection de l’organisation :
+
+```ts
+import { listPeople, getPerson, updatePerson } from '../api/people'
+import { tenancyRequest } from '../api/tenancy'
+
+const page = await listPeople(organizationId, {
+  view: 'sports', q: 'Ca', status: 'active', sort: 'pseudonym', direction: 'asc',
+}, { page: 1, perPage: 10, revision: activeRevision })
+const first = page.data[0]
+if (first) {
+  const detail = await getPerson(organizationId, first.id, activeRevision)
+  // Dans le gestionnaire du bouton de confirmation explicite de l’organisation.
+  await tenancyRequest('active-organization/confirmation', {
+    method: 'POST', body: { organization_id: organizationId, revision: activeRevision, confirm: true },
+  })
+  await updatePerson(organizationId, detail.data.id, {
+    pseudonym: 'Camille', version: detail.data.version,
+  }, activeRevision)
+}
+```
+
+Les protections d’historique
+restent en place : pas de DELETE. Le statut former ne révoque aucun accès ; départ
+effectif dans HUM-004. Aucune migration, export métier ou import dans HUM-003.

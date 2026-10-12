@@ -360,8 +360,9 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   Ajout/retrait/activation possible sans changer de schema/enum ; le port pourra
   être implémenté par Teams sans cycle. Catalogue complet et UI restent TEAM-001.
   Client TypeScript et sauvegardes opérateur raccordés ; limites et anti-N+1 testés.
-  Migration additive de deux tables `Pending` sur la base principale, aucun backfill
-  ou profil/compte réel. SQLite : 718 tests, 715 réussis ; PostgreSQL 17 : 718 tests,
+  Migration additive livrée Pending puis appliquée par l’utilisateur : Ran, batch 11,
+  push `3c799ff` et CI confirmés avant HUM-003. Aucun backfill ou profil/compte réel
+  par l’agent. SQLite : 718 tests, 715 réussis ; PostgreSQL 17 : 718 tests,
   716 réussis, bases temporaires supprimées. Pint/PHPStan 8, lint/build et 38 tests
   frontend verts. Tests PostgreSQL ajoutés à la CI. Un seul commit regroupe code,
   tests et docs. Push utilisateur/CI puis sauvegarde/migration avant usage.
@@ -372,6 +373,21 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : CRUD autorisé, filtres, tri, pagination, vues générale/sportive/administrative et états vides.
 - **Acceptation** : requêtes eager-loaded, champs filtrés côté serveur, aucun résultat d’un autre tenant.
 - **Dépendances** : UCG-HUM-001, UCG-IAM-004.
+- **État** : implémenté et validé localement le 12 octobre 2026.
+  Liste tenant avec préfixe littéral de pseudonyme, filtres statut/langue/jeu/plateforme
+  et compte lié, tris fermés stables, pagination bornée et vues autorisées côté serveur.
+  Résumés limités aux colonnes utiles, projectMany IAM-004, withCount des profils,
+  aucun N+1 ; filtres privés refusés même sur liste vide. Recherche d’identité
+  administrative chiffrée exclue. Écrans de fiches/profils/comptes raccordés, formulaires
+  partiels, versions, confirmations contextualisées, erreurs/états vides et fraîcheur.
+  Données effacées lors d’un changement de tenant et réponses tardives ignorées.
+  Références retirées conservées/archivables ; pas de suppression physique ni départ
+  effectif (HUM-004). Aucun changement de schema ni migration principale.
+  45 tests backend ajoutés ; SQLite complet : 763 tests/760 réussis, PostgreSQL 17 :
+  763/761, exclusions attendues ; contrôle PG ciblé final 45/45. 57 tests frontend,
+  parcours Playwright complets et deux scénarios HUM-003 verts, mobile 375/320.
+  Pint/PHPStan 8, lint/build verts. Code/tests/docs dans un seul commit ; push/CI
+  utilisateur avant HUM-004. Confirmation HUM-002 intégrée au même commit.
 
 ### UCG-HUM-004 — Gérer affectations, statuts et départ
 

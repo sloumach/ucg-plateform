@@ -5,16 +5,26 @@ namespace App\Modules\People\Presentation\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Modules\People\Application\Services\PersonService;
 use App\Modules\People\Domain\Models\Person;
+use App\Modules\People\Presentation\Http\Requests\Api\V1\ListPeopleRequest;
 use App\Modules\People\Presentation\Http\Requests\Api\V1\SavePersonRequest;
 use App\Modules\People\Presentation\Http\Requests\Api\V1\ShowPersonRequest;
 use App\Modules\People\Presentation\Http\Resources\Api\V1\PersonResource;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 final class PersonController extends Controller
 {
     public function __construct(private readonly PersonService $people, private readonly Gate $gate) {}
+
+    public function index(ListPeopleRequest $request, TenantContext $context): AnonymousResourceCollection
+    {
+        $this->gate->authorize('view', [Person::class, $context]);
+
+        return PersonResource::collection($this->people->paginate($context, $request->toQuery()))
+            ->additional(['meta' => ['request_id' => $context->requestId]]);
+    }
 
     public function show(ShowPersonRequest $request, TenantContext $context, string $tenant, string $person): PersonResource
     {

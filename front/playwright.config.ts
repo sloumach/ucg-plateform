@@ -15,10 +15,11 @@ export default defineConfig({
     : [['list'], ['html', { open: 'never', outputFolder: 'reports/playwright-html' }]],
   outputDir: 'reports/playwright-results',
   use: {
+    channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL || undefined,
     baseURL: 'http://localhost:5173',
     screenshot: 'only-on-failure',
     trace: 'on-first-retry',
-    video: 'retain-on-failure',
+    video: process.env.PLAYWRIGHT_VIDEO === 'off' ? 'off' : 'retain-on-failure',
   },
   projects: [
     {

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property string $id
@@ -37,6 +38,12 @@ final class Person extends Model
     protected $guarded = ['*'];
 
     protected $hidden = ['organization_id', 'user_id', 'first_name', 'last_name', 'contact_email', 'contact_phone', 'biography_internal'];
+
+    /** @return HasMany<GameProfile, $this> */
+    public function gameProfiles(): HasMany
+    {
+        return $this->hasMany(GameProfile::class, 'person_id');
+    }
 
     protected static function newFactory(): PersonFactory
     {

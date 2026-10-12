@@ -5,12 +5,12 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 11 octobre 2026.
+- Dernière mise à jour : 12 octobre 2026.
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité et validé localement : `UCG-HUM-002` — profils de jeu, comptes externes,
-  catalogue serveur extensible, unicités tenant/contexte et fraîcheur manuelle.
+- Dernier ticket traité et validé localement : `UCG-HUM-003` — listes, recherche,
+  filtres paginés et écrans de fiches/personnes/profils/comptes externes.
 - IAM-006 et son correctif `0b85252` poussés ; push, migration et CI validés
   par l’utilisateur dans cette discussion. Migration confirmée en lecture seule :
   `Ran`, batch 9. L’échec initial `38174777644` reste documenté ci-dessous.
@@ -20,10 +20,12 @@
 - CI HUM-001 du commit `d9a4066` vérifiées vertes sur GitHub : backend
   `38180615309`, frontend `38180615233`. Documentation `35fe2bf` poussée ensuite ;
   push et CI de ces modifications confirmés par l’utilisateur avant HUM-002.
-- Prochaine action : push utilisateur HUM-002, confirmation des CI, puis
-  sauvegarde/migration avant usage. Code, tests et docs sont dans le même commit.
-  Migration HUM-002
-  `Pending` ; aucun profil ni compte externe réel créé par l’agent.
+- HUM-002 (`3c799ff`) poussé et migré par l’utilisateur ; branche synchronisée
+  avec `origin/staging` avant HUM-003. Migration confirmée en lecture seule :
+  `Ran`, batch 11. CI validée par l’utilisateur le 12 octobre 2026.
+- Prochaine action : push utilisateur HUM-003 et validation des CI. Ce ticket
+  ne crée aucune migration. Code, tests et docs sont dans le même commit.
+  Aucun profil, compte externe ou personne réelle créé par l’agent.
 - Format de commit convenu : `UCG-ID: description`, sans préfixe `feat(...)`.
 - Accord utilisateur : un seul commit de tâche regroupe code, tests et docs de
   reprise. Aucun commit documentaire séparé après la tâche ; les confirmations
@@ -37,8 +39,8 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après CI/migration HUM-002, prochain ticket P0 : `UCG-HUM-003`
-  (fiches, listes, recherche paginée et écrans de gestion des personnes).
+- Après CI HUM-003, prochain ticket P0 : `UCG-HUM-004`
+  (affectations datées, indisponibilité, départ et révocation des accès).
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
@@ -908,6 +910,68 @@ Vérifications de clôture :
   commit de tâche. Accord utilisateur enregistré : pas de commit séparé pour
   les confirmations documentaires ultérieures ; reprise dans le prochain travail.
   Prochaine tâche P0 : HUM-003, fiches/listes/recherche paginée et écrans.
+
+### UCG-HUM-003 — Fiches, listes et recherche paginées
+
+- Livré localement le 12 octobre 2026. Reprise de HUM-002 : push `3c799ff`,
+  migration batch 11 et CI confirmés par l’utilisateur ; confirmation intégrée
+  dans ce commit de tâche, conformément à l’accord d’un commit unique.
+- GET `tenants/{tenant}/people` : Form Request, Policy existante, DTO de requête,
+  validation/autorisation répétées dans le Service, Repository tenant et Resource.
+  Pagination 1..100 éléments, page 1..10000 ; tris fermés id/pseudonyme/statut,
+  sens asc/desc et UUID comme départage stable. Liens conservant les filtres validés.
+- Recherche littérale par début de pseudonyme, 2..80 caractères, wildcards SQL
+  échappés et paramètres liés. Statut/langue/jeu/plateforme exigent sports.read,
+  même pour un résultat vide ; jeux/plateformes appartiennent au même profil actif.
+  Filtre compte lié réservé à administrative.read. Aucune recherche sur les
+  identités/coordonnées chiffrées ni sur les alias externes.
+- Vues générale/sportive/administrative : projection IAM-004 en lot, SELECT des
+  seules colonnes de résumé autorisées, sans biographies ni téléphone en liste.
+  Nombre de profils (archives incluses) par withCount, aucun tableau relationnel
+  massif ; profils et comptes chargés séparément à l’ouverture de la fiche.
+- Frontend raccordé à l’organisation active avec composants partagés de tables,
+  pagination, formulaires, alertes et notifications. Liste/recherche/filtres/tri,
+  états vides, vues de détail, création et PATCH de fiches, profils et comptes.
+  Lecture et écriture distinctes : aucun privilège implicite propriétaire/admin.
+  Un auteur sportif sans lecture peut créer, sans charger de liste privée.
+- Confirmation nommant l’organisation avant mutation, cookies/CSRF/révision,
+  version UUID ; PATCH contenant les seuls champs modifiés. L’ancienne observation
+  manuelle n’est pas renvoyée lorsque seul le rang ou l’alias change ; le serveur
+  invalide alors la fraîcheur. Identifiant stable établi en lecture seule.
+  Références retirées encore consultables et archivables, contexte immuable.
+- Changement d’organisation/révision/permissions : démontage des panneaux,
+  annulation des lectures et rejet des réponses tardives. Si la confirmation est
+  encore en vol, aucun PATCH n’est envoyé après démontage. Erreurs 422 : brouillon
+  conservé, message près du champ et focus ciblé. 401/403/404/409 : rechargement du
+  contexte et notification ; aucun rejeu automatique d’écriture obsolète.
+- Tests ajoutés : 45 backend (159 assertions) et 19 frontend. SQLite complet avec
+  cache tenant database : 763 tests, 760 réussis, 3289 assertions, 3 exclusions
+  attendues. PostgreSQL 17 complet : 763 tests, 761 réussis, 3289 assertions,
+  2 exclusions Redis attendues ; nouveau fichier revérifié seul après le dernier
+  ajout d’assertion, 45 tests/159 assertions. Bases temporaires
+  `ucg_hum003_verify_20261012_170423` et `ucg_hum003_verify_20261012_171100` supprimées.
+- Query count identique pour 1 et 21 personnes, droits sportifs/administratifs,
+  caches array et database. Pint et PHPStan niveau 8 sans erreur ; lint/build et
+  57 tests Vitest verts. Suite Playwright complète finale : 6 parcours verts,
+  dont les deux scénarios HUM-003 et le changement de tenant pendant une
+  confirmation. Mobile 375/320 sans débordement
+  global, capture inspectée dans reports/hum003-people-mobile.png (ignorée par Git).
+- Chrome local en mode headless utilisé car Chromium/FFmpeg Playwright absents
+  du runtime local ; vidéos locales désactivées, aucun navigateur téléchargé.
+  Configuration optionnelle PLAYWRIGHT_BROWSER_CHANNEL/PLAYWRIGHT_VIDEO ; CI
+  garde Chromium et les vidéos par défaut. Nouveau fichier backend dans la CI PG.
+- Une erreur GET de configuration du catalogue est affichée sans boucle de
+  rechargement automatique. En lecture, seule une révision tenant invalide ou un
+  refus d’accès relance le contexte ; les conflits de mutation restent signalés.
+- Aucun changement de schéma ni migration principale, données réelles, e-mail,
+  OAuth ou appel éditeur. API de suppression toujours absente : historique conservé.
+  Le statut ancien membre reste descriptif ; le départ effectif reste HUM-004.
+  Catalogue administrable complet/modes/cartes reste TEAM-001 ; import reste HUM-005.
+  Les recherches natives LOWER ne normalisent pas les accents ; profiler les plans
+  à volume réel avant index fonctionnel, moteur de recherche ou pagination cursor.
+  Pas de cache de fiches privées ni de benchmark de millions d’utilisateurs.
+- README, contrats API, architecture, backlog, frontend README et point de reprise
+  actualisés dans le même commit de tâche. Prochain P0 : HUM-004 après push/CI.
 
 ## Décision de périmètre — retrait de l’organisation de tournois
 

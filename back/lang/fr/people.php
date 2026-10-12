@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'list_min' => 'La valeur est trop courte ou inférieure à :min.',
+    'list_max' => 'La limite autorisée de :max est dépassée.',
     'created' => 'La fiche personne a été créée.',
     'updated' => 'La fiche personne a été mise à jour.',
     'immutable' => 'L’identifiant et l’organisation de la fiche sont immuables.',

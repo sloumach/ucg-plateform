@@ -12,6 +12,6 @@ final class PersonResource extends ApiResource
     /** @return array<string, mixed> */
     public function toArray(Request $request): array
     {
-        return $this->fields;
+        return is_array($this->resource) ? $this->resource : $this->fields;
     }
 }
