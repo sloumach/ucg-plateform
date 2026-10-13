@@ -159,4 +159,16 @@ final readonly class EffectiveGameCatalogue implements OrganizationGameCatalogue
         }
         throw new DomainConflictException(__('game_profiles.context_unavailable'), 'GAME_CONTEXT_UNAVAILABLE');
     }
+
+    public function assertGameAvailable(string $organizationId, string $gameId): void
+    {
+        if ($this->database->transactionLevel() > 0) {
+            $this->repository->revision(true);
+        }
+        $game = $this->repository->find($gameId);
+        $setting = $this->repository->setting($organizationId, $game->id);
+        if ($game->kind !== 'game' || ! $game->active || ! ($setting->enabled ?? $game->default_enabled)) {
+            throw new DomainConflictException(__('game_profiles.context_unavailable'), 'GAME_CONTEXT_UNAVAILABLE');
+        }
+    }
 }

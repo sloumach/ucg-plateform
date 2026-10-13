@@ -1,5 +1,5 @@
 export type PermissionKey = 'organization.view' | 'organization.update' | 'memberships.manage' | 'invitations.manage' | 'roles.assign'
-  | 'games.manage' | 'sports.read' | 'sports.write' | 'sports.validate' | 'sports.publish' | 'administrative.read' | 'administrative.write'
+  | 'teams.manage' | 'games.manage' | 'sports.read' | 'sports.write' | 'sports.validate' | 'sports.publish' | 'administrative.read' | 'administrative.write'
   | 'administrative.validate' | 'financial.read' | 'financial.write' | 'financial.validate' | 'audit.view'
 export type OrganizationRole = {
   id: string; organization_id: string; key: string; name: string; permissions: PermissionKey[]

@@ -9,8 +9,8 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-TEAM-001` — catalogue commun administrable et
-  activations/réglages des jeux par organisation.
+- Dernier ticket traité : `UCG-TEAM-002` — équipes par organisation, identité
+  privée, saison et archivage conservant l’historique.
 - IAM-006 et son correctif `0b85252` poussés ; push, migration et CI validés
   par l’utilisateur dans cette discussion. Migration confirmée en lecture seule :
   `Ran`, batch 9. L’échec initial `38174777644` reste documenté ci-dessous.
@@ -33,9 +33,12 @@
 - HUM-005 (`f960be8`) poussé et CI validées par l’utilisateur avant TEAM-001 ;
   migration appliquée par l’utilisateur, vérifiée en lecture seule : Ran, batch 13.
   Branche propre et synchronisée avec origin/staging au début de TEAM-001.
-- Prochaine action : push utilisateur TEAM-001, validation des CI, sauvegarde
+- TEAM-001 (`427dae1`) poussé ; CI et migration validées par l’utilisateur
+  avant TEAM-002. Migration confirmée en lecture seule : Ran, batch 14.
+  Branche propre et synchronisée avec origin/staging au début de TEAM-002.
+- Prochaine action : push utilisateur TEAM-002, validation des CI, sauvegarde
   puis migration depuis `back/` (`php artisan migrate`). Nouvelle migration
-  `2026_10_13_120201_create_game_catalogue_and_organization_games`, vérifiée Pending en lecture seule, non appliquée sur la base
+  `2026_10_13_143631_create_teams_table`, vérifiée Pending en lecture seule, non appliquée sur la base
   principale par l’agent. Code, tests, CI et docs dans le même commit. Aucun
   fichier utilisateur réel importé, personne réelle créée, compte lié ou e-mail envoyé.
 - Format de commit convenu : `UCG-ID: description`, sans préfixe `feat(...)`.
@@ -51,8 +54,8 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après push/CI/migration TEAM-001, prochain ticket P0 : `UCG-TEAM-002`
-  (équipes d’une organisation, jeu, saison, statut et identité publique).
+- Après push/CI/migration TEAM-002, prochain ticket P0 : `UCG-TEAM-003`
+  (appartenances datées, fonctions sportives et historique des mouvements).
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
@@ -1229,3 +1232,45 @@ ensuite ce fichier pour qu'il reflète la réalité.
   erreurs console contrôlées sur les nouveaux parcours et mobile 375/320.
 - Prochaine étape : push/CI utilisateur, sauvegarde puis php artisan migrate depuis
   back/. Ensuite TEAM-002 ; pas de recrutement HUM-006 ni teams/rosters dans ce lot.
+
+## UCG-TEAM-002 — Équipes et archives par organisation
+
+- TEAM-001 427dae1 poussé, CI et migration confirmées par l’utilisateur ;
+  contrôle en lecture seule : Ran, batch 14. Ces confirmations sont intégrées
+  ici au commit de TEAM-002, sans commit documentaire séparé.
+- Modèle Team, Repository, Service, Form Requests, Policy et Resources ; API
+  tenant GET liste/détail, POST création et PATCH partiel. Lecture sports.read ;
+  mutations sports.read + teams.manage explicitement attribués à l’organisation,
+  MFA, CSRF, confirmation humaine et révision du contexte tenant.
+  Aucun droit métier implicite du propriétaire, support ou superadmin.
+- Première/académie/réserve/événementielle/catégorie spécifique ; jeu disponible
+  globalement et activé localement, saison descriptive, slug unique par tenant,
+  nom et identité facultative. Jeu, slug, saison et organisation immuables pour
+  ce cycle ; pour un autre cycle, créer une nouvelle équipe avec un nouveau slug.
+  Statuts draft/active/archived ; archive terminale non modifiable/non supprimable.
+  Archivage seul autorisé après retrait du jeu, historique conservé.
+  Les champs d’identité publique restent privés : publication_status=private.
+- Gardes SQL SQLite/PostgreSQL et modèle, FK tenant/catalogue, uniques et index.
+  Verrou organisation puis disponibilité du catalogue ; version UUID optimiste,
+  droits revérifiés et audit minimal atomique sans noms/descriptions. Portabilité
+  limitée aux équipes du tenant. Aucun roster, appartenance ou scope IAM équipe
+  introduit ici ; aucune équipe réelle créée ni permission attribuée.
+- UI repliée initialement, filtres et pagination, jeux activés proposés à la
+  création, édition partielle et archivage confirmé. Erreurs localisées, valeurs
+  saisies conservées sur 422, rechargement sur conflit, requêtes annulées au
+  changement de tenant ; textes échappés, contrôles mobile 375 et 320 px.
+- Limites techniques : 1000 équipes par organisation, archives incluses ; pages
+  1..100000, per_page 1..100 (UI 10). Relation jeu eager-loaded, nombre de requêtes
+  constant vérifié ; aucune affirmation de benchmark à grande échelle.
+- Validation : 50 nouveaux tests backend / 204 assertions. SQLite complet :
+  996 tests, 993 réussis, 4212 assertions, 3 exclusions attendues ; PostgreSQL 17 :
+  996 tests, 994 réussis, 4213 assertions, 2 exclusions Redis. Bases temporaires
+  supprimées. Pint complet/dirty, composer format:check, PHPStan 8 et architecture
+  verts ; 98 tests frontend, lint/build et 11 Playwright verts. CI PostgreSQL
+  enrichie des trois fichiers Teams ; tests de rollback adaptés à l’ordre des FK.
+- Migration 2026_10_13_143631_create_teams_table vérifiée Pending sur la base
+  principale ; aucune migration principale par l’agent. Down refuse toute équipe,
+  archives incluses. Code, tests, CI, README, API, architecture et point de reprise
+  regroupés dans le même commit.
+- Prochaine étape : push/CI utilisateur, sauvegarde puis php artisan migrate
+  depuis back/. Ensuite UCG-TEAM-003, appartenances datées.

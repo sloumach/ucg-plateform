@@ -18,6 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
+        'teams' => 'id',
         'organization_games' => 'id',
         'person_imports' => 'id', 'person_import_rows' => 'id',
         'organizations' => 'id', 'organization_settings' => 'organization_id',
@@ -35,6 +36,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'teams' => ['id', 'organization_id', 'game_id', 'slug', 'season', 'name', 'kind', 'custom_category', 'short_name', 'public_description', 'color', 'status', 'version', 'created_at', 'updated_at'],
         'organization_games' => ['id', 'organization_id', 'game_id', 'enabled', 'restrictions', 'version', 'created_at', 'updated_at'],
         'person_imports' => ['id', 'organization_id', 'actor_user_id', 'execution_actor_id', 'artifact_id', 'fingerprint', 'delimiter', 'headers', 'mapping', 'defaults', 'row_count', 'status', 'version', 'confirmed_version', 'failure_code', 'created_at', 'updated_at'],
         'person_import_rows' => ['id', 'organization_id', 'import_id', 'line', 'status', 'values', 'errors', 'person_id', 'created_at', 'updated_at'],

@@ -15,6 +15,8 @@ final class AuditState
         $result = [];
         foreach ($state as $key => $value) {
             $valid = match ($key) {
+                'team_status' => is_string($value) && in_array($value, ['draft', 'active', 'archived'], true),
+                'team_changed_fields' => self::listWithin($value, ['game_id', 'slug', 'season', 'name', 'kind', 'custom_category', 'short_name', 'public_description', 'color', 'status']),
                 'person_import_id' => is_string($value) && Str::isUuid($value),
                 'person_import_status' => is_string($value) && in_array($value, ['uploaded', 'previewed', 'queued', 'processing', 'completed', 'failed'], true),
                 'period_changed_fields' => self::listWithin($value, ['kind', 'role_key', 'starts_at', 'ends_at', 'status']),
@@ -31,12 +33,12 @@ final class AuditState
                 'changed_fields' => self::listWithin($value, ['pseudonym', 'language', 'timezone', 'status', 'biography_public', 'user_id', 'first_name', 'last_name', 'contact_email', 'contact_phone', 'biography_internal']),
                 'status' => is_string($value) && in_array($value, ['active', 'suspended', 'revoked', 'expired', 'pending', 'accepted', 'declined', 'closing', 'archived', 'published', 'draft'], true),
                 'role' => is_string($value) && in_array($value, ['member', 'administrator', 'superadmin', 'support'], true),
-                'version','role_id','scope_id','membership_id','person_id','game_profile_id','external_account_id','organization_game_id','catalogue_game_id' => is_string($value) && Str::isUuid($value),
+                'version','role_id','scope_id','membership_id','person_id','game_profile_id','external_account_id','organization_game_id','catalogue_game_id','team_id' => is_string($value) && Str::isUuid($value),
                 'scope_type' => is_string($value) && in_array($value, ['organization', 'team', 'game', 'cohort', 'event'], true),
                 'starts_at','ends_at','expires_at','observed_at' => $value === null || (is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?$/D', $value) === 1),
                 'http_status' => is_int($value) && in_array($value, [401, 403, 404], true),
                 'roles' => self::listWithin($value, ['member', 'administrator']),
-                'permissions' => self::listWithin($value, ['organization.view', 'organization.update', 'memberships.manage', 'invitations.manage', 'roles.manage', 'roles.assign', 'audit.view', 'games.manage', 'sports.read', 'sports.write', 'sports.validate', 'sports.publish', 'administrative.read', 'administrative.write', 'administrative.validate', 'financial.read', 'financial.write', 'financial.validate']),
+                'permissions' => self::listWithin($value, ['organization.view', 'organization.update', 'memberships.manage', 'invitations.manage', 'roles.manage', 'roles.assign', 'audit.view', 'games.manage', 'teams.manage', 'sports.read', 'sports.write', 'sports.validate', 'sports.publish', 'administrative.read', 'administrative.write', 'administrative.validate', 'financial.read', 'financial.write', 'financial.validate']),
                 'actions' => self::listWithin($value, ['organization.inspect', 'access.inspect']),
                 default => false,
             };

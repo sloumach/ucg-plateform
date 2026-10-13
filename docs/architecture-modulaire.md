@@ -872,3 +872,43 @@ maximum 800 enfants. Le cache global de 300 s est versionné et contient uniquem
 les métadonnées ; il est ignoré en transaction. Les réglages tenant restent relus,
 sans clé de cache partagée de résultat métier. Nombre de requêtes de profils
 constant, aucune requête individuelle par jeu dans la liste locale.
+
+## TEAM-002 — Équipes privées et cycles conservés
+
+Teams possède Team et la table tenant teams. La FK organization_id vise la
+racine tenant ; game_id vise intentionnellement un jeu du catalogue global
+Teams, avec garde SQL du type game. Aucune FK métier vers un autre tenant.
+Le catalogue fermé de portabilité inclut les colonnes physiques de teams,
+exportées seulement pour l’organisation demandée.
+
+TeamController délègue à TeamService via Form Requests, Policy et TeamResource.
+TeamRepository/EloquentTeamRepository isolent la persistance. Les lectures exigent
+sports.read, les écritures sports.read + teams.manage à portée organisation ;
+TenantBusinessGuard verrouille l’organisation puis les droits sont revérifiés.
+EffectiveGameCatalogue verrouille la révision commune et vérifie le jeu actif
+et le réglage local. Cet ordre reste compatible avec TEAM-001 ; pas de cache
+tenant des autorisations ou de la disponibilité. Version UUID optimiste et audit
+tenant minimal (UUID, statut, version, noms des champs modifiés) dans la même
+transaction. Un échec d’audit annule aussi l’écriture de l’équipe.
+
+Jeu, slug, saison descriptive et organisation constituent l’identité immuable
+du cycle. Le slug reste réservé après archivage ; un nouveau cycle demande une
+nouvelle équipe et un nouveau slug. Les catégories first/academy/reserve/event/
+custom sont fermées, custom exige une catégorie descriptive. Nom, identité
+facultative et statut draft/active sont modifiables avant archivage. archived
+est terminal, sans suppression, réactivation ni modification. L’archivage seul
+ne requiert plus un jeu disponible, pour préserver les historiques après retrait.
+Gardes modèle et SQL PG/SQLite ; down refuse toute ligne, archives incluses.
+
+Les champs destinés à une identité publique restent privés dans ce lot :
+publication_status=private, aucun endpoint public. Aucun roster, appartenance,
+scope IAM équipe ou droit implicite du propriétaire/support/superadmin. TEAM-003
+portera les appartenances datées avant de brancher leurs effets d’autorisation.
+
+Listes tenant filtrées, pagination 1..100, tri stable avec UUID et relation jeu
+eager-loaded ; nombre de requêtes constant vérifié par test. Limite technique
+1000 équipes par organisation, archives comprises, indépendante des offres.
+Index tenant/nom/id et tenant/jeu/statut/id. Profiler recherches et contention du
+verrou avant d’augmenter cette limite ou d’ajouter une infrastructure de recherche.
+L’écran charge ses données seulement à l’ouverture et annule les lectures au
+changement de tenant ; mutations confirmées via les mécanismes existants.

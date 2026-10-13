@@ -2,7 +2,16 @@
 
 use App\Modules\Teams\Presentation\Http\Controllers\Api\V1\GameCatalogueController;
 use App\Modules\Teams\Presentation\Http\Controllers\Api\V1\OrganizationGameController;
+use App\Modules\Teams\Presentation\Http\Controllers\Api\V1\TeamController;
 use Illuminate\Support\Facades\Route;
+
+Route::prefix('tenants/{tenant}/teams')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
+    $controller = TeamController::class;
+    Route::get('/', [$controller, 'index'])->name('teams.index');
+    Route::get('{team}', [$controller, 'show'])->whereUuid('team')->name('teams.show');
+    Route::post('/', [$controller, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('teams.store');
+    Route::patch('{team}', [$controller, 'update'])->whereUuid('team')->middleware('tenant.confirmed')->block(10, 10)->name('teams.update');
+});
 
 Route::prefix('game-catalogue')->group(function (): void {
     Route::get('/', [GameCatalogueController::class, 'index'])->name('game-catalogue.index');

@@ -1200,3 +1200,88 @@ await tenancyRequest<ApiSuccessResponse<OrganizationGameDetail>>(
 Ne pas rejouer automatiquement un conflit. Recharger les versions puis demander
 une nouvelle confirmation. Les observations rang/game_role des profils restent
 des textes déclaratifs ; elles ne sont pas converties en références de catalogue.
+
+## TEAM-002 — Équipes d’une organisation
+
+Routes privées sous /api/v1, session Sanctum, compte vérifié/MFA et contexte
+tenant actif. Lecture sports.read à portée organisation ; mutations exigent
+aussi teams.manage, CSRF, révision tenant et confirmation humaine. Enveloppes
+Resource/pagination/request_id et notifications françaises habituelles.
+
+| Méthode / route | Entrée |
+| --- | --- |
+| GET tenants/{tenant}/teams | q, game_id, kind, status, season, sort, page, per_page |
+| GET tenants/{tenant}/teams/{team} | UUID d’équipe du tenant |
+| POST tenants/{tenant}/teams | game_id, slug, season, name, kind ; identité et statut facultatifs |
+| PATCH tenants/{tenant}/teams/{team} | version UUID courante et au moins un champ mutable |
+
+game_id doit référencer un jeu global actif et activé pour cette organisation.
+Les choix de création viennent de GET tenants/{tenant}/games ; aucune activation
+arbitraire. slug : minuscules/chiffres/tirets, ≤80, unique par organisation même
+après archivage. season : texte non vide ≤64, descriptif de cycle, sans calendrier
+de saison séparé. Jeu, slug, saison et organisation ne peuvent pas être modifiés.
+Un nouveau cycle se crée avec un nouveau slug. name non vide ≤120 ; kind parmi
+first/academy/reserve/event/custom. custom_category non vide ≤80 obligatoire
+pour custom, null pour les autres catégories.
+
+Champs facultatifs et effaçables avec null : short_name ≤16, public_description
+≤1000 et color au format #RRGGBB. custom_category est également nullable selon
+kind ; pour quitter custom, envoyer ensemble kind et custom_category:null.
+Les champs omis d’un PATCH sont conservés ; champs inconnus/immuables refusés.
+status parmi draft/active/archived, draft par défaut. archived est terminal :
+aucune édition, réactivation ou suppression. Pour archiver après retrait global
+ou local du jeu, envoyer uniquement version et status:archived.
+
+Resource : id, game_id, game_key, game_name, game_available, slug, season, name,
+kind, custom_category, short_name, public_description, color, status, version,
+publication_status. game_available indique seulement l’activité globale du jeu ;
+ses réglages locaux sont consultables via tenants/{tenant}/games. L’écriture
+revérifie la disponibilité effective sous verrou. publication_status vaut private :
+les champs d’identité publique ne publient pas l’équipe. organization_id absent.
+
+Filtres q (préfixe littéral du nom, ≤80), season (égalité exacte), game_id UUID,
+kind/status fermés ; sort=name par défaut ou newest, départage par UUID.
+per_page 1..100, page 1..100000, défaut 10/1. Limite technique 1000 équipes par
+tenant, archives incluses. Pas de endpoint roster, appartenance ou DELETE ici.
+
+| Statut/code | Situation |
+| --- | --- |
+| 403 | droit organisation, vérification ou MFA manquant |
+| 404 | organisation inaccessible, UUID d’équipe absent ou appartenant à un autre tenant |
+| 409 TEAM_VERSION_STALE | version de l’équipe changée |
+| 409 TEAM_SLUG_ALREADY_EXISTS | slug déjà réservé dans cette organisation |
+| 409 TEAM_ARCHIVED | modification d’une archive terminale |
+| 409 TEAM_LIMIT_REACHED | 1000 équipes, archives comprises |
+| 409 GAME_CONTEXT_UNAVAILABLE | jeu global retiré ou désactivé localement |
+| 422 VALIDATION_FAILED | entrée inconnue/invalide, catégorie incohérente, PATCH vide |
+| 500 INTERNAL_ERROR | persistance/audit indisponible, transaction annulée |
+
+Exemple TypeScript après connexion/MFA, attribution explicite de sports.read +
+teams.manage, sélection et confirmation humaine du tenant :
+
+```ts
+import { tenancyRequest } from '../api/tenancy'
+import type { ApiSuccessResponse } from '../api/contracts'
+import type { Team } from '../api/teams'
+
+const created = await tenancyRequest<ApiSuccessResponse<Team>>(
+  `tenants/${organizationId}/teams`, {
+    method: 'POST', revision: activeRevision,
+    body: { game_id: selectedEnabledGameId, slug: 'academy-2026', season: '2026',
+      name: 'Académie', kind: 'academy', short_name: 'ACAD', status: 'draft' },
+  })
+const renamed = await tenancyRequest<ApiSuccessResponse<Team>>(
+  `tenants/${organizationId}/teams/${created.data.id}`, {
+    method: 'PATCH', revision: activeRevision,
+    body: { version: created.data.version, name: 'Académie A' },
+  })
+// À déclencher après une action humaine d’archivage et confirmation du tenant.
+await tenancyRequest<ApiSuccessResponse<Team>>(
+  `tenants/${organizationId}/teams/${renamed.data.id}`, {
+    method: 'PATCH', revision: activeRevision,
+    body: { version: renamed.data.version, status: 'archived' },
+  })
+```
+
+Un conflit exige un rechargement et une nouvelle action humaine ; aucun rejeu
+automatique. Les archives restent consultables dans les listes et le détail privé.

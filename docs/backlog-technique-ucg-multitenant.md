@@ -479,6 +479,8 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   Migration principale Pending, aucune migration ou attribution réelle par l’agent.
   Code/tests/CI/docs dans un seul commit ; push/CI, sauvegarde puis migration
   utilisateur avant TEAM-002.
+  Confirmation avant TEAM-002 : 427dae1 poussé, CI et migration validées par
+  l’utilisateur ; contrôle en lecture seule Ran, batch 14.
 
 ### UCG-TEAM-002 — Gérer les équipes d’une organisation
 
@@ -486,6 +488,24 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : équipe première, académie, réserve, événementielle ou catégorie spécifique ; jeu, saison, statut et identité publique.
 - **Acceptation** : listes paginées, slug unique dans le tenant, archivage sans perte d’historique.
 - **Dépendances** : UCG-TEAM-001, UCG-TEN-004.
+- **État** : implémenté et validé localement le 13 octobre 2026.
+  API/UI privées par organisation, équipes première/académie/réserve/événementielle/
+  catégorie spécifique, jeu activé, saison descriptive, nom et identité facultative.
+  Lecture sports.read ; écriture sports.read + teams.manage organisation avec
+  MFA, confirmation tenant, CSRF et version optimiste. Aucun grant implicite.
+  Jeu/slug/saison immuables pour le cycle, slug réservé même après archivage.
+  Archive terminale conservée, archivage seul possible après retrait du jeu ;
+  aucune suppression ou publication publique. Gardes modèle et SQL PG/SQLite,
+  verrou tenant/catalogue, audit atomique minimal et portabilité tenant.
+  Listes filtrées/paginées, eager loading vérifié, 1000 équipes archives comprises.
+  Aucun roster ou scope IAM équipe ; appartenances réservées à TEAM-003.
+  50 nouveaux tests backend / 204 assertions ; SQLite complet 996/993,
+  4212 assertions ; PostgreSQL 17 996/994, 4213 assertions, exclusions attendues.
+  98 tests frontend et 11 Playwright verts, erreurs et mobile 375/320 contrôlés ;
+  Pint complet/dirty, format:check, PHPStan 8, architecture, lint/build verts.
+  Migration 2026_10_13_143631_create_teams_table Pending sur la base principale,
+  aucune migration/équipe/grant réel par l’agent. Code/tests/CI/docs dans un seul
+  commit ; push/CI, sauvegarde puis migration utilisateur avant TEAM-003.
 
 ### UCG-TEAM-003 — Gérer les appartenances datées
 

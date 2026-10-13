@@ -1178,3 +1178,39 @@ HUM-005 f960be8 poussé, CI validées et migration Ran batch 13 confirmés par
 l’utilisateur. TEAM-001 reste Pending sur la base principale. Un seul commit
 regroupe code/tests/CI/docs ; après push et CI, sauvegarder puis migrer depuis back/
 avec php artisan migrate. Le prochain P0 est TEAM-002.
+
+Confirmation avant TEAM-002 : commit 427dae1 poussé, CI et migration validées par
+l’utilisateur ; contrôle en lecture seule de TEAM-001 : Ran, batch 14.
+
+## Équipes par organisation — UCG-TEAM-002
+
+« Équipes de l’organisation » permet de consulter les équipes avec sports.read.
+La création, l’édition et l’archivage exigent aussi teams.manage explicitement
+attribué au niveau organisation, MFA et confirmation humaine du tenant.
+Le propriétaire et les opérateurs techniques n’ont aucun droit métier implicite.
+
+Choisir un jeu activé, une saison descriptive et une catégorie : première,
+académie, réserve, événementielle ou spécifique. Nom, nom court, description et
+couleur composent l’identité ; ces champs restent privés. Aucun site public
+n’est publié. Jeu, slug et saison restent fixes pour ce cycle ; créer une autre
+équipe avec un nouveau slug pour un nouveau cycle. Le slug reste réservé dans
+l’organisation après archivage.
+
+Les équipes peuvent être brouillon, actives ou archivées. L’archive est terminale
+et reste consultable, même si le jeu est retiré ; aucune suppression ou réactivation.
+Les listes sont filtrées/paginées, les éditions partielles et les conflits de
+version explicites. Limite technique : 1000 équipes par organisation, archives
+incluses. Les appartenances et fonctions sportives arrivent avec TEAM-003.
+
+API et exemples : docs/conventions-api.md. Migration additive
+2026_10_13_143631_create_teams_table avec FK, index et gardes SQLite/PostgreSQL ;
+rollback refusé si une équipe existe. Elle reste Pending sur la base principale.
+Après push et CI, sauvegarder puis appliquer depuis back/ avec php artisan migrate.
+Aucune équipe réelle, permission attribuée ou migration principale par l’agent.
+
+Validation locale : 50 nouveaux tests backend / 204 assertions ; suites complètes
+SQLite 996/993, 4212 assertions et PostgreSQL 17 996/994, 4213 assertions (exclusions
+attendues), 98 tests frontend et 11 Playwright verts, dont mobile 375/320.
+Pint complet/dirty, format:check, PHPStan 8, architecture, lint/build verts.
+Code, tests, CI et point de reprise dans le même commit. Prochain P0 après
+validation et migration : UCG-TEAM-003, appartenances datées.
