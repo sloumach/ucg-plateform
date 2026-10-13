@@ -1026,3 +1026,53 @@ techniques, sans promesse de benchmark. Liste API ≤100 compositions, UI 10,
 participants bornés et eager-loaded ; pseudonymes chargés en une requête lors
 d’une préparation/confirmation. L’export enregistre explicitement les deux tables.
 Migration additive sans backfill ; down refuse toute composition ou participant.
+
+## Éligibilité sportive et preuves conservées — UCG-TEAM-005
+
+Teams possède team_eligibility_rulesets, team_lineup_rule_bindings et
+team_lineup_eligibility_reports. Le contexte de compétition est nommé : aucune
+dépendance Teams vers des modèles Competition, aucun competition_id artificiel.
+Les futurs modules utilisent HistoricalLineups : references du règlement, de sa
+version de contenu et du rapport final, avec eligibility_status. Une composition
+sans règlement reste unassessed, jamais implicitement admissible.
+
+TeamEligibilityRulesService : création immuable, archivage terminal conservé,
+catalogue disponible et limites explicites. LineupEligibilityService : liaison
+unique d’un brouillon, pré-évaluations append-only et preuve finale.
+TeamLineupService recontrôle effectif/versions, puis exige une preuve eligible pour
+figer une composition liée. Même transaction et verrou racine organisation pour
+liaison, rapports, capture finale et audit ; toute panne annule l’ensemble.
+Une version de contenu identifie le règlement même après archivage ; pour changer
+ses critères, créer un nouveau record puis une nouvelle composition.
+
+EligibilityEvaluator produit des motifs fermés passed/failed/unknown. Refus connu
+domine unknown. Jeu, nombres de titulaires/remplaçants, échéance, versions et
+couverture d’effectif contrôlés ; région/rang déclarés et âge facultatifs.
+Il ne consulte ni contrats ni permissions IAM pour inférer l’admissibilité.
+Une fonction sportive, un contrat et un résultat d’éligibilité restent distincts.
+
+Teams accède à People par EligibilityPeopleDirectory (Application/Contracts).
+Projection bornée à 50 personnes : profil actif du jeu/plateforme, au plus deux
+matches par personne via eager loading limité ; plusieurs = ambigu. Deux requêtes
+constantes vérifiées pour une ou plusieurs personnes, sans N+1. Un profil non daté,
+futur ou trop ancien n’est pas exploitable. Aucune certification externe implicite.
+
+People conserve birth_date facultative chiffrée et cachée, validée précocement,
+lecture/écriture administrative. Pour contrôler l’âge, le port exige
+administrative.read et retourne seulement passed/failed/unknown. Sans ce droit,
+la colonne n’est même pas sélectionnée ; jamais date ou âge numérique transmis
+à Teams. Déchiffrement invalide signalé au gestionnaire d’erreurs et résultat
+unknown. Les rapports et l’audit ne copient aucune donnée administrative.
+
+SQL SQLite/PostgreSQL protège critères/version immuables, liaison tenant/jeu/version
+et brouillon, append-only des rapports, preuve finale et échéance à l’horloge DB.
+Critères JSONB PostgreSQL comparables ; JSON texte SQLite. Échéance exclusive,
+annulation permise ; snapshots antérieurs non modifiés. FK composites sans cascade
+et index tenant/jeu/date, tenant/composition/date. Export inscrit explicitement
+les trois tables et la colonne People chiffrée. Down refuse tout règlement,
+lien, rapport ou naissance renseignée avant DDL. Pas de backfill.
+
+Pages <=100 (UI 10), 1000 règlements/organisation et 100 rapports/composition,
+dont une place réservée au contrôle final. Ces budgets ne sont pas un benchmark.
+Profiler cardinalités et contention du verrou organisation avant de les relever ;
+pas de traitement asynchrone pour le contrôle final qui doit rester atomique.

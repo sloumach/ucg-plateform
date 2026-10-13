@@ -570,6 +570,23 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : taille min/max, verrouillage, jeu, région, âge, rang et règles configurées par compétition.
 - **Acceptation** : résultat explicable ; contrat, rôle et éligibilité restent trois notions séparées.
 - **Références CDC** : TEAM-06, CTR-09.
+- **État** : implémenté le 13 octobre 2026 ; validation détaillée dans le point de
+  reprise. Règlement immuable par contexte de compétition nommé et jeu, archivage
+  conservé ; un changement exige un nouveau règlement. Liaison définitive au
+  brouillon, tailles de titulaires/remplaçants, échéance exclusive, profil de jeu
+  et plateforme, régions, rangs déclarés et âge facultatif à la date de composition.
+  Rapports eligible/ineligible/incomplete avec motifs fermés ; aucune admissibilité
+  déduite d’un contrat, d’une fonction ou d’un droit IAM. Les fiches Competition
+  seront intégrées dans leur module, sans identifiant fictif aujourd’hui.
+  Pré-évaluations conservées ; figement lié recontrôlé et refusé si incomplet ou
+  non admissible. Rapport final et références de règlement/version conservés dans
+  HistoricalLineups ; ancienne composition sans règlement reste unassessed.
+  Date de naissance facultative chiffrée, réservée aux droits administratifs ;
+  jamais copiée dans un rapport ou l’audit. Profils absents, ambigus, non datés,
+  futurs ou périmés : incomplet. API/UI privées, pagination, confirmation humaine,
+  gardes SQLite/PostgreSQL et export explicite des nouvelles tables. Migration
+  additive réservée à l’utilisateur, aucun backfill. Code/tests/CI/docs dans un
+  même commit ; prochain P0 : TEAM-006.
 
 ### UCG-TEAM-006 — Référencer adversaires et organisations externes
 

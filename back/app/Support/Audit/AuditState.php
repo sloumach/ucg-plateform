@@ -15,6 +15,9 @@ final class AuditState
         $result = [];
         foreach ($state as $key => $value) {
             $valid = match ($key) {
+                'eligibility_ruleset_id', 'eligibility_report_id' => is_string($value) && Str::isUuid($value),
+                'eligibility_action' => is_string($value) && in_array($value, ['created', 'archived', 'bound', 'preview', 'final'], true),
+                'eligibility_status' => is_string($value) && in_array($value, ['active', 'archived', 'eligible', 'ineligible', 'incomplete'], true),
                 'team_lineup_id' => is_string($value) && Str::isUuid($value),
                 'team_lineup_status' => is_string($value) && in_array($value, ['draft', 'finalized', 'cancelled'], true),
                 'team_lineup_action' => is_string($value) && in_array($value, ['created', 'replace', 'finalize', 'cancel'], true),
@@ -41,7 +44,7 @@ final class AuditState
                 'game_profile_changed_fields' => self::listWithin($value, ['game_key', 'platform_key', 'region_key', 'rank', 'game_role', 'observed_at', 'status']),
                 'external_account_changed_fields' => self::listWithin($value, ['provider_key', 'external_id', 'display_name', 'observed_at', 'status']),
                 'person_status' => is_string($value) && in_array($value, ['candidate', 'trial', 'active', 'unavailable', 'substitute', 'former'], true),
-                'changed_fields' => self::listWithin($value, ['pseudonym', 'language', 'timezone', 'status', 'biography_public', 'user_id', 'first_name', 'last_name', 'contact_email', 'contact_phone', 'biography_internal']),
+                'changed_fields' => self::listWithin($value, ['pseudonym', 'language', 'timezone', 'status', 'biography_public', 'user_id', 'first_name', 'last_name', 'contact_email', 'contact_phone', 'biography_internal', 'birth_date']),
                 'status' => is_string($value) && in_array($value, ['active', 'suspended', 'revoked', 'expired', 'pending', 'accepted', 'declined', 'closing', 'archived', 'published', 'draft'], true),
                 'role' => is_string($value) && in_array($value, ['member', 'administrator', 'superadmin', 'support'], true),
                 'version','role_id','scope_id','membership_id','person_id','game_profile_id','external_account_id','organization_game_id','catalogue_game_id','team_id' => is_string($value) && Str::isUuid($value),

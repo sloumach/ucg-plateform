@@ -3,11 +3,16 @@
 use App\Modules\Teams\Presentation\Http\Controllers\Api\V1\GameCatalogueController;
 use App\Modules\Teams\Presentation\Http\Controllers\Api\V1\OrganizationGameController;
 use App\Modules\Teams\Presentation\Http\Controllers\Api\V1\TeamController;
+use App\Modules\Teams\Presentation\Http\Controllers\Api\V1\TeamEligibilityController;
 use App\Modules\Teams\Presentation\Http\Controllers\Api\V1\TeamLineupController;
 use App\Modules\Teams\Presentation\Http\Controllers\Api\V1\TeamMembershipController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('tenants/{tenant}/teams')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
+    $eligibility = TeamEligibilityController::class;
+    Route::get('{team}/lineups/{lineup}/eligibility', [$eligibility, 'reports'])->whereUuid(['team', 'lineup'])->name('team-eligibility.reports');
+    Route::post('{team}/lineups/{lineup}/eligibility', [$eligibility, 'evaluate'])->whereUuid(['team', 'lineup'])->middleware('tenant.confirmed')->block(10, 10)->name('team-eligibility.evaluate');
+    Route::post('{team}/lineups/{lineup}/ruleset-binding', [$eligibility, 'bind'])->whereUuid(['team', 'lineup'])->middleware('tenant.confirmed')->block(10, 10)->name('team-eligibility.bind');
     $lineups = TeamLineupController::class;
     Route::get('{team}/lineups', [$lineups, 'index'])->whereUuid('team')->name('team-lineups.index');
     Route::get('{team}/lineups/{lineup}', [$lineups, 'show'])->whereUuid(['team', 'lineup'])->name('team-lineups.show');
@@ -23,6 +28,13 @@ Route::prefix('tenants/{tenant}/teams')->whereUuid('tenant')->middleware('tenant
     Route::get('{team}', [$controller, 'show'])->whereUuid('team')->name('teams.show');
     Route::post('/', [$controller, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('teams.store');
     Route::patch('{team}', [$controller, 'update'])->whereUuid('team')->middleware('tenant.confirmed')->block(10, 10)->name('teams.update');
+});
+
+Route::prefix('tenants/{tenant}/eligibility-rulesets')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
+    $controller = TeamEligibilityController::class;
+    Route::get('/', [$controller, 'index'])->name('eligibility-rulesets.index');
+    Route::post('/', [$controller, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('eligibility-rulesets.store');
+    Route::patch('{ruleset}', [$controller, 'archive'])->whereUuid('ruleset')->middleware('tenant.confirmed')->block(10, 10)->name('eligibility-rulesets.archive');
 });
 
 Route::prefix('game-catalogue')->group(function (): void {

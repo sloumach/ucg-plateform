@@ -10,19 +10,23 @@ use App\Modules\Teams\Application\Services\GameProfileCatalogueBridge;
 use App\Modules\Teams\Application\Services\TeamDepartureParticipant;
 use App\Modules\Teams\Application\Services\TeamLineupService;
 use App\Modules\Teams\Domain\Contracts\GameCatalogueRepository;
+use App\Modules\Teams\Domain\Contracts\TeamEligibilityRepository;
 use App\Modules\Teams\Domain\Contracts\TeamLineupRepository;
 use App\Modules\Teams\Domain\Contracts\TeamMembershipRepository;
 use App\Modules\Teams\Domain\Contracts\TeamRepository;
 use App\Modules\Teams\Domain\Models\GameCatalogueEntry;
 use App\Modules\Teams\Domain\Models\Team;
+use App\Modules\Teams\Domain\Models\TeamEligibilityRuleset;
 use App\Modules\Teams\Domain\Models\TeamLineup;
 use App\Modules\Teams\Domain\Models\TeamMembership;
 use App\Modules\Teams\Infrastructure\Persistence\EloquentGameCatalogueRepository;
+use App\Modules\Teams\Infrastructure\Persistence\EloquentTeamEligibilityRepository;
 use App\Modules\Teams\Infrastructure\Persistence\EloquentTeamLineupRepository;
 use App\Modules\Teams\Infrastructure\Persistence\EloquentTeamMembershipRepository;
 use App\Modules\Teams\Infrastructure\Persistence\EloquentTeamRepository;
 use App\Modules\Teams\Infrastructure\Resolution\TeamAuthorizationScopes;
 use App\Modules\Teams\Presentation\Policies\GameCataloguePolicy;
+use App\Modules\Teams\Presentation\Policies\TeamEligibilityPolicy;
 use App\Modules\Teams\Presentation\Policies\TeamLineupPolicy;
 use App\Modules\Teams\Presentation\Policies\TeamMembershipPolicy;
 use App\Modules\Teams\Presentation\Policies\TeamPolicy;
@@ -34,6 +38,7 @@ final class TeamsServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(TeamEligibilityRepository::class, EloquentTeamEligibilityRepository::class);
         $this->app->bind(TeamLineupRepository::class, EloquentTeamLineupRepository::class);
         $this->app->bind(HistoricalLineups::class, TeamLineupService::class);
         $this->app->bind(TeamMembershipRepository::class, EloquentTeamMembershipRepository::class);
@@ -47,6 +52,7 @@ final class TeamsServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Gate::policy(TeamEligibilityRuleset::class, TeamEligibilityPolicy::class);
         Gate::policy(TeamLineup::class, TeamLineupPolicy::class);
         config(['tenancy.authorization_scope_resolvers.team' => TeamAuthorizationScopes::class]);
         Gate::policy(TeamMembership::class, TeamMembershipPolicy::class);

@@ -1311,3 +1311,46 @@ Validation locale : 49 nouveaux tests backend / 256 assertions ; SQLite complet
 attendues). Base PostgreSQL temporaire supprimée. 115 tests frontend et
 13 Playwright verts, mobile 375/320 et noms longs. Pint complet/dirty,
 format:check, PHPStan niveau 8, architecture, lint/build verts.
+
+## Éligibilité sportive — UCG-TEAM-005
+
+Dans « Compositions et instantanés », ouvrir « Règlements d’éligibilité » pour
+créer un règlement du jeu : contexte de compétition nommé, titulaires minimum et
+maximum, plafond de remplaçants, plateforme, régions, rangs déclarés, âge facultatif
+et échéance. Les critères publiés restent immuables ; archiver conserve l’historique
+et les changements passent par un nouveau règlement.
+
+« Contrôler l’éligibilité » permet de lier définitivement un règlement au brouillon,
+puis de conserver une pré-évaluation avec les explications. Les écritures demandent
+une confirmation dans l’organisation active. Le figement lié refait les contrôles :
+admissible exigé, donnée manquante/ambiguë/périmée = incomplet. À l’échéance,
+modifier/figer est refusé ; annuler reste possible. Les rapports finaux ne changent
+pas après un renommage, un départ ou un changement de profil/règlement.
+
+Sans règlement, une composition ancienne reste « Non évaluée » ; elle n’est pas
+une preuve d’admissibilité. Le contexte sera rattaché aux futures fiches Competition
+dans leur ticket, sans identifiant fictif. Contrat, fonction et éligibilité restent
+distincts. Région/rang sont déclaratifs et datés, sans certification externe.
+
+L’âge se contrôle à la date UTC de composition. Date de naissance facultative dans
+la fiche administrative, chiffrée ; administrative.write pour saisir,
+administrative.read pour lire et faire ce contrôle. Jamais copiée dans un rapport
+ou l’audit. Lecture sportive/gestion équipes organisation nécessaires ; MFA, CSRF,
+pagination et notifications suivent le socle.
+
+Migration additive `2026_10_13_215251_create_team_eligibility_rules_and_reports` :
+trois tables tenant, naissance chiffrée nullable, FK et gardes SQLite/PostgreSQL.
+Aucune modification des migrations déployées ou des snapshots antérieurs.
+Down refuse les données. Base principale réservée à l’utilisateur : après push/CI,
+sauvegarder puis `php artisan migrate` depuis `back/`.
+TEAM-004 `59023ce` poussé/CI/migration confirmés ; migration Ran, batch 17.
+API et exemples dans docs/conventions-api.md. Code/tests/CI/point de reprise
+TEAM-005 regroupés dans un seul commit. Prochain P0 : UCG-TEAM-006,
+références d’adversaires et d’organisations externes.
+
+Validation locale TEAM-005 : 51 nouveaux tests backend / 227 assertions ; suites
+complètes SQLite 1144/1141, 4923 assertions (3 exclusions) et PostgreSQL 17
+1144/1142, 4924 assertions (2 exclusions Redis). Base de test temporaire supprimée.
+118 tests frontend, 14 Playwright verts, mobile 375/320 et police de repli large.
+PHPStan 8, architecture, Pint/format:check, lint/build verts. CI distante à valider
+après push. Migration TEAM-005 Pending confirmée en lecture seule.

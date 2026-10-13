@@ -120,6 +120,8 @@ class GameCatalogueSchemaTest extends TestCase
         $teams = require database_path('migrations/2026_10_13_143631_create_teams_table.php');
         $memberships = require database_path('migrations/2026_10_13_152226_create_team_membership_and_movement_tables.php');
         $lineups = require database_path('migrations/2026_10_13_204834_create_team_lineup_tables.php');
+        $eligibility = require database_path('migrations/2026_10_13_215251_create_team_eligibility_rules_and_reports.php');
+        $eligibility->down();
         $lineups->down();
         $memberships->down();
         $teams->down();
@@ -128,6 +130,7 @@ class GameCatalogueSchemaTest extends TestCase
         $teams->up();
         $memberships->up();
         $lineups->up();
+        $eligibility->up();
         $this->assertDatabaseCount('game_catalogue_entries', 18);
         $this->assertDatabaseCount('organization_games', 0);
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
@@ -157,6 +160,8 @@ class GameCatalogueSchemaTest extends TestCase
         $teams = require database_path('migrations/2026_10_13_143631_create_teams_table.php');
         $memberships = require database_path('migrations/2026_10_13_152226_create_team_membership_and_movement_tables.php');
         $lineups = require database_path('migrations/2026_10_13_204834_create_team_lineup_tables.php');
+        $eligibility = require database_path('migrations/2026_10_13_215251_create_team_eligibility_rules_and_reports.php');
+        $eligibility->down();
         $lineups->down();
         $memberships->down();
         $teams->down();
@@ -173,6 +178,7 @@ class GameCatalogueSchemaTest extends TestCase
         $teams->up();
         $memberships->up();
         $lineups->up();
+        $eligibility->up();
         $this->assertDatabaseCount('organization_games', 4);
         $this->assertSame(1, OrganizationGame::query()->where('organization_id', $org->id)->where('enabled', true)->count());
     }

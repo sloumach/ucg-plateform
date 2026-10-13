@@ -15,6 +15,7 @@ export type PersonFields = {
   contact_email?: string | null
   contact_phone?: string | null
   biography_internal?: string | null
+  birth_date?: string | null
 }
 
 // Read permissions determine which fields the server includes in each response.

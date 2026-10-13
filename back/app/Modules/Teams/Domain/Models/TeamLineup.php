@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Collection;
 
 /**
@@ -29,6 +30,8 @@ use Illuminate\Support\Collection;
  * @property int|null $finalized_by
  * @property CarbonImmutable|null $finalized_at
  * @property Collection<int, TeamLineupEntry> $entries
+ * @property TeamLineupRuleBinding|null $ruleBinding
+ * @property TeamLineupEligibilityReport|null $finalEligibilityReport
  */
 final class TeamLineup extends Model
 {
@@ -53,6 +56,18 @@ final class TeamLineup extends Model
     public function entries(): HasMany
     {
         return $this->hasMany(TeamLineupEntry::class, 'lineup_id')->orderBy('position');
+    }
+
+    /** @return HasOne<TeamLineupRuleBinding, $this> */
+    public function ruleBinding(): HasOne
+    {
+        return $this->hasOne(TeamLineupRuleBinding::class, 'lineup_id');
+    }
+
+    /** @return HasOne<TeamLineupEligibilityReport, $this> */
+    public function finalEligibilityReport(): HasOne
+    {
+        return $this->hasOne(TeamLineupEligibilityReport::class, 'lineup_id')->where('stage', 'final');
     }
 
     protected static function booted(): void

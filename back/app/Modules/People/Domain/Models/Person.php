@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $last_name
  * @property string|null $contact_email
  * @property string|null $contact_phone
+ * @property string|null $birth_date
  * @property string $version
  */
 final class Person extends Model
@@ -37,7 +38,7 @@ final class Person extends Model
 
     protected $guarded = ['*'];
 
-    protected $hidden = ['organization_id', 'user_id', 'first_name', 'last_name', 'contact_email', 'contact_phone', 'biography_internal'];
+    protected $hidden = ['organization_id', 'user_id', 'first_name', 'last_name', 'contact_email', 'contact_phone', 'biography_internal', 'birth_date'];
 
     /** @return HasMany<GameProfile, $this> */
     public function gameProfiles(): HasMany
@@ -55,7 +56,7 @@ final class Person extends Model
     {
         return ['user_id' => 'integer', 'status' => PersonStatus::class, 'first_name' => 'encrypted',
             'last_name' => 'encrypted', 'contact_email' => 'encrypted', 'contact_phone' => 'encrypted',
-            'biography_internal' => 'encrypted'];
+            'biography_internal' => 'encrypted', 'birth_date' => 'encrypted'];
     }
 
     /** @param Builder<Person> $query

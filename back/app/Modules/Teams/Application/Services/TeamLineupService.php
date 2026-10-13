@@ -25,7 +25,7 @@ final readonly class TeamLineupService implements HistoricalLineups
 {
     public function __construct(private TeamLineupRepository $records, private TeamRepository $teams, private SportingPeopleDirectory $people,
         private TenantAuthorization $authorization, private TenantBusinessGuard $guard, private EffectiveGameCatalogue $games,
-        private TeamLineupJournal $journal, private Factory $validator, private ConnectionInterface $database) {}
+        private TeamLineupJournal $journal, private Factory $validator, private ConnectionInterface $database, private LineupEligibilityService $eligibility) {}
 
     /** @param array<string,mixed> $filters
      * @return LengthAwarePaginator<int,TeamLineup>
@@ -67,6 +67,10 @@ final readonly class TeamLineupService implements HistoricalLineups
                 'version' => (string) Str::uuid(), 'created_by' => $context->actorUserId, ...$this->teamSnapshot($team)]);
             $this->records->replaceEntries($lineup, $entries);
             $lineup->load('entries');
+            if (isset($values['ruleset_id'], $values['ruleset_version'])) {
+                $this->eligibility->bindCreated($context, $lineup, $values['ruleset_id'], $values['ruleset_version']);
+            }
+            $lineup->load(['ruleBinding.ruleset', 'finalEligibilityReport']);
             $this->journal->record($context, $lineup, 'created');
 
             return $lineup;
@@ -95,6 +99,7 @@ final readonly class TeamLineupService implements HistoricalLineups
             if ($values['action'] === 'cancel') {
                 $attributes['status'] = 'cancelled';
             } else {
+                $this->eligibility->assertEditable($context, $lineup);
                 $team = $this->editableTeam($context, $team->id, $values['team_version']);
                 $at = $values['action'] === 'replace' ? CarbonImmutable::parse($values['effective_at'])->utc() : $lineup->effective_at;
                 $selected = $values['action'] === 'replace' ? $values['entries'] : $lineup->entries->map(fn ($entry): array => [
@@ -105,10 +110,11 @@ final readonly class TeamLineupService implements HistoricalLineups
                 if ($values['action'] === 'replace') {
                     $attributes = [...$attributes, 'label' => $values['label'], 'effective_at' => $at];
                 } else {
+                    $this->eligibility->finalProof($context, $lineup, $attributes['version']);
                     $attributes = [...$attributes, 'status' => 'finalized', 'finalized_at' => CarbonImmutable::now()->startOfSecond(), 'finalized_by' => $context->actorUserId];
                 }
             }
-            $lineup = $this->records->save($lineup, $attributes)->load('entries');
+            $lineup = $this->records->save($lineup, $attributes)->load(['entries', 'ruleBinding.ruleset', 'finalEligibilityReport']);
             $this->journal->record($context, $lineup, $values['action'], $before);
 
             return $lineup;
@@ -125,6 +131,8 @@ final readonly class TeamLineupService implements HistoricalLineups
         return ['id' => $lineup->id, 'team_id' => $lineup->team_id, 'game_id' => $lineup->game_id, 'purpose' => $lineup->purpose,
             'label' => $lineup->label, 'effective_at' => $lineup->effective_at->toIso8601String(), 'finalized_at' => $lineup->finalized_at?->toIso8601String(),
             'team_name' => $lineup->team_name, 'game_name' => $lineup->game_name, 'game_key' => $lineup->game_key, 'season' => $lineup->season,
+            'ruleset_id' => $lineup->ruleBinding?->ruleset_id, 'ruleset_version' => $lineup->ruleBinding?->ruleset_version,
+            'eligibility_report_id' => $lineup->finalEligibilityReport?->id, 'eligibility_status' => $lineup->finalEligibilityReport->status ?? 'unassessed',
             'participants' => $lineup->entries->map(fn ($entry): array => ['person_id' => $entry->person_id, 'pseudonym' => $entry->pseudonym,
                 'membership_id' => $entry->membership_id, 'membership_role_key' => $entry->membership_role_key, 'slot_key' => $entry->slot_key, 'position' => $entry->position])->all()];
     }

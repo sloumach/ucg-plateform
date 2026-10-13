@@ -34,6 +34,6 @@ export function PersonField({ name, value, error, disabled, language, timezone }
   </div>
   const defaults: Record<string, string> = { language: language ?? 'fr', timezone: timezone ?? 'UTC' }
   return <FormField name={name} label={label(name)} defaultValue={value ?? defaults[name] ?? ''} disabled={disabled} error={error}
-    required={['pseudonym', 'language', 'timezone'].includes(name)} type={name === 'user_id' ? 'number' : name === 'contact_email' ? 'email' : 'text'}
+    required={['pseudonym', 'language', 'timezone'].includes(name)} type={name === 'birth_date' ? 'date' : name === 'user_id' ? 'number' : name === 'contact_email' ? 'email' : 'text'}
     min={name === 'user_id' ? 1 : undefined} maxLength={name === 'pseudonym' ? 80 : name === 'contact_email' ? 254 : name === 'contact_phone' ? 32 : undefined} />
 }

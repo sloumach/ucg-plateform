@@ -18,6 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
+        'team_eligibility_rulesets' => 'id', 'team_lineup_rule_bindings' => 'id', 'team_lineup_eligibility_reports' => 'id',
         'team_lineups' => 'id', 'team_lineup_entries' => 'id',
         'team_memberships' => 'id', 'team_movements' => 'id', 'team_scope_grants' => 'id',
         'teams' => 'id',
@@ -38,6 +39,9 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'team_eligibility_rulesets' => ['id', 'organization_id', 'game_id', 'name', 'version', 'status', 'min_starters', 'max_starters', 'max_substitutes', 'platform_key', 'allowed_regions', 'allowed_ranks', 'min_age', 'max_age', 'observation_max_days', 'lock_at', 'created_by', 'created_at', 'updated_at'],
+        'team_lineup_rule_bindings' => ['id', 'organization_id', 'lineup_id', 'ruleset_id', 'ruleset_version', 'actor_user_id', 'created_at'],
+        'team_lineup_eligibility_reports' => ['id', 'organization_id', 'lineup_id', 'binding_id', 'ruleset_id', 'ruleset_version', 'lineup_version', 'stage', 'status', 'checks', 'evaluated_at', 'actor_user_id', 'created_at'],
         'team_lineups' => ['id', 'organization_id', 'team_id', 'game_id', 'purpose', 'label', 'effective_at', 'status', 'version', 'team_name', 'game_key', 'game_name', 'season', 'created_by', 'finalized_by', 'finalized_at', 'created_at', 'updated_at'],
         'team_lineup_entries' => ['id', 'organization_id', 'lineup_id', 'membership_id', 'membership_version', 'person_id', 'pseudonym', 'membership_role_key', 'slot_key', 'position', 'created_at', 'updated_at'],
         'team_memberships' => ['id', 'organization_id', 'team_id', 'person_id', 'role_key', 'starts_at', 'ends_at', 'status', 'version', 'created_at', 'updated_at'],
@@ -61,7 +65,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
         'organization_support_accesses' => ['id', 'organization_id', 'actor_user_id', 'platform_role_version', 'reason', 'actions', 'status', 'starts_at', 'expires_at', 'created_at', 'updated_at'],
         'organization_support_events' => ['id', 'organization_id', 'support_access_id', 'actor_user_id', 'action', 'request_id', 'ip_address', 'occurred_at'],
         'organization_audit_events' => ['id', 'organization_id', 'actor_user_id', 'action', 'target_type', 'target_id', 'reason_code', 'before', 'after', 'request_id', 'ip_address', 'occurred_at'],
-        'people' => ['id', 'organization_id', 'user_id', 'pseudonym', 'language', 'timezone', 'status', 'biography_public', 'biography_internal', 'first_name', 'last_name', 'contact_email', 'contact_phone', 'version', 'created_at', 'updated_at'],
+        'people' => ['id', 'organization_id', 'user_id', 'pseudonym', 'language', 'timezone', 'status', 'biography_public', 'biography_internal', 'first_name', 'last_name', 'contact_email', 'contact_phone', 'birth_date', 'version', 'created_at', 'updated_at'],
         'person_game_profiles' => ['id', 'organization_id', 'person_id', 'game_key', 'platform_key', 'region_key', 'rank', 'game_role', 'observed_at', 'status', 'version', 'created_at', 'updated_at'],
         'person_external_accounts' => ['id', 'organization_id', 'game_profile_id', 'game_key', 'platform_key', 'region_key', 'provider_key', 'external_id', 'display_name', 'observed_at', 'status', 'version', 'created_at', 'updated_at'],
         'tenant_storage_usage' => ['organization_id', 'bytes'],

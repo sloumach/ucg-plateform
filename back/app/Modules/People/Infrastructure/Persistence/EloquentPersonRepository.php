@@ -11,6 +11,18 @@ use Illuminate\Support\Str;
 
 final class EloquentPersonRepository implements PersonRepository
 {
+    public function eligibilitySubjects(string $org, array $ids, string $gameKey, ?string $platform, bool $birth): array
+    {
+        $query = Person::query()->forOrganization($org)->whereIn('id', $ids)->select(['id', 'organization_id', 'version', ...($birth ? ['birth_date'] : [])]);
+        if ($platform !== null) {
+            // Two matches per person are enough to detect ambiguity, without loading every profile.
+            $query->with(['gameProfiles' => fn ($profiles) => $profiles->where('organization_id', $org)->where('game_key', $gameKey)
+                ->where('platform_key', $platform)->where('status', 'active')->orderBy('id')->limit(2)]);
+        }
+
+        return array_values($query->get()->all());
+    }
+
     public function pseudonyms(string $org, array $ids): array
     {
         return Person::query()->forOrganization($org)->whereIn('id', $ids)->pluck('pseudonym', 'id')->all();

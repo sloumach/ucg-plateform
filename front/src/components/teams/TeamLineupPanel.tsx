@@ -11,6 +11,8 @@ import { apiError, isoDate, localDate, shouldReloadContext } from '../people/peo
 import { usePeopleMutation } from '../people/usePeopleMutation'
 import { Pagination } from '../data/Pagination'
 import { Alert } from '../feedback/Alert'
+import { TeamEligibilityRulesPanel, LineupEligibilityPanel } from './TeamEligibilityPanel'
+import { eligibilityText } from '../../api/teamEligibility'
 
 export function TeamLineupPanel({ active, team, disabled, onInvalid, onClose }: {
   active: ActiveOrganization; team: Team; disabled: boolean; onInvalid: () => void; onClose: () => void
@@ -23,12 +25,13 @@ export function TeamLineupPanel({ active, team, disabled, onInvalid, onClose }: 
   const [list, setList] = useState<Page<TeamLineup> | null>(null), [page, setPage] = useState(1), [refresh, setRefresh] = useState(0)
   const [filters, setFilters] = useState<Record<string, string>>({}), [editor, setEditor] = useState<TeamLineup | 'new' | null>(null)
   const [loading, setLoading] = useState(false), [error, setError] = useState<ReturnType<typeof apiError> | null>(null)
+  const [rulesOpen, setRulesOpen] = useState(false), [eligibilityId, setEligibilityId] = useState<string | null>(null)
   const mutation = usePeopleMutation<TeamLineup>(active, () => { setEditor(null); setRefresh((value) => value + 1) }, onInvalid)
   useEffect(() => {
     if (!org || !allowed) return
     const controller = new AbortController()
     const load = async () => {
-      setLoading(true); setList(null); setEditor(null); setError(null)
+      setLoading(true); setList(null); setEditor(null); setEligibilityId(null); setError(null)
       try {
         const result = await tenancyRequest<Page<TeamLineup>>(path + '?' + new URLSearchParams({ per_page: '10', page: String(page), ...filters }), { revision, signal: controller.signal })
         if (!controller.signal.aborted) setList(result)
@@ -55,6 +58,8 @@ export function TeamLineupPanel({ active, team, disabled, onInvalid, onClose }: 
       <Button type="submit" disabled={blocked}>{text('filter')}</Button>
     </form>
     {edit && <Button disabled={blocked} onClick={() => setEditor('new')}>{text('create')}</Button>}
+    <Button disabled={blocked} onClick={() => setRulesOpen((value) => !value)}>{eligibilityText('title')}</Button>
+    {rulesOpen && <TeamEligibilityRulesPanel active={active} team={team} disabled={blocked} onInvalid={onInvalid} onClose={() => setRulesOpen(false)} />}
     {!manage && <p>{text('readOnly')}</p>}
     {list?.data.length === 0 && <p>{text('empty')}</p>}
     {list && <ul className="grid min-w-0 grid-cols-1 gap-3">{list.data.map((lineup) => <li key={lineup.id} className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-slate-700 p-3">
@@ -63,6 +68,10 @@ export function TeamLineupPanel({ active, team, disabled, onInvalid, onClose }: 
       <p className="[overflow-wrap:anywhere]">{lineup.team_name} · {lineup.game_name} · {lineup.season}</p>
       <ol className="grid min-w-0 grid-cols-1 gap-2">{lineup.entries.map((entry) => <li className="[overflow-wrap:anywhere]" key={entry.id}>{entry.position}. {entry.pseudonym} · {text('slot.' + entry.slot_key)}</li>)}</ol>
       {lineup.finalized_at && <p className="text-sm">{text('finalizedBy')} {lineup.finalized_by} · {new Date(lineup.finalized_at).toLocaleString('fr')}</p>}
+      <p className="[overflow-wrap:anywhere]">{lineup.ruleset_name ?? eligibilityText('noRule')} · {eligibilityText(lineup.eligibility_status ?? 'unassessed')}</p>
+      <Button disabled={blocked} onClick={() => setEligibilityId((current) => current === lineup.id ? null : lineup.id)}>{eligibilityText('reports')}</Button>
+      {eligibilityId === lineup.id && <LineupEligibilityPanel key={lineup.id + lineup.version} active={active} team={team} lineup={lineup} disabled={blocked}
+        onInvalid={onInvalid} onClose={() => setEligibilityId(null)} onBound={() => setRefresh((value) => value + 1)} />}
       {manage && lineup.status === 'draft' && <>
         {edit && <Button disabled={blocked} onClick={() => setEditor(lineup)}>{text('edit')}</Button>}
         {edit && <form aria-label={text('finalize') + ' ' + lineup.label} onSubmit={(event) => mutation.propose(event, text('finalize') + ' ' + lineup.label, path + '/' + lineup.id, { version: lineup.version, action: 'finalize', team_version: team.version }, true)}>

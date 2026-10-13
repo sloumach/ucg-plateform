@@ -8,6 +8,11 @@ use Illuminate\Pagination\LengthAwarePaginator;
 interface PersonRepository
 {
     /** @param list<string> $ids
+     * @return list<Person>
+     */
+    public function eligibilitySubjects(string $org, array $ids, string $gameKey, ?string $platform, bool $birth): array;
+
+    /** @param list<string> $ids
      * @return array<string,string>
      */
     public function pseudonyms(string $org, array $ids): array;

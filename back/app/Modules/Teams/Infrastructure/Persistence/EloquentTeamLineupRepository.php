@@ -18,7 +18,7 @@ final readonly class EloquentTeamLineupRepository implements TeamLineupRepositor
 
     public function paginate(string $org, string $teamId, array $filters): LengthAwarePaginator
     {
-        $query = $this->query($org, $teamId)->with('entries');
+        $query = $this->query($org, $teamId)->with(['entries', 'ruleBinding.ruleset', 'finalEligibilityReport']);
         foreach (['purpose', 'status'] as $field) {
             if (isset($filters[$field])) {
                 $query->where($field, $filters[$field]);
@@ -30,7 +30,7 @@ final readonly class EloquentTeamLineupRepository implements TeamLineupRepositor
 
     public function find(string $org, string $teamId, string $id, bool $lock = false): TeamLineup
     {
-        $query = $this->query($org, $teamId)->with('entries');
+        $query = $this->query($org, $teamId)->with(['entries', 'ruleBinding.ruleset', 'finalEligibilityReport']);
 
         return ($lock ? $query->lockForUpdate() : $query)->findOrFail(strtolower($id));
     }

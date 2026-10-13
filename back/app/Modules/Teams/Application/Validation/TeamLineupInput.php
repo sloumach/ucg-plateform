@@ -33,7 +33,9 @@ final class TeamLineupInput
     /** @return array<string,array<mixed>> */
     public static function createRules(): array
     {
-        return [...self::compositionRules(), 'purpose' => ['required', Rule::in(['match', 'registration'])]];
+        return [...self::compositionRules(), 'purpose' => ['required', Rule::in(['match', 'registration'])],
+            'ruleset_id' => ['uuid', 'required_with:ruleset_version'],
+            'ruleset_version' => ['uuid', 'required_with:ruleset_id']];
     }
 
     /** @return array<string,array<mixed>> */

@@ -1468,3 +1468,92 @@ await tenancyRequest<ApiSuccessResponse<TeamLineup>>(`${path}/${draft.data.id}`,
   body: { action: 'finalize', version: draft.data.version, team_version: team.version },
 })
 ```
+
+## Éligibilité sportive — UCG-TEAM-005
+
+Routes sous `/api/v1/tenants/{tenant}` :
+
+- GET/POST `eligibility-rulesets` : liste paginée et création.
+- PATCH `eligibility-rulesets/{ruleset}` : archivage uniquement.
+- POST `teams/{team}/lineups/{lineup}/ruleset-binding` : liaison durable.
+- GET/POST `teams/{team}/lineups/{lineup}/eligibility` : rapports paginés et pré-évaluation.
+
+Lecture : sports.read organisation ; toute écriture exige aussi teams.manage
+organisation, MFA, CSRF, révision et confirmation tenant. UUID hors tenant/équipe :
+404. Champs inconnus refusés. Réponses typed Resources et notifications françaises.
+
+Créer exige name 1..120 (contexte de compétition), game_id disponible, min_starters
+1..50, max_starters >= minimum, max_substitutes 0..49 ; maximum total <=50.
+Champs présents mais éventuellement null : platform_key, min_age, max_age, lock_at.
+Âges 0..120 cohérents, observation_max_days 1..3650. lock_at ISO avec secondes et
+offset explicite, normalisé UTC. allowed_regions et allowed_ranks : listes présentes
+de 0..32 valeurs ; clé région du catalogue, rang déclaré de 1..80 caractères.
+Plateforme du catalogue obligatoire si régions/rangs définis ; liste vide = critère
+non imposé. Rangs comparés après trim et sans distinction de casse, sans inventer
+une hiérarchie commune aux jeux. name identifie aujourd’hui le contexte préparé :
+aucune FK de compétition fictive. Compétitions consommera ces références ensuite.
+
+Un règlement reste immuable. PATCH accepte seulement version UUID et action
+archive ; sa version de contenu ne change pas. Pour changer les critères, créer un
+nouveau règlement. Les anciennes références et rapports restent lisibles.
+
+Lier exige version du brouillon, ruleset_id et ruleset_version exactes. Liaison
+possible seulement pour un brouillon non lié, même jeu, équipe/jeu disponibles,
+règlement actif, avant échéance. Nouvelle version de composition retournée.
+POST création de composition peut aussi recevoir ces deux références ensemble.
+Lien non remplaçable/supprimable ; nouveau règlement => nouvelle composition.
+
+Pré-évaluer exige uniquement version UUID du brouillon lié ; l’évaluation écrit
+un rapport mais ne change pas cette version. Une pré-évaluation après échéance
+explique le refus. GET accepte page/per_page du socle (API <=100, UI 10). Rapport :
+id, lineup_id/version, ruleset_id/version, stage preview/final, status
+eligible/ineligible/incomplete, evaluated_at, actor_user_id et checks bornés.
+Chaque check porte code, status passed/failed/unknown, person_id nullable et
+message localisé. Date de naissance, âge numérique, coordonnées, comptes externes,
+noms de rang et région source ne sont pas copiés dans ces rapports.
+
+Toute règle refusée domine une donnée inconnue : ineligible ; sinon une donnée
+inconnue donne incomplete ; sinon eligible. Profil actif du jeu/plateforme demandé :
+aucun = absent, plusieurs = ambigu. Aucun profil choisi arbitrairement. Observation
+absente, après la composition ou l’évaluation, ou antérieure à
+effective_at - observation_max_days => incomplete. La borne ancienne est inclusive.
+Âge en années civiles à la date UTC de composition ; anniversaire du 29 février
+atteint le 1er mars en année non bissextile. Lecture administrative requise pour
+ce contrôle ; absence/invalidité/refus d’accès donne le même motif unknown.
+
+PUT n’existe pas. PATCH finalize d’une composition liée refait l’évaluation après
+vérification des versions d’appartenances, sous la même transaction ; exige eligible
+et conserve un rapport final pour la nouvelle version de composition. Échéance
+exclusive : à lock_at, modification et figement refusés. Annuler reste possible.
+Une ancienne composition sans règlement reste figée avec eligibility_status
+unassessed ; elle ne constitue aucune preuve d’admissibilité de compétition.
+
+Réponse composition enrichie de ruleset_id/version/name, lock_at,
+eligibility_status/report_id. HistoricalLineups contient les références du
+rapport final et son statut ; aucun recalcul lors des lectures historiques.
+Conflits : TEAM_RULESET_VERSION_STALE, TEAM_RULESET_IMMUTABLE,
+TEAM_RULESET_UNAVAILABLE, TEAM_LINEUP_RULE_BINDING_RETAINED,
+TEAM_LINEUP_RULESET_REQUIRED, TEAM_LINEUP_LOCKED,
+TEAM_LINEUP_ELIGIBILITY_INCOMPLETE, TEAM_LINEUP_INELIGIBLE, TEAM_ELIGIBILITY_LIMIT.
+Après 409 : recharger/corriger puis nouvelle confirmation, aucun rejeu automatique.
+Limites : 1000 règlements/organisation, 99 pré-évaluations + 1 rapport final/composition.
+
+birth_date facultative YYYY-MM-DD, 1900..aujourd’hui, disponible via les routes
+People existantes : administrative.write pour saisir, administrative.read pour
+lire. Stockage chiffré comme les autres champs privés ; hors projection sportive.
+Mapping CSV conservé : date saisie dans la fiche administrative.
+
+```ts
+// Après confirmation humaine dans le tenant actif.
+const bound = await tenancyRequest<ApiSuccessResponse<TeamLineup>>(
+  `tenants/${organizationId}/teams/${team.id}/lineups/${draft.id}/ruleset-binding`,
+  { method: 'POST', revision: activeRevision,
+    body: { version: draft.version, ruleset_id: rules.id, ruleset_version: rules.version } },
+)
+// Nouvelle confirmation pour conserver une pré-évaluation explicable.
+await tenancyRequest(
+  `tenants/${organizationId}/teams/${team.id}/lineups/${draft.id}/eligibility`,
+  { method: 'POST', revision: activeRevision, body: { version: bound.data.version } },
+)
+// Le figement, confirmé séparément, refait le contrôle ; ce rapport n’est pas une autorisation.
+```

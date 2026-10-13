@@ -3,7 +3,7 @@ import { t, type TranslationKey } from '../../i18n/fr'
 
 export const personStatuses = ['candidate', 'trial', 'active', 'unavailable', 'substitute', 'former'] as const
 export const personSportsFields = ['pseudonym', 'language', 'timezone', 'status', 'biography_public'] as const
-export const personAdminFields = ['user_id', 'first_name', 'last_name', 'contact_email', 'contact_phone', 'biography_internal'] as const
+export const personAdminFields = ['user_id', 'first_name', 'last_name', 'birth_date', 'contact_email', 'contact_phone', 'biography_internal'] as const
 export function label(name: string) { return t(('people.' + name) as TranslationKey) }
 export function apiError(error: unknown) { return error instanceof ApiClientError ? error : new ApiClientError(t('people.error')) }
 export function shouldReloadContext(error: ApiClientError) {

@@ -22,8 +22,11 @@ class TeamLineupSchemaTest extends TestCase
     {
         $this->assertDatabaseCount('team_lineups', 0);
         $migration = require database_path('migrations/2026_10_13_204834_create_team_lineup_tables.php');
+        $eligibility = require database_path('migrations/2026_10_13_215251_create_team_eligibility_rules_and_reports.php');
+        $eligibility->down();
         $migration->down();
         $migration->up();
+        $eligibility->up();
         app(PortabilityRepository::class)->assertCatalog();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         $this->assertDatabaseCount('team_lineup_entries', 0);

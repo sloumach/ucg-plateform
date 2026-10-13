@@ -9,8 +9,8 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-TEAM-004` — compositions datées de match ou
-  d’inscription et instantanés immuables des participants.
+- Dernier ticket traité : `UCG-TEAM-005` — règlements versionnés et rapports
+  explicables d’éligibilité, contrôlés à la finalisation des compositions liées.
 - IAM-006 et son correctif `0b85252` poussés ; push, migration et CI validés
   par l’utilisateur dans cette discussion. Migration confirmée en lecture seule :
   `Ran`, batch 9. L’échec initial `38174777644` reste documenté ci-dessous.
@@ -48,9 +48,12 @@
   tests unitaires et build réussis dans cette CI.
 - Correctif TEAM-003 (`8a997ab`) poussé ; CI confirmée réussie par l’utilisateur
   avant TEAM-004. Branche propre et synchronisée avec origin/staging au démarrage.
-- Prochaine action : push utilisateur TEAM-004 et validation des CI, sauvegarde
+- TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
+  TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
+  en lecture seule : Ran, batch 17.
+- Prochaine action : push utilisateur TEAM-005 et validation des CI, sauvegarde
   puis `php artisan migrate` depuis `back/`. Migration additive
-  `2026_10_13_204834_create_team_lineup_tables`, réservée à l’utilisateur sur la
+  `2026_10_13_215251_create_team_eligibility_rules_and_reports`, réservée à l’utilisateur sur la
   base principale, statut Pending vérifié en lecture seule. Code, tests, CI et
   docs dans le même commit. Aucun
   fichier utilisateur réel importé, personne réelle créée, compte lié ou e-mail envoyé.
@@ -67,8 +70,8 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après push/CI/migration TEAM-004, prochain ticket P0 : `UCG-TEAM-005`
-  (éligibilité sportive et règles configurées par compétition).
+- Après push/CI/migration TEAM-005, prochain ticket P0 : `UCG-TEAM-006`
+  (adversaires et organisations externes, références publiques privées au tenant).
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
@@ -1446,3 +1449,65 @@ ensuite ce fichier pour qu'il reflète la réalité.
 - Code, tests, CI, README, API, architecture, backlog et point de reprise dans
   le même commit. Prochaine étape : push/CI utilisateur, sauvegarde puis
   php artisan migrate depuis back/. Prochain P0 : UCG-TEAM-005, éligibilité sportive.
+
+## Éligibilité sportive — UCG-TEAM-005
+
+- Règlements tenant par contexte de compétition nommé et jeu : tailles minimum/
+  maximum de titulaires, maximum remplaçants, plateforme, régions, rangs déclarés,
+  âge facultatif, ancienneté d’observation et échéance UTC exclusive. Critères et
+  version de contenu immuables ; archivage conservé, nouvelle configuration par
+  nouveau règlement. Aucun identifiant de fiche Competition fictive.
+- Liaison unique et définitive au brouillon (ou lors de sa création) ; versions
+  explicites, équipe/jeu disponibles, règlement actif et échéance non atteinte.
+  Nouvelle version de composition à la liaison, pas de remplacement/suppression.
+- Pré-évaluation conservée avec motifs fermés passed/failed/unknown ;
+  eligible/ineligible/incomplete, refus connu prioritaire. Aucun profil choisi
+  arbitrairement : absent/plusieurs/non daté/futur/trop ancien => incomplet.
+  Région/rang déclaratifs, sans certification externe ni hiérarchie universelle.
+- Finalisation liée : versions d’effectif recontrôlées, nouvelle évaluation et
+  rapport final eligible exigés sous la même transaction que le snapshot et
+  l’audit. Panne/refus annule rapport, capture et état. Échéance atteinte :
+  modification/figement refusés, annulation conservée permise.
+- Rapport final et références règlement/version exposés via HistoricalLineups.
+  Renommage, transfert, départ, archivage ou modification de profil ne réécrivent
+  pas la preuve. Anciennes compositions sans règlement restent unassessed ;
+  aucune admissibilité de compétition présumée. Contrat, fonction et éligibilité
+  restent trois notions séparées.
+- Naissance People facultative YYYY-MM-DD, 1900..aujourd’hui, chiffrée et cachée,
+  droits administratifs pour saisir/lire. Âge à la date UTC de composition ;
+  29 février => 1er mars en année non bissextile. EligibilityPeopleDirectory
+  transmet seulement passed/failed/unknown à Teams ; administrative.read exigé
+  pour calculer. Sans ce droit, colonne non sélectionnée. Jamais date de naissance,
+  âge numérique ou identité administrative dans rapports/audit.
+- Projection People <=50 personnes et <=2 profils par personne, eager loading
+  limité ; deux requêtes constantes vérifiées, sans N+1. Listes API <=100/UI 10,
+  1000 règlements par organisation, 99 pré-évaluations + 1 place finale par
+  composition. Index tenant/jeu/date et tenant/composition/date ; aucun benchmark
+  de grande échelle. Contrôle final synchrone pour l’atomicité.
+- Migration additive 2026_10_13_215251_create_team_eligibility_rules_and_reports :
+  trois tables avec FK composites sans cascade, naissance nullable, critères JSONB
+  PostgreSQL/texte SQLite, gardes SQL d’immutabilité, liaison/proof et échéance.
+  Comparaison JSON vérifiée sur PostgreSQL ; snapshots/migrations antérieurs
+  inchangés. Export explicite des trois tables et naissance chiffrée.
+  Down refuse toute donnée avant DDL ; rollbacks de tests adaptés à l’ordre des FK.
+- UI privée depuis les compositions : règlements, liaison, pré-évaluation,
+  explications et historique. Écritures confirmées dans l’organisation active ;
+  409 relecture sans rejeu, fermeture/switch tenant annule les lectures.
+  Données échappées, contrôle mobile 375/320 avant/pendant confirmations et
+  après figement, noms longs et police de repli plus large. Retour à la ligne
+  des textes d’aide renforcé après la première vérification mobile.
+- TEAM-004 59023ce : push/CI/migration validés par l’utilisateur ; Ran, batch 17.
+  TEAM-005 Pending confirmé en lecture seule ; aucune migration principale ni
+  règlement/personne/composition réelle créée par l’agent. Tests seulement sur
+  SQLite et base PostgreSQL temporaire, ensuite supprimée.
+- Validation locale : 51 nouveaux tests backend / 227 assertions ; suite SQLite
+  1144/1141, 4923 assertions (3 exclusions attendues) ; PostgreSQL 17 complet
+  1144/1142, 4924 assertions (2 exclusions Redis attendues). 118 tests frontend
+  dans 22 fichiers ; 14 Playwright sous Chrome Windows, mode CI/UTC.
+  Lint/build, PHPStan niveau 8, architecture, Pint complet/test et format:check
+  verts. CI PostgreSQL enrichie des cinq fichiers du ticket ; CI distante à
+  confirmer par l’utilisateur après push.
+- Code, tests, CI, README, API, architecture, backlog et point de reprise dans
+  un seul commit de tâche. Prochaine action : push/CI utilisateur, sauvegarde puis
+  php artisan migrate depuis back/. Prochain P0 : UCG-TEAM-006, adversaires et
+  organisations externes (références publiques privées au tenant).
