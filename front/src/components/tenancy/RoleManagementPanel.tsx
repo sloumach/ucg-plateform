@@ -15,6 +15,7 @@ const selectClass = 'min-w-0 w-full rounded-xl border border-white/15 bg-slate-9
 type Data = { roles: Page<OrganizationRole> | null; assignments: Page<RoleAssignment>; catalogue: PermissionCatalogue | null }
 type Pending = { label: string; path: string; method: 'POST' | 'PUT'; body: Record<string, unknown>; form: HTMLFormElement }
 const permissionNames: Record<PermissionKey, Parameters<typeof t>[0]> = {
+  'games.manage': 'roles.permission.games.manage',
   'organization.view': 'roles.permission.organization.view', 'organization.update': 'roles.permission.organization.update',
   'memberships.manage': 'roles.permission.memberships.manage', 'invitations.manage': 'roles.permission.invitations.manage',
   'roles.assign': 'roles.permission.roles.assign', 'sports.read': 'roles.permission.sports.read', 'sports.write': 'roles.permission.sports.write',

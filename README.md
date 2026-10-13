@@ -989,17 +989,17 @@ selon le jeu. Les associations initiales s’appuient sur les pages officielles 
 plateformes, pas une validation des systèmes d’exploitation ou générations de consoles.
 Les régions `global`, `eu`, `na`, `apac` sont des zones de contexte applicatif,
 pas les shards officiels des éditeurs. Le rôle/rang ne sont pas normalisés pour
-comparaison entre jeux ; le catalogue complet reste TEAM-001.
+comparaison entre jeux. Le catalogue administrable est livré dans TEAM-001 ci-dessous.
 
-Ajouter une clé stable de jeu/plateforme/fournisseur/région dans la configuration
-permet son utilisation sans migration ni enum PHP/TypeScript à modifier. Les liens
-jeu → plateformes → fournisseurs sont explicites. `enabled_games` choisit les jeux
-par défaut ; `tenant_enabled_games[UUID]` remplace cette liste pour un tenant.
-`active=false`, le retrait d’une entrée, ou une liste d’activation vide bloque
-les nouvelles utilisations. Les profils historiques restent lisibles et
-archivables ; ne jamais réutiliser une clé pour une autre référence.
-Le port public `GameProfileCatalogue` pourra être implémenté par Teams, qui dépend
-déjà de People, sans dépendance inverse ni cycle. Aucune UI de catalogue dans ce lot.
+Depuis TEAM-001, ajouter ou désactiver une référence passe par le catalogue en base
+et son écran d’administration. Les liens jeu → plateformes → fournisseurs restent
+explicites et les clés stables. La migration reprend une fois enabled_games et les
+tenant_enabled_games[UUID] valides ; les changements ultérieurs de configuration
+ne remplacent pas les réglages en base. Un nouveau jeu doit être activé explicitement
+par l’organisation. Une désactivation bloque les nouvelles utilisations ; les profils
+historiques restent lisibles et archivables. Aucune clé ne doit être réutilisée.
+Teams implémente le port public GameProfileCatalogue de People, sans dépendance
+inverse ni cycle.
 
 Les API profils/comptes sont sous `tenants/{tenant}/people/{person}/game-profiles`
 et `/{profile}/external-accounts`, avec GET paginés/unitaire, POST et PATCH.
@@ -1057,8 +1057,8 @@ Les rangs, rôles et comptes externes restent déclaratifs, avec date d’observ
 Modifier un rang/alias sans nouvelle date remet la fraîcheur à inconnue. Les
 références retirées restent visibles et archivables. Le statut ancien membre
 reste descriptif : le départ et la révocation effective seront traités dans HUM-004.
-Le catalogue initial et les plateformes se configurent toujours dans
-`back/config/game_profiles.php` ; gestion complète du catalogue prévue dans TEAM-001.
+Le catalogue initial de back/config/game_profiles.php est repris à la migration
+TEAM-001 ; les références et les choix des organisations se gèrent ensuite en base.
 
 HUM-003 n’ajoute aucune migration. HUM-002 (`3c799ff`) a été poussé et migré par
 l’utilisateur (batch 11), puis sa CI validée avant ce lot. Après push HUM-003,
@@ -1141,3 +1141,40 @@ main de l’utilisateur. Aucun CSV réel ni donnée métier réelle importé par
 API et exemples : `docs/conventions-api.md`. Code, tests, CI et docs de reprise
 regroupés dans le même commit. Prochain P0 après validation : TEAM-001, catalogue
 administrable de jeux et plateformes.
+
+## Catalogue de jeux — UCG-TEAM-001
+
+Le bouton « Catalogue commun des jeux » permet de consulter les jeux, plateformes,
+fournisseurs, régions et les modes/rôles/cartes/versions rattachés à un jeu.
+Un superadmin vérifié avec MFA peut ajouter, renommer et désactiver une référence,
+après une confirmation explicite pour toutes les organisations. Les clés et
+rattachements restent stables ; le retrait conserve les historiques.
+
+Dans une organisation, « Jeux de l’organisation » exige sports.read. La gestion
+exige aussi games.manage explicitement attribué à portée organisation, avec MFA
+et confirmation tenant. Chaque jeu peut être activé ou désactivé, avec des choix
+locaux par catégorie. Hériter suit les références communes ; une sélection vide
+n’autorise aucun choix. Aucun réglage local ne modifie une référence commune.
+Le propriétaire ou un opérateur technique n’obtient aucun droit métier implicite.
+
+La migration additive 2026_10_13_120201_create_game_catalogue_and_organization_games
+reprend une fois la configuration game_profiles et ses overrides tenant valides,
+sans modifier les profils existants. Les quatre jeux initiaux gardent leur
+activation compatible ; les nouveaux jeux demandent une activation locale.
+Modes/cartes/rôles/versions peuvent être ajoutés par l’opérateur, sans données
+arbitraires créées par l’agent. Freshness_days reste configurable pour les observations.
+
+Les API game-catalogue et tenants/{tenant}/games sont versionnées et paginées.
+Les détails/erreurs et exemples sont dans docs/conventions-api.md. Le port People
+est fourni par Teams sans cycle ; profils et comptes refusent les références
+retirées tout en conservant lecture/archivage. Réglages tenant exportés isolément,
+cache global versionné de métadonnées uniquement, audit atomique et gardes SQL.
+Les rôles de jeu ne remplacent pas les rôles IAM ou les observations game_role.
+
+Validation locale : 65 tests backend ajoutés, SQLite complet 946/943 et PostgreSQL
+17 946/944 (exclusions attendues), 89 tests frontend, 10 Playwright dont catalogue
+global/local en mobile 375/320, Pint global/dirty, PHPStan 8, lint/build.
+HUM-005 f960be8 poussé, CI validées et migration Ran batch 13 confirmés par
+l’utilisateur. TEAM-001 reste Pending sur la base principale. Un seul commit
+regroupe code/tests/CI/docs ; après push et CI, sauvegarder puis migrer depuis back/
+avec php artisan migrate. Le prochain P0 est TEAM-002.

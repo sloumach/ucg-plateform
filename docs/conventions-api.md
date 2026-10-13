@@ -805,13 +805,14 @@ archives incluses ; pas de plan commercial implicite.
 Le catalogue renvoie au maximum 100 jeux, leurs plateformes/fournisseurs et zones
 actifs, filtrés par activation du tenant. Les clés restent des strings extensibles ;
 aucun enum fixe ne bloque les ajouts. Les régions initiales `global`, `eu`, `na`,
-`apac` sont des zones applicatives, pas des shards d’éditeur. Configuration actuelle
-dans `config/game_profiles.php`, future gestion complète dans TEAM-001.
+`apac` sont des zones applicatives, pas des shards d’éditeur. Depuis TEAM-001,
+les références et activations proviennent de la base ; config/game_profiles.php
+ne fournit que la source initiale de migration et le seuil de fraîcheur.
 
 | Statut/code | Situation |
 | --- | --- |
 | 409 `GAME_CONTEXT_UNAVAILABLE` | référence absente/désactivée ou non activée pour le tenant |
-| 409 `GAME_CATALOGUE_INVALID` | configuration serveur invalide |
+| 409 `GAME_CATALOGUE_INVALID` | catalogue stocké incohérent ou indisponible |
 | 409 `GAME_PROFILE_ALREADY_EXISTS` | contexte déjà présent pour cette personne |
 | 409 `EXTERNAL_ACCOUNT_ALREADY_LINKED` | identifiant déjà réservé dans le même contexte tenant |
 | 409 `GAME_PROFILE_VERSION_STALE` / `EXTERNAL_ACCOUNT_VERSION_STALE` | version obsolète |
@@ -1106,3 +1107,96 @@ Le helper retire Content-Type pour FormData, conserve CSRF/session/révision et
 laisse le navigateur fournir sa boundary. Téléchargement typé via
 downloadPersonImportReport(organizationId, importId, activeRevision), qui retourne
 un Blob. Environnement asynchrone : un worker doit écouter reports.
+
+## TEAM-001 — Catalogue commun et réglages des jeux
+
+Toutes les routes suivent auth Sanctum/session, vérification de compte, MFA et
+enveloppes Resource/pagination/request_id. Mutations : CSRF, notification française,
+versions et aucune clé inconnue. DELETE absent : désactivation conservant l’historique.
+
+| Méthode / route sous /api/v1 | Autorisation et entrée |
+| --- | --- |
+| GET game-catalogue | compte vérifié ; kind, game_id pour mode/role/map/release, pagination |
+| GET game-catalogue/{entry} | compte vérifié ; référence globale UUID |
+| POST game-catalogue | superadmin actif vérifié/MFA ; kind/key/name/active, game_id si enfant, definition si jeu, catalogue_version, confirm_global |
+| PATCH game-catalogue/{entry} | même droit ; name/active, definition si jeu, version, catalogue_version, confirm_global |
+| GET tenants/{tenant}/games | sports.read organisation ; pagination |
+| GET tenants/{tenant}/games/{game} | sports.read ; réglage + options disponibles/effectives, catalogue_version |
+| PATCH tenants/{tenant}/games/{game} | sports.read + games.manage organisation ; confirmation/révision tenant, enabled/restrictions/version/catalogue_version |
+
+Catégories fermées : game/platform/provider/region/mode/role/map/release. Les quatre
+dernières exigent un game_id de type game ; les premières ont scope global.
+Clé stable : minuscules/chiffres/tirets, 64 caractères, 32 pour plateforme/fournisseur/
+région. Nom non vide ≤120 ; active booléen. Une clé retirée reste réservée.
+Modes, rôles de jeu et versions sont des références, aucune permission IAM implicite.
+
+Definition d’un jeu : objet platforms (clé plateforme → liste de clés fournisseurs)
+et regions (liste de clés région). Références existantes seulement, fournisseurs
+distincts dans chaque plateforme ; un même fournisseur peut servir plusieurs
+plateformes. Une association vide n’autorise aucun nouveau contexte correspondant.
+Les fournisseurs désignent des références de compte, aucun OAuth ou secret.
+Les régions initiales demeurent des contextes applicatifs et non des shards officiels.
+
+Réglage local : enabled booléen ; restrictions objet fermé à platform/provider/
+region/mode/role/map/release, valeurs listes de clés disponibles de ce jeu.
+Une catégorie omise suit le catalogue ; [] bloque tous ses choix. Les choix retirés
+déjà enregistrés peuvent être conservés ou supprimés, jamais redevenir effectifs
+par une écriture locale. Un jeu global indisponible ne peut être réactivé localement.
+Version explicitement null au premier réglage, UUID courant ensuite. Le détail
+renvoie configured_enabled, enabled effectif, available, restrictions brutes,
+options et effective_options. La liste n’embarque pas tous les enfants d’un jeu.
+
+Le catalogue commun n’exige aucun tenant actif. Meta.can_manage sert seulement
+à afficher les commandes ; le serveur revérifie les droits dans la transaction.
+confirm_global accepté est distinct de la confirmation tenant et requiert une
+action humaine sur l’écran commun. Support et propriétaire tenant n’ont aucun
+droit d’édition globale implicite. Le superadmin n’a aucun droit métier local implicite.
+
+Limites : 100 jeux, 32 références par catégorie globale, 200 par catégorie de jeu,
+archives comprises ; pagination per_page 1..100 et page 1..100000. Les 4 jeux et
+leurs références configurés sont repris une fois à la migration ; les nouveaux
+jeux nécessitent une activation locale. Le catalogue des profils conserve son
+contrat existant et applique les choix effectifs à toute nouvelle utilisation.
+
+| Statut/code | Situation |
+| --- | --- |
+| 403 | droit, vérification ou MFA manquant |
+| 404 | organisation inaccessible ou référence UUID inexistante |
+| 409 GAME_CATALOGUE_VERSION_STALE | catalogue ou référence changé |
+| 409 ORGANIZATION_GAME_VERSION_STALE | réglage local changé ou création concurrente |
+| 409 GAME_CATALOGUE_ALREADY_EXISTS | clé déjà réservée dans son scope |
+| 409 GAME_CATALOGUE_LIMIT_REACHED | limite incluant références désactivées atteinte |
+| 409 GAME_CONTEXT_UNAVAILABLE | jeu/référence indisponible pour l’organisation |
+| 422 VALIDATION_FAILED | champs inconnus, mauvais scope, référence, version ou confirmation |
+| 500 INTERNAL_ERROR | persistance/audit indisponible, transaction annulée |
+
+Exemple TypeScript après connexion/MFA, sous un superadmin, à déclencher seulement
+après la confirmation humaine globale :
+
+```ts
+import { tenancyRequest } from '../api/tenancy'
+import type { ApiSuccessResponse } from '../api/contracts'
+import type { CatalogueEntry, CataloguePage, OrganizationGameDetail } from '../api/gameCatalogue'
+
+const common = await tenancyRequest<CataloguePage>('game-catalogue?kind=game&per_page=10&page=1')
+await tenancyRequest<ApiSuccessResponse<CatalogueEntry>>('game-catalogue', {
+  method: 'POST',
+  body: { kind: 'map', game_id: selectedGlobalGameId, key: 'map-example', name: 'Carte exemple',
+    active: true, catalogue_version: common.meta.catalogue_version, confirm_global: globalHumanConfirmation },
+})
+
+// Session d’un gestionnaire métier disposant de sports.read + games.manage,
+// tenant sélectionné et confirmé humainement via active-organization/confirmation.
+const detail = await tenancyRequest<ApiSuccessResponse<OrganizationGameDetail>>(
+  `tenants/${organizationId}/games/${selectedGlobalGameId}`, { revision: activeRevision })
+await tenancyRequest<ApiSuccessResponse<OrganizationGameDetail>>(
+  `tenants/${organizationId}/games/${selectedGlobalGameId}`, {
+    method: 'PATCH', revision: activeRevision,
+    body: { enabled: true, restrictions: { platform: ['pc'], region: ['eu'] },
+      version: detail.data.version, catalogue_version: detail.data.catalogue_version },
+  })
+```
+
+Ne pas rejouer automatiquement un conflit. Recharger les versions puis demander
+une nouvelle confirmation. Les observations rang/game_role des profils restent
+des textes déclaratifs ; elles ne sont pas converties en références de catalogue.

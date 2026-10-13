@@ -8,6 +8,8 @@ use App\Modules\Identity\Domain\Models\User;
 use App\Modules\People\Domain\Models\ExternalGameAccount;
 use App\Modules\People\Domain\Models\GameProfile;
 use App\Modules\People\Domain\Models\Person;
+use App\Modules\Teams\Domain\Models\GameCatalogueEntry;
+use App\Modules\Teams\Domain\Models\OrganizationGame;
 use App\Modules\Tenancy\Domain\Models\Organization;
 use App\Modules\Tenancy\Presentation\Support\ActiveOrganizationSession;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -301,7 +303,7 @@ class GameProfileControllerTest extends TestCase
     {
         $person = $this->editor();
         $profile = GameProfile::factory()->create(['person_id' => $person->id, 'organization_id' => $person->organization_id]);
-        config(['game_profiles.platforms.pc.active' => false]);
+        GameCatalogueEntry::query()->where('kind', 'platform')->where('key', 'pc')->update(['active' => false]);
 
         $this->postJson($this->path($person), [...$this->payload(), 'region_key' => 'na'])->assertConflict()->assertJsonPath('code', 'GAME_CONTEXT_UNAVAILABLE');
         $this->getJson($this->path($person, $profile->id))->assertOk()->assertJsonPath('data.game_key', 'valorant');
@@ -312,15 +314,19 @@ class GameProfileControllerTest extends TestCase
     public function test_catalogue_supports_adding_and_removing_references_and_tenant_activation_overrides(): void
     {
         $person = $this->editor(['sports.read']);
-        config(['game_profiles.games.custom-game' => ['name' => 'Jeu supplémentaire', 'platforms' => ['pc' => ['steam']]],
-            'game_profiles.enabled_games' => ['custom-game'], 'game_profiles.tenant_enabled_games.'.$person->organization_id => ['valorant']]);
+        $custom = GameCatalogueEntry::factory()->create(['key' => 'custom-game', 'name' => 'Jeu supplémentaire']);
+        foreach (GameCatalogueEntry::query()->where('kind', 'game')->get() as $game) {
+            OrganizationGame::factory()->create(['organization_id' => $person->organization_id, 'game_id' => $game->id, 'enabled' => $game->key === 'valorant']);
+        }
 
         $this->getJson('/api/v1/tenants/'.$person->organization_id.'/game-profile-catalogue')->assertOk()->assertJsonCount(1, 'data.games')->assertJsonPath('data.games.0.key', 'valorant');
-        config(['game_profiles.tenant_enabled_games.'.$person->organization_id => ['custom-game']]);
+        OrganizationGame::query()->where('organization_id', $person->organization_id)->update(['enabled' => false]);
+        OrganizationGame::query()->where('organization_id', $person->organization_id)->where('game_id', $custom->id)->update(['enabled' => true]);
         $this->getJson('/api/v1/tenants/'.$person->organization_id.'/game-profile-catalogue')->assertOk()->assertJsonPath('data.games.0.key', 'custom-game');
-        config(['game_profiles.platforms.pc' => null]);
+        $custom->forceFill(['definition' => ['platforms' => ['unknown-platform' => ['steam']], 'regions' => ['eu']]])->save();
         $this->getJson('/api/v1/tenants/'.$person->organization_id.'/game-profile-catalogue')->assertConflict()->assertJsonPath('code', 'GAME_CATALOGUE_INVALID');
-        config(['game_profiles.platforms' => []]);
+        $custom->forceFill(['definition' => ['platforms' => ['pc' => ['steam']], 'regions' => ['eu']]])->save();
+        GameCatalogueEntry::query()->where('kind', 'platform')->where('key', 'pc')->update(['active' => false]);
         $this->getJson('/api/v1/tenants/'.$person->organization_id.'/game-profile-catalogue')->assertOk()->assertJsonCount(0, 'data.games');
     }
 

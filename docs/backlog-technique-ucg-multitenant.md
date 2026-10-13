@@ -441,7 +441,8 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   supprimées. 77 tests frontend et 8 parcours Playwright verts, mobile 375/320.
   Pint global/dirty, PHPStan niveau 8, lint/build verts ; CI PG enrichie. Migration
   principale Pending, aucun CSV/personne réel importé. Code/tests/CI/docs dans un
-  seul commit ; push/CI, sauvegarde puis migration utilisateur avant TEAM-001.
+  seul commit. Push `f960be8` et CI confirmés par l’utilisateur avant TEAM-001 ;
+  migration appliquée par l’utilisateur, vérifiée Ran batch 13 le 13 octobre 2026.
 
 ### UCG-HUM-006 — Implémenter le recrutement et les essais
 
@@ -458,6 +459,26 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : jeux, modes, plateformes, régions, rôles, cartes et versions globales ; activation et réglages par tenant.
 - **Acceptation** : une organisation n’utilise que les éléments activés ; aucune modification tenant ne change le catalogue global.
 - **Références CDC** : TEAM-01.
+- **État** : implémenté et validé localement le 13 octobre 2026.
+  Catalogue global persistant de jeux, plateformes, fournisseurs, régions, modes,
+  rôles de jeu, cartes et versions. Clés et rattachements immuables, retrait par
+  désactivation ; historique des profils conservé. API/UI de gestion réservées
+  au superadmin vérifié avec MFA, confirmation globale, versions et audit atomique.
+  Organisation : lecture sports.read ; écriture sports.read + games.manage
+  explicitement attribués au niveau organisation. Aucun droit implicite du propriétaire,
+  du support ou du superadmin sur le métier tenant. Restrictions locales parmi
+  les références disponibles, aucune modification du catalogue commun.
+  Pont Teams → port public People sans cycle ; les profils/comptes vérifient les
+  activations effectives. Migration reprend les références/configurations initiales,
+  sans inventer d’activation pour les nouveaux jeux. FK, index, gardes PG/SQLite,
+  audit append-only, cache global versionné sans données tenant et portabilité locale.
+  65 tests backend ajoutés ; SQLite complet 946/943, 4008 assertions, PostgreSQL 17
+  946/944, 4009 assertions, exclusions attendues. 89 tests frontend et 10 parcours
+  Playwright verts ; confirmations, erreurs et mobile 375/320 vérifiés.
+  Pint complet/dirty, PHPStan 8, lint/build ; 4 fichiers ajoutés à la CI PostgreSQL.
+  Migration principale Pending, aucune migration ou attribution réelle par l’agent.
+  Code/tests/CI/docs dans un seul commit ; push/CI, sauvegarde puis migration
+  utilisateur avant TEAM-002.
 
 ### UCG-TEAM-002 — Gérer les équipes d’une organisation
 

@@ -5,6 +5,8 @@ namespace App\Modules\Identity\Providers;
 use App\Modules\Identity\Application\Contracts\AccountDirectory;
 use App\Modules\Identity\Application\Contracts\PlatformAccountDirectory;
 use App\Modules\Identity\Application\Contracts\PlatformAuditJournal;
+use App\Modules\Identity\Application\Contracts\PlatformCatalogueGuard;
+use App\Modules\Identity\Application\Services\PlatformCatalogueGuardService;
 use App\Modules\Identity\Domain\Contracts\MfaRepository;
 use App\Modules\Identity\Domain\Contracts\PlatformRoleRepository;
 use App\Modules\Identity\Domain\Contracts\SecurityAuditRepository;
@@ -44,6 +46,8 @@ final class IdentityServiceProvider extends ServiceProvider
         $this->app->bind(MfaRepository::class, EloquentMfaRepository::class);
         $this->app->bind(AccountDirectory::class, EloquentAccountDirectory::class);
         $this->app->bind(PlatformAccountDirectory::class, EloquentPlatformAccountDirectory::class);
+        $this->app->bind(PlatformCatalogueGuard::class,
+            PlatformCatalogueGuardService::class);
         $this->app->bind(PlatformRoleRepository::class, EloquentPlatformRoleRepository::class);
         $this->app->bind(PlatformAuditJournal::class, EloquentPlatformAuditJournal::class);
         $this->app->bind(

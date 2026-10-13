@@ -5,12 +5,12 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 12 octobre 2026.
+- Dernière mise à jour : 13 octobre 2026.
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-HUM-005` — import CSV privé de personnes,
-  prévisualisation, confirmation, rapport et reprise idempotente.
+- Dernier ticket traité : `UCG-TEAM-001` — catalogue commun administrable et
+  activations/réglages des jeux par organisation.
 - IAM-006 et son correctif `0b85252` poussés ; push, migration et CI validés
   par l’utilisateur dans cette discussion. Migration confirmée en lecture seule :
   `Ran`, batch 9. L’échec initial `38174777644` reste documenté ci-dessous.
@@ -30,9 +30,12 @@
   échouée au formatage PHP. Correctif `51fb9b1` poussé ; CI confirmées réussies
   par l’utilisateur avant HUM-005. Branche synchronisée au début de HUM-005.
   Migration HUM-004 appliquée par l’utilisateur, vérifiée `Ran`, batch 12.
-- Prochaine action : push utilisateur HUM-005, validation des CI, sauvegarde
+- HUM-005 (`f960be8`) poussé et CI validées par l’utilisateur avant TEAM-001 ;
+  migration appliquée par l’utilisateur, vérifiée en lecture seule : Ran, batch 13.
+  Branche propre et synchronisée avec origin/staging au début de TEAM-001.
+- Prochaine action : push utilisateur TEAM-001, validation des CI, sauvegarde
   puis migration depuis `back/` (`php artisan migrate`). Nouvelle migration
-  `2026_10_12_211057_create_person_import_tables`, vérifiée Pending en lecture seule, non appliquée sur la base
+  `2026_10_13_120201_create_game_catalogue_and_organization_games`, vérifiée Pending en lecture seule, non appliquée sur la base
   principale par l’agent. Code, tests, CI et docs dans le même commit. Aucun
   fichier utilisateur réel importé, personne réelle créée, compte lié ou e-mail envoyé.
 - Format de commit convenu : `UCG-ID: description`, sans préfixe `feat(...)`.
@@ -48,8 +51,8 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après push/CI/migration HUM-005, prochain ticket P0 : `UCG-TEAM-001`
-  (catalogue administrable de jeux, plateformes, modes, régions, rôles et cartes).
+- Après push/CI/migration TEAM-001, prochain ticket P0 : `UCG-TEAM-002`
+  (équipes d’une organisation, jeu, saison, statut et identité publique).
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
@@ -1175,3 +1178,54 @@ ensuite ce fichier pour qu'il reflète la réalité.
    convenu avec l'utilisateur : un seul commit de tâche couvre code, tests et docs.
 6. Intégrer les confirmations ultérieures du push, des CI et migrations dans les
    docs du prochain travail ; ne pas créer de commit séparé de clôture documentaire.
+
+## UCG-TEAM-001 — Catalogue commun et choix par organisation
+
+- Catalogue persistant : game/platform/provider/region globaux ; mode/role/map/release
+  rattachés à un jeu global. Clés, type et parent immuables, noms modifiables,
+  disponibilité contrôlée ; retrait par active=false et conservation des lignes.
+  Les rôles de jeu sont des métadonnées, distincts des grants IAM et appartenances.
+- Superadmin vérifié avec MFA uniquement pour les écritures communes, confirmation
+  humaine explicite confirm_global, version de catalogue + version de référence.
+  Port public Identity PlatformCatalogueGuard : verrou compte et administration
+  plateforme, droits revérifiés dans la transaction. Aucun accès métier tenant implicite.
+- Réglages tenant : sports.read pour lire, sports.read + games.manage à portée
+  organisation pour écrire. Jeux activés/désactivés, restrictions par catégorie ;
+  absence d’une restriction = héritage, [] = aucun choix. Aucun nom, clé ou lien
+  global modifiable par ces routes. Support et rôles techniques exclus du métier.
+- Migration additive 2026_10_13_120201_create_game_catalogue_and_organization_games :
+  reprise des quatre jeux, plateformes/fournisseurs/régions et activations existantes
+  de la configuration validée avant DDL. Nouveaux jeux non activés par défaut.
+  Overrides existants valides importés seulement pour leurs organisations.
+  Aucun profil historique modifié, rôle attribué ou donnée métier réelle créée.
+- Trois exceptions globales déclarées : game_catalogue_entries, game_catalogue_state,
+  game_catalogue_events ; organization_games appartient au tenant. FK et scopes
+  contrôlés, uniques/index de page, identité et suppression physique protégées,
+  audit global append-only. Rollback technique admis avant toute modification ;
+  refus dès modification globale, audit ou réglage tenant. Les edits SQL de
+  métadonnées avancent aussi la révision ; baseline protégée.
+- Cache des seules références globales indexé par UUID de révision, TTL 300 s,
+  ignoré dans les transactions. Activations tenant relues séparément. Snapshot
+  global borné, pas de N+1 par jeu ; listes paginées, détail d’un seul jeu borné.
+  Portabilité inclut uniquement les réglages de l’organisation ciblée.
+- GameProfileCatalogueBridge branche le port People sur les choix effectifs.
+  Nouvelles fiches et comptes refusés après retrait global/local ; lecture et
+  archivage restent possibles. Les observations game_role/rank restent déclaratives,
+  sans conversion destructive vers les nouvelles références de rôle.
+  OrganizationGameCatalogue expose assertReference pour les futurs usages Teams.
+- UI séparée : catalogue commun accessible sans tenant sélectionné ; activation
+  et choix locaux dans l’espace organisation. Confirmations globales et tenant
+  distinctes, CSRF, erreurs localisées, versions et requêtes annulées au changement
+  de tenant. Après un réglage local, l’espace et les choix de profils sont rechargés.
+- HUM-005 f960be8 poussé, CI confirmées et migration Ran batch 13 par l’utilisateur.
+  Migration TEAM-001 vérifiée Pending sur la base principale ; réservée à l’utilisateur.
+  Code, tests, CI et ces docs dans un seul commit.
+- Validation : 65 nouveaux tests backend / 268 assertions ; suites complètes SQLite
+  946 tests, 943 réussis, 4008 assertions, 3 exclusions attendues ; PostgreSQL 17
+  946/944, 4009 assertions, 2 exclusions Redis. Bases temporaires supprimées.
+  Contrôles PG ciblés après correction de la FK autoréférente et de l’ordre du
+  rollback de tests. Pint global et dirty, composer format:check, PHPStan niveau 8
+  et architecture verts. Frontend 89 tests, lint/build ; 10 Playwright verts,
+  erreurs console contrôlées sur les nouveaux parcours et mobile 375/320.
+- Prochaine étape : push/CI utilisateur, sauvegarde puis php artisan migrate depuis
+  back/. Ensuite TEAM-002 ; pas de recrutement HUM-006 ni teams/rosters dans ce lot.

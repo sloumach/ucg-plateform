@@ -2,7 +2,6 @@
 
 namespace App\Modules\People\Providers;
 
-use App\Modules\People\Application\Contracts\GameProfileCatalogue;
 use App\Modules\People\Application\Contracts\PeopleDirectory;
 use App\Modules\People\Application\Contracts\PersonImportQueue;
 use App\Modules\People\Application\Services\PersonDepartureService;
@@ -19,7 +18,6 @@ use App\Modules\People\Domain\Models\PersonDeparture;
 use App\Modules\People\Domain\Models\PersonDepartureItem;
 use App\Modules\People\Domain\Models\PersonImport;
 use App\Modules\People\Domain\Models\PersonPeriod;
-use App\Modules\People\Infrastructure\Catalogue\ConfiguredGameProfileCatalogue;
 use App\Modules\People\Infrastructure\Persistence\EloquentExternalGameAccountRepository;
 use App\Modules\People\Infrastructure\Persistence\EloquentGameProfileRepository;
 use App\Modules\People\Infrastructure\Persistence\EloquentPersonImportRepository;
@@ -42,7 +40,6 @@ final class PeopleServiceProvider extends ServiceProvider
         $this->app->bind(PersonImportRepository::class, EloquentPersonImportRepository::class);
         $this->app->bind(PersonLifecycleRepository::class, EloquentPersonLifecycleRepository::class);
         $this->app->when(PersonDepartureService::class)->needs('$participants')->giveTagged('people.departure-participants');
-        $this->app->bind(GameProfileCatalogue::class, ConfiguredGameProfileCatalogue::class);
         $this->app->bind(GameProfileRepository::class, EloquentGameProfileRepository::class);
         $this->app->bind(ExternalGameAccountRepository::class, EloquentExternalGameAccountRepository::class);
         $this->app->bind(PersonRepository::class, EloquentPersonRepository::class);

@@ -6,6 +6,9 @@ final class TableOwnership
 {
     /** @var array<string, string> Closed exceptions; every other table is tenant-owned. */
     public const GLOBAL_TABLES = [
+        'game_catalogue_entries' => 'Teams : références communes sans données métier tenant.',
+        'game_catalogue_state' => 'Teams : version du catalogue commun.',
+        'game_catalogue_events' => 'Teams : audit append-only du catalogue commun, aucun contenu tenant.',
         'users' => 'Identity : compte de connexion partagé, pas une personne métier.',
         'password_reset_tokens' => 'Identity : récupération du compte global.',
         'identity_security_events' => 'Identity : audit append-only des événements de sécurité du compte global.',

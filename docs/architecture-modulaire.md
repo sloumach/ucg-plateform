@@ -17,7 +17,7 @@ dépendance signifie que le module de gauche peut consommer l’API publique du 
 | `Identity` | aucune |
 | `Tenancy` | `Identity` |
 | `People` | `Identity`, `Tenancy` |
-| `Teams` | `Tenancy`, `People` |
+| `Teams` | `Identity`, `Tenancy`, `People` |
 | `Academy` | `Tenancy`, `People`, `Teams` |
 | `Scheduling` | `Tenancy`, `People`, `Teams` |
 | `Competition` | `Tenancy`, `Teams`, `Scheduling` |
@@ -652,10 +652,10 @@ est borné et fermé ; mauvaises formes ou activations nulles refusées. Ajout/r
 ou désactivation ne modifie aucune ligne historique. Un retrait autorise encore
 lecture et archivage seul, sans réactivation/édition utilisant la référence absente.
 Les clés sont stables et ne doivent jamais être réutilisées pour un autre objet.
-Teams pourra implémenter ce contrat dans TEAM-001 avec ses modèles et le lier dans
-son provider : dépendance Teams → API publique People, sans cycle People → Teams.
-Le catalogue complet global/activation tenant, modes/cartes/versions et son UI
-restent TEAM-001 ; aucun module ou table globale fictif n’est introduit ici.
+TEAM-001 implémente désormais ce contrat via GameProfileCatalogueBridge dans
+Teams et le lie dans son provider : dépendance Teams → API publique People,
+sans cycle People → Teams. L’adaptateur de configuration reste un composant
+historique ; la composition applicative utilise le catalogue persistant.
 
 Profil : identité tenant/personne/jeu/plateforme/région immuable et unique pour
 la personne. Compte : identité tenant/profil/contexte/fournisseur immuable ;
@@ -824,3 +824,51 @@ codes fermés et UUID de personne, jamais la valeur source ou une formule tableu
 Audit du registre limité à id/état/version ; audit des fiches via PersonService.
 TEN-006 fournit les logs structurés des jobs. Profiler coût par ligne et contention
 avant augmentation des limites ; aucun benchmark de millions de lignes.
+
+## TEAM-001 — Catalogue commun et activation tenant
+
+Teams consomme les ports publics Identity PlatformCatalogueGuard et Tenancy
+TenantAuthorization/TenantBusinessGuard/TenantAuditJournal. L’accès à Identity
+ajoute une arête déclarée sans cycle. People ne dépend pas de Teams : son port
+GameProfileCatalogue est fourni par le provider Teams.
+
+GameCatalogueEntry porte une référence typée avec scope global ou game_id.
+Les jeux contiennent seulement les associations de clés plateformes/fournisseurs
+et régions ; modes, rôles, cartes et releases sont des enfants du jeu, avec FK
+et garde SQL exigeant un parent game. Ces métadonnées ne contiennent pas de
+personne, roster, statistique ou configuration privée d’organisation.
+
+TableOwnership déclare précisément game_catalogue_entries, game_catalogue_state
+et game_catalogue_events comme globaux. OrganizationGame est tenant-owned avec
+organization_id, game_id global, enabled, restrictions et version ; identité,
+FK racine, unique organization/game et index tenant explicites. La portabilité
+exporte cette table uniquement pour le tenant, jamais les trois tables globales.
+
+Les écritures communes prennent le verrou du compte acteur, de l’administration
+plateforme et de la révision ; elles revérifient superadmin actif, vérification
+et MFA puis persistent référence/révision/audit atomiquement. Les écritures locales
+prennent le verrou d’organisation puis celui du catalogue et du réglage ; sports.read
+et games.manage organisation sont revérifiés. Les profils People prennent déjà
+leur garde tenant puis le verrou catalogue avant de vérifier la disponibilité.
+Cet ordre évite de coupler une administration globale à des verrous tenant.
+
+Les clés et rattachements sont immuables ; active=false retire une référence
+des nouveaux usages sans supprimer les historiques. Le modèle et SQL interdisent
+la suppression physique, et l’audit global est append-only. Le journal local
+conserve les UUID, disponibilité et versions, sans dump des choix privés dans
+un journal global. Tout défaut d’audit annule la modification correspondante.
+
+La migration valide la configuration existante avant DDL, importe ses métadonnées
+et ses overrides tenant explicites une seule fois. Les nouveaux jeux ont
+default_enabled=false. Le flag initial immutable préserve la compatibilité des
+quatre jeux ; chaque organisation peut ensuite les désactiver. Les edits SQL
+globaux avancent aussi la révision. Down refuse toute modification postérieure
+au baseline, tout audit et tout réglage tenant ; correction forward ensuite.
+
+Catalogue fermé par catégories, clés extensibles : 100 jeux, 32 références par
+catégorie globale, 200 par catégorie propre à chaque jeu. Les références retirées
+comptent dans ces limites. Pages 1..100000, per_page 1..100 ; détail d’un jeu au
+maximum 800 enfants. Le cache global de 300 s est versionné et contient uniquement
+les métadonnées ; il est ignoré en transaction. Les réglages tenant restent relus,
+sans clé de cache partagée de résultat métier. Nombre de requêtes de profils
+constant, aucune requête individuelle par jeu dans la liste locale.

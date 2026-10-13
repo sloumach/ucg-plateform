@@ -1,7 +1,7 @@
 <?php
 
 return [
-    // Initial server-owned references; TEAM-001 will supply the public catalogue port.
+    // One-time TEAM-001 migration source. Runtime references and activations live in the database.
     'freshness_days' => 30,
     // Application context zones, not official publisher shards or server identifiers.
     'regions' => [
