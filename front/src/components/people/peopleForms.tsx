@@ -7,8 +7,8 @@ export function SelectField({ name, title, children, error, disabled, value, onC
   value?: string; defaultValue?: string; onChange?: (value: string) => void
 }) {
   const id = useId()
-  return <div className="grid min-w-0 gap-2">
-    <label htmlFor={id}>{title}</label>
+  return <div className="grid min-w-0 grid-cols-1 gap-2">
+    <label className="[overflow-wrap:anywhere]" htmlFor={id}>{title}</label>
     <select id={id} name={name} value={value} defaultValue={defaultValue} onChange={onChange ? (event) => onChange(event.target.value) : undefined}
       disabled={disabled} aria-invalid={error ? true : undefined} aria-describedby={error ? id + '-error' : undefined}
       className="min-w-0 w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-3 text-slate-100">

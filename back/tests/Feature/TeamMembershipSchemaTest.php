@@ -26,8 +26,11 @@ class TeamMembershipSchemaTest extends TestCase
     {
         $this->assertDatabaseCount('team_memberships', 0);
         $migration = require database_path('migrations/2026_10_13_152226_create_team_membership_and_movement_tables.php');
+        $lineups = require database_path('migrations/2026_10_13_204834_create_team_lineup_tables.php');
+        $lineups->down();
         $migration->down();
         $migration->up();
+        $lineups->up();
         app(PortabilityRepository::class)->assertCatalog();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         $this->assertTrue(Schema::hasTable('team_scope_grants'));

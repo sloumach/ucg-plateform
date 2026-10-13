@@ -15,6 +15,12 @@ final class AuditState
         $result = [];
         foreach ($state as $key => $value) {
             $valid = match ($key) {
+                'team_lineup_id' => is_string($value) && Str::isUuid($value),
+                'team_lineup_status' => is_string($value) && in_array($value, ['draft', 'finalized', 'cancelled'], true),
+                'team_lineup_action' => is_string($value) && in_array($value, ['created', 'replace', 'finalize', 'cancel'], true),
+                'team_lineup_effective_at' => is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/D', $value) === 1,
+                'team_lineup_membership_ids' => is_array($value) && array_is_list($value) && count($value) <= 50
+                    && count(array_filter($value, fn (mixed $id): bool => is_string($id) && Str::isUuid($id))) === count($value),
                 'team_membership_id','team_movement_id' => is_string($value) && Str::isUuid($value),
                 'team_membership_status' => is_string($value) && in_array($value, ['active', 'closed', 'cancelled'], true),
                 'team_role_key' => is_string($value) && in_array($value, ['player', 'substitute', 'captain', 'coach', 'analyst'], true),

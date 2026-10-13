@@ -549,6 +549,20 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : lineup de match ou d’inscription, remplaçants et instantané des participants.
 - **Acceptation** : un changement de roster ultérieur ne modifie jamais un match historique.
 - **Références CDC** : TEAM-04, TEAM-05, REC-05.
+- **État** : implémenté le 13 octobre 2026 ; validations dans le point de reprise.
+  API/UI privées par équipe : brouillon daté, titulaire/remplaçant, modification,
+  annulation conservée et figement terminal. Appartenances de joueur couvrant la
+  date, une place par personne et au moins un titulaire ; versions du brouillon,
+  de l’équipe et des appartenances revérifiées sous verrou tenant.
+  Pseudonymes et identité sportive d’équipe capturés à la confirmation du figement,
+  jamais recalculés après renommage, transfert ou départ. Port HistoricalLineups
+  pour les futurs modules Matchs/Compétitions : aucun faux rattachement à une
+  fiche encore inexistante. Le libellé identifie le contexte préparé.
+  Éligibilité complète réservée à TEAM-005. Limites techniques : 50 participants
+  et 1000 compositions par équipe, historiques inclus ; liste paginée, relations
+  eager-loaded, SQL SQLite/PostgreSQL, audit minimal atomique et export tenant.
+  Migration additive réservée à l’utilisateur ; code/tests/CI/docs dans un seul
+  commit, aucune composition réelle créée par l’agent. Prochain P0 : TEAM-005.
 
 ### UCG-TEAM-005 — Implémenter l’éligibilité sportive
 

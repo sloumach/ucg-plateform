@@ -18,6 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
+        'team_lineups' => 'id', 'team_lineup_entries' => 'id',
         'team_memberships' => 'id', 'team_movements' => 'id', 'team_scope_grants' => 'id',
         'teams' => 'id',
         'organization_games' => 'id',
@@ -37,6 +38,8 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'team_lineups' => ['id', 'organization_id', 'team_id', 'game_id', 'purpose', 'label', 'effective_at', 'status', 'version', 'team_name', 'game_key', 'game_name', 'season', 'created_by', 'finalized_by', 'finalized_at', 'created_at', 'updated_at'],
+        'team_lineup_entries' => ['id', 'organization_id', 'lineup_id', 'membership_id', 'membership_version', 'person_id', 'pseudonym', 'membership_role_key', 'slot_key', 'position', 'created_at', 'updated_at'],
         'team_memberships' => ['id', 'organization_id', 'team_id', 'person_id', 'role_key', 'starts_at', 'ends_at', 'status', 'version', 'created_at', 'updated_at'],
         'team_scope_grants' => ['id', 'organization_id', 'role_assignment_id', 'team_membership_id', 'created_at'],
         'team_movements' => ['id', 'organization_id', 'team_id', 'membership_id', 'destination_team_id', 'destination_membership_id', 'action', 'reason_key', 'actor_user_id', 'effective_at', 'request_id', 'created_at'],

@@ -9,8 +9,8 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-TEAM-003` — correctif du débordement mobile de
-  l’effectif après promotion ; appartenances et grants d’équipe livrés auparavant.
+- Dernier ticket traité : `UCG-TEAM-004` — compositions datées de match ou
+  d’inscription et instantanés immuables des participants.
 - IAM-006 et son correctif `0b85252` poussés ; push, migration et CI validés
   par l’utilisateur dans cette discussion. Migration confirmée en lecture seule :
   `Ran`, batch 9. L’échec initial `38174777644` reste documenté ci-dessous.
@@ -46,8 +46,13 @@
   [38440198679](https://github.com/sloumach/ucg-plateform/actions/runs/38440198679)
   échouée sur le contrôle de débordement Playwright après promotion ; lint,
   tests unitaires et build réussis dans cette CI.
-- Prochaine action : push utilisateur du correctif TEAM-003 et validation des CI.
-  Aucune nouvelle migration. Correctif, test et docs dans le même commit. Aucun
+- Correctif TEAM-003 (`8a997ab`) poussé ; CI confirmée réussie par l’utilisateur
+  avant TEAM-004. Branche propre et synchronisée avec origin/staging au démarrage.
+- Prochaine action : push utilisateur TEAM-004 et validation des CI, sauvegarde
+  puis `php artisan migrate` depuis `back/`. Migration additive
+  `2026_10_13_204834_create_team_lineup_tables`, réservée à l’utilisateur sur la
+  base principale, statut Pending vérifié en lecture seule. Code, tests, CI et
+  docs dans le même commit. Aucun
   fichier utilisateur réel importé, personne réelle créée, compte lié ou e-mail envoyé.
 - Format de commit convenu : `UCG-ID: description`, sans préfixe `feat(...)`.
 - Accord utilisateur : un seul commit de tâche regroupe code, tests et docs de
@@ -62,8 +67,8 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après validation CI du correctif TEAM-003, prochain ticket P0 : `UCG-TEAM-004`
-  (lineups et instantanés historiques pour matchs/inscriptions).
+- Après push/CI/migration TEAM-004, prochain ticket P0 : `UCG-TEAM-005`
+  (éligibilité sportive et règles configurées par compétition).
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
@@ -1377,3 +1382,67 @@ ensuite ce fichier pour qu'il reflète la réalité.
 - Correctif, test, README, backlog et point de reprise dans un seul commit.
   Aucune nouvelle migration ni opération métier réelle. Prochaine étape : push
   et validation des CI par l’utilisateur, puis TEAM-004.
+
+## UCG-TEAM-004 — Compositions datées et instantanés immuables
+
+- Correctif TEAM-003 8a997ab poussé et CI validée par l’utilisateur. Migration
+  TEAM-003 Ran, batch 16, contrôlée en lecture seule ; branche propre et
+  synchronisée avec origin/staging au début de TEAM-004. Confirmation intégrée
+  à ce commit, sans commit documentaire séparé.
+- Modèles TeamLineup/TeamLineupEntry, Repository, Service, Journal, Form Request,
+  Policy et Resource. API GET paginée/détail, POST brouillon, PATCH replace/
+  finalize/cancel. Lecture sports.read organisation ; gestion aussi teams.manage
+  organisation, MFA/CSRF/révision/confirmation tenant ; aucun droit implicite.
+- Usage match/registration, équipe et jeu stables, date UTC, libellé humain.
+  Les fiches des modules Matchs/Compétitions ne sont pas encore implémentées :
+  aucun faux rattachement ni UUID de match/inscription accepté. Port public
+  HistoricalLineups pour leur intégration, retournant la projection sportive
+  figée sans dépendance à leurs modèles ni aux identités People courantes.
+- Participants choisis parmi les appartenances player/substitute du tenant et
+  de l’équipe couvrant la date [début, fin), une place par personne, ordre explicite
+  et au moins un titulaire. La place starter/substitute peut différer de la
+  fonction sportive de l’effectif. Captain seul/coach/analyst non sélectionnables.
+  Une période closed à une date passée couverte reste admissible, y compris
+  pour une personne ensuite partie ; cancelled ne l’est jamais.
+- Brouillon modifiable et annulable, états finalized/cancelled terminaux et
+  conservés. Figement revalidant équipe, catalogue, source et versions sous
+  verrou organisation, avec capture fraîche des pseudonymes et noms sportifs
+  puis auteur/date serveur. Renommage, transfert et départ organisationnel
+  ne changent ensuite ni l’instantané ni les participants. Pas de reconstitution
+  rétroactive de noms inconnus ; une correction exige une nouvelle composition.
+- Identités administratives et permissions jamais copiées. Éligibilité complète
+  de compétition réservée à TEAM-005 ; changements pendant le match à MATCH-002.
+  Audit minimal atomique sans libellés/pseudonymes ; panne d’audit = rollback
+  du statut, des versions et du remplacement des participants. Conflit : relecture
+  puis nouvelle confirmation, aucun rejeu automatique.
+- Migration additive team_lineups/team_lineup_entries, FK composites tenant
+  sans cascade, uniques par personne et position, index tenant/équipe/date.
+  Gardes SQL SQLite/PostgreSQL : identité, couverture au figement, états terminaux
+  et participants figés non réécrits/supprimés ; verrou organisation aussi en PG.
+  50 participants et 1000 compositions par équipe, annulées/historiques inclus.
+  Pages API ≤100, UI 10 ; participants eager-loaded, nombre de requêtes constant
+  testé. Export explicite des deux tables limité au tenant. Aucun benchmark
+  de grande échelle. Down refuse les données ; migrations déployées inchangées,
+  rollbacks de tests adaptés à l’ordre des FK.
+- UI privée depuis l’équipe, filtres et pagination, sélection d’effectif daté,
+  titulaires/remplaçants, édition du brouillon et confirmations avant mutation.
+  422 conserve la saisie, 409 recharge le contexte, lectures annulées à la
+  fermeture/changement de tenant. Pseudonymes/libellés échappés, contrôles mobile
+  375/320 avant création, pendant les confirmations et après figement, avec noms
+  longs et police de repli. Champs de sélection et confirmation partagés adaptés
+  pour ces textes longs ; aucun masquage du débordement.
+- Migration 2026_10_13_204834_create_team_lineup_tables vérifiée Pending sur la
+  base principale ; aucune migration principale, composition réelle, attribution
+  réelle ou e-mail envoyé par l’agent.
+- Validation : 49 nouveaux tests backend / 256 assertions ; SQLite complet
+  1093 tests, 1090 réussis, 4696 assertions, 3 exclusions attendues ; PostgreSQL 17
+  complet : 1093 tests, 1091 réussis, 4697 assertions, 2 exclusions Redis.
+  Première relance PG sur base réutilisée interrompue par des fonctions de triggers
+  résiduelles ; base temporaire recréée à vide, puis suite complète verte.
+  Base temporaire supprimée après validation. Frontend
+  115 tests (21 fichiers), lint/build et 13 Playwright verts avec Chrome Windows
+  en mode CI/UTC. PHPStan niveau 8, architecture, Pint complet/dirty et
+  composer format:check verts. CI PostgreSQL enrichie des quatre fichiers du ticket.
+- Code, tests, CI, README, API, architecture, backlog et point de reprise dans
+  le même commit. Prochaine étape : push/CI utilisateur, sauvegarde puis
+  php artisan migrate depuis back/. Prochain P0 : UCG-TEAM-005, éligibilité sportive.

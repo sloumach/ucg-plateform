@@ -1270,3 +1270,44 @@ après promotion. Correctif : colonnes à largeur contrainte et règles de retou
 habituelle et police de repli plus large. Lint/build, 107 tests frontend et
 12 Playwright réussis localement sous Chrome Windows ; CI Linux à revalider
 après push du correctif. Aucune nouvelle migration.
+
+## Compositions et instantanés — UCG-TEAM-004
+
+Depuis une équipe, « Compositions et instantanés » prépare un brouillon pour un
+match ou une inscription : libellé, date, titulaires et remplaçants choisis dans
+l’effectif couvrant cette date. Une place par personne, au moins un titulaire.
+La fonction dans l’effectif et la place dans cette composition sont distinctes.
+Les listes sont paginées ; seules les identités sportives sont consultées.
+
+Enregistrer, modifier, annuler et figer demandent une confirmation humaine dans
+l’organisation active. Le figement recontrôle les versions et capture les
+pseudonymes, les noms d’équipe/jeu, l’ordre des participants et son auteur.
+Ensuite, transfert, départ, renommage ou retrait du jeu ne réécrivent pas cet
+instantané. Une correction exige une nouvelle composition ; une annulation de
+brouillon conserve ses données. Consultation : sports.read organisation ;
+gestion : aussi teams.manage organisation, MFA et CSRF.
+
+Les fiches Matchs/Compétitions seront intégrées dans leurs tickets : le libellé
+identifie aujourd’hui le contexte préparé, sans rattachement fictif. Le port
+HistoricalLineups fournit leur future lecture des seules compositions figées.
+Les règles complètes d’éligibilité arrivent avec TEAM-005 ; ce lot ne valide
+pas les règles de compétition, contrats, âges ou rangs. Les noms conservés
+décrivent l’identité connue lors du figement, sans reconstitution rétroactive.
+
+Limites techniques : 50 participants, 1000 compositions par équipe, historiques
+inclus ; lecture paginée, participants eager-loaded et audit minimal atomique.
+Migration additive `2026_10_13_204834_create_team_lineup_tables` : deux tables,
+FK tenant, index et protections SQL SQLite/PostgreSQL. Down refuse toute donnée.
+Statut principal vérifié Pending ; aucune migration principale ni composition
+réelle créée par l’agent. Après push/CI, sauvegarder puis `php artisan migrate`
+depuis `back/`. API et exemples : docs/conventions-api.md.
+
+Le correctif TEAM-003 `8a997ab` est poussé et sa CI confirmée par l’utilisateur.
+Code, tests, CI et point de reprise TEAM-004 dans le même commit.
+Prochain P0 après validation/migration : UCG-TEAM-005, éligibilité sportive.
+
+Validation locale : 49 nouveaux tests backend / 256 assertions ; SQLite complet
+1093/1090, 4696 assertions et PostgreSQL 17 1093/1091, 4697 assertions (exclusions
+attendues). Base PostgreSQL temporaire supprimée. 115 tests frontend et
+13 Playwright verts, mobile 375/320 et noms longs. Pint complet/dirty,
+format:check, PHPStan niveau 8, architecture, lint/build verts.

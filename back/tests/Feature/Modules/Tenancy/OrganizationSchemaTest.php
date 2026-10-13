@@ -104,6 +104,8 @@ class OrganizationSchemaTest extends TestCase
         $catalogueMigration = require database_path('migrations/2026_10_13_120201_create_game_catalogue_and_organization_games.php');
         $teamsMigration = require database_path('migrations/2026_10_13_143631_create_teams_table.php');
         $memberships = require database_path('migrations/2026_10_13_152226_create_team_membership_and_movement_tables.php');
+        $lineups = require database_path('migrations/2026_10_13_204834_create_team_lineup_tables.php');
+        $lineups->down();
         $memberships->down();
         $teamsMigration->down();
         $catalogueMigration->down();
@@ -137,6 +139,7 @@ class OrganizationSchemaTest extends TestCase
         $catalogueMigration->up();
         $teamsMigration->up();
         $memberships->up();
+        $lineups->up();
         $this->assertTrue(Schema::hasTable('organizations'));
         $this->assertTrue(Schema::hasTable('organization_settings'));
         $this->assertTrue(Schema::hasTable('organization_lifecycle_events'));

@@ -1405,4 +1405,66 @@ await tenancyRequest<ApiSuccessResponse<TeamMembership>>(`${path}/${membership.d
 ```
 
 Ne pas rejouer automatiquement un conflit ; recharger les références/versions
-et confirmer une nouvelle action. Lineups et snapshots de match restent TEAM-004.
+et confirmer une nouvelle action. Les compositions de TEAM-004 sont décrites ci-dessous.
+
+## Compositions et instantanés — UCG-TEAM-004
+
+Routes sous `/api/v1/tenants/{tenant}/teams/{team}/lineups` : GET liste paginée,
+GET `/{lineup}` détail, POST création de brouillon, PATCH `/{lineup}` action
+replace/finalize/cancel. Lecture : sports.read organisation ; mutations : aussi
+teams.manage organisation, MFA, CSRF, révision et confirmation tenant. Identifiants
+hors tenant/hors équipe : 404. Aucun UUID de match ou inscription reçu ici : ces
+fiches arrivent dans leurs modules ; un libellé humain identifie le contexte préparé.
+
+GET accepte page 1..100000, per_page 1..100 (défaut 10), purpose match/registration
+et status draft/finalized/cancelled. Ordre date d’effet décroissante puis UUID.
+POST exige purpose, label (1..120 caractères), effective_at ISO avec secondes et
+offset explicite, team_version UUID, entries (liste de 1..50 éléments). Chaque
+élément exige membership_id, membership_version UUID et slot_key starter/substitute.
+Aucun person_id, pseudonyme, position, auteur ou état fourni par le client.
+Ordre enregistré : ordre de la liste, positions 1..50 ; une seule place par personne,
+au moins un titulaire. Appartenance player/substitute du tenant/de l’équipe,
+couvrant la date retenue ; aucune déduction de droits ou d’éligibilité de compétition.
+
+PATCH exige version UUID et action. replace exige label, effective_at, team_version
+et entries comme POST ; usage/équipe/jeu restent fixes. finalize exige team_version
+et utilise les participants du brouillon avec leurs versions conservées. cancel
+n’exige que version/action. Tout champ inattendu, y compris imbriqué, est refusé.
+Une composition figée ou annulée ne change plus et ne se supprime pas.
+
+Réponse : id, team_id, game_id, purpose, label, effective_at, status, version,
+team_name/game_key/game_name/season conservés, created_by, finalized_by/finalized_at
+et entries bornés. Les entrées portent id, membership_id, membership_version,
+person_id, pseudonym, membership_role_key, slot_key et position. Ces noms sont
+rafraîchis au figement, puis restent indépendants des fiches courantes ; ils
+décrivent l’identité connue à la confirmation, sans reconstitution rétroactive.
+Aucune identité administrative, coordonnée privée ou attribution IAM copiée.
+Notifications françaises et request_id suivent le socle API.
+
+Conflits : TEAM_LINEUP_VERSION_STALE, TEAM_LINEUP_TEAM_STALE,
+TEAM_LINEUP_MEMBERSHIP_STALE, TEAM_LINEUP_IMMUTABLE, TEAM_LINEUP_LIMIT_REACHED ;
+TEAM_ARCHIVED/GAME_CONTEXT_UNAVAILABLE pour les nouvelles utilisations. Le port
+HistoricalLineups refuse un brouillon/annulé avec TEAM_LINEUP_NOT_FINALIZED.
+Recharger les références après 409, corriger le brouillon si nécessaire et demander
+une nouvelle confirmation humaine ; ne pas rejouer automatiquement.
+
+```ts
+import { tenancyRequest } from '../api/tenancy'
+import type { ApiSuccessResponse } from '../api/contracts'
+import type { TeamLineup } from '../api/teamLineups'
+
+// Après connexion/MFA, sélection et confirmation humaine du tenant.
+const path = `tenants/${organizationId}/teams/${team.id}/lineups`
+const draft = await tenancyRequest<ApiSuccessResponse<TeamLineup>>(path, {
+  method: 'POST', revision: activeRevision,
+  body: { purpose: 'match', label: 'Scrim du mardi',
+    effective_at: '2026-10-13T11:00:00+00:00', team_version: team.version,
+    entries: [{ membership_id: selectedPeriod.id,
+      membership_version: selectedPeriod.version, slot_key: 'starter' }] },
+})
+// Nouvelle action humaine confirmée : conserver définitivement cette composition.
+await tenancyRequest<ApiSuccessResponse<TeamLineup>>(`${path}/${draft.data.id}`, {
+  method: 'PATCH', revision: activeRevision,
+  body: { action: 'finalize', version: draft.data.version, team_version: team.version },
+})
+```

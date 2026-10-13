@@ -113,6 +113,8 @@ class PersonSchemaTest extends TestCase
         $lifecycleMigration = require database_path('migrations/2026_10_12_173809_create_person_lifecycle_tables.php');
         $importMigration = require database_path('migrations/2026_10_12_211057_create_person_import_tables.php');
         $memberships = require database_path('migrations/2026_10_13_152226_create_team_membership_and_movement_tables.php');
+        $lineups = require database_path('migrations/2026_10_13_204834_create_team_lineup_tables.php');
+        $lineups->down();
         $memberships->down();
         $importMigration->down();
         $lifecycleMigration->down();
@@ -124,6 +126,7 @@ class PersonSchemaTest extends TestCase
         $lifecycleMigration->up();
         $importMigration->up();
         $memberships->up();
+        $lineups->up();
 
         $this->assertTrue(Schema::hasTable('people'));
         $this->assertDatabaseCount('people', 0);

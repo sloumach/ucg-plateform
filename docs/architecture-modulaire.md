@@ -977,4 +977,52 @@ tenant/personne/équipe/fonction/début et source/destination des mouvements.
 Portabilité inclut précisément les trois tables pour le tenant ciblé. Migration
 additive sans backfill ; down refuse toute période, mouvement ou liaison.
 Profiler contention et recherches avant d’augmenter ces budgets ; aucun benchmark
-de millions de lignes. TEAM-004 portera les lineups/snapshots, absents de ce lot.
+de millions de lignes. Les lineups/snapshots sont décrits dans TEAM-004 ci-dessous.
+
+## Compositions datées et instantanés — UCG-TEAM-004
+
+Teams possède team_lineups et team_lineup_entries. Une composition garde une
+équipe, un jeu et un usage match/registration stables ; son libellé identifie le
+contexte préparé, sa date est normalisée en UTC. Les modules Matchs/Compétitions
+n’ont pas encore leurs fiches métier : aucune FK fictive ni UUID arbitraire de
+match/inscription n’est accepté. Leur intégration utilisera le port public
+HistoricalLineups, dont snapshot exige sports.read organisation et un état figé.
+Ce port renvoie uniquement la projection sportive conservée, sans importer de
+modèle interne Teams ni relire les identités People courantes.
+
+TeamLineupService orchestre validation partagée avec Form Request, autorisation,
+verrou TenantBusinessGuard puis équipe/composition/appartenances, Repository et
+audit dans une transaction. Lecture sports.read organisation ; gestion aussi
+teams.manage organisation, MFA et confirmation tenant. Un grant équipe ne donne
+pas de lecture de toute la liste d’organisation. Le journal n’enregistre ni
+libellé ni pseudonyme : références UUID, date, action fermée, état et version.
+
+L’appartenance choisie doit être du même tenant/de la même équipe, de fonction
+player/substitute et couvrir la date [début, fin). Une place starter/substitute
+par personne, ordre explicite et au moins un starter ; la place retenue peut
+différer de la fonction dans l’effectif. Captain seul, coach et analyst ne sont
+pas des appartenances de joueur. Une appartenance closed reste utilisable à une
+date passée couverte ; une annulation ne l’est jamais. L’éligibilité de compétition,
+les minima/maxima sportifs, rangs, contrats et remplacements pendant le match
+restent aux tickets TEAM-005/MATCH-002.
+
+draft → finalized/cancelled ; états terminaux conservés, sans suppression.
+replace remplace atomiquement les participants du seul brouillon, avec nouvelle
+version ; sa date et son libellé sont modifiables. finalize recontrôle les versions
+et la couverture temporelle, capture les pseudonymes et noms d’équipe/jeu connus
+à cet instant, puis l’auteur et la date serveur. Il ne reconstitue pas un ancien
+pseudonyme inconnu. Ensuite, un renommage, retrait du jeu, transfert ou départ
+ne change ni cette projection ni sa liste de participants. Une correction exige
+une nouvelle composition. Annuler un brouillon reste possible après archivage
+ou retrait du jeu ; préparer/modifier/figer exige une équipe et un jeu disponibles.
+
+SQL SQLite/PostgreSQL protège l’identité de la composition, ses états terminaux,
+les participants figés et leur cohérence avec les appartenances du tenant ;
+PostgreSQL verrouille aussi la racine organisation. FK composites sans cascade,
+uniques tenant/composition/personne et position. Index de consultation
+tenant/équipe/date/id et de référence d’appartenance. 50 participants maximum,
+1000 compositions par équipe, annulations/historique inclus ; ces plafonds sont
+techniques, sans promesse de benchmark. Liste API ≤100 compositions, UI 10,
+participants bornés et eager-loaded ; pseudonymes chargés en une requête lors
+d’une préparation/confirmation. L’export enregistre explicitement les deux tables.
+Migration additive sans backfill ; down refuse toute composition ou participant.
