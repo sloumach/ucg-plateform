@@ -536,7 +536,12 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   48 nouveaux tests backend / 228 assertions ; SQLite complet 1044/1041,
   4440 assertions ; PostgreSQL 17 1044/1042, 4441 assertions, exclusions attendues.
   107 tests frontend et 12 Playwright verts ; mobile 375/320, Pint complet/dirty,
-  format:check, PHPStan 8, architecture, lint/build verts. Migration principale Pending.
+  format:check, PHPStan 8, architecture, lint/build verts à la livraison locale.
+  f0681e7 poussé et migré par l’utilisateur ; migration confirmée Ran, batch 16.
+  CI frontend 38440198679 échouée sur le débordement mobile après promotion.
+  Correctif des colonnes et retours à la ligne, test renforcé avec police de repli ;
+  lint/build, 107 tests frontend et 12 Playwright verts localement sous Chrome
+  Windows. CI Linux à revalider après push du correctif ; aucune nouvelle migration.
 
 ### UCG-TEAM-004 — Créer lineups et snapshots historiques
 

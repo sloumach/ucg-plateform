@@ -9,8 +9,8 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-TEAM-003` — appartenances datées, mouvements
-  sportifs conservés et grants d’équipe liés à leur période.
+- Dernier ticket traité : `UCG-TEAM-003` — correctif du débordement mobile de
+  l’effectif après promotion ; appartenances et grants d’équipe livrés auparavant.
 - IAM-006 et son correctif `0b85252` poussés ; push, migration et CI validés
   par l’utilisateur dans cette discussion. Migration confirmée en lecture seule :
   `Ran`, batch 9. L’échec initial `38174777644` reste documenté ci-dessous.
@@ -39,11 +39,15 @@
 - TEAM-002 (`11872a3`) poussé ; CI et migration validées par l’utilisateur
   avant TEAM-003. Migration confirmée en lecture seule : Ran, batch 15.
   Branche propre et synchronisée avec origin/staging au début de TEAM-003.
-- Prochaine action : push utilisateur TEAM-003, validation des CI, sauvegarde
-  puis migration depuis `back/` (`php artisan migrate`). Nouvelle migration
-  `2026_10_13_152226_create_team_membership_and_movement_tables`, vérifiée Pending
-  en lecture seule, non appliquée sur la base
-  principale par l’agent. Code, tests, CI et docs dans le même commit. Aucun
+- TEAM-003 (`f0681e7`) poussé et migré par l’utilisateur ; migration
+  `2026_10_13_152226_create_team_membership_and_movement_tables` confirmée en
+  lecture seule : Ran, batch 16. Branche propre et synchronisée avec origin/staging
+  au début du correctif. CI frontend
+  [38440198679](https://github.com/sloumach/ucg-plateform/actions/runs/38440198679)
+  échouée sur le contrôle de débordement Playwright après promotion ; lint,
+  tests unitaires et build réussis dans cette CI.
+- Prochaine action : push utilisateur du correctif TEAM-003 et validation des CI.
+  Aucune nouvelle migration. Correctif, test et docs dans le même commit. Aucun
   fichier utilisateur réel importé, personne réelle créée, compte lié ou e-mail envoyé.
 - Format de commit convenu : `UCG-ID: description`, sans préfixe `feat(...)`.
 - Accord utilisateur : un seul commit de tâche regroupe code, tests et docs de
@@ -58,7 +62,7 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après push/CI/migration TEAM-003, prochain ticket P0 : `UCG-TEAM-004`
+- Après validation CI du correctif TEAM-003, prochain ticket P0 : `UCG-TEAM-004`
   (lineups et instantanés historiques pour matchs/inscriptions).
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
@@ -1346,3 +1350,30 @@ ensuite ce fichier pour qu'il reflète la réalité.
 - Code, tests, CI, README, API, architecture, backlog et point de reprise dans
   le même commit. Prochaine étape : push/CI utilisateur, sauvegarde puis
   php artisan migrate depuis back/. Prochain P0 : UCG-TEAM-004, lineups et snapshots.
+
+### Correctif CI TEAM-003 — Débordement mobile après promotion
+
+- Commit f0681e7 poussé et migration appliquée par l’utilisateur ; vérification
+  en lecture seule : Ran, batch 16. CI frontend 38440198679 : 11 parcours
+  Playwright réussis, celui de l’effectif échoué trois fois à la ligne 71 sur
+  scrollWidth > innerWidth. Journal fourni par l’utilisateur ; logs GitHub privés.
+- Le scénario original reste vert sur Chrome Windows. Reproduction du même
+  débordement en utilisant une police monospace à 20 px dans le panneau : la
+  colonne implicite de la carte s’élargit selon la largeur minimale du pseudonyme.
+  La règle break-words prend le dessus sur overflow-wrap:anywhere dans le CSS
+  généré ; le titre peut dépasser la carte malgré un scrollWidth égal à sa largeur.
+- Colonnes explicites grid-cols-1 (minmax(0, 1fr)) dans le panneau, ses listes,
+  cartes et formulaires ; deux colonnes conservées à partir de sm pour les
+  formulaires. Suppression des règles break-words concurrentes, retour à la ligne
+  anywhere conservé pour pseudonymes, dates et mouvements. Aucun masquage du
+  débordement ni changement de logique métier ou d’API.
+- Test Playwright renforcé : contrôle de page conservé à 375/320 px, contrôle
+  des titres, paragraphes, listes et cartes avec dimensions dans l’erreur ; même
+  vérification avec une police de repli plus large. Défaut reproduit avant le
+  correctif, scénario ciblé puis suite complète verts après correction.
+- Validation locale : lint/build, 107 tests frontend (20 fichiers), 12 Playwright
+  avec Chrome Windows en mode CI/UTC, sans reprise de serveurs existants.
+  Le runner Linux reste à confirmer après push ; aucune CI distante déclarée verte.
+- Correctif, test, README, backlog et point de reprise dans un seul commit.
+  Aucune nouvelle migration ni opération métier réelle. Prochaine étape : push
+  et validation des CI par l’utilisateur, puis TEAM-004.

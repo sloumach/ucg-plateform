@@ -52,13 +52,13 @@ export function TeamMembershipPanel({ active, team, disabled, onInvalid, onClose
     setFilters(Object.fromEntries(Object.entries(entries).filter(([, value]) => value !== '').map(([key, value]) => [key, key === 'at' ? isoDate(String(value)) ?? '' : String(value)])))
     setPage(1)
   }
-  return <section aria-label={text('title') + ' ' + team.name} className="grid min-w-0 gap-4 rounded-xl border border-cyan-400/30 p-4">
-    <h3 className="break-words font-bold [overflow-wrap:anywhere]">{text('title')} · {team.name}</h3>
+  return <section aria-label={text('title') + ' ' + team.name} className="grid min-w-0 grid-cols-1 gap-4 rounded-xl border border-cyan-400/30 p-4">
+    <h3 className="font-bold [overflow-wrap:anywhere]">{text('title')} · {team.name}</h3>
     <p>{text('rules')}</p><p className="text-sm text-slate-400">{text('rightsHint')}</p>
     <Button disabled={mutation.blocked} onClick={onClose}>{text('closePanel')}</Button>
     {loading && <p role="status">{text('loading')}</p>}
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}{mutation.feedback}
-    <form aria-label={text('filter')} onSubmit={search} className="grid min-w-0 gap-3 sm:grid-cols-2">
+    <form aria-label={text('filter')} onSubmit={search} className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
       <SelectField name="role_key" title={text('role')} disabled={blocked}><option value="">{text('all')}</option>{sportingRoles.map((role) => <option key={role} value={role}>{text('role.' + role)}</option>)}</SelectField>
       <FormField name="at" label={text('at')} type="datetime-local" step="1" disabled={blocked} />
       <Button type="submit" disabled={blocked}>{text('filter')}</Button>
@@ -66,12 +66,12 @@ export function TeamMembershipPanel({ active, team, disabled, onInvalid, onClose
     {manage && <Button disabled={blocked} onClick={() => setEditor('new')}>{text('add')}</Button>}
     {!manage && <p>{text('readOnly')}</p>}
     {list?.data.length === 0 && <p>{text('empty')}</p>}
-    {list && <ul className="grid min-w-0 gap-3">{list.data.map((period) => {
+    {list && <ul className="grid min-w-0 grid-cols-1 gap-3">{list.data.map((period) => {
       const future = new Date(period.starts_at).getTime() > clock
       const editable = period.status === 'active' && (!period.ends_at || new Date(period.ends_at).getTime() > clock)
-      return <li key={period.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
-        <h4 className="break-words font-bold [overflow-wrap:anywhere]">{period.pseudonym ?? period.person_id} · {text('role.' + period.role_key)}</h4>
-        <p className="break-words [overflow-wrap:anywhere]">{new Date(period.starts_at).toLocaleString('fr')} → {period.ends_at ? new Date(period.ends_at).toLocaleString('fr') : text('noEnd')}</p>
+      return <li key={period.id} className="grid min-w-0 grid-cols-1 gap-2 rounded-xl border border-slate-700 p-3">
+        <h4 className="font-bold [overflow-wrap:anywhere]">{period.pseudonym ?? period.person_id} · {text('role.' + period.role_key)}</h4>
+        <p className="[overflow-wrap:anywhere]">{new Date(period.starts_at).toLocaleString('fr')} → {period.ends_at ? new Date(period.ends_at).toLocaleString('fr') : text('noEnd')}</p>
         <p>{text('status.' + period.status)} · {period.effective ? text('effective') : text('notEffective')}</p>
         {manage && editable && <div className="flex flex-wrap gap-2">
           <Button disabled={blocked} onClick={() => setEditor({ period, action: future ? 'cancel' : 'close' })}>{text(future ? 'cancel' : 'close')}</Button>
@@ -86,7 +86,7 @@ export function TeamMembershipPanel({ active, team, disabled, onInvalid, onClose
       onSubmit={(event, body) => mutation.propose(event, text(editor === 'new' ? 'add' : editor.action), path + '/memberships' + (editor === 'new' ? '' : '/' + editor.period.id), body, editor !== 'new')} />}
     <h4 className="font-bold">{text('history')}</h4>
     {events?.data.length === 0 && <p>{text('noHistory')}</p>}
-    {events && <ul className="grid min-w-0 gap-2">{events.data.map((movement) => <li className="break-words text-sm [overflow-wrap:anywhere]" key={movement.id}>
+    {events && <ul className="grid min-w-0 grid-cols-1 gap-2">{events.data.map((movement) => <li className="text-sm [overflow-wrap:anywhere]" key={movement.id}>
       {text('action.' + movement.action)} · {text('reason.' + movement.reason_key)} · {new Date(movement.effective_at).toLocaleString('fr')} · {text('author')} {movement.actor_user_id}
       <span> · {movement.team_name}{movement.destination_team_name && ' → ' + movement.destination_team_name}</span>
     </li>)}</ul>}
@@ -121,13 +121,13 @@ function MembershipForm({ editor, team, active, disabled, errors, onSubmit, onCa
   }, [org, revision, creating, moving, editor, team.game_id, query, page, onInvalid])
   const blocked = disabled || loading
   const options = choices?.data.filter((choice) => choice.status !== 'former' && choice.status !== 'archived' && (creating || choice.id !== team.id)) ?? []
-  return <div className="grid min-w-0 gap-3">
+  return <div className="grid min-w-0 grid-cols-1 gap-3">
     {(creating || moving) && <form aria-label={text('lookup')} onSubmit={(event) => { event.preventDefault(); setQuery(String(new FormData(event.currentTarget).get('q') ?? '')); setPage(1) }} className="flex min-w-0 flex-wrap items-end gap-3">
       <FormField name="q" label={text('prefix')} maxLength={80} disabled={disabled} /><Button type="submit" disabled={blocked}>{text('lookup')}</Button>
     </form>}
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
     {choices && <Pagination currentPage={choices.meta.current_page} totalPages={choices.meta.last_page} disabled={blocked} onPageChange={setPage} />}
-    <form aria-label={text('save')} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-4 sm:grid-cols-2" onSubmit={(event) => {
+    <form aria-label={text('save')} className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-cyan-400/30 p-4 sm:grid-cols-2" onSubmit={(event) => {
       event.preventDefault()
       const fields = Object.fromEntries(new FormData(event.currentTarget)), body: Record<string, unknown> = { reason_key: fields.reason_key }
       if (creating) Object.assign(body, { person_id: selected, role_key: fields.role_key, starts_at: isoDate(String(fields.starts_at)), ends_at: isoDate(String(fields.ends_at ?? '')) })
@@ -141,7 +141,7 @@ function MembershipForm({ editor, team, active, disabled, errors, onSubmit, onCa
       }
       onSubmit(event, body)
     }}>
-      {!creating && <p className="break-words sm:col-span-2 [overflow-wrap:anywhere]">{editor.period.pseudonym ?? editor.period.person_id} · {text(editor.action)}</p>}
+      {!creating && <p className="sm:col-span-2 [overflow-wrap:anywhere]">{editor.period.pseudonym ?? editor.period.person_id} · {text(editor.action)}</p>}
       {(creating || moving) && <SelectField name={creating ? 'person_id' : 'destination_team_id'} title={text(creating ? 'person' : 'target')} value={selected} onChange={setSelected} disabled={blocked} error={errors[creating ? 'person_id' : 'destination_team_id']?.[0]}>
         <option value="">{loading ? text('loading') : text('choose')}</option>{options.map((choice) => <option key={choice.id} value={choice.id}>{'name' in choice ? choice.name + ' · ' + choice.season : choice.pseudonym}</option>)}
       </SelectField>}

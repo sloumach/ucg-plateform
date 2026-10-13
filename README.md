@@ -1253,7 +1253,8 @@ leur accès sans appartenir sportivement à chaque équipe.
 API et exemples : docs/conventions-api.md. Migration additive
 2026_10_13_152226_create_team_membership_and_movement_tables : périodes, mouvements
 et liaisons IAM, avec FK tenant, index et gardes PG/SQLite. Down refuse toute donnée
-historique. Après push et CI, sauvegarder puis php artisan migrate depuis back/.
+historique. Migration appliquée par l’utilisateur après le push de f0681e7 ;
+statut confirmé en lecture seule : Ran, batch 16.
 Aucune migration principale, appartenance ou attribution réelle par l’agent.
 Limites techniques : 1000 périodes par personne/organisation, historiques inclus,
 et 1000 liaisons IAM par période. Code, tests, CI et point de reprise dans un seul
@@ -1263,4 +1264,9 @@ Validation locale : 48 nouveaux tests backend / 228 assertions ; suites complèt
 SQLite 1044/1041, 4440 assertions et PostgreSQL 17 1044/1042, 4441 assertions
 (exclusions attendues), 107 tests frontend, 12 Playwright verts dont mobile 375/320.
 Pint complet/dirty, format:check, PHPStan 8, architecture, lint/build verts.
-Migration principale vérifiée Pending en lecture seule.
+La CI frontend 38440198679 a ensuite révélé un débordement mobile de l’effectif
+après promotion. Correctif : colonnes à largeur contrainte et règles de retour
+à la ligne cohérentes ; contrôles Playwright renforcés à 375/320 px, avec police
+habituelle et police de repli plus large. Lint/build, 107 tests frontend et
+12 Playwright réussis localement sous Chrome Windows ; CI Linux à revalider
+après push du correctif. Aucune nouvelle migration.

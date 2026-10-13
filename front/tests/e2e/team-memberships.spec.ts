@@ -66,10 +66,17 @@ test('effectif : création et promotion confirmées, historique privé et mobile
   await expect(panel.getByText('Clôturée · Non effective à la date consultée')).toBeVisible()
   await expect(panel.getByRole('button', { name: 'Changer d’équipe' })).toHaveCount(0)
   await expect(panel.getByText('Promotion · Promotion', { exact: false })).toBeVisible()
-  for (const width of [375, 320]) {
-    await page.setViewportSize({ width, height: 812 })
-    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-    await expect.poll(() => panel.locator('h4').evaluateAll((headings) => headings.every((heading) => heading.scrollWidth <= heading.clientWidth))).toBe(true)
+  // Larger fallback glyphs reproduce the intrinsic grid overflow across operating systems.
+  for (const typography of ['', 'font-family: monospace; font-size: 20px;']) {
+    const style = await page.addStyleTag({ content: '[aria-label="Effectif et historique Académie pilote"] { ' + typography + ' }' })
+    for (const width of [375, 320]) {
+      await page.setViewportSize({ width, height: 812 })
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+      await expect.poll(() => panel.locator('h3, h4, p, ul, li').evaluateAll((elements) => elements
+        .filter((element) => element.scrollWidth > element.clientWidth)
+        .map((element) => ({ tag: element.tagName, text: element.textContent, width: element.clientWidth, scroll: element.scrollWidth })))).toEqual([])
+    }
+    await style.evaluate((element) => element.remove())
   }
   await panel.screenshot({ path: 'reports/team003-history-mobile.png', style: 'header { visibility: hidden }' })
   expect(writes).toBe(2); expect(lookupViews).toContain('sports'); expect(errors).toEqual([])
