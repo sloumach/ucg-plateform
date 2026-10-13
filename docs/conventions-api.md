@@ -1285,3 +1285,124 @@ await tenancyRequest<ApiSuccessResponse<Team>>(
 
 Un conflit exige un rechargement et une nouvelle action humaine ; aucun rejeu
 automatique. Les archives restent consultables dans les listes et le détail privé.
+
+## TEAM-003 — Appartenances datées et mouvements sportifs
+
+Routes privées sous /api/v1/tenants/{tenant}/teams/{team}. Auth/session,
+vérification/MFA, contexte tenant et Resources habituels. Lecture sports.read
+organisation ; mutations exigent aussi teams.manage organisation, CSRF,
+confirmation humaine et révision du tenant. Aucun droit automatique du capitaine,
+coach, propriétaire, support ou superadmin.
+
+| Méthode / suffixe | Entrée |
+| --- | --- |
+| GET memberships | page, per_page, person_id, role_key, status, at |
+| GET movements | page, per_page |
+| POST memberships | person_id, role_key, starts_at, ends_at facultative, reason_key |
+| PATCH memberships/{membership} | version, action, reason_key ; paramètres de l’action |
+
+person_id : UUID d’une personne de la même organisation, sans départ enregistré
+ni statut former. Aucun compte de connexion obligatoire pour une fonction sportive.
+role_key fermé : player (titulaire), substitute, captain, coach, analyst. Dates
+avec secondes et offset, format Y-m-dTH:i:sP, normalisées UTC. ends_at nullable,
+strictement après starts_at. Intervalles [début, fin) : périodes adjacentes admises.
+Même personne/équipe : fonctions identiques sans chevauchement, player/substitute
+mutuellement exclusifs ; captain peut compléter une autre fonction. Aucune
+interdiction globale d’appartenir à plusieurs équipes ajoutée dans ce lot.
+Création : reason_key initial/sporting_decision/other. Jeu disponible globalement
+et activé localement, équipe non archivée. Un ancien membre n’est pas réaffectable.
+
+Identité de période et début immuables ; aucune édition de role_key, person_id,
+team_id, starts_at ou organization_id. Les changements créent une nouvelle période.
+Action PATCH parmi close/cancel/transfer/promotion ; reason_key sporting_decision/
+promotion/transfer/end_of_period/other. Version UUID obligatoire.
+
+| Action | Règles |
+| --- | --- |
+| close | effective_at obligatoire, après le début, ne prolonge pas la fin existante ; clôture future possible |
+| cancel | période non commencée seulement ; omettre effective_at, horodatage serveur |
+| transfer | destination_team_id et destination_version, role_key ; même jeu et autre équipe non archivée |
+| promotion | mêmes champs, source academy et destination first du même jeu |
+
+Pour transfer/promotion, effective_at facultative : omise = instant serveur à la
+confirmation, fournie = date présente/future dans la période source. La destination
+crée une période ouverte. Toutes les fonctions sources qui dépassent cette date
+sont raccourcies ; celles qui commencent à partir de cette date sont annulées.
+Les historiques déjà finis restent intacts. Aucune copie des autres fonctions ou
+grants IAM ; ajouter explicitement les fonctions complémentaires dans la destination.
+UUID de destination externe au tenant : 404. Mauvaise catégorie/jeu/version : 409.
+Période cancelled/closed ou déjà expirée : terminale. Une fin future conserve
+status=active jusqu’à son échéance ; effective dépend des dates à chaque lecture.
+Pour terminer plus tôt, clôturer avec la version courante et une date plus proche.
+Clôture/annulation restent possibles après retrait du jeu. Pas de DELETE.
+
+Liste : id, team_id, person_id, pseudonym sportif, role_key, starts_at, ends_at,
+status, effective, version ; aucune identité administrative ou organization_id.
+at filtre les périodes effectives à cette date ; sans at, toutes les périodes,
+avec effective calculé à la lecture. meta.evaluated_at précise cette date.
+Filtres person_id UUID, role_key, status active/closed/cancelled. Tri début
+décroissant puis UUID ; per_page 1..100, page 1..100000, défaut 10/1.
+
+Mouvements paginés, y compris ceux vers cette équipe : UUID, source/destination
+et leurs noms actuels, références des périodes, action, reason_key, actor_user_id,
+effective_at et recorded_at. Journal append-only : les noms courants ne sont pas
+des snapshots de match. La promotion laisse un mouvement par fonction source.
+Limites techniques : 1000 périodes par personne/organisation, archives comprises,
+et 1000 liaisons IAM par période. Départ HUM-004 ferme les périodes en cours,
+annule les futures et trace person_departure dans la transaction du départ.
+Archivage TEAM-002 désormais refusé si une appartenance en cours/future subsiste.
+
+Portée IAM team maintenant disponible dans permission-catalogue. L’attribution
+role-assignments existante exige une personne liée au compte, une appartenance
+couvrant toute la période du grant et les contrôles de délégation IAM-003.
+Le grant reste lié à cette période : expiration, clôture, annulation, révocation
+d’adhésion, rôle inactif ou compte délié sont revérifiés ; un retour ne réactive
+aucun ancien grant. La fonction sportive seule ne donne aucune permission.
+Après un retour, révoquer l’ancien grant puis créer une nouvelle attribution
+explicitement liée à la nouvelle appartenance ; ne pas réactiver ou relier l’ancienne.
+GET teams/{team} accepte aussi sports.read équipe effectif ; les listes Teams,
+People et le roster restent réservés à sports.read organisation. Les mutations
+restent sous teams.manage organisation. Les grants organisation explicites
+couvrent leurs équipes sans imposer une fonction sportive à leurs gestionnaires.
+
+| Statut/code | Situation |
+| --- | --- |
+| 403 | droit, MFA, accès organisation ou grant équipe effectif manquant |
+| 404 | personne/équipe/période absente ou étrangère au tenant/à l’équipe |
+| 409 TEAM_MEMBERSHIP_VERSION_STALE | période modifiée depuis sa lecture |
+| 409 TEAM_MEMBERSHIP_IMMUTABLE | période terminale ou déjà expirée |
+| 409 TEAM_MEMBERSHIP_OVERLAP | chevauchement d’une fonction incompatible |
+| 409 TEAM_MOVEMENT_DESTINATION_INVALID | destination incompatible ou version changée |
+| 409 TEAM_PERSON_UNAVAILABLE | personne ancienne ou déjà partie |
+| 409 TEAM_ARCHIVED / GAME_CONTEXT_UNAVAILABLE | nouvelle utilisation interdite |
+| 409 TEAM_HAS_LIVE_MEMBERSHIPS | archivage avant clôture/annulation des appartenances |
+| 409 TEAM_MEMBERSHIP_LIMIT_REACHED / TEAM_SCOPE_GRANT_LIMIT_REACHED | limite historique atteinte |
+| 409 ROLE_PERIOD_OUTSIDE_TEAM_MEMBERSHIP | grant hors de la période liée ou tentative de reliaison |
+| 422 VALIDATION_FAILED | date, champ immuable/inconnu ou paramètres incohérents |
+| 500 INTERNAL_ERROR | persistance/audit indisponible ; mouvement entier annulé |
+
+Exemple TypeScript après connexion/MFA, sélection et confirmation humaine du
+tenant, sous sports.read + teams.manage organisation :
+
+```ts
+import { tenancyRequest } from '../api/tenancy'
+import type { ApiSuccessResponse } from '../api/contracts'
+import type { TeamMembership } from '../api/teamMemberships'
+
+const path = `tenants/${organizationId}/teams/${academyTeamId}/memberships`
+const membership = await tenancyRequest<ApiSuccessResponse<TeamMembership>>(path, {
+  method: 'POST', revision: activeRevision,
+  body: { person_id: selectedPersonId, role_key: 'player',
+    starts_at: '2026-10-13T12:00:00+02:00', ends_at: null, reason_key: 'initial' },
+})
+// Nouvelle action humaine confirmée ; destination lue via la liste des équipes.
+await tenancyRequest<ApiSuccessResponse<TeamMembership>>(`${path}/${membership.data.id}`, {
+  method: 'PATCH', revision: activeRevision,
+  body: { version: membership.data.version, action: 'promotion', reason_key: 'promotion',
+    destination_team_id: firstTeam.id, destination_version: firstTeam.version,
+    role_key: 'player' }, // Date omise : effet immédiat à la confirmation.
+})
+```
+
+Ne pas rejouer automatiquement un conflit ; recharger les références/versions
+et confirmer une nouvelle action. Lineups et snapshots de match restent TEAM-004.

@@ -118,10 +118,13 @@ class GameCatalogueSchemaTest extends TestCase
         $this->assertDatabaseCount('game_catalogue_entries', 18);
         $migration = require database_path('migrations/2026_10_13_120201_create_game_catalogue_and_organization_games.php');
         $teams = require database_path('migrations/2026_10_13_143631_create_teams_table.php');
+        $memberships = require database_path('migrations/2026_10_13_152226_create_team_membership_and_movement_tables.php');
+        $memberships->down();
         $teams->down();
         $migration->down();
         $migration->up();
         $teams->up();
+        $memberships->up();
         $this->assertDatabaseCount('game_catalogue_entries', 18);
         $this->assertDatabaseCount('organization_games', 0);
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
@@ -149,6 +152,8 @@ class GameCatalogueSchemaTest extends TestCase
         $org = Organization::factory()->create();
         $migration = require database_path('migrations/2026_10_13_120201_create_game_catalogue_and_organization_games.php');
         $teams = require database_path('migrations/2026_10_13_143631_create_teams_table.php');
+        $memberships = require database_path('migrations/2026_10_13_152226_create_team_membership_and_movement_tables.php');
+        $memberships->down();
         $teams->down();
         $migration->down();
         config(['game_profiles.tenant_enabled_games' => [$org->id => ['valorant']], 'game_profiles.games.valorant.platforms' => ['unknown' => []]]);
@@ -161,6 +166,7 @@ class GameCatalogueSchemaTest extends TestCase
         config(['game_profiles.games.valorant.platforms' => ['pc' => ['riot'], 'playstation' => ['riot'], 'xbox' => ['riot']]]);
         $migration->up();
         $teams->up();
+        $memberships->up();
         $this->assertDatabaseCount('organization_games', 4);
         $this->assertSame(1, OrganizationGame::query()->where('organization_id', $org->id)->where('enabled', true)->count());
     }

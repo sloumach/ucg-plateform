@@ -11,6 +11,8 @@ import { Alert } from '../feedback/Alert'
 import { apiError, changedValues, shouldReloadContext } from '../people/peopleFormValues'
 import { SelectField } from '../people/peopleForms'
 import { usePeopleMutation } from '../people/usePeopleMutation'
+import { TeamMembershipPanel } from './TeamMembershipPanel'
+import { rosterText } from '../../api/teamMemberships'
 export function TeamsPanel({ active, disabled, onInvalid }: { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }) {
   const org = active.context?.organization_id, revision = active.revision ?? undefined
   const allowed = active.context?.permissions.includes('sports.read') ?? false
@@ -19,13 +21,14 @@ export function TeamsPanel({ active, disabled, onInvalid }: { active: ActiveOrga
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [list, setList] = useState<Page<Team> | null>(null), [games, setGames] = useState<OrganizationGame[]>([])
   const [editor, setEditor] = useState<Team | 'new' | null>(null)
+  const [roster, setRoster] = useState<Team | null>(null)
   const [loading, setLoading] = useState(false), [error, setError] = useState<ReturnType<typeof apiError> | null>(null)
   const mutation = usePeopleMutation<Team>(active, () => { setEditor(null); setRefresh((value) => value + 1) }, onInvalid)
   useEffect(() => {
     if (!org || !allowed || !open) return
     const controller = new AbortController()
     const load = async () => {
-      setLoading(true); setList(null); setEditor(null); setError(null)
+      setLoading(true); setList(null); setEditor(null); setRoster(null); setError(null)
       const query = new URLSearchParams({ per_page: '10', page: String(page), ...filters })
       try {
         const [next, catalogue] = await Promise.all([
@@ -72,6 +75,7 @@ export function TeamsPanel({ active, disabled, onInvalid }: { active: ActiveOrga
         <p className="break-words [overflow-wrap:anywhere]">{team.game_name} · {team.season} · {text('kind.' + team.kind)} · {text('status.' + team.status)}</p>
         {team.custom_category && <p>{team.custom_category}</p>}{team.public_description && <p className="break-words [overflow-wrap:anywhere]">{team.public_description}</p>}
         <p className="break-words text-sm text-slate-400 [overflow-wrap:anywhere]">{team.slug}{team.short_name && ' · ' + team.short_name}{team.color && ' · ' + team.color}</p>
+        <Button disabled={blocked} onClick={() => { setEditor(null); setRoster(team) }}>{rosterText('title')}</Button>
         {canManage && team.status !== 'archived' && <>
           <Button disabled={blocked} onClick={() => setEditor(team)}>{text('edit')}</Button>
           <form aria-label={text('archive') + ' ' + team.name} onSubmit={(event) => mutation.propose(event, text('archive') + ' ' + team.name, teamsPath(org, team.id), { version: team.version, status: 'archived' }, true)}>
@@ -80,6 +84,7 @@ export function TeamsPanel({ active, disabled, onInvalid }: { active: ActiveOrga
         </>}
       </li>)}</ul>}
       {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={setPage} />}
+      {roster && <TeamMembershipPanel key={roster.id + roster.version} active={active} team={roster} disabled={blocked} onInvalid={onInvalid} onClose={() => setRoster(null)} />}
       {editor && <TeamForm key={editor === 'new' ? 'new' : editor.id + editor.version} team={editor === 'new' ? null : editor}
         games={games.filter((game) => game.enabled)} disabled={blocked} errors={mutation.errors(teamsPath(org, editor === 'new' ? undefined : editor.id))}
         onCancel={() => setEditor(null)} onSubmit={(event) => {

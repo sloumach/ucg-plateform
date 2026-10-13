@@ -4,8 +4,10 @@ namespace App\Modules\People\Providers;
 
 use App\Modules\People\Application\Contracts\PeopleDirectory;
 use App\Modules\People\Application\Contracts\PersonImportQueue;
+use App\Modules\People\Application\Contracts\SportingPeopleDirectory;
 use App\Modules\People\Application\Services\PersonDepartureService;
 use App\Modules\People\Application\Services\PersonService;
+use App\Modules\People\Application\Services\SportingPeopleService;
 use App\Modules\People\Domain\Contracts\ExternalGameAccountRepository;
 use App\Modules\People\Domain\Contracts\GameProfileRepository;
 use App\Modules\People\Domain\Contracts\PersonImportRepository;
@@ -36,6 +38,7 @@ final class PeopleServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(SportingPeopleDirectory::class, SportingPeopleService::class);
         $this->app->bind(PersonImportQueue::class, LaravelPersonImportQueue::class);
         $this->app->bind(PersonImportRepository::class, EloquentPersonImportRepository::class);
         $this->app->bind(PersonLifecycleRepository::class, EloquentPersonLifecycleRepository::class);

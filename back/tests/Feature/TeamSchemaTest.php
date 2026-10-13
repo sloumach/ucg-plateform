@@ -81,8 +81,11 @@ class TeamSchemaTest extends TestCase
     {
         $this->assertDatabaseCount('teams', 0);
         $migration = require database_path('migrations/2026_10_13_143631_create_teams_table.php');
+        $memberships = require database_path('migrations/2026_10_13_152226_create_team_membership_and_movement_tables.php');
+        $memberships->down();
         $migration->down();
         $migration->up();
+        $memberships->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         $this->assertDatabaseCount('teams', 0);
     }

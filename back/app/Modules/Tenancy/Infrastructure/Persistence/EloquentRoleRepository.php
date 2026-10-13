@@ -107,6 +107,12 @@ final class EloquentRoleRepository implements RoleRepository
             })->exists();
     }
 
+    public function hasDatedScopeGrant(string $org, int $userId, ?string $membershipId, string $permission, string $type, string $id, array $eligibleIds): bool
+    {
+        return $this->grants($org, $userId, $membershipId, now())->where('scope_type', $type)->where('scope_id', $id)->whereIn('id', $eligibleIds)
+            ->whereHas('role', fn (Builder $role) => $role->where('active', true)->whereJsonContains('permissions', $permission))->exists();
+    }
+
     public function liveAssignmentsForMembership(string $organizationId, string $membershipId): iterable
     {
         return OrganizationRoleAssignment::query()->where('organization_id', $organizationId)->where('membership_id', $membershipId)->where('status', '!=', 'revoked')->lazyById(100);

@@ -52,7 +52,7 @@ class ContextualRolesTest extends TestCase
     {
         $org = $this->owner();
         $role = $this->postJson($this->path($org, 'roles'), $this->rolePayload())->assertCreated()->assertJsonPath('data.privileged', false)->json('data');
-        $this->getJson($this->path($org, 'permission-catalogue'))->assertOk()->assertJsonPath('data.scope_types', ['organization'])->assertJsonPath('data.can_manage', true);
+        $this->getJson($this->path($org, 'permission-catalogue'))->assertOk()->assertJsonPath('data.scope_types', ['organization', 'team'])->assertJsonPath('data.can_manage', true);
         $this->putJson($this->path($org, 'roles/'.$role['id']), [...$this->rolePayload(), 'active' => false, 'version' => $role['version']])
             ->assertOk()->assertJsonPath('data.active', false);
         $this->putJson($this->path($org, 'roles/'.$role['id']), [...$this->rolePayload(), 'version' => $role['version']])

@@ -13,7 +13,8 @@ final class TeamReadRequest extends FormRequest
 {
     public function authorize(TenantContext $context): bool
     {
-        return $this->user()?->can('viewAny', [Team::class, $context]) ?? false;
+        return $this->route('team') === null ? ($this->user()?->can('viewAny', [Team::class, $context]) ?? false)
+            : ($this->user()?->can('view', [Team::class, $context, (string) $this->route('team')]) ?? false);
     }
 
     /** @return array<string, array<mixed>> */

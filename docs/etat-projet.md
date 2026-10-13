@@ -9,8 +9,8 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-TEAM-002` — équipes par organisation, identité
-  privée, saison et archivage conservant l’historique.
+- Dernier ticket traité : `UCG-TEAM-003` — appartenances datées, mouvements
+  sportifs conservés et grants d’équipe liés à leur période.
 - IAM-006 et son correctif `0b85252` poussés ; push, migration et CI validés
   par l’utilisateur dans cette discussion. Migration confirmée en lecture seule :
   `Ran`, batch 9. L’échec initial `38174777644` reste documenté ci-dessous.
@@ -36,9 +36,13 @@
 - TEAM-001 (`427dae1`) poussé ; CI et migration validées par l’utilisateur
   avant TEAM-002. Migration confirmée en lecture seule : Ran, batch 14.
   Branche propre et synchronisée avec origin/staging au début de TEAM-002.
-- Prochaine action : push utilisateur TEAM-002, validation des CI, sauvegarde
+- TEAM-002 (`11872a3`) poussé ; CI et migration validées par l’utilisateur
+  avant TEAM-003. Migration confirmée en lecture seule : Ran, batch 15.
+  Branche propre et synchronisée avec origin/staging au début de TEAM-003.
+- Prochaine action : push utilisateur TEAM-003, validation des CI, sauvegarde
   puis migration depuis `back/` (`php artisan migrate`). Nouvelle migration
-  `2026_10_13_143631_create_teams_table`, vérifiée Pending en lecture seule, non appliquée sur la base
+  `2026_10_13_152226_create_team_membership_and_movement_tables`, vérifiée Pending
+  en lecture seule, non appliquée sur la base
   principale par l’agent. Code, tests, CI et docs dans le même commit. Aucun
   fichier utilisateur réel importé, personne réelle créée, compte lié ou e-mail envoyé.
 - Format de commit convenu : `UCG-ID: description`, sans préfixe `feat(...)`.
@@ -54,8 +58,8 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après push/CI/migration TEAM-002, prochain ticket P0 : `UCG-TEAM-003`
-  (appartenances datées, fonctions sportives et historique des mouvements).
+- Après push/CI/migration TEAM-003, prochain ticket P0 : `UCG-TEAM-004`
+  (lineups et instantanés historiques pour matchs/inscriptions).
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
@@ -1274,3 +1278,71 @@ ensuite ce fichier pour qu'il reflète la réalité.
   regroupés dans le même commit.
 - Prochaine étape : push/CI utilisateur, sauvegarde puis php artisan migrate
   depuis back/. Ensuite UCG-TEAM-003, appartenances datées.
+
+## UCG-TEAM-003 — Appartenances datées et mouvements conservés
+
+- TEAM-002 11872a3 poussé, CI et migration confirmées par l’utilisateur ;
+  contrôle en lecture seule : Ran, batch 15. Branche propre et synchronisée
+  avec origin/staging au début du travail. Confirmation intégrée à ce commit,
+  sans commit documentaire séparé.
+- Modèles TeamMembership/TeamMovement, Repository, Service, Journal, Form Request,
+  Policy et Resources. API liste paginée d’appartenances/mouvements, création et
+  actions PATCH : close/cancel/transfer/promotion. Fonctions player/substitute/
+  captain/coach/analyst ; lecture sports.read organisation, écriture aussi
+  teams.manage organisation, MFA/CSRF/confirmation tenant. Aucun droit implicite.
+- Intervalles UTC [début, fin), fin après début ; dates adjacentes admises.
+  Même personne/équipe : player/substitute incompatibles, même fonction sans
+  chevauchement, captain additif. Aucune exclusivité entre équipes ajoutée.
+  Identité et début immuables ; fin seulement raccourcie, période terminale
+  non modifiable/supprimable. Clôture future conservant l’effectivité avant
+  l’échéance ; annulation avant début horodatée côté serveur.
+- Mouvements atomiques vers une autre équipe du même jeu ; promotion academy →
+  first. À la date d’effet, les fonctions sources qui la dépassent sont terminées
+  et celles qui commencent à partir de cette date sont annulées. Destination :
+  fonction choisie seulement, pas de copie d’autres fonctions ou permissions.
+  Motif fermé, auteur, dates d’effet/enregistrement et références historiques
+  conservés ; noms d’équipes courants affichés, pas de snapshot de match ici.
+- Port SportingPeopleDirectory fourni par People sans cycle, pseudonymes en
+  bloc, aucune identité administrative. Participant Teams branché sur le tag
+  de départ HUM-004 : fin des périodes en cours, annulation des futures, audit
+  dans la même transaction que personne/adhésion. Départ de l’acteur lui-même
+  sans réautorisation après révocation ; rejeu sans deuxième mouvement.
+- Annuaire IAM team activé via le port DatedAuthorizationScopeDirectory.
+  Grants équipe explicites liés durablement à une période couvrant leurs dates,
+  relus à chaque contrôle ; retour/annulation/remplacement ne réactivent aucun
+  ancien grant. Pour un retour, révoquer l’ancien et attribuer un nouveau grant.
+  Fonctions sportives distinctes des permissions. Détail d’équipe accessible
+  aussi sous sports.read équipe effectif ; listes/roster/People et gestion restent
+  au niveau organisation. Grants organisation explicites continuent à couvrir
+  les équipes, sans imposer une fonction à chaque gestionnaire.
+- Migration additive : team_memberships, team_movements et team_scope_grants,
+  FK composites tenant,
+  index, dates/chevauchements/identités protégés SQL PG/SQLite. PostgreSQL prend
+  le verrou d’organisation aussi dans sa garde SQL. Mouvements et liaisons
+  append-only ; audit minimal atomique sans noms. Export des trois tables limité
+  au tenant. Down refuse toute période/mouvement/liaison, anciennes migrations
+  déployées inchangées ; ordre des rollbacks de tests adapté aux nouvelles FK.
+- Archivage d’équipe refusé tant que des périodes en cours/futures subsistent.
+  Fin de période autorisée après retrait du jeu. Plafonds techniques : 1000
+  périodes par personne/organisation, historiques inclus ; 1000 liaisons IAM
+  par période. Pages API ≤100, UI 10 ; nombre de requêtes de pseudonymes constant
+  testé, équipes des mouvements eager-loaded. Aucun benchmark de grande échelle.
+- UI depuis « Effectif et historique » : recherche/pagination des personnes
+  et destinations, fonction, dates, motifs, consultation à une date, historique.
+  Confirmations humaines avant mutations, brouillon conservé sur 422, contexte
+  rechargé sur conflit, lectures annulées à la fermeture/changement de tenant.
+  Mobile 375/320 contrôlé avant et après promotion ; pseudonymes échappés.
+- Migration 2026_10_13_152226_create_team_membership_and_movement_tables vérifiée
+  Pending sur la base principale ; aucune migration principale, appartenance
+  réelle, attribution réelle ou e-mail envoyé par l’agent.
+- Validation finale : 48 nouveaux tests backend / 228 assertions ; SQLite complet
+  1044 tests, 1041 réussis, 4440 assertions, 3 exclusions attendues ; PostgreSQL 17
+  1044 tests, 1042 réussis, 4441 assertions, 2 exclusions Redis. Bases temporaires
+  supprimées. PHPStan niveau 8 et architecture verts, Pint complet/dirty et
+  composer format:check ; frontend 107 tests, lint/build et 12 Playwright verts.
+  CI PostgreSQL enrichie des quatre fichiers du ticket. Vérifications du retour
+  sans réactivation, réattribution explicite, modification sous fonctions cumulées,
+  quotas, versions, départ de l’acteur, rollback d’audit, export et mobile 375/320.
+- Code, tests, CI, README, API, architecture, backlog et point de reprise dans
+  le même commit. Prochaine étape : push/CI utilisateur, sauvegarde puis
+  php artisan migrate depuis back/. Prochain P0 : UCG-TEAM-004, lineups et snapshots.

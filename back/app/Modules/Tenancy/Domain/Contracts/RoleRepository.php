@@ -37,6 +37,9 @@ interface RoleRepository
 
     public function hasPrivilegedGrant(int $userId): bool;
 
+    /** @param list<string> $eligibleIds */
+    public function hasDatedScopeGrant(string $org, int $userId, ?string $membershipId, string $permission, string $type, string $id, array $eligibleIds): bool;
+
     /** @return iterable<OrganizationRoleAssignment> */
     public function liveAssignmentsForMembership(string $organizationId, string $membershipId): iterable;
 }

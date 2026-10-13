@@ -15,6 +15,11 @@ final class AuditState
         $result = [];
         foreach ($state as $key => $value) {
             $valid = match ($key) {
+                'team_membership_id','team_movement_id' => is_string($value) && Str::isUuid($value),
+                'team_membership_status' => is_string($value) && in_array($value, ['active', 'closed', 'cancelled'], true),
+                'team_role_key' => is_string($value) && in_array($value, ['player', 'substitute', 'captain', 'coach', 'analyst'], true),
+                'team_movement_action' => is_string($value) && in_array($value, ['created', 'close', 'cancel', 'transfer', 'promotion', 'person_departure'], true),
+                'team_movement_reason' => is_string($value) && in_array($value, ['initial', 'sporting_decision', 'promotion', 'transfer', 'end_of_period', 'person_departure', 'other'], true),
                 'team_status' => is_string($value) && in_array($value, ['draft', 'active', 'archived'], true),
                 'team_changed_fields' => self::listWithin($value, ['game_id', 'slug', 'season', 'name', 'kind', 'custom_category', 'short_name', 'public_description', 'color', 'status']),
                 'person_import_id' => is_string($value) && Str::isUuid($value),

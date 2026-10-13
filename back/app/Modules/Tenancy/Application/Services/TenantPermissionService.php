@@ -5,12 +5,14 @@ namespace App\Modules\Tenancy\Application\Services;
 use App\Modules\Identity\Application\Contracts\AccountDirectory;
 use App\Modules\Identity\Application\Contracts\PlatformAccountDirectory;
 use App\Modules\Tenancy\Application\Contracts\AuthorizationScopeDirectory;
+use App\Modules\Tenancy\Application\Contracts\DatedAuthorizationScopeDirectory;
 use App\Modules\Tenancy\Application\Contracts\TenantAuthorization;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use App\Modules\Tenancy\Domain\Contracts\MembershipRepository;
 use App\Modules\Tenancy\Domain\Contracts\OrganizationRepository;
 use App\Modules\Tenancy\Domain\Contracts\RoleRepository;
 use App\Modules\Tenancy\Domain\Permission;
+use Carbon\CarbonImmutable;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
@@ -52,6 +54,15 @@ final readonly class TenantPermissionService implements TenantAuthorization
         }
         if ($permission === 'organization.view') {
             return true;
+        }
+
+        if ($scopeType === 'team' && $this->scopes instanceof DatedAuthorizationScopeDirectory) {
+            if ($this->roles->hasGrant($organization->id, $context->actorUserId, $membership?->id, $permission, 'organization', $organization->id, now(), null)) {
+                return true;
+            }
+            $ids = $this->scopes->assignmentIds($organization->id, 'team', $scopeId, $context->actorUserId, CarbonImmutable::now());
+
+            return $ids !== [] && $this->roles->hasDatedScopeGrant($organization->id, $context->actorUserId, $membership?->id, $permission, 'team', $scopeId, $ids);
         }
 
         return $this->roles->hasGrant($organization->id, $context->actorUserId, $membership?->id, $permission, $scopeType, $scopeId, now(), null);

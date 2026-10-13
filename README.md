@@ -1214,3 +1214,53 @@ attendues), 98 tests frontend et 11 Playwright verts, dont mobile 375/320.
 Pint complet/dirty, format:check, PHPStan 8, architecture, lint/build verts.
 Code, tests, CI et point de reprise dans le même commit. Prochain P0 après
 validation et migration : UCG-TEAM-003, appartenances datées.
+
+Confirmation avant TEAM-003 : 11872a3 poussé, CI et migration validées par
+l’utilisateur ; contrôle en lecture seule de TEAM-002 : Ran, batch 15.
+
+## Appartenances et mouvements sportifs — UCG-TEAM-003
+
+Depuis une équipe, « Effectif et historique » affiche les personnes et leurs
+fonctions datées : titulaire, remplaçant, capitaine, coach et analyste. Rechercher
+une personne existante pour l’affecter ; listes et historique sont paginés.
+Consulter l’effectif à une date permet de retrouver les périodes alors effectives.
+La lecture exige sports.read organisation ; la gestion exige aussi teams.manage
+organisation, MFA et confirmation humaine. Aucune identité administrative affichée.
+
+Les périodes sont [début, fin) ; titulaire et remplaçant ne se chevauchent pas
+pour une même personne dans cette équipe, et capitaine peut compléter une fonction.
+Personne, équipe, fonction et début restent fixes. Clôturer raccourcit la période,
+annuler concerne une période non commencée ; l’historique n’est jamais supprimé.
+Une fin future conserve l’accès jusqu’à sa date d’effet. Le départ organisationnel
+termine automatiquement les fonctions en cours et annule les futures.
+
+« Changer d’équipe » prépare un mouvement du même jeu ; la promotion va d’académie
+vers équipe première. À la date d’effet, les fonctions sources sont terminées,
+les périodes commençant à partir de cette date annulées et la fonction choisie
+créée dans la destination, avec motif et auteur. Les autres fonctions et permissions
+ne sont pas copiées. Clôtures possibles après retrait du jeu ; archiver une équipe
+demande d’abord la clôture ou l’annulation de ses appartenances en cours/futures.
+
+Les fonctions sportives n’accordent aucun droit automatiquement. Les grants IAM
+explicites à portée équipe sont désormais liés à une appartenance du compte ;
+un retour ne réactive pas les anciens grants. sports.read équipe permet le détail
+de cette équipe. Pour un retour, révoquer l’ancien grant et créer une nouvelle
+attribution explicite liée à la nouvelle appartenance. Les écrans de liste/roster
+et leur gestion gardent leurs droits organisation. Les gestionnaires avec des
+droits organisation explicites conservent
+leur accès sans appartenir sportivement à chaque équipe.
+
+API et exemples : docs/conventions-api.md. Migration additive
+2026_10_13_152226_create_team_membership_and_movement_tables : périodes, mouvements
+et liaisons IAM, avec FK tenant, index et gardes PG/SQLite. Down refuse toute donnée
+historique. Après push et CI, sauvegarder puis php artisan migrate depuis back/.
+Aucune migration principale, appartenance ou attribution réelle par l’agent.
+Limites techniques : 1000 périodes par personne/organisation, historiques inclus,
+et 1000 liaisons IAM par période. Code, tests, CI et point de reprise dans un seul
+commit. Prochain P0 : UCG-TEAM-004, lineups et instantanés historiques.
+
+Validation locale : 48 nouveaux tests backend / 228 assertions ; suites complètes
+SQLite 1044/1041, 4440 assertions et PostgreSQL 17 1044/1042, 4441 assertions
+(exclusions attendues), 107 tests frontend, 12 Playwright verts dont mobile 375/320.
+Pint complet/dirty, format:check, PHPStan 8, architecture, lint/build verts.
+Migration principale vérifiée Pending en lecture seule.

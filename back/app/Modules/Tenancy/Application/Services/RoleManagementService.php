@@ -5,6 +5,7 @@ namespace App\Modules\Tenancy\Application\Services;
 use App\Exceptions\DomainConflictException;
 use App\Modules\Identity\Application\Contracts\AccountDirectory;
 use App\Modules\Tenancy\Application\Contracts\AuthorizationScopeDirectory;
+use App\Modules\Tenancy\Application\Contracts\DatedAuthorizationScopeDirectory;
 use App\Modules\Tenancy\Application\Contracts\TenantAuthorization;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use App\Modules\Tenancy\Application\Data\RoleAssignmentData;
@@ -127,6 +128,10 @@ final readonly class RoleManagementService
                     }
                 }
                 $ownerTarget = $organization->owner_user_id === $data->userId;
+                if (! $onlyRestrict && $data->scopeType === 'team' && $this->scopes instanceof DatedAuthorizationScopeDirectory
+                    && $this->scopes->periodStart($organization->id, 'team', $data->scopeId, $data->userId, $start, $end, true) === null) {
+                    throw new DomainConflictException(__('team_memberships.grant_period'), 'ROLE_PERIOD_OUTSIDE_TEAM_MEMBERSHIP');
+                }
                 $membership = $ownerTarget ? null : $this->memberships->forAccount($organization->id, $data->userId, true);
                 if (! $ownerTarget && ($membership === null || (! $onlyRestrict && ! $membership->isEffective(now())))) {
                     throw new DomainConflictException(__('authorization.subject'), 'ROLE_SUBJECT_INVALID');
@@ -155,6 +160,9 @@ final readonly class RoleManagementService
                 $result = $this->roles->saveAssignment($assignment, [...$data->attributes(), 'organization_id' => $organization->id,
                     'membership_id' => $membership?->id, 'starts_at' => $start, 'ends_at' => $end, 'version' => (string) Str::uuid()]);
                 $this->record($context, $assignment === null ? 'role_assignment.created' : 'role_assignment.updated', $result->id, $before, $result->attributesToArray());
+                if (! $onlyRestrict && $data->scopeType === 'team' && $this->scopes instanceof DatedAuthorizationScopeDirectory) {
+                    $this->scopes->bindAssignment($organization->id, 'team', $data->scopeId, $data->userId, $result->id, $start, $end);
+                }
 
                 return $result->load('role');
             });

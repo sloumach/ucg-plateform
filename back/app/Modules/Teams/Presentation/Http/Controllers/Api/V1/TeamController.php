@@ -26,7 +26,7 @@ final class TeamController extends Controller
 
     public function show(TeamReadRequest $request, TenantContext $context, string $tenant, string $team): TeamResource
     {
-        $this->gate->authorize('viewAny', [Team::class, $context]);
+        $this->gate->authorize('view', [Team::class, $context, $team]);
 
         return TeamResource::make($this->teams->find($context, $team));
     }

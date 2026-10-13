@@ -912,3 +912,69 @@ Index tenant/nom/id et tenant/jeu/statut/id. Profiler recherches et contention d
 verrou avant d’augmenter cette limite ou d’ajouter une infrastructure de recherche.
 L’écran charge ses données seulement à l’ouverture et annule les lectures au
 changement de tenant ; mutations confirmées via les mécanismes existants.
+
+## TEAM-003 — Appartenances datées et grants liés
+
+Teams possède team_memberships, team_movements et team_scope_grants. Toutes les
+tables portent organization_id et des FK composites tenant vers les parents.
+Le lien d’une période vers people est intentionnel ; l’accès applicatif à People
+passe par son port SportingPeopleDirectory, fourni par SportingPeopleService et
+PersonRepository. Il expose seulement contrôle d’affectabilité, pseudonymes en
+bloc et corrélation interne compte/personne ; aucune identité administrative.
+La dépendance Teams → People reste sans cycle.
+
+TeamMembershipController, Form Request et Policy délèguent à TeamMembershipService,
+TeamMembershipRepository et TeamMembershipJournal. Lecture sports.read organisation,
+mutations sports.read + teams.manage organisation, MFA et confirmation tenant.
+Verrou organisation, droits revérifiés, personne verrouillée pour nouvelle
+affectation et catalogue global verrouillé avant nouvelle utilisation d’un jeu.
+Version UUID optimiste, périodes/mouvements/audit dans la même transaction.
+Motifs fermés et auteur dans le mouvement ; audit minimal sans pseudonyme ou
+identité administrative. Un défaut d’audit annule aussi la destination d’un transfert.
+
+Intervalles UTC semi-ouverts [début, fin), fin strictement postérieure au début.
+Pour une même personne/équipe : même fonction sans chevauchement ; player et
+substitute constituent un groupe incompatible ; captain, coach et analyst restent
+distincts. Aucune exclusivité entre différentes équipes n’est déduite. Identité
+et début immuables, fin seulement raccourcie. Une clôture future garde status=active
+jusqu’à son échéance ; l’effectivité dépend des dates, sans job obligatoire.
+Une période déjà finie/closed/cancelled ne se réécrit pas. Annulation avant début,
+horodatage serveur ; jamais de suppression. SQL vérifie dates, chevauchements,
+identité et états terminaux ; PostgreSQL prend aussi le verrou racine tenant.
+
+Transfert/promotion immédiat ou futur : nouvelle période dans une destination du
+même jeu, autres fonctions sources qui dépassent cette date raccourcies ; celles
+qui commencent à partir de cette date annulées. Promotion uniquement academy →
+first. Un mouvement par fonction source référence la période destination, son
+motif et son auteur. Aucune copie implicite des autres fonctions ou des grants.
+Les périodes déjà finies restent conservées. Archivage d’équipe refusé tant qu’une
+appartenance en cours ou future subsiste ; clôtures autorisées après retrait du jeu.
+
+TeamDepartureParticipant implémente le port public PersonDepartureParticipant et
+rejoint le tag people.departure-participants. Sous les verrous HUM-004 existants,
+il termine les périodes en cours et annule les futures avec audit atomique. Il
+n’exige pas de grant teams.manage, ni de réautorisation après révocation de l’acteur.
+Rejeu du départ sans deuxième mouvement ; erreur du participant/audit = rollback
+du départ, des accès et de toutes les périodes concernées.
+
+TeamAuthorizationScopes implémente le port Tenancy DatedAuthorizationScopeDirectory,
+enregistré sous team par le provider Teams. Tenancy ne dépend pas de classes Teams.
+Ressource du tenant non archivée requise ; les permissions organisation explicites
+continuent à couvrir ses équipes. Pour un grant strictement équipe, l’attribution
+doit tenir dans une période d’appartenance d’une personne liée au compte. Une
+liaison team_scope_grants append-only fixe cette période dans la transaction IAM.
+L’autorisation relit compte, adhésion organisation, rôle, grant, liaison et période
+effective à chaque appel. Un retour, même aux mêmes dates après annulation, ne
+réactive pas l’ancien grant. Un changement de fonction ne donne aucun droit.
+Le détail d’équipe accepte sports.read équipe ; les listes d’organisation,
+identités People, rosters et mutations conservent leurs permissions organisation.
+
+Listes d’appartenances et mouvements par pages de 10 (API ≤100), filtres de fonction,
+personne, état et date ; pseudonymes projetés en bloc, noms d’équipes des mouvements
+eager-loaded. Limites techniques : 1000 périodes par personne/organisation,
+historiques inclus, 1000 liaisons IAM par période. Index tenant/équipe/début,
+tenant/personne/équipe/fonction/début et source/destination des mouvements.
+Portabilité inclut précisément les trois tables pour le tenant ciblé. Migration
+additive sans backfill ; down refuse toute période, mouvement ou liaison.
+Profiler contention et recherches avant d’augmenter ces budgets ; aucun benchmark
+de millions de lignes. TEAM-004 portera les lineups/snapshots, absents de ce lot.

@@ -11,6 +11,16 @@ use Illuminate\Support\Str;
 
 final class EloquentPersonRepository implements PersonRepository
 {
+    public function pseudonyms(string $org, array $ids): array
+    {
+        return Person::query()->forOrganization($org)->whereIn('id', $ids)->pluck('pseudonym', 'id')->all();
+    }
+
+    public function personForAccount(string $org, int $userId): ?string
+    {
+        return Person::query()->forOrganization($org)->where('user_id', $userId)->where('status', '!=', 'former')->value('id');
+    }
+
     public function hasDeparted(string $organizationId, string $personId): bool
     {
         return PersonDeparture::query()->forPerson($organizationId, $personId)->exists();

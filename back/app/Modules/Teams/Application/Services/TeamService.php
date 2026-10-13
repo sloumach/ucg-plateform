@@ -5,6 +5,7 @@ namespace App\Modules\Teams\Application\Services;
 use App\Exceptions\DomainConflictException;
 use App\Modules\Teams\Application\Validation\GameCatalogueInput;
 use App\Modules\Teams\Application\Validation\TeamInput;
+use App\Modules\Teams\Domain\Contracts\TeamMembershipRepository;
 use App\Modules\Teams\Domain\Contracts\TeamRepository;
 use App\Modules\Teams\Domain\Models\Team;
 use App\Modules\Tenancy\Application\Contracts\TenantAuditJournal;
@@ -15,6 +16,7 @@ use App\Support\Audit\AuditAction;
 use App\Support\Audit\AuditReason;
 use App\Support\Audit\AuditTarget;
 use App\Support\Audit\AuditWriteData;
+use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\Validation\Factory;
 use Illuminate\Database\ConnectionInterface;
@@ -24,7 +26,7 @@ use Illuminate\Validation\ValidationException;
 
 final readonly class TeamService
 {
-    public function __construct(private TeamRepository $teams, private EffectiveGameCatalogue $games, private TenantAuthorization $authorization,
+    public function __construct(private TeamRepository $teams, private TeamMembershipRepository $memberships, private EffectiveGameCatalogue $games, private TenantAuthorization $authorization,
         private TenantBusinessGuard $guard, private TenantAuditJournal $audit, private Factory $validator, private ConnectionInterface $database) {}
 
     /** @param array<string, mixed> $filters
@@ -43,7 +45,9 @@ final readonly class TeamService
 
     public function find(TenantContext $context, string $id): Team
     {
-        $this->authorization->authorize($context, 'sports.read');
+        if (! $this->authorization->allows($context, 'sports.read')) {
+            $this->authorization->authorize($context, 'sports.read', 'team', $id);
+        }
 
         return $this->teams->find($context->organizationId, $id);
     }
@@ -66,6 +70,9 @@ final readonly class TeamService
                 }
                 if ($team?->status === 'archived') {
                     throw new DomainConflictException(__('teams.archived'), 'TEAM_ARCHIVED');
+                }
+                if ($team !== null && ($values['status'] ?? null) === 'archived' && $this->memberships->hasLive($context->organizationId, $team->id, CarbonImmutable::now())) {
+                    throw new DomainConflictException(__('team_memberships.live_archive'), 'TEAM_HAS_LIVE_MEMBERSHIPS');
                 }
                 if ($team === null && $this->teams->count($context->organizationId) >= TeamInput::MAX_TEAMS) {
                     throw new DomainConflictException(__('teams.limit'), 'TEAM_LIMIT_REACHED');

@@ -7,6 +7,13 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 interface PersonRepository
 {
+    /** @param list<string> $ids
+     * @return array<string,string>
+     */
+    public function pseudonyms(string $org, array $ids): array;
+
+    public function personForAccount(string $org, int $userId): ?string;
+
     public function hasDeparted(string $organizationId, string $personId): bool;
 
     /** @param array<string, mixed> $filters

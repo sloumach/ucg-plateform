@@ -506,6 +506,8 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   Migration 2026_10_13_143631_create_teams_table Pending sur la base principale,
   aucune migration/équipe/grant réel par l’agent. Code/tests/CI/docs dans un seul
   commit ; push/CI, sauvegarde puis migration utilisateur avant TEAM-003.
+  Confirmation avant TEAM-003 : 11872a3 poussé, CI et migration validées par
+  l’utilisateur ; contrôle en lecture seule Ran, batch 15.
 
 ### UCG-TEAM-003 — Gérer les appartenances datées
 
@@ -513,6 +515,28 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : titulaire, remplaçant, capitaine, coach, analyste, dates et périodes sans chevauchement interdit.
 - **Acceptation** : droits recalculés aux dates d’effet ; historique conservé ; départ et promotion tracés.
 - **Références CDC** : TEAM-03, TEAM-08.
+- **État** : implémenté et validé localement le 13 octobre 2026 ; validations dans le point
+  de reprise. API/UI privées d’appartenances et de mouvements par organisation,
+  fonctions titulaire/remplaçant/capitaine/coach/analyste, intervalles [début, fin).
+  Même personne/équipe : titulaire et remplaçant incompatibles, doublon de même
+  fonction interdit ; capitaine additif. Pas d’exclusivité entre équipes imposée.
+  Identité de période immuable, annulation avant début ou clôture raccourcissant
+  la fin ; aucune suppression/reprise terminale. Promotions académie → première
+  et transferts du même jeu, atomiques, avec motif fermé et auteur conservés.
+  Départ People clôture les fonctions en cours et annule les périodes futures
+  dans la transaction existante, sans exiger teams.manage en plus des droits HUM-004.
+  Grants IAM explicites à portée équipe, bornés par une appartenance de la personne
+  liée au compte ; liaison durable empêchant toute réactivation lors d’un retour.
+  Fonctions sportives sans permissions automatiques. Les commandes de roster
+  restent sous sports.read + teams.manage organisation ; détail d’équipe accessible
+  aussi sous sports.read équipe effectif. Audit, contraintes SQL PG/SQLite,
+  portabilité locale, pagination et choix de personnes/destinations existantes.
+  Migration additive réservée à l’utilisateur ; code/tests/CI/docs dans un seul
+  commit, aucun roster ou grant réel créé par l’agent. Prochain P0 : TEAM-004.
+  48 nouveaux tests backend / 228 assertions ; SQLite complet 1044/1041,
+  4440 assertions ; PostgreSQL 17 1044/1042, 4441 assertions, exclusions attendues.
+  107 tests frontend et 12 Playwright verts ; mobile 375/320, Pint complet/dirty,
+  format:check, PHPStan 8, architecture, lint/build verts. Migration principale Pending.
 
 ### UCG-TEAM-004 — Créer lineups et snapshots historiques
 

@@ -19,4 +19,9 @@ final readonly class TeamPolicy
     {
         return $this->viewAny($user, $context) && $this->authorization->allows($context, 'teams.manage');
     }
+
+    public function view(Authenticatable $user, TenantContext $context, string $teamId): bool
+    {
+        return (int) $user->getAuthIdentifier() === $context->actorUserId && ($this->authorization->allows($context, 'sports.read') || $this->authorization->allows($context, 'sports.read', 'team', $teamId));
+    }
 }

@@ -3,9 +3,15 @@
 use App\Modules\Teams\Presentation\Http\Controllers\Api\V1\GameCatalogueController;
 use App\Modules\Teams\Presentation\Http\Controllers\Api\V1\OrganizationGameController;
 use App\Modules\Teams\Presentation\Http\Controllers\Api\V1\TeamController;
+use App\Modules\Teams\Presentation\Http\Controllers\Api\V1\TeamMembershipController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('tenants/{tenant}/teams')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
+    $memberships = TeamMembershipController::class;
+    Route::get('{team}/memberships', [$memberships, 'index'])->whereUuid('team')->name('team-memberships.index');
+    Route::get('{team}/movements', [$memberships, 'movements'])->whereUuid('team')->name('team-memberships.movements');
+    Route::post('{team}/memberships', [$memberships, 'store'])->whereUuid('team')->middleware('tenant.confirmed')->block(10, 10)->name('team-memberships.store');
+    Route::patch('{team}/memberships/{membership}', [$memberships, 'update'])->whereUuid(['team', 'membership'])->middleware('tenant.confirmed')->block(10, 10)->name('team-memberships.update');
     $controller = TeamController::class;
     Route::get('/', [$controller, 'index'])->name('teams.index');
     Route::get('{team}', [$controller, 'show'])->whereUuid('team')->name('teams.show');
