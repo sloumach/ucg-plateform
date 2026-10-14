@@ -1881,3 +1881,89 @@ await tenancyRequest(
 // Un avenant est ensuite créé avec kind=amendment et original_document_id=original.data.id.
 // Il n’est jamais un remplacement silencieux de l’original.
 ```
+
+
+## Analyse et téléchargement privé — UCG-CTR-003
+
+Préfixe de version documentaire :
+`tenants/{tenant}/contracts/{contract}/documents/{document}/versions/{version}`,
+sous /api/v1. UUID du contrat, document et version toujours résolus dans ce tenant.
+
+| Méthode | Suffixe | Usage / données admises |
+| --- | --- | --- |
+| GET | /scans | Historique : page/per_page, maximum 100 |
+| POST | /scans | Relance : expected_scan_id présent, UUID ou null |
+| POST | /download-link | Lien neuf : expected_scan_id UUID obligatoire |
+| GET | /download | Lien signé serveur : actor, scan, expires, signature |
+
+Toutes les actions exigent administrative.read, session MFA et révision tenant.
+Relance exige aussi administrative.write, confirmation du tenant actif et CSRF.
+Émission de lien utilise CSRF/session mais ne nécessite pas de droit d’écriture.
+Aucun champ inattendu, état clean, hash, chemin ou moteur fourni par le client
+n’est accepté. Aucun changement de la version métier du contrat pour un scan.
+Le dépôt CTR-002 demande automatiquement une analyse de sa nouvelle version.
+
+POST /scans retourne 200 et Resource de tentative : id/attempt/status/reason,
+policy/engine/requested_by/requested_at/started_at/finished_at/invalidated_at ;
+meta.request_id et notification. Une tentative active retourne le même id.
+Après une tentative terminale, expected_scan_id doit correspondre à la dernière
+analyse ; ancien affichage → 409. Une tentative dépassant 300 s peut être relancée.
+
+La Resource version enrichit scan_status (pending/queued/processing/clean/rejected/
+failed/stale), scan_id, scan_reason, scan_finished_at et download_available.
+Sans scan = pending ; clean expiré, ancienne politique ou lease de traitement
+expirée (≥300 s) = stale, afin de proposer une relance explicite ; invalidé =
+rejected/intégrité. Le nom et le contenu restent privés. Refus/panne ne supprime
+pas la version ni le suivi du résultat ; seuls les octets autorisés sont délivrés.
+
+POST /download-link retourne data {url, expires_at, filename} avec URL relative
+signée cinq minutes et notification. GET ne fonctionne qu’avec la même session
+utilisateur et des droits toujours valides, la même dernière analyse clean <24 h
+et une intégrité vérifiée à nouveau. Expiration au timestamp exact refusée.
+Déclencher une nouvelle analyse invalide les liens de l’ancienne tentative.
+
+Réponse de téléchargement : octets PDF exacts, attachment, application/pdf,
+private/no-store, Pragma no-cache, nosniff, CSP sandbox et X-Frame-Options DENY.
+Aucun redirection de stockage ou jeton permettant de contourner la session.
+Aucun artefact_id, chemin tenant ou URL de disque dans les Resources.
+
+Conflits 409 : CONTRACT_DOCUMENT_SCAN_STALE, CONTRACT_DOCUMENT_SCAN_LIMIT,
+CONTRACT_DOCUMENT_NOT_READY, CONTRACT_DOCUMENT_LINK_INVALID,
+CONTRACT_DOCUMENT_INTEGRITY_FAILURE. Droits insuffisants 403, invité 401,
+ressource étrangère 404, validation 422, throttle 429.
+État failed avec scanner_unavailable/scanner_response/scanner_database_stale/
+dispatch_failed/worker_failed/timed_out ; rejected avec malware/invalid_pdf/integrity.
+Réponse failed est un résultat de suivi, jamais une autorisation de fichier.
+
+```ts
+const path = documentsPath(organizationId, contract.id, document.id)
+  + '/versions/' + version.id
+// Après confirmation de la relance et du tenant, si aucune analyse active.
+await tenancyRequest<ApiSuccessResponse<ContractDocumentScan>>(path + '/scans', {
+  method: 'POST', revision: activeRevision,
+  body: { expected_scan_id: version.scan_id ?? null },
+})
+// Relire les versions ; attendre download_available=true et scan_status=clean.
+const link = await tenancyRequest<ApiSuccessResponse<{
+  url: string; filename: string; expires_at: string
+}>>(path + '/download-link', {
+  method: 'POST', revision: activeRevision, body: { expected_scan_id: version.scan_id },
+})
+// Vérifier le chemin, le compte et le scan comme DocumentSecurityControls.
+const signed = new URL(link.data.url, 'https://document.invalid')
+if (signed.origin !== 'https://document.invalid'
+  || signed.pathname !== '/api/v1/' + path + '/download'
+  || signed.searchParams.get('scan') !== version.scan_id
+  || signed.searchParams.get('actor') !== String(active.context?.actor_user_id)) {
+  throw new Error('Lien documentaire invalide')
+}
+const blob = await tenancyRequest<Blob>(path + '/download' + signed.search, {
+  download: 'pdf', revision: activeRevision, signal: controller.signal,
+})
+// Déclencher le téléchargement local du Blob puis libérer son URL.
+// 401/403/404/409 : relecture et nouvelle action explicite, aucun rejeu silencieux.
+```
+
+ClamAV désactivé par défaut tant que l’opérateur n’a pas préparé son endpoint
+privé, ses signatures et la queue reports. Versions antérieures sans backfill :
+une relance explicite est nécessaire. Voir README, mise en service CTR-003.

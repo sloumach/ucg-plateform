@@ -1487,3 +1487,114 @@ Validation CTR-002 : 48 tests backend ajoutés ; SQLite complet 1325 tests,
 Pint/format:check et composer validate verts. Suites SQLite/PostgreSQL lancées
 successivement pour isoler leurs fichiers factices ; base PostgreSQL temporaire
 distincte supprimée après validation. Aucune donnée réelle créée.
+
+
+## Sécurité documentaire et téléchargement privé — UCG-CTR-003
+
+CTR-002 (`ce268f6`) a été poussé, validé en CI et migré par l’utilisateur :
+migration Ran, batch 21, vérifiée en lecture seule avant cette tâche.
+CTR-003 ajoute l’analyse ClamAV après chaque dépôt et la relance explicite des
+versions anciennes. Les fichiers restent chiffrés et privés pendant l’analyse.
+Le serveur vérifie taille, enveloppe PDF et empreinte SHA-256 ; aucun résultat
+envoyé par le navigateur ne peut autoriser un téléchargement.
+
+Un verdict clean de moins de 24 heures, non invalidé et conforme à la politique
+courante permet d’obtenir un lien signé de cinq minutes. La session MFA, le compte,
+le tenant, les droits administratifs, la version et le dernier verdict sont
+recontrôlés à chaque téléchargement, puis après lecture du stockage. Corruption,
+panne, analyse expirée ou signatures antivirus trop anciennes bloquent les octets.
+Un nouveau scan rend les anciens liens inutilisables. Les PDF sont servis en
+pièce jointe, sans cache, avec nosniff et CSP sandbox ; aucun lien de stockage public.
+
+L’interface affiche état/motif, historique paginé, relance après confirmation,
+actualisation manuelle et téléchargement avec cookies/CSRF/révision. Le lecteur
+administratif peut télécharger ; administrative.write est nécessaire à la relance.
+Les archives et copies signées restent immuables, mais leur analyse peut être renouvelée.
+
+### Mise en service de ClamAV
+
+Installer un clamd maintenu et configurer freshclam pour actualiser ses signatures.
+Le démon doit utiliser UTC (`TZ=UTC`) car VERSION ne fournit pas de fuseau.
+Préparer un endpoint TCP local ou réseau privé protégé, accessible uniquement
+aux workers ; le protocole clamd TCP n’authentifie ni ne chiffre le trafic.
+En conteneurs, utiliser le réseau interne et ne pas publier 3310 sur Internet.
+PHP transmet les octets en mémoire via INSTREAM, sans fichier clair temporaire côté
+application. Le répertoire temporaire du démon doit également être privé, avec
+nettoyage actif ; laisser Debug/LeaveTemporaryFiles/GenerateMetadataJson désactivés.
+
+Dans clamd.conf, retirer Example et vérifier notamment :
+
+```conf
+TCPSocket 3310
+TCPAddr 127.0.0.1
+ScanPDF yes
+HeuristicAlerts yes
+AlertEncrypted yes
+AlertExceedsMax yes
+StreamMaxLength 6M
+MaxFileSize 6M
+MaxScanSize 25M
+```
+
+Ces alertes empêchent qu’un PDF chiffré ou une analyse dépassant les limites soit
+assimilé à une analyse complète. Adapter TCPAddr au réseau interne si nécessaire.
+Les options du démon ne sont pas réglables depuis Laravel. Références :
+[scan et réseau](https://docs.clamav.net/manual/Usage/Scanning.html),
+[protocole](https://docs.clamav.net/manual/Usage/ClamdProtocol.html),
+[configuration officielle](https://github.com/Cisco-Talos/clamav/blob/main/etc/clamd.conf.sample).
+
+Configurer l’environnement backend (exemple également dans back/.env.example) :
+
+```dotenv
+DOCUMENT_CLAMAV_ENABLED=true
+DOCUMENT_CLAMAV_HOST=127.0.0.1
+DOCUMENT_CLAMAV_PORT=3310
+DOCUMENT_CLAMAV_CONNECT_SECONDS=3
+DOCUMENT_CLAMAV_OPERATION_SECONDS=20
+DOCUMENT_CLAMAV_MAX_DATABASE_AGE_SECONDS=604800
+```
+
+Sans configuration réussie, l’analyse échoue et le téléchargement reste bloqué.
+La limite d’ancienneté des signatures est de sept jours maximum ; elle peut être
+réduite. Les délais acceptés sont 1–3 s de connexion et 1–20 s par échange.
+Après changement d’environnement, reconstruire le cache de configuration utilisé
+par le déploiement et redémarrer les workers. Le job utilise la queue reports,
+un timeout de 60 s, trois tentatives et le contexte tenant TEN-006. En local,
+`composer queue:work:local` écoute déjà cette queue ; en production, utiliser les
+superviseurs/Horizon existants. Éviter QUEUE_CONNECTION=sync pour les dépôts lourds.
+
+Vérification opt-in sans toucher à la base ni aux documents métier (PowerShell,
+depuis back/, clamd déjà configuré et en cours d’exécution) :
+
+```powershell
+$env:CONTRACT_TEST_CLAMAV='true'
+php artisan test --compact tests/Feature/ClamAvIntegrationTest.php
+Remove-Item Env:CONTRACT_TEST_CLAMAV
+```
+
+Ce test envoie uniquement un PDF factice et la sonde inoffensive EICAR décodée en
+mémoire. Il doit réussir avant l’ouverture des téléchargements en environnement
+cible. Aucun clamd réel disponible sur ce poste : protocole vérifié avec un pair
+TCP de test (chunks, résultat explicite, erreur, timeout, réponse ambiguë et base
+ancienne). Ce pair ne détecte pas les virus ; le test réel reste à exécuter par
+l’opérateur après installation de ClamAV.
+
+Migration additive `2026_10_14_204339_create_contract_document_scans` :
+historique retenu, tentatives consécutives ≤1000/version, FK composites tenant,
+gardes SQL SQLite/PostgreSQL et rollback refusé si des analyses existent.
+Aucun backfill automatique : les versions CTR-002 sont bloquées jusqu’à relance
+explicite. Aucun ancien fichier ni migration déployée modifié.
+Après push et CI vertes, sauvegarder puis appliquer `php artisan migrate`.
+ClamAV et worker doivent être opérationnels avant d’annoncer le téléchargement disponible.
+Prochain P0 : CTR-004, approbations et champs financiers.
+
+Validation locale : SQLite complet final 1386 tests, 1382 réussis, 6031 assertions,
+4 exclusions attendues (PostgreSQL spécifique, deux Redis, ClamAV réel opt-in).
+168 tests frontend et 17 Playwright, PHPStan niveau 8, lint/build verts.
+PostgreSQL 17 complet : 1384 tests, 1381 réussis, 6026 assertions, 3 exclusions
+attendues (deux Redis et ClamAV réel). Après l’ajustement d’affichage des leases
+expirées, 75 tests ciblés PostgreSQL réussis, 335 assertions, incluant les deux
+nouveaux cas de frontière de lease. 61 cas backend ajoutés au total.
+Suites de fichiers factices lancées successivement ; base PostgreSQL temporaire
+recréée avant chaque suite puis supprimée. Pint/format:check et composer validate
+verts. Aucun push ni migration de la base principale effectué par l’agent.

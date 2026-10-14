@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 
-test('documents privés : versions conservées, copie signée figée et avenant lié sur mobile', async ({ page }) => {
+test('documents privés : analyses, liens temporaires, versions signées et avenants sur mobile', async ({ page }) => {
   const org = '11111111-1111-4111-8111-111111111111', revision = '22222222-2222-4222-8222-222222222222'
   const id = '33333333-3333-4333-8333-333333333333', person = '44444444-4444-4444-8444-444444444444'
   const reference = 'contrat-documentaire', rootTitle = 'Original <script>DOC_BAD</script> ' + 'DocumentConfidentielLong'.repeat(4)
@@ -14,6 +14,8 @@ test('documents privés : versions conservées, copie signée figée et avenant 
   const documents: Record<string, unknown>[] = [], versions: Record<string, unknown>[] = [], errors: string[] = []
   const files: Record<string, string> = { 'preparation-1.pdf': '%PDF-1.4\n% PREPARATION 1\n%%EOF\n', 'preparation-2.pdf': '%PDF-1.4\n% PREPARATION 2\n%%EOF\n',
     'copie-signee.pdf': '%PDF-1.4\n% COPIE SIGNEE\n%%EOF\n', 'avenant.pdf': '%PDF-1.4\n% AVENANT\n%%EOF\n' }
+  const scans: Record<string, unknown>[] = []
+  let downloads = 0
   const headers = { 'Access-Control-Allow-Origin': 'http://localhost:5173', 'Access-Control-Allow-Credentials': 'true' }
   page.on('pageerror', (error) => errors.push(error.message))
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()) })
@@ -74,6 +76,28 @@ test('documents privés : versions conservées, copie signée figée et avenant 
         document.signature_evidence_status = 'declared_external'; data = document
       }
     }
+    const security = path.match(/\/versions\/([^/]+)\/(scans|download-link|download)$/)
+    if (security) {
+      const version = versions.find((item) => item.id === security[1])!
+      if (security[2] === 'scans' && method === 'GET') data = scans.filter((item) => item.version_id === version.id).toReversed()
+      if (security[2] === 'scans' && method === 'POST') {
+        expect(confirmed).toBe(true)
+        expect(request.postDataJSON().expected_scan_id).toBe(version.scan_id ?? null)
+        const scan = { id: '88888888-8888-4888-8888-' + String(scans.length + 1).padStart(12, '0'), version_id: version.id,
+          attempt: scans.length + 1, status: 'queued', reason: null, policy: 'clamav-pdf-v1', engine: null,
+          requested_by: 43, requested_at: '2026-10-14T12:00:00Z', started_at: null, finished_at: null, invalidated_at: null }
+        scans.push(scan); version.scan_id = scan.id; version.scan_status = 'queued'; version.download_available = false; data = scan
+      }
+      if (security[2] === 'download-link') {
+        expect(version.scan_status).toBe('clean'); expect(request.postDataJSON().expected_scan_id).toBe(version.scan_id)
+        data = { url: '/api/v1/' + path.replace('/download-link', '/download') + '?actor=43&scan=' + version.scan_id + '&expires=9999999999&signature=signed', filename: version.filename, expires_at: '2026-10-14T12:05:00Z' }
+      }
+      if (security[2] === 'download') {
+        expect(url.searchParams.get('scan')).toBe(version.scan_id); expect(url.searchParams.get('actor')).toBe('43')
+        expect(version.download_available).toBe(true); downloads++
+        await route.fulfill({ status: 200, headers: { ...headers, 'Content-Type': 'application/pdf', 'Content-Disposition': 'attachment; filename="preparation-1.pdf"' }, body: files[String(version.filename)] }); return
+      }
+    }
     meta.contract_version = String(record.version)
     await route.fulfill({ status: method === 'POST' && !path.endsWith('/signature') && path.includes('/documents') ? 201 : 200, headers,
       json: { data, meta, ...(method !== 'GET' ? { notification: { type: 'success', message: 'Document conservé.' } } : {}) } })
@@ -129,9 +153,31 @@ test('documents privés : versions conservées, copie signée figée et avenant 
   await panel.getByRole('button', { name: 'Consulter les versions · original' }).click()
   await expect(panel.getByRole('article', { name: 'Version 1', exact: true })).toContainText(String(firstHash))
   expect(versions).toHaveLength(4); expect(documents[0].versions_count).toBe(3); expect(documents[1].original_document_id).toBe(documents[0].id)
+  let securityArticle = panel.getByRole('article', { name: 'Version 1', exact: true })
+  await expect(securityArticle.getByRole('button', { name: 'Télécharger le PDF privé' })).toHaveCount(0)
+  await securityArticle.getByRole('button', { name: 'Demander une nouvelle analyse' }).click(); await approve()
+  await expect(securityArticle).toContainText('Analyse en file d’attente')
+  Object.assign(scans[0], { status: 'rejected', reason: 'malware', engine: 'ClamAV test/123/fresh', started_at: '2026-10-14T12:00:01Z', finished_at: '2026-10-14T12:00:02Z' })
+  Object.assign(versions[0], { scan_status: 'rejected', scan_reason: 'malware', scan_finished_at: '2026-10-14T12:00:02Z' })
+  await panel.getByRole('button', { name: 'Actualiser les documents' }).click()
+  await expect(securityArticle).toContainText('Contenu dangereux détecté')
+  await expect(securityArticle.getByRole('button', { name: 'Télécharger le PDF privé' })).toHaveCount(0)
+  await securityArticle.getByRole('button', { name: 'Demander une nouvelle analyse' }).click(); await approve()
+  await expect(securityArticle).toContainText('Analyse en file d’attente')
+  Object.assign(scans[1], { status: 'clean', engine: 'ClamAV test/124/fresh', started_at: '2026-10-14T12:01:00Z', finished_at: '2026-10-14T12:01:02Z' })
+  Object.assign(versions[0], { scan_status: 'clean', scan_reason: null, scan_finished_at: '2026-10-14T12:01:02Z', download_available: true })
+  await panel.getByRole('button', { name: 'Actualiser les documents' }).click()
+  await expect(securityArticle).toContainText('Analyse réussie')
+  await securityArticle.getByRole('button', { name: 'Consulter les analyses' }).click()
+  await expect(securityArticle.getByRole('region', { name: 'Consulter les analyses' })).toContainText('Contenu dangereux détecté')
+  const downloaded = page.waitForEvent('download')
+  await securityArticle.getByRole('button', { name: 'Télécharger le PDF privé' }).click()
+  expect((await downloaded).suggestedFilename()).toBe('preparation-1.pdf')
+  expect(downloads).toBe(1)
   await expect(panel.getByRole('link')).toHaveCount(0)
   await page.addStyleTag({ content: '* { font-family: Georgia, serif !important; }' }); await mobile()
-  for (const close of await page.getByRole('button', { name: 'Fermer la notification', exact: true }).all()) await close.click()
-  await panel.screenshot({ path: 'reports/ctr002-documents-mobile.png' })
+  const closeNotifications = page.getByRole('button', { name: 'Fermer la notification', exact: true })
+  while (await closeNotifications.count()) await closeNotifications.first().click()
+  await panel.screenshot({ path: 'reports/ctr003-document-security-mobile.png' })
   expect(writes).toBe(7); expect(errors).toEqual([])
 })

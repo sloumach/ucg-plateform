@@ -57,7 +57,7 @@ class ContractDocumentControllerTest extends TestCase
         $first = $this->post($this->documentPath($org, $contract, $document->id).'/versions',
             ['contract_version' => $contract->version, 'purpose' => 'draft', 'file' => $file], ['Accept' => 'application/json'])
             ->assertCreated()->assertJsonPath('data.number', 1)->assertJsonPath('data.sha256', hash('sha256', $file->getContent()))
-            ->assertJsonPath('data.scan_status', 'pending')->assertJsonPath('data.download_available', false)
+            ->assertJsonPath('data.scan_status', 'failed')->assertJsonPath('data.scan_reason', 'scanner_unavailable')->assertJsonPath('data.download_available', false)
             ->assertJsonMissingPath('data.artifact_id')->assertJsonMissingPath('data.url');
         $contract->refresh();
         $this->post($this->documentPath($org, $contract, $document->id).'/versions',
@@ -72,7 +72,8 @@ class ContractDocumentControllerTest extends TestCase
         $this->assertSame($file->getContent(), decrypt($stored, false));
         $this->getJson($this->documentPath($org, $contract, $document->id).'/versions?per_page=1')->assertOk()
             ->assertJsonCount(1, 'data')->assertJsonPath('meta.total', 2)->assertJsonPath('data.0.number', 2);
-        $this->getJson($this->documentPath($org, $contract, $document->id).'/versions/'.$raw->id.'/download')->assertNotFound();
+        $this->getJson($this->documentPath($org, $contract, $document->id).'/versions/'.$raw->id.'/download')
+            ->assertConflict()->assertJsonPath('code', 'CONTRACT_DOCUMENT_LINK_INVALID');
     }
 
     public function test_selecting_a_signed_version_preserves_exact_file_and_avenant_origin_without_changing_contract_terms(): void

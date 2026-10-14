@@ -3,6 +3,7 @@ import { tenancyRequest, type ActiveOrganization, type Page } from '../../api/te
 import { isAbortError } from '../../api/errors'
 import type { ContractRecord } from '../../api/contractRecords'
 import { documentsPath, documentText as text, signedContractStates, type ContractDocument, type ContractDocumentVersion } from '../../api/contractDocuments'
+import { DocumentSecurityControls } from './DocumentSecurityControls'
 import { Button } from '../Button'
 import { FormField } from '../FormField'
 import { Pagination } from '../data/Pagination'
@@ -63,6 +64,7 @@ export function ContractDocumentsPanel({ active, record, disabled, onInvalid, on
     <Button disabled={disabled || mutation.blocked} onClick={() => setOpen((value) => !value)}>{open ? text('close') : text('title')}</Button>
     {open && <>
       <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('hint')}</p>
+      <Button disabled={disabled || loading || mutation.blocked} onClick={() => setRefresh((value) => value + 1)}>{text('refresh')}</Button>
       {loading && <p role="status">{text('loading')}</p>}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
       {mutation.feedback}
@@ -86,7 +88,9 @@ export function ContractDocumentsPanel({ active, record, disabled, onInvalid, on
           <p className="[overflow-wrap:anywhere]">{text('version')} {version.number} · {version.filename} · {text(version.purpose)}</p>
           {document.signed_version?.id === version.id && <p className="font-semibold">{text('signedVersion')}</p>}
           <p className="text-sm [overflow-wrap:anywhere]">{text('hash')} : {version.sha256}</p>
-          <p className="text-sm [overflow-wrap:anywhere]">{text('pending')} · {version.bytes} {text('bytes')}</p>
+          <p className="text-sm [overflow-wrap:anywhere]">{version.bytes} {text('bytes')}</p>
+          <DocumentSecurityControls key={revision ?? ''} active={active} path={documentsPath(org, record.id, document.id) + '/versions/' + version.id} version={version} manage={manage} disabled={blocked}
+            onChanged={() => { setRefresh((value) => value + 1); onChanged() }} onInvalid={invalidate} />
         </article>)}
         {versions && <Pagination currentPage={versions.meta.current_page} totalPages={versions.meta.last_page} disabled={blocked} onPageChange={setVersionPage} />}
         {document.signed_version && <p className="[overflow-wrap:anywhere]">{text('frozen')}</p>}

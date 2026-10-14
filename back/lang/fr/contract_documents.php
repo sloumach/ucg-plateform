@@ -2,7 +2,7 @@
 
 return [
     'created' => 'Le document a été ajouté au dossier.',
-    'uploaded' => 'La version a été conservée en stockage privé. Elle attend l’analyse de contenu.',
+    'uploaded' => 'La version a été conservée en stockage privé. Son téléchargement nécessite une analyse de sécurité réussie.',
     'signed' => 'La version déclarée signée a été identifiée et conservée.',
     'file' => 'Choisissez un fichier PDF de 5 Mo maximum. Le dépôt reste privé sans téléchargement à ce stade.',
     'filename' => 'Utilisez un nom de fichier PDF de 160 caractères maximum, sans chemin ni caractère de contrôle.',

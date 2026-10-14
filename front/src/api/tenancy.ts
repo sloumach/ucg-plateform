@@ -59,16 +59,17 @@ const baseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/
 
 export async function tenancyRequest<T>(
   path: string,
-  options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; revision?: string; signal?: AbortSignal; download?: boolean } = {},
+  options: { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; revision?: string; signal?: AbortSignal; download?: boolean | 'pdf' } = {},
 ): Promise<T> {
   const method = options.method ?? 'GET'
   if (method !== 'GET') await prepareCsrfCookie()
   const multipart = options.body instanceof FormData
-  const headers: Record<string, string> = method === 'GET' ? { Accept: options.download ? 'text/csv' : 'application/json' } : mutationHeaders()
+  const headers: Record<string, string> = method === 'GET' ? { Accept: options.download === 'pdf' ? 'application/pdf' : options.download ? 'text/csv' : 'application/json' } : mutationHeaders()
   if (multipart) delete headers['Content-Type']
   const response = await fetch(`${baseUrl}/${path}`, {
     method,
     credentials: 'include',
+    ...(options.download === 'pdf' ? { redirect: 'error' as const } : {}),
     headers: {
       ...headers,
       ...(options.revision ? { 'X-Tenant-Revision': options.revision } : {}),

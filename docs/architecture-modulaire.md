@@ -1227,3 +1227,52 @@ Aucun benchmark de forte charge : mesurer quotas chiffrés, latence du stockage,
 pagination et contention du verrou avant de relever les budgets.
 CTR-003 ajoutera analyse de contenu et accès aux octets ; CTR-004 portera les
 approbations métier/financières des avenants. Aucune certification électronique.
+
+
+## Analyse et délivrance documentaires — UCG-CTR-003
+
+ContractDocumentScanService orchestre la demande, ContractDocumentScanProcessor
+le traitement tenant et ContractDocumentDownloadService la délivrance.
+Les contrôleurs restent limités à validation, Gate, Resources/DTO et réponses.
+ContractDocumentScanRepository encapsule la persistance ; ContractDocumentScanner
+est une frontière injectée, adaptée à clamd TCP par ClamAvDocumentScanner.
+ContractDocumentScanQueue utilise le Bus Laravel et ScanContractDocument,
+TenantJob afterCommit, queue reports, restauration du contexte TEN-006.
+
+Le dépôt conserve d’abord définitivement sa version chiffrée, puis demande le scan.
+Un échec de dispatch/audit de scan ne supprime jamais une version déjà engagée :
+elle reste en quarantaine. Demandes actives idempotentes ; lease de 300 s,
+réessai explicite avec expected_scan_id, 1000 tentatives maximum/version.
+Verrou organisation puis contrat puis scan ; aucun verrou métier pendant l’I/O
+de stockage ou les échanges ClamAV. Droits revérifiés avant traitement et
+finalisation ; un scan remplacé pendant l’I/O ne peut publier son verdict.
+
+Pipeline : lecture TEN-005, déchiffrement mémoire, taille/hash, enveloppe PDF,
+VERSION avec date de signatures ≤7 jours, INSTREAM par morceaux de 65536 octets.
+Seul stream: OK est clean ; FOUND est bloqué, toute panne/réponse ambiguë/limite
+est un échec fermé. Réponse ≤512 octets, délais monotones bornés, sockets fermés
+en finally. Aucune donnée de fichier ou signature de virus dans les logs/audits.
+Le démon reste une dépendance opérationnelle de confiance sur réseau privé ;
+ses réglages ScanPDF/alertes/limites doivent être vérifiés par l’opérateur.
+
+Historique contract_document_scans : tentative, auteur, hash de version,
+politique, état, motif fermé, moteur, dates et éventuelle invalidation.
+Identité/résultat final immuables, suppression interdite ; clean peut seulement
+être invalidé une fois en cas de corruption. Audit minimal atomique UUID/état/motif.
+Callback de queue terminale limité à l’échec de la tentative du même acteur,
+sans pouvoir accorder l’accès. Export fermé TEN-007 enrichi du suivi des analyses.
+
+Accès : verdict clean courant <24 h, dernière tentative, intégrité exacte.
+Lien signé relatif cinq minutes lié à compte/tenant/contrat/document/version/scan ;
+session et MFA obligatoires. Recontrôle des permissions et du verdict après I/O,
+expiration stricte à la frontière. Si intégrité compromise, le verdict clean
+conservé est invalidé et aucune donnée claire servie. HTTP attachment, private
+no-store, nosniff, CSP sandbox ; pas de cache de décision IAM ni d’URL de stockage.
+
+Analyse/versions/historique paginés (API ≤100, UI 10), latestScan chargé en une
+requête corrélée indexée tenant/version/attempt ; nombre de requêtes constant
+vérifié sur 1/11 versions avec leurs scans. Dépôt/relance 10 par minute,
+liens 60, téléchargements 20, par tenant et compte. Mesurer mémoire PHP et clamd,
+latence, volume reports, stockage chiffré et contention avant d’augmenter budgets
+ou concurrence des workers ; aucun benchmark à millions d’utilisateurs réalisé.
+Déploiement/configuration et test réel opt-in décrits dans README, section CTR-003.

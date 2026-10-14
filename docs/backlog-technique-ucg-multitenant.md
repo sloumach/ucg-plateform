@@ -866,7 +866,8 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   aucune route de téléchargement ou URL exposée avant CTR-003. Pas de certification
   de signature ni d’approbation financière. Migrations déployées inchangées,
   gardes SQLite/PostgreSQL, export fermé, audit atomique et nettoyage du nouveau
-  fichier après rollback. Après push/CI/migration utilisateur, prochain P0 : CTR-003.
+  fichier après rollback. Commit `ce268f6` poussé et CI validées par l’utilisateur ;
+  migration confirmée Ran, batch 21, avant CTR-003.
 
 ### UCG-CTR-003 — Sécuriser dépôt et téléchargement des fichiers
 
@@ -874,6 +875,20 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Périmètre** : stockage privé par tenant, type/taille, analyse de contenu, URL temporaire et nouvelle autorisation au téléchargement.
 - **Acceptation** : exécutable refusé, lien expiré inutilisable et aucun chemin d’un autre tenant devinable ou accessible.
 - **Références CDC** : CTR-07, SEC-06, REC-14.
+
+- **État au 14 octobre 2026** : implémenté localement, API et interface.
+  ClamAV INSTREAM choisi par l’utilisateur, analyse asynchrone après dépôt,
+  relance idempotente/optimiste, résultats retenus et audit minimal. Vérifications
+  taille/hash/PDF, signatures antivirus ≤7 jours, aucune autorisation sans clean.
+  Liens cinq minutes liés au compte et dernier scan, session MFA et droits
+  recontrôlés après I/O, verdict valable 24 h, corruption invalidant le clean.
+  Historique paginé, états/motifs, relance confirmée, actualisation et téléchargement
+  Blob privé ; archive documentaire toujours immuable. Migration additive,
+  gardes SQL SQLite/PostgreSQL, export fermé, aucun backfill automatique.
+  Protocole testé avec pair TCP local ; test réel ClamAV opt-in à exécuter après
+  configuration du démon/freshclam. Dépendance opérationnelle désactivée par défaut,
+  téléchargement bloqué jusque-là. Après push/CI/migration et mise en service
+  ClamAV/worker, prochain P0 : CTR-004. Configuration dans README section CTR-003.
 
 ### UCG-CTR-004 — Gérer approbations et champs financiers
 

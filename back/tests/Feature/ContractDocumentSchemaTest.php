@@ -133,8 +133,11 @@ class ContractDocumentSchemaTest extends TestCase
         $contract = ContractRecord::factory()->create();
         $before = $contract->refresh()->getRawOriginal();
         $migration = require database_path('migrations/2026_10_14_193828_create_contract_documents_and_immutable_versions.php');
+        $scans = require database_path('migrations/2026_10_14_204339_create_contract_document_scans.php');
+        $scans->down();
         $migration->down();
         $migration->up();
+        $scans->up();
         $this->assertSame($before, $contract->refresh()->getRawOriginal());
         $this->assertDatabaseCount('contract_documents', 0);
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());

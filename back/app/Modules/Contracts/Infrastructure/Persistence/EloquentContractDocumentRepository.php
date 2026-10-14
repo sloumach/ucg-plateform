@@ -52,7 +52,7 @@ final readonly class EloquentContractDocumentRepository implements ContractDocum
     /** @return Builder<ContractDocumentVersion> */
     private function versionQuery(string $org, string $contract, string $document): Builder
     {
-        return ContractDocumentVersion::query()->where('organization_id', strtolower($org))
+        return ContractDocumentVersion::query()->with(['latestScan' => fn ($query) => $query->where('contract_document_scans.organization_id', strtolower($org))])->where('organization_id', strtolower($org))
             ->where('contract_id', strtolower($contract))->where('document_id', strtolower($document));
     }
 

@@ -3,6 +3,13 @@ import { tenancyRequest } from './tenancy'
 import { ApiClientError } from './errors'
 
 describe('tenancyRequest', () => {
+  it('télécharge un PDF privé avec session, révision et redirections refusées', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('%PDF-1.4\n%%EOF', { headers: { 'Content-Type': 'application/pdf' } }))
+    vi.stubGlobal('fetch', fetchMock)
+    const result = await tenancyRequest<Blob>('tenants/id/contracts/id/documents/id/versions/id/download?signature=test', { download: 'pdf', revision: 'current' })
+    expect(result.type).toBe('application/pdf')
+    expect(fetchMock.mock.calls[0][1]).toEqual(expect.objectContaining({ credentials: 'include', redirect: 'error', headers: { Accept: 'application/pdf', 'X-Tenant-Revision': 'current' } }))
+  })
   it('envoie un CSV multipart avec CSRF et sans imposer une frontière Content-Type', async () => {
     document.cookie = 'XSRF-TOKEN=csrf%20token; path=/'
     const fetchMock = vi.fn().mockResolvedValueOnce(new Response(null, { status: 204 })).mockResolvedValueOnce(Response.json({ data: { id: 'import-id' } }))

@@ -9,8 +9,10 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-CTR-002` — documents et avenants distincts,
-  versions de PDF immuables et identification de la copie déclarée signée.
+- Dernier ticket traité : `UCG-CTR-003` — analyse ClamAV et téléchargement privé
+  lié au compte, à la version immuable et au dernier verdict.
+- CTR-002 (`ce268f6`) : push, CI vertes et migration confirmés par l’utilisateur
+  avant CTR-003 ; migration vérifiée en lecture seule : Ran, batch 21.
 - CTR-001 (`87953e0`) : push, CI vertes et migration confirmés par l’utilisateur
   avant CTR-002 ; migration vérifiée en lecture seule : Ran, batch 20.
 - TEAM-006 (`564dd59`) : push, CI vertes et migration confirmés par l’utilisateur
@@ -58,10 +60,12 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : push utilisateur CTR-002 et validation des CI, sauvegarde
+- Prochaine action : push utilisateur CTR-003 et validation des CI, sauvegarde
   puis `php artisan migrate` depuis `back/`. Migration additive
-  `2026_10_14_193828_create_contract_documents_and_immutable_versions`, réservée à
+  `2026_10_14_204339_create_contract_document_scans`, réservée à
   l’utilisateur sur la base principale, statut Pending vérifié en lecture seule.
+  Préparer clamd/freshclam et le worker reports, puis exécuter le test opt-in réel
+  documenté dans README avant l’ouverture des téléchargements.
   Code, tests, CI et docs dans le même commit. Aucune référence réelle, personne
   réelle, adhésion, attribution de rôle ou capture réelle créée par l’agent ;
   aucun e-mail envoyé.
@@ -78,9 +82,9 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après push/CI/migration CTR-002, prochaine étape recommandée du backlog :
-  `UCG-CTR-003`, analyse de contenu et téléchargement privé avec nouvelle
-  autorisation et liens temporaires. Les dépôts CTR-002 restent sans téléchargement.
+- Après push/CI/migration CTR-003 et configuration ClamAV/worker, prochain P0 :
+  `UCG-CTR-004`, approbations et champs financiers. ClamAV doit être vérifié en
+  environnement cible ; aucun téléchargement sans analyse clean réussie.
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
@@ -1731,3 +1735,65 @@ ensuite ce fichier pour qu'il reflète la réalité.
   Prochaine action : push utilisateur, CI vertes, sauvegarde puis
   php artisan migrate depuis back/. Prochain P0 : UCG-CTR-003, analyse de contenu
   et téléchargement privé avec autorisation renouvelée et liens temporaires.
+
+
+## Sécurité documentaire — UCG-CTR-003
+
+- Reprise sur staging propre, synchronisé avec origin/staging, commit CTR-002
+  ce268f6. Push, CI et migration validés par l’utilisateur ; Ran, batch 21,
+  vérifié en lecture seule. Choix utilisateur : préparer ClamAV.
+- Analyse après dépôt, relance explicite des versions anciennes, historique
+  paginé. TenantJob reports avec contexte TEN-006 ; persistance et état séparés
+  des versions immuables. Aucun fichier supprimé après échec de scan/dispatch.
+- Client clamd TCP VERSION/INSTREAM injecté : taille/hash/PDF, date de signatures,
+  chunks bornés, deadline monotone, résultat explicitement clean requis.
+  Erreur, malware, intégrité, signatures anciennes, réponse ambiguë ou timeout
+  bloquent le fichier. Pas de copie claire persistée par PHP, nom/hash/contenu
+  absents des logs et audits ; conservation du résultat et moteur en base.
+- Dernier clean valable moins de 24 h ; lien signé relatif cinq minutes lié au
+  compte et tenant/version/scan, session MFA obligatoire. Autorisation et
+  intégrité revérifiées après I/O ; corruption invalidant le clean une fois.
+  Un nouveau scan empêche les liens précédents de fonctionner. Réponses PDF
+  attachment/private/no-store/nosniff/CSP sandbox, sans accès direct au stockage.
+- Demande active idempotente, lease de 300 s, expected_scan_id optimiste,
+  maximum 1000 analyses/version. Une lease dépassée est affichée stale pour
+  permettre une relance depuis l’interface même après arrêt d’un worker.
+  Aucun scan remplacé pendant l’I/O ne peut finaliser un résultat plus récent.
+- Permissions administrative.read pour historique/liens/octet ; write en plus
+  pour relance, avec confirmation tenant. Copies signées et archives gardent
+  leurs données immuables ; leur analyse peut être renouvelée. Aucun champ
+  financier ajouté, aucune certification électronique de signature.
+- Migration additive 2026_10_14_204339_create_contract_document_scans ; FK tenant
+  composites, tentatives consécutives, transitions/dates encadrées, identité et
+  résultats finaux retenus, suppression interdite. Down refuse toute analyse.
+  Export fermé TEN-007 adapté ; migrations déployées inchangées, aucun backfill.
+  Nouvelle migration principale Pending vérifiée en lecture seule.
+- UI : états/motifs/date, historique, relance confirmée, actualisation manuelle,
+  liens neufs et Blob PDF annulable. URL exacte/compte/scan contrôlés avant GET ;
+  redirections refusées, URL Blob libérée. Changement de révision remonte le
+  composant ; 401/403/404/409 impose relecture, aucun rejeu silencieux.
+- 168 tests frontend dans 26 fichiers ; 17 Playwright verts. Le parcours
+  documentaire couvre dépôt/signature/avenant et analyses refusée/clean,
+  historique et téléchargement. Textes échappés, 375/320 px, police de repli,
+  captures inspectées. API métier/verdicts simulés, aucun document réel créé.
+- PHPStan niveau 8, Pint dirty/format:check, composer validate, lint/build verts.
+  CI PostgreSQL enrichie de trois fichiers CTR-003 ; tests ClamAV de protocole
+  dans la suite générale. Pair TCP local testé : chunks/hash, clean/FOUND,
+  réponse inconnue/ambiguë/tronquée, limite, délai et signatures trop anciennes.
+- Aucun clamd réel installé : test opt-in ClamAvIntegrationTest (PDF factice et
+  EICAR en mémoire) fourni, non exécuté localement. Configurer clamd/freshclam
+  avec scan PDF, alertes sur chiffrement/limites et endpoint privé ; TZ=UTC.
+  Activer DOCUMENT_CLAMAV_ENABLED seulement avec moteur opérationnel, mettre à
+  jour le cache config et redémarrer les workers. Sans analyse réussie, aucun
+  téléchargement disponible. Guide exact et test réel dans README section CTR-003.
+- 61 cas backend ajoutés. SQLite complet final : 1386 tests, 1382 réussis,
+  6031 assertions, 4 exclusions attendues (test PostgreSQL spécifique, deux Redis,
+  ClamAV réel opt-in). PostgreSQL 17 complet : 1384 tests, 1381 réussis,
+  6026 assertions, 3 exclusions Redis/ClamAV attendues. Après ajustement d’affichage
+  des leases expirées : 75 tests ciblés PostgreSQL, tous réussis, 335 assertions,
+  incluant les deux nouveaux cas de frontière. Base temporaire recréée avant
+  chaque suite puis supprimée ; suites Storage::fake exécutées successivement.
+- Un seul commit local pour code, tests, CI et les six documents existants.
+  Aucun push, migration principale, installation de service ni donnée métier réelle
+  par l’agent ; aucun e-mail envoyé. Prochaine action utilisateur : push, CI vertes,
+  sauvegarde/migrate et mise en service ClamAV/worker. Prochain P0 : UCG-CTR-004.

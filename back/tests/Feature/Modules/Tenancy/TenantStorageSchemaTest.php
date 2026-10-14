@@ -65,6 +65,8 @@ class TenantStorageSchemaTest extends TestCase
         $importMigration = require database_path('migrations/2026_10_12_211057_create_person_import_tables.php');
         $documents = require database_path('migrations/2026_10_14_193828_create_contract_documents_and_immutable_versions.php');
 
+        $scans = require database_path('migrations/2026_10_14_204339_create_contract_document_scans.php');
+        $scans->down();
         $documents->down();
         $importMigration->down();
         $migration->down();
@@ -73,6 +75,7 @@ class TenantStorageSchemaTest extends TestCase
         $migration->up();
         $importMigration->up();
         $documents->up();
+        $scans->up();
 
         $this->assertTrue(Schema::hasTable('tenant_artifacts'));
         $this->assertTrue(Schema::hasTable('tenant_storage_usage'));

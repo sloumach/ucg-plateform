@@ -20,6 +20,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
     public const array TABLES = [
         'contracts' => 'id', 'contract_parties' => 'id', 'contract_obligations' => 'id', 'contract_transitions' => 'id',
         'contract_documents' => 'id', 'contract_document_versions' => 'id', 'contract_document_signatures' => 'id',
+        'contract_document_scans' => 'id',
         'external_opponents' => 'id', 'external_opponent_snapshots' => 'id',
         'team_eligibility_rulesets' => 'id', 'team_lineup_rule_bindings' => 'id', 'team_lineup_eligibility_reports' => 'id',
         'team_lineups' => 'id', 'team_lineup_entries' => 'id',
@@ -46,6 +47,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
         'contract_documents' => ['id', 'organization_id', 'contract_id', 'reference', 'kind', 'title', 'original_document_id', 'effective_on', 'created_by', 'created_at'],
         'contract_document_versions' => ['id', 'organization_id', 'contract_id', 'document_id', 'artifact_id', 'number', 'purpose', 'filename', 'sha256', 'bytes', 'created_by', 'created_at'],
         'contract_document_signatures' => ['id', 'organization_id', 'contract_id', 'document_id', 'document_version_id', 'version_number', 'sha256', 'signed_on', 'recorded_by', 'created_at'],
+        'contract_document_scans' => ['id', 'organization_id', 'contract_id', 'document_id', 'document_version_id', 'attempt', 'sha256', 'policy', 'status', 'reason', 'engine', 'requested_by', 'requested_at', 'started_at', 'finished_at', 'invalidated_at'],
         'contract_parties' => ['id', 'organization_id', 'contract_id', 'kind', 'person_id', 'name', 'position', 'created_at', 'updated_at'],
         'contract_obligations' => ['id', 'organization_id', 'contract_id', 'title', 'due_on', 'position', 'status', 'version', 'created_at', 'updated_at'],
         'contract_transitions' => ['id', 'organization_id', 'contract_id', 'from_status', 'to_status', 'contract_version', 'actor_user_id', 'occurred_at'],

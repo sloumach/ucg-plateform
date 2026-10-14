@@ -189,3 +189,27 @@ contract-documents.spec.ts couvre deux préparations → copie signée → liais
 définitive → avenant lié → dépôt → historique original conservé ; multipart,
 révision, confirmations, textes échappés, mobile 375/320 et police de repli.
 API métier simulées, aucune mutation documentaire réelle sur la base principale.
+
+
+### Analyses et téléchargement privé — CTR-003
+
+DocumentSecurityControls complète chaque version du panneau documentaire :
+état et motif de blocage, date, historique des analyses paginé par 10,
+demande de nouvelle analyse avec confirmation et identifiant du dernier scan.
+Le bouton Actualiser les documents relit les résultats du worker ; aucune
+relance automatique d’un fichier refusé. Les archives conservent leurs octets,
+mais un utilisateur habilité peut renouveler leur analyse.
+
+Téléchargement visible uniquement pour une version clean disponible et un scan
+identifié. Chaque clic demande un lien neuf, puis récupère un Blob PDF avec
+session, révision et redirections HTTP refusées. L’URL reçue doit désigner
+exactement la version, le compte et le scan affichés. Aucun URL public/persistant
+ou aperçu PDF exécuté ; l’URL Blob est libérée après déclenchement du téléchargement.
+Fermeture ou changement de contexte annule la lecture et ignore les réponses
+tardives. Refus 401/403/404/409 : relecture, sans rejeu automatique du téléchargement.
+Le lecteur administratif peut télécharger mais ne voit aucune commande de relance.
+
+168 tests Vitest dans 26 fichiers, lint/build et 17 Playwright verts. Le parcours
+documentaire ajoute rejet, relance, résultat clean, historique et téléchargement
+sur mobile 375/320 px avec police de repli. API métier et verdicts simulés dans
+Playwright ; l’antivirus réel est vérifié séparément après configuration.

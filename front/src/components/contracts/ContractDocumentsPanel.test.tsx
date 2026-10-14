@@ -105,7 +105,8 @@ describe('documents et avenants', () => {
     documents = [base]; versions = [{ ...version, purpose: 'signed_copy' }]
     const user = userEvent.setup(); show({ ...active, context: { ...active.context!, permissions: ['administrative.read', 'administrative.write'] } }, { ...record, status: 'signed' })
     await open(user); const panel = await history(user)
-    expect(within(panel).queryByRole('form')).not.toBeInTheDocument()
+    expect(within(panel).queryByRole('form', { name: 'Conserver une nouvelle version' })).not.toBeInTheDocument()
+    expect(within(panel).queryByRole('form', { name: 'Identifier la version signée' })).not.toBeInTheDocument()
   })
   it('identifie précisément la copie signée choisie après déclaration et confirmation', async () => {
     documents = [base]; versions = [{ ...version, purpose: 'signed_copy', number: 2 }]
@@ -120,7 +121,8 @@ describe('documents et avenants', () => {
     documents = [{ ...base, signed_version: { id: versionId, number: 2, sha256: version.sha256, signed_on: '2026-10-14', recorded_by: 43, recorded_at: base.created_at } }]
     versions = [{ ...version, purpose: 'signed_copy', number: 2 }]
     const user = userEvent.setup(); show(active, { ...record, status: 'active' }); await open(user); const panel = await history(user)
-    expect(within(panel).queryByRole('form')).not.toBeInTheDocument()
+    expect(within(panel).queryByRole('form', { name: 'Conserver une nouvelle version' })).not.toBeInTheDocument()
+    expect(within(panel).queryByRole('form', { name: 'Identifier la version signée' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Ajouter un document ou un avenant' }))
     const form = screen.getByRole('form', { name: 'Ajouter un document ou un avenant' })
     await user.type(within(form).getByLabelText('Référence du document'), 'avenant-1')
@@ -151,7 +153,8 @@ describe('documents et avenants', () => {
     documents = [base]; versions = [version]
     const user = userEvent.setup(); show(active, { ...record, status: 'archived' }); await open(user); const panel = await history(user)
     expect(screen.queryByRole('button', { name: 'Ajouter un document ou un avenant' })).not.toBeInTheDocument()
-    expect(within(panel).queryByRole('form')).not.toBeInTheDocument()
+    expect(within(panel).queryByRole('form', { name: 'Conserver une nouvelle version' })).not.toBeInTheDocument()
+    expect(within(panel).queryByRole('form', { name: 'Identifier la version signée' })).not.toBeInTheDocument()
   })
   it('annule la lecture et ignore une réponse tardive après fermeture', async () => {
     let finish: ((value: unknown) => void) | undefined, signal: AbortSignal | undefined

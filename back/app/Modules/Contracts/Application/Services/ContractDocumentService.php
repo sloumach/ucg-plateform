@@ -7,6 +7,7 @@ use App\Modules\Contracts\Application\Validation\ContractDocumentInput as Input;
 use App\Modules\Contracts\Application\Validation\ContractInput;
 use App\Modules\Contracts\Domain\Contracts\ContractDocumentRepository;
 use App\Modules\Contracts\Domain\Contracts\ContractRepository;
+use App\Modules\Contracts\Domain\DocumentSecurity;
 use App\Modules\Contracts\Domain\Models\ContractDocument;
 use App\Modules\Contracts\Domain\Models\ContractDocumentVersion;
 use App\Modules\Contracts\Domain\Models\ContractRecord;
@@ -34,7 +35,8 @@ final readonly class ContractDocumentService
 {
     public function __construct(private ContractDocumentRepository $documents, private ContractRepository $contracts,
         private TenantAuthorization $authorization, private TenantBusinessGuard $guard, private TenantAuditJournal $audit,
-        private TenantArtifacts $artifacts, private Encrypter $crypt, private Factory $validator, private ConnectionInterface $database) {}
+        private TenantArtifacts $artifacts, private Encrypter $crypt, private Factory $validator, private ConnectionInterface $database,
+        private ContractDocumentScanService $scans) {}
 
     /** @param array<string, mixed> $filters
      * @return LengthAwarePaginator<int, ContractDocument>
@@ -113,13 +115,13 @@ final readonly class ContractDocumentService
             throw ValidationException::withMessages(['file' => __('contract_documents.filename')]);
         }
         $contents = $file->getContent();
-        if (strlen($contents) < 8 || strlen($contents) > Input::MAX_BYTES || ! str_starts_with($contents, '%PDF-')) {
+        if (! DocumentSecurity::pdf($contents)) {
             throw ValidationException::withMessages(['file' => __('contract_documents.file')]);
         }
         // Durable storage happens before metadata; a failed transaction removes only this new reservation.
         $artifact = $this->artifacts->store($context, 'contract-document.pdf.enc', $this->crypt->encryptString($contents));
         try {
-            return $this->database->transaction(function () use ($context, $contractId, $documentId, $values, $artifact, $contents, $filename, $ipAddress): array {
+            $result = $this->database->transaction(function () use ($context, $contractId, $documentId, $values, $artifact, $contents, $filename, $ipAddress): array {
                 $contract = $this->lock($context, $contractId, $values['contract_version'], $values['purpose'] === 'signed_copy');
                 $document = $this->documents->find($context->organizationId, $contractId, $documentId);
                 $this->assertUpload($contract, $document, $values['purpose']);
@@ -140,6 +142,15 @@ final readonly class ContractDocumentService
             }
             throw $exception;
         }
+        try {
+            $this->scans->request($context, $result['version']->contract_id, $documentId, $result['version']->id, ['expected_scan_id' => null]);
+        } catch (Throwable $exception) {
+            // The version is already committed. Preserve it in quarantine for an explicit scan retry.
+            report($exception);
+        }
+        $result['version'] = $this->documents->version($context->organizationId, $result['version']->contract_id, $documentId, $result['version']->id);
+
+        return $result;
     }
 
     /** @param array<string, mixed> $input
