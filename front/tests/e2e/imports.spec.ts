@@ -1,6 +1,7 @@
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from './multipart'
 
-test('import CSV : dépôt privé confirmé, mapping, erreurs, création et rapport sur mobile', async ({ page }) => {
+test('import CSV : dépôt privé confirmé, mapping, erreurs, création et rapport sur mobile', async ({ page, multipartUpload }) => {
   const org = '11111111-1111-4111-8111-111111111111', revision = '22222222-2222-4222-8222-222222222222', id = '33333333-3333-4333-8333-333333333333'
   let confirmed = false, uploaded = false, imported = false
   let run: Record<string, unknown> = { id, version: revision, status: 'uploaded', headers: ['pseudo', 'email'], mapping: {}, defaults: {}, row_count: 2, counts: {}, failure_code: null, rows: [], pagination: { current_page: 1, last_page: 1, total: 0 } }
@@ -22,10 +23,18 @@ test('import CSV : dépôt privé confirmé, mapping, erreurs, création et rapp
       if (method === 'POST') {
         expect(confirmed).toBe(true); expect(imported).toBe(false)
         expect(route.request().headers()['content-type']).toMatch(/^multipart\/form-data; boundary=/)
-        expect(route.request().postData()).toContain('filename="people.csv"')
-        expect(route.request().postData()).toContain('Alex,alex@example.test')
         expect(route.request().headers()['x-tenant-revision']).toBe(revision)
-        uploaded = true; data = run
+        await multipartUpload(route, async (body) => {
+          const file = body.get('file')
+          expect(file).toBeInstanceOf(File)
+          if (!(file instanceof File)) throw new Error('The CSV upload must contain a file.')
+          expect(file.name).toBe('people.csv')
+          expect(await file.text()).toBe('pseudo,email\nAlex,alex@example.test\n<script>BAD</script>,invalid')
+          expect(body.get('delimiter')).toBe(',')
+          uploaded = true; data = run
+          return { json: { data, meta, notification: { type: 'success', message: 'Étape d’import enregistrée.' } } }
+        })
+        return
       } else data = uploaded ? [run] : []
     }
     if (path === root + '/' + id) data = run
@@ -52,7 +61,9 @@ test('import CSV : dépôt privé confirmé, mapping, erreurs, création et rapp
   await page.goto('/')
   await page.getByRole('button', { name: 'Importer des personnes par CSV' }).click()
   const upload = page.getByRole('form', { name: 'Déposer le CSV privé' })
-  await upload.getByLabel('Fichier CSV').setInputFiles({ name: 'people.csv', mimeType: 'text/csv', buffer: Buffer.from('pseudo,email\nAlex,alex@example.test\n<script>BAD</script>,invalid') })
+  const input = upload.getByLabel('Fichier CSV')
+  await expect(input).toBeEnabled()
+  await input.setInputFiles({ name: 'people.csv', mimeType: 'text/csv', buffer: Buffer.from('pseudo,email\nAlex,alex@example.test\n<script>BAD</script>,invalid') })
   await upload.getByRole('button', { name: 'Déposer le CSV privé' }).click()
   expect(uploaded).toBe(false)
   const approve = async () => {

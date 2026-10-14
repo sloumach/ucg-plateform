@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto'
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
+import { test } from './multipart'
 
-test('documents privés : analyses, liens temporaires, versions signées et avenants sur mobile', async ({ page }) => {
+test('documents privés : analyses, liens temporaires, versions signées et avenants sur mobile', async ({ page, multipartUpload }) => {
   const org = '11111111-1111-4111-8111-111111111111', revision = '22222222-2222-4222-8222-222222222222'
   const id = '33333333-3333-4333-8333-333333333333', person = '44444444-4444-4444-8444-444444444444'
   const reference = 'contrat-documentaire', rootTitle = 'Original <script>DOC_BAD</script> ' + 'DocumentConfidentielLong'.repeat(4)
@@ -54,17 +55,25 @@ test('documents privés : analyses, liens temporaires, versions signées et aven
       if (matched[2] === 'versions' && method === 'POST') {
         expect(confirmed).toBe(true); expect(request.headers()['x-tenant-revision']).toBe(revision)
         expect(request.headers()['content-type']).toContain('multipart/form-data; boundary=')
-        const body = request.postData()!, filename = body.match(/filename="([^"]+)"/)![1]
-        expect(body).toContain(files[filename]); expect(body).not.toContain('name="sha256"')
-        expect(body.match(/name="contract_version"\r\n\r\n([^\r\n]+)/)![1]).toBe(record.version)
-        const purpose = body.match(/name="purpose"\r\n\r\n([^\r\n]+)/)![1]
-        expect(document.signed_version).toBeNull()
-        writes++; record = { ...record, version: '99999999-9999-4999-8999-' + String(writes).padStart(12, '0') }
-        document.versions_count = Number(document.versions_count) + 1
-        const version = { id: '77777777-7777-4777-8777-' + String(writes).padStart(12, '0'), document_id: document.id, number: document.versions_count,
-          purpose, filename, sha256: createHash('sha256').update(files[filename]).digest('hex'), bytes: files[filename].length,
-          created_by: 43, created_at: '2026-10-14T12:00:00+00:00', scan_status: 'pending', download_available: false, publication_status: 'private' }
-        versions.push(version); data = version
+        await multipartUpload(route, async (body) => {
+          const file = body.get('file')
+          expect(file).toBeInstanceOf(File)
+          if (!(file instanceof File)) throw new Error('The document upload must contain a file.')
+          const filename = file.name, contents = Buffer.from(await file.arrayBuffer())
+          expect(Object.keys(files), 'The actual upload must retain the selected filename.').toContain(filename)
+          expect(contents).toEqual(Buffer.from(files[filename])); expect(body.has('sha256')).toBe(false)
+          expect(body.get('contract_version')).toBe(record.version)
+          const purpose = body.get('purpose')
+          expect(document.signed_version).toBeNull()
+          writes++; record = { ...record, version: '99999999-9999-4999-8999-' + String(writes).padStart(12, '0') }
+          document.versions_count = Number(document.versions_count) + 1
+          const version = { id: '77777777-7777-4777-8777-' + String(writes).padStart(12, '0'), document_id: document.id, number: document.versions_count,
+            purpose, filename, sha256: createHash('sha256').update(contents).digest('hex'), bytes: contents.length,
+            created_by: 43, created_at: '2026-10-14T12:00:00+00:00', scan_status: 'pending', download_available: false, publication_status: 'private' }
+          versions.push(version); data = version
+          return { status: 201, json: { data, meta: { ...meta, contract_version: String(record.version) }, notification: { type: 'success', message: 'Document conservé.' } } }
+        })
+        return
       }
       if (matched[2] === 'signature' && method === 'POST') {
         const body = request.postDataJSON()
@@ -120,14 +129,30 @@ test('documents privés : analyses, liens temporaires, versions signées et aven
   }
   await page.goto('/'); await openDocuments()
   let panel = page.getByRole('region', { name: 'Documents et avenants', exact: true })
+  const history = async (reference: string) => {
+    const button = panel.getByRole('button', { name: 'Consulter les versions · ' + reference })
+    await expect(button).toBeEnabled()
+    const document = documents.find((item) => item.reference === reference)
+    if (!document) throw new Error('The document must be created before its history is opened.')
+    // Selection briefly renders the previous list before its effect reloads the history.
+    await Promise.all([
+      page.waitForResponse((response) => response.request().method() === 'GET'
+        && new URL(response.url()).pathname.endsWith('/documents/' + document.id + '/versions')),
+      button.click(),
+    ])
+  }
   await panel.getByRole('button', { name: 'Ajouter un document ou un avenant' }).click()
   let form = panel.getByRole('form', { name: 'Ajouter un document ou un avenant' })
   await form.getByLabel('Référence du document').fill('original'); await form.getByLabel('Intitulé du document').fill(rootTitle)
   await form.getByRole('button', { name: 'Ajouter un document ou un avenant' }).click(); await approve()
-  await panel.getByRole('button', { name: 'Consulter les versions · original' }).click()
+  await history('original')
   const upload = async (filename: string, number: number) => {
     const form = panel.getByRole('form', { name: 'Conserver une nouvelle version' })
-    await form.getByLabel('Fichier PDF privé (5 Mo maximum)').setInputFiles({ name: filename, mimeType: 'application/pdf', buffer: Buffer.from(files[filename]) })
+    const input = form.getByLabel('Fichier PDF privé (5 Mo maximum)')
+    // A contract reload remounts this input; setInputFiles does not wait for enabled state.
+    await expect(input).toBeEnabled()
+    await input.setInputFiles({ name: filename, mimeType: 'application/pdf', buffer: Buffer.from(files[filename]) })
+    await expect.poll(() => input.evaluate((element) => element instanceof HTMLInputElement ? element.files?.[0]?.name : null)).toBe(filename)
     await form.getByRole('button', { name: 'Conserver une nouvelle version' }).click(); await approve()
     await expect(panel.getByRole('article', { name: 'Version ' + number, exact: true })).toContainText(filename)
     await mobile()
@@ -137,7 +162,7 @@ test('documents privés : analyses, liens temporaires, versions signées et aven
   record = { ...record, status: 'signed', approved_by: 43, signed_on: '2026-10-14', signature_reference: 'Copie reçue', signature_evidence_status: 'declared_external', available_transitions: ['active', 'ended', 'terminated'] }
   await page.reload(); await openDocuments()
   panel = page.getByRole('region', { name: 'Documents et avenants', exact: true })
-  await panel.getByRole('button', { name: 'Consulter les versions · original' }).click()
+  await history('original')
   await upload('copie-signee.pdf', 3)
   form = panel.getByRole('form', { name: 'Identifier la version signée' })
   await form.getByRole('checkbox').check(); await form.getByRole('button', { name: 'Identifier la version signée' }).click(); await approve()
@@ -148,9 +173,9 @@ test('documents privés : analyses, liens temporaires, versions signées et aven
   await form.getByLabel('Référence du document').fill('avenant-1'); await form.getByLabel('Intitulé du document').fill('Avenant lié ' + 'ConditionsLongues'.repeat(5))
   await form.getByLabel('Date d’effet déclarée de l’avenant').fill('2027-01-01')
   await form.getByRole('button', { name: 'Ajouter un document ou un avenant' }).click(); await approve()
-  await panel.getByRole('button', { name: 'Consulter les versions · avenant-1' }).click()
+  await history('avenant-1')
   await upload('avenant.pdf', 1)
-  await panel.getByRole('button', { name: 'Consulter les versions · original' }).click()
+  await history('original')
   await expect(panel.getByRole('article', { name: 'Version 1', exact: true })).toContainText(String(firstHash))
   expect(versions).toHaveLength(4); expect(documents[0].versions_count).toBe(3); expect(documents[1].original_document_id).toBe(documents[0].id)
   let securityArticle = panel.getByRole('article', { name: 'Version 1', exact: true })

@@ -213,3 +213,35 @@ Le lecteur administratif peut télécharger mais ne voit aucune commande de rela
 documentaire ajoute rejet, relance, résultat clean, historique et téléchargement
 sur mobile 375/320 px avec police de repli. API métier et verdicts simulés dans
 Playwright ; l’antivirus réel est vérifié séparément après configuration.
+
+
+### Vérification des fichiers multipart en E2E
+
+Le scénario documentaire attend la réponse HTTP de chargement des versions après
+chaque ouverture d’historique. Les scénarios attendent ensuite que le champ
+fichier soit actif avant setInputFiles().
+Cette action ne vérifie pas elle-même l’état disabled : un rechargement du contrat
+peut encore recréer le champ et vider une sélection effectuée trop tôt. Le test
+documentaire vérifie ensuite le nom sélectionné et le fichier effectivement reçu.
+Référence : [attentes Playwright](https://playwright.dev/docs/actionability).
+
+Les scénarios documentaires et d’import CSV utilisent la fixture multipartUpload
+de tests/e2e/multipart.ts. Elle ouvre un serveur HTTP sur 127.0.0.1 et un port
+éphémère, reçoit le corps original envoyé par le navigateur, puis le lit avec
+Response.formData(). Les assertions portent sur le fichier réellement reçu :
+nom, contenu exact, version du contrat ou séparateur CSV, avec en-tête multipart.
+Le hash et le poids du document simulé sont calculés sur les octets reçus.
+
+Ce contrôle évite les expressions régulières sur request.postData(), car
+l’inspection réseau Chromium peut omettre les parties fichier. Il ne remplace
+pas le corps par un contenu attendu et ne désactive aucune assertion de dépôt.
+Les réponses métier restent simulées ; aucun contrat, import ou fichier métier
+réel créé. Corps limité à 1 Mo pour ces petits fixtures, délai de réception de
+10 s et fermeture du serveur/socket en teardown. Aucun fichier clair écrit sur
+disque par le récepteur. Aucun package ajouté.
+
+Référence de la limite d’inspection :
+[protocole Chromium, getRequestPostData](https://raw.githubusercontent.com/ChromeDevTools/devtools-protocol/master/json/browser_protocol.json).
+Pour valider les différences de navigateur, utiliser le Chromium headless livré
+avec la version installée de Playwright (configuration CI par défaut), en plus
+du canal Chrome éventuellement utilisé en local.

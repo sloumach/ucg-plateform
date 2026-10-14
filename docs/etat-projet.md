@@ -16,6 +16,14 @@
   aux versions/analyses et couverture explicite des caches array/database.
   Validation CI du correctif encore à confirmer après son push utilisateur.
   Migration CTR-003 vérifiée en lecture seule après cet échec : Ran, batch 22.
+- Correctif backend `4fc416b` poussé, branche synchronisée à la reprise ; résultat
+  CI backend à confirmer. CI frontend signalée en échec dans le test documentaire :
+  extraction filename depuis request.postData(), alors que le nom transmis est vide.
+  Course reproduite avec Chromium headless : sélection effectuée pendant le
+  rechargement du dossier, puis champ recréé et sélection perdue. Correctif :
+  attendre la réponse de chargement des versions puis le champ actif avant
+  setInputFiles et vérifier le multipart réellement reçu sur un serveur de test
+  local partagé par les tests PDF et CSV. Validation CI à confirmer après push.
 - CTR-002 (`ce268f6`) : push, CI vertes et migration confirmés par l’utilisateur
   avant CTR-003 ; migration vérifiée en lecture seule : Ran, batch 21.
 - CTR-001 (`87953e0`) : push, CI vertes et migration confirmés par l’utilisateur
@@ -65,7 +73,7 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : push utilisateur du correctif CI CTR-003 et validation des CI.
+- Prochaine action : push utilisateur du correctif CI frontend CTR-003 et validation des CI.
   Migration `2026_10_14_204339_create_contract_document_scans` déjà appliquée,
   vérifiée Ran, batch 22. Le correctif de test n’ajoute aucune migration.
   Préparer clamd/freshclam et le worker reports, puis exécuter le test opt-in réel
@@ -1828,3 +1836,44 @@ ensuite ce fichier pour qu'il reflète la réalité.
   Prochaine action : pousser ce correctif puis confirmer les CI ; aucune nouvelle
   migration à appliquer pour le correctif. Mise en service ClamAV inchangée :
   test réel opt-in après configuration, aucun téléchargement sans analyse clean.
+
+
+## Correctif CI frontend des dépôts documentaires — UCG-CTR-003
+
+- Reprise sur staging propre et synchronisé, correctif backend 4fc416b poussé.
+  CI frontend signalée en échec : regexp filename sur request.postData() retourne
+  null, puis la version attendue ne peut pas apparaître dans le scénario.
+- Récepteur HTTP multipart de test ajouté pour observer le corps réellement
+  envoyé par le navigateur. Chromium headless a révélé un fichier avec nom vide
+  et contenu absent, après sélection sur un formulaire transitoire : cliquer
+  l’historique rend brièvement l’ancien état avant que l’effet recharge les
+  versions ; le formulaire est ensuite recréé et la sélection perdue.
+  setInputFiles ne vérifie pas l’état disabled. Une simple attente du champ
+  actif ne suffit pas à synchroniser l’ouverture de l’historique.
+- Le test attend désormais le bouton d’historique actif, sa réponse GET versions,
+  puis le champ actif avant sélection, et vérifie le nom dans input.files.
+  Aucun sleep arbitraire ni augmentation des timeouts/retries. Avant correction,
+  quatre échecs sur cinq répétitions documentaires avec le récepteur réel.
+- Fixture multipartUpload partagée avec imports.spec.ts : serveur 127.0.0.1 sur
+  port éphémère par test, corps original laissé intact par route.continue,
+  parser standard Response.formData, noms/octet/contract_version/delimiter
+  réellement reçus contrôlés. Hash et taille simulés calculés sur les octets reçus.
+  Budget fixture 1 Mo, réception 10 s, erreurs explicites et cleanup en teardown.
+  Aucune écriture de fichier clair ; réponses métier toujours simulées.
+- Source de l’attente manquante :
+  [Playwright actionability](https://playwright.dev/docs/actionability).
+  Le récepteur évite aussi la limite d’inspection des fichiers multipart décrite
+  dans [Chromium Network.getRequestPostData](https://raw.githubusercontent.com/ChromeDevTools/devtools-protocol/master/json/browser_protocol.json).
+- Validation avec Chromium headless 156.0.8078.4/v1248 livré par Playwright :
+  cinq répétitions PDF et cinq CSV réussies, retries=0, worker unique, CI/UTC.
+  Runtime téléchargé dans front/node_modules/.cache/ms-playwright (ignoré),
+  PLAYWRIGHT_BROWSERS_PATH pointant ce cache et PLAYWRIGHT_BROWSER_CHANNEL vide.
+  Validation locale Windows ; la CI Ubuntu reste à confirmer après push.
+- Validation finale : 17 Playwright complets réussis avec Chromium headless,
+  retries=0, JUnit zéro error/failure ; dix répétitions ciblées déjà vertes.
+  168 tests Vitest, lint, build et typecheck strict des trois fichiers E2E
+  concernés verts. Tests navigateur sous Windows, API métier simulées.
+- Aucun changement applicatif ni dépendance npm/PHP ajouté, aucune migration
+  ou donnée métier réelle. Tests et deux documents existants dans un commit
+  local unique ; aucun push par l’agent. Prochaine action : pousser et confirmer
+  les CI. Migration CTR-003 déjà vérifiée Ran, batch 22 lors du correctif précédent.
