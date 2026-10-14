@@ -36,7 +36,7 @@ final readonly class ContractDocumentService
     public function __construct(private ContractDocumentRepository $documents, private ContractRepository $contracts,
         private TenantAuthorization $authorization, private TenantBusinessGuard $guard, private TenantAuditJournal $audit,
         private TenantArtifacts $artifacts, private Encrypter $crypt, private Factory $validator, private ConnectionInterface $database,
-        private ContractDocumentScanService $scans) {}
+        private ContractDocumentScanService $scans, private ContractGovernance $governance) {}
 
     /** @param array<string, mixed> $filters
      * @return LengthAwarePaginator<int, ContractDocument>
@@ -124,11 +124,18 @@ final readonly class ContractDocumentService
             $result = $this->database->transaction(function () use ($context, $contractId, $documentId, $values, $artifact, $contents, $filename, $ipAddress): array {
                 $contract = $this->lock($context, $contractId, $values['contract_version'], $values['purpose'] === 'signed_copy');
                 $document = $this->documents->find($context->organizationId, $contractId, $documentId);
+                $approval = null;
+                if ($values['purpose'] === 'signed_copy') {
+                    $approval = $this->governance->signature($context, $contract, $document);
+                }
                 $this->assertUpload($contract, $document, $values['purpose']);
                 $version = $this->documents->addVersion(['organization_id' => $context->organizationId, 'contract_id' => $contract->id,
                     'document_id' => $document->id, 'artifact_id' => $artifact->id, 'number' => $document->versions_count + 1,
                     'purpose' => $values['purpose'], 'filename' => $filename, 'sha256' => hash('sha256', $contents), 'bytes' => strlen($contents),
                     'created_by' => $context->actorUserId, 'created_at' => CarbonImmutable::now()]);
+                if ($approval !== null) {
+                    $this->governance->bindCopy($version, $approval);
+                }
                 $next = $this->touch($context, $contract, $document->kind === 'original' && $values['purpose'] === 'draft', $document, $version->id, $ipAddress);
 
                 return ['version' => $version, 'contract_version' => $next];
@@ -167,10 +174,14 @@ final readonly class ContractDocumentService
             if ($document->signature !== null) {
                 $this->conflict('frozen', 'CONTRACT_DOCUMENT_SIGNED');
             }
+            $approval = $this->governance->signature($context, $contract, $document);
             if (! in_array($contract->status, Input::SIGNED_STATES, true)) {
                 $this->conflict('signature_required', 'CONTRACT_DOCUMENT_SIGNATURE_REQUIRED');
             }
             $version = $this->documents->version($context->organizationId, $contractId, $documentId, $values['document_version_id']);
+            if ($approval !== null) {
+                $this->governance->assertCopy($context, $version->id, $approval);
+            }
             if ($version->purpose !== 'signed_copy') {
                 $this->conflict('signed_copy', 'CONTRACT_DOCUMENT_SIGNED_COPY_REQUIRED');
             }
@@ -190,7 +201,10 @@ final readonly class ContractDocumentService
     {
         $this->authorization->authorize($context, 'administrative.read');
 
-        return $this->contracts->find($context->organizationId, $id);
+        $contract = $this->contracts->find($context->organizationId, $id);
+        $this->governance->documentAccess($context, $contract->id);
+
+        return $contract;
     }
 
     private function authorizeWrite(TenantContext $context, bool $validate = false): void
@@ -207,6 +221,10 @@ final readonly class ContractDocumentService
         $this->guard->lock($context);
         $this->authorizeWrite($context, $validate);
         $contract = $this->contracts->find($context->organizationId, $id, true);
+        $this->governance->documentAccess($context, $contract->id);
+        if (! $validate) {
+            $this->governance->documentWrite($context, $contract->id);
+        }
         $this->assertCurrent($contract, $version);
 
         return $contract;

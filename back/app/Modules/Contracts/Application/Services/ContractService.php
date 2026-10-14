@@ -29,7 +29,7 @@ final readonly class ContractService
 {
     public function __construct(private ContractRepository $contracts, private AdministrativePeopleDirectory $people,
         private TenantAuthorization $authorization, private TenantBusinessGuard $guard, private TenantAuditJournal $audit,
-        private Factory $validator, private ConnectionInterface $database) {}
+        private Factory $validator, private ConnectionInterface $database, private ContractGovernance $governance) {}
 
     /** @param array<string, mixed> $filters
      * @return LengthAwarePaginator<int, ContractRecord>
@@ -79,7 +79,7 @@ final readonly class ContractService
                 if ($contract === null && $this->contracts->count($context->organizationId) >= ContractInput::MAX_CONTRACTS) {
                     throw new DomainConflictException(__('managed_contracts.limit'), 'CONTRACT_LIMIT_REACHED');
                 }
-                $terms = array_intersect(array_keys($values), ['title', 'starts_on', 'ends_on', 'parties', 'obligations']);
+                $terms = array_intersect(array_keys($values), ['title', 'starts_on', 'ends_on', 'parties', 'obligations', 'signature_separation_required']);
                 if ($contract !== null && ! ContractLifecycle::editable($contract->status) && $terms !== []) {
                     throw new DomainConflictException(__('managed_contracts.frozen'), 'CONTRACT_TERMS_FROZEN');
                 }
@@ -159,6 +159,12 @@ final readonly class ContractService
             if ($target === 'approved' && $contract->prepared_by === $context->actorUserId) {
                 throw new DomainConflictException(__('managed_contracts.self_approval'), 'CONTRACT_SELF_APPROVAL_FORBIDDEN');
             }
+            if ($target === 'approved') {
+                $this->governance->approveContract($context, $contract);
+            }
+            if ($target === 'signed') {
+                $this->governance->signature($context, $contract);
+            }
             $extras = array_diff(array_keys($values), ['version', 'status'], $target === 'signed' ? ['signed_on', 'signature_reference', 'confirm_signature_received'] : ($target === 'terminated' ? ['terminated_on'] : []));
             if ($extras !== []) {
                 throw ValidationException::withMessages(array_fill_keys($extras, __('managed_contracts.unknown')));
@@ -175,7 +181,7 @@ final readonly class ContractService
                     throw ValidationException::withMessages(['signed_on' => __('managed_contracts.signature')]);
                 }
                 $attributes = [...$attributes, 'signed_on' => $values['signed_on'], 'signature_reference' => trim($values['signature_reference']),
-                    'signature_recorded_at' => CarbonImmutable::now()];
+                    'signature_recorded_at' => CarbonImmutable::now(), 'signature_recorded_by' => $context->actorUserId];
             }
             if ($target === 'terminated') {
                 if (! isset($values['terminated_on']) || $contract->signed_on === null || $values['terminated_on'] < $contract->signed_on->format('Y-m-d')) {

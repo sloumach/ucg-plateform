@@ -24,7 +24,8 @@ final readonly class ContractDocumentScanService
 {
     public function __construct(private ContractDocumentScanRepository $scans, private ContractDocumentRepository $documents,
         private ContractRepository $contracts, private TenantAuthorization $authorization, private TenantBusinessGuard $guard,
-        private ContractDocumentScanQueue $queue, private DocumentScanAudit $audit, private ConnectionInterface $database, private Factory $validator) {}
+        private ContractDocumentScanQueue $queue, private DocumentScanAudit $audit, private ConnectionInterface $database, private Factory $validator,
+        private ContractGovernance $governance) {}
 
     /** @param array<string, mixed> $filters
      * @return LengthAwarePaginator<int, ContractDocumentScan>
@@ -33,6 +34,7 @@ final readonly class ContractDocumentScanService
     {
         $this->authorization->authorize($context, 'administrative.read');
         $this->contracts->find($context->organizationId, $contractId);
+        $this->governance->documentAccess($context, $contractId);
         $version = $this->documents->version($context->organizationId, $contractId, $documentId, $versionId);
         $values = ContractInput::validate($this->validator, $filters, ContractInput::pageRules(true));
 
@@ -48,6 +50,7 @@ final readonly class ContractDocumentScanService
             $this->guard->lock($context);
             $this->authorize($context);
             $this->contracts->find($context->organizationId, $contractId, true);
+            $this->governance->documentAccess($context, $contractId);
             $version = $this->documents->version($context->organizationId, $contractId, $documentId, $versionId);
             $latest = $this->scans->latest($context->organizationId, $version->id, true);
             $now = CarbonImmutable::now();

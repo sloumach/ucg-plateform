@@ -26,7 +26,7 @@ final readonly class ContractDocumentDownloadService
     public function __construct(private ContractDocumentRepository $documents, private ContractDocumentScanRepository $scans,
         private ContractRepository $contracts, private TenantAuthorization $authorization, private TenantBusinessGuard $guard,
         private TenantArtifacts $artifacts, private Encrypter $crypt, private UrlGenerator $urls,
-        private DocumentScanAudit $audit, private ConnectionInterface $database) {}
+        private DocumentScanAudit $audit, private ConnectionInterface $database, private ContractGovernance $governance) {}
 
     public function link(TenantContext $context, string $contractId, string $documentId, string $versionId, string $expectedScanId): DocumentDownloadLink
     {
@@ -72,6 +72,7 @@ final readonly class ContractDocumentDownloadService
         $this->guard->lock($context);
         $this->authorization->authorize($context, 'administrative.read');
         $this->contracts->find($context->organizationId, $contractId, true);
+        $this->governance->documentAccess($context, $contractId);
         $version = $this->documents->version($context->organizationId, $contractId, $documentId, $versionId);
         $scan = $this->scans->latest($context->organizationId, $version->id, true);
         if (! DocumentSecurity::downloadable($scan, CarbonImmutable::now()) || $scan === null

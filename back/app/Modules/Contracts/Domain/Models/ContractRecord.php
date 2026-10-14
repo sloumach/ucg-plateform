@@ -25,6 +25,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $version
  * @property int $created_by
  * @property int $prepared_by
+ * @property bool $signature_separation_required
+ * @property int|null $signature_recorded_by
  * @property int|null $approved_by
  * @property CarbonImmutable|null $approved_at
  * @property CarbonImmutable|null $signed_on
@@ -35,6 +37,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $obligations_count
  * @property int $pending_obligations_count
  * @property int $transitions_count
+ * @property bool $financial_terms_present
+ * @property bool $financial_documents_restricted
  * @property Collection<int, ContractParty> $parties
  * @property Collection<int, ContractObligation> $obligations
  */
@@ -60,7 +64,8 @@ final class ContractRecord extends Model
         return ['title' => 'encrypted', 'responsible_name' => 'encrypted', 'signature_reference' => 'encrypted',
             'starts_on' => 'immutable_date', 'ends_on' => 'immutable_date', 'signed_on' => 'immutable_date', 'terminated_on' => 'immutable_date',
             'approved_at' => 'immutable_datetime', 'signature_recorded_at' => 'immutable_datetime',
-            'created_by' => 'integer', 'prepared_by' => 'integer', 'approved_by' => 'integer'];
+            'created_by' => 'integer', 'prepared_by' => 'integer', 'approved_by' => 'integer',
+            'signature_separation_required' => 'boolean', 'signature_recorded_by' => 'integer'];
     }
 
     /** @return HasMany<ContractParty, $this> */
@@ -79,6 +84,12 @@ final class ContractRecord extends Model
     public function transitions(): HasMany
     {
         return $this->hasMany(ContractTransition::class, 'contract_id');
+    }
+
+    /** @return HasMany<ContractFinancialTerms, $this> */
+    public function financialTerms(): HasMany
+    {
+        return $this->hasMany(ContractFinancialTerms::class, 'contract_id');
     }
 
     protected static function booted(): void

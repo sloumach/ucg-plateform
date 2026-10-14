@@ -23,6 +23,9 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property CarbonImmutable $created_at
  * @property int $versions_count
  * @property ContractDocumentSignature|null $signature
+ * @property ContractDocumentVersion|null $latestDraft
+ * @property ContractAmendmentApproval|null $latestApproval
+ * @property ContractFinancialTerms|null $financialTerms
  */
 final class ContractDocument extends Model
 {
@@ -55,5 +58,29 @@ final class ContractDocument extends Model
     public function versions(): HasMany
     {
         return $this->hasMany(ContractDocumentVersion::class, 'document_id');
+    }
+
+    /** @return HasOne<ContractDocumentVersion, $this> */
+    public function latestDraft(): HasOne
+    {
+        return $this->hasOne(ContractDocumentVersion::class, 'document_id')->where('purpose', 'draft')->where('number', function ($query): void {
+            $query->selectRaw('MAX(v.number)')->from('contract_document_versions as v')->where('v.purpose', 'draft')
+                ->whereColumn('v.organization_id', 'contract_document_versions.organization_id')->whereColumn('v.document_id', 'contract_document_versions.document_id');
+        });
+    }
+
+    /** @return HasOne<ContractAmendmentApproval, $this> */
+    public function latestApproval(): HasOne
+    {
+        return $this->hasOne(ContractAmendmentApproval::class, 'document_id')->where('number', function ($query): void {
+            $query->selectRaw('MAX(a.number)')->from('contract_amendment_approvals as a')
+                ->whereColumn('a.organization_id', 'contract_amendment_approvals.organization_id')->whereColumn('a.document_id', 'contract_amendment_approvals.document_id');
+        });
+    }
+
+    /** @return HasOne<ContractFinancialTerms, $this> */
+    public function financialTerms(): HasOne
+    {
+        return $this->hasOne(ContractFinancialTerms::class, 'scope_id');
     }
 }

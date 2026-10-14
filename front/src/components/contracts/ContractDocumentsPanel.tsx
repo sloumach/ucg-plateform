@@ -4,6 +4,8 @@ import { isAbortError } from '../../api/errors'
 import type { ContractRecord } from '../../api/contractRecords'
 import { documentsPath, documentText as text, signedContractStates, type ContractDocument, type ContractDocumentVersion } from '../../api/contractDocuments'
 import { DocumentSecurityControls } from './DocumentSecurityControls'
+import { ContractFinancialPanel } from './ContractFinancialPanel'
+import { AmendmentApprovalPanel } from './AmendmentApprovalPanel'
 import { Button } from '../Button'
 import { FormField } from '../FormField'
 import { Pagination } from '../data/Pagination'
@@ -15,9 +17,11 @@ import { usePeopleMutation } from '../people/usePeopleMutation'
 type Props = { active: ActiveOrganization; record: ContractRecord; disabled: boolean; onInvalid: () => void; onChanged: () => void }
 export function ContractDocumentsPanel({ active, record, disabled, onInvalid, onChanged }: Props) {
   const org = active.context?.organization_id, revision = active.revision ?? undefined
-  const allowed = active.context?.permissions.includes('administrative.read') ?? false
-  const manage = allowed && (active.context?.permissions.includes('administrative.write') ?? false)
-  const validate = manage && (active.context?.permissions.includes('administrative.validate') ?? false)
+  const allowed = (active.context?.permissions.includes('administrative.read') ?? false)
+    && (!record.financial_documents_restricted || (active.context?.permissions.includes('financial.read') ?? false))
+  const administrativeWrite = allowed && (active.context?.permissions.includes('administrative.write') ?? false)
+  const manage = administrativeWrite && (!record.financial_documents_restricted || (active.context?.permissions.includes('financial.write') ?? false))
+  const validate = administrativeWrite && (active.context?.permissions.includes('administrative.validate') ?? false)
   const [open, setOpen] = useState(false), [page, setPage] = useState(1), [versionPage, setVersionPage] = useState(1)
   const [list, setList] = useState<Page<ContractDocument> | null>(null), [versions, setVersions] = useState<Page<ContractDocumentVersion> | null>(null)
   const [selected, setSelected] = useState<string | null>(null), [original, setOriginal] = useState<ContractDocument | null>(null)
@@ -48,9 +52,9 @@ export function ContractDocumentsPanel({ active, record, disabled, onInvalid, on
   }, [org, record.id, record.version, revision, allowed, open, page, selected, versionPage, refresh, invalidate])
   if (!org || !allowed) return null
   const path = documentsPath(org, record.id), document = list?.data.find((item) => item.id === selected)
-  const blocked = disabled || loading || mutation.blocked, writable = manage && record.status !== 'archived'
+  const blocked = disabled || loading || mutation.blocked, writable = administrativeWrite && record.status !== 'archived'
   const canAmend = !!original?.signed_version && signedContractStates.includes(record.status)
-  const canCreate = writable && (!original || canAmend)
+  const canCreate = writable && manage && (!original || canAmend)
   function upload(event: FormEvent<HTMLFormElement>) {
     if (!document) return
     const body = new FormData(event.currentTarget), input = event.currentTarget.elements.namedItem('file')
@@ -58,8 +62,14 @@ export function ContractDocumentsPanel({ active, record, disabled, onInvalid, on
     body.set('contract_version', record.version)
     mutation.propose(event, text('upload'), documentsPath(org!, record.id, document.id) + '/versions', body)
   }
-  const draftAllowed = document?.kind === 'amendment' || ['draft', 'in_review'].includes(record.status)
+  const draftAllowed = manage && (document?.kind === 'amendment' || ['draft', 'in_review'].includes(record.status))
+  const actor = active.context?.actor_user_id
+  const signatureActors = document?.kind === 'amendment'
+    ? [document.created_by, document.latest_prepared_by, document.financial_prepared_by, document.approval?.approved_by]
+    : [record.prepared_by, record.approved_by]
   const signedAllowed = validate && signedContractStates.includes(record.status)
+    && (document?.kind !== 'amendment' || !!document.approval)
+    && (!record.signature_separation_required || !signatureActors.includes(actor))
   return <section aria-label={text('title')} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
     <Button disabled={disabled || mutation.blocked} onClick={() => setOpen((value) => !value)}>{open ? text('close') : text('title')}</Button>
     {open && <>
@@ -83,6 +93,12 @@ export function ContractDocumentsPanel({ active, record, disabled, onInvalid, on
         onSubmit={(event, body) => mutation.propose(event, text('create'), path, { ...body, contract_version: record.version })} />}
       {document && <section aria-label={text('history')} className="grid min-w-0 gap-3">
         <h4 className="font-bold [overflow-wrap:anywhere]">{text('history')} · {document.reference}</h4>
+        {document.kind === 'amendment' && <>
+          <ContractFinancialPanel key={'finance:' + document.id + ':' + record.version} active={active} path={documentsPath(org, record.id, document.id) + '/financial-terms'}
+            contractVersion={record.version} editable={!document.signed_version && record.status !== 'archived'} disabled={blocked} onInvalid={invalidate} onChanged={onChanged} />
+          <AmendmentApprovalPanel key={'approval:' + document.id + ':' + record.version} active={active} document={document} path={documentsPath(org, record.id, document.id) + '/approvals'}
+            contractVersion={record.version} financialRequired={!!record.financial_documents_restricted} disabled={blocked || record.status === 'archived'} onInvalid={invalidate} onChanged={onChanged} />
+        </>}
         {versions?.data.length === 0 && <p>{text('noVersions')}</p>}
         {versions?.data.map((version) => <article aria-label={text('version') + ' ' + version.number} key={version.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
           <p className="[overflow-wrap:anywhere]">{text('version')} {version.number} · {version.filename} · {text(version.purpose)}</p>

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Modules\Contracts\Application\Services\ContractDocumentScanService;
 use App\Modules\Contracts\Application\Services\ContractDocumentService;
+use App\Modules\Contracts\Application\Services\ContractFinancialService;
 use App\Modules\Identity\Domain\Models\User;
 use App\Modules\Tenancy\Application\Contracts\TenantArtifacts;
 use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
@@ -54,6 +55,26 @@ class ContractDocumentSecurityControllerTest extends TestCase
         $this->actingAsWithMfa($user);
         $this->getJson($url)->assertConflict()->assertJsonPath('code', 'CONTRACT_DOCUMENT_LINK_INVALID');
         $this->getJson(str_replace('actor='.$reader->id, 'actor='.$user->id, $url))->assertConflict();
+    }
+
+    public function test_financial_classification_rechecks_existing_signed_links_and_requires_financial_read(): void
+    {
+        [$org, $user, $contract, $context, $document, $version, $scan] = $this->securityScenario();
+        $this->approveScan($context, $scan);
+        $this->actingAsWithMfa($user);
+        $path = $this->documentPath($org, $contract, $document->id).'/versions/'.$version->id;
+        $url = $this->postJson($path.'/download-link', ['expected_scan_id' => $scan->id])->assertOk()->json('data.url');
+        $finance = User::factory()->withMfa()->create();
+        $this->grantPeopleAccess($org, $finance, ['administrative.read', 'administrative.write', 'financial.read', 'financial.write']);
+        $contract->refresh();
+        app(ContractFinancialService::class)->save($this->personContext($org, $finance), $contract->id,
+            ['contract_version' => $contract->version, 'expected_version' => null, 'terms' => ['currency' => 'EUR', 'remuneration' => null,
+                'remuneration_period' => null, 'bonus' => '100.00', 'prize_share_percent' => null, 'payment_terms' => null]]);
+        $this->getJson($url)->assertForbidden();
+        $this->postJson($path.'/download-link', ['expected_scan_id' => $scan->id])->assertForbidden();
+        $this->actingAsWithMfa($finance);
+        $fresh = $this->postJson($path.'/download-link', ['expected_scan_id' => $scan->id])->assertOk()->json('data.url');
+        $this->get($fresh)->assertOk();
     }
 
     public function test_link_expires_at_boundary_and_cannot_be_reused_after_a_new_scan(): void

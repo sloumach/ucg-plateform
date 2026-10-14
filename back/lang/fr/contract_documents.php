@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'approval_copy' => 'Cette copie signée précède la dernière approbation. Conservez une nouvelle copie correspondant aux conditions approuvées.',
     'created' => 'Le document a été ajouté au dossier.',
     'uploaded' => 'La version a été conservée en stockage privé. Son téléchargement nécessite une analyse de sécurité réussie.',
     'signed' => 'La version déclarée signée a été identifiée et conservée.',

@@ -1278,3 +1278,54 @@ liens 60, téléchargements 20, par tenant et compte. Mesurer mémoire PHP et cl
 latence, volume reports, stockage chiffré et contention avant d’augmenter budgets
 ou concurrence des workers ; aucun benchmark à millions d’utilisateurs réalisé.
 Déploiement/configuration et test réel opt-in décrits dans README, section CTR-003.
+
+## Gouvernance financière et approbations — UCG-CTR-004
+
+ContractFinancialService orchestre les blocs financiers ;
+ContractAmendmentApprovalService gère les décisions des avenants.
+ContractGovernance centralise les contrôles partagés par contrats, documents,
+analyses et téléchargements. ContractGovernanceRepository et son adaptateur
+Eloquent isolent la persistance. FormRequest, Gate, Resource, revalidation
+en service et TenantBusinessGuard protègent chaque opération.
+
+contract_financial_terms : bloc encrypted:array caché à la sérialisation générale,
+portée unique tenant/scope_id (contrat ou avenant), version et préparateur.
+expected_version nullable protège aussi la première création. Toute écriture
+renouvelle la version du dossier. Original éditable en draft/in_review ; avenant
+non signé et parent non archivé. Aucun effacement qui retirerait une restriction.
+
+contract_amendment_approvals : décisions immuables numérotées, liées à la dernière
+préparation PDF et à la version financière examinée. Approbateur distinct du
+créateur documentaire, du préparateur PDF et financier. financial.validate est
+requis pour les avenants de tout dossier financier, même sans bloc propre.
+contract_approved_copies : liaison immuable copie signée/décision, enregistrée dans
+la transaction de dépôt. Après modification, la décision reste dans l’historique
+mais ne permet plus la signature ; une ancienne copie ne peut satisfaire la
+nouvelle décision. Les gardes et clés composites interdisent les mélanges de
+tenants, dossiers et versions.
+
+signature_separation_required est une option de préparation par dossier, fausse
+pour l’existant, figée après approbation. Elle impose un déclarant différent des
+préparateurs et de l’approbateur. signature_recorded_by reste nul pour les anciennes
+déclarations : aucun acteur passé reconstitué. Les signatures électroniques
+restent du périmètre CTR-007.
+
+Les réponses ordinaires n’exposent que des métadonnées de restriction et décision.
+Un bloc financier rend tous les documents du dossier soumis à financial.read ;
+leur préparation exige financial.write. Les téléchargements recontrôlent les
+droits après I/O, y compris les liens émis avant cette restriction. Audit limité
+aux UUID/action/acteur/version, sans montants ni texte sensible. L’export opérateur
+fermé conserve les colonnes chiffrées, sans endpoint de lecture navigateur.
+
+Pagination conservée ; withExists pour les marqueurs financiers, chargement en lots
+des dernières préparations/décisions et métadonnées financières, sans déchiffrer
+les blocs dans les listes. Index tenant/contrat, tenant/portée et tenant/document/
+numéro. Les verrous sérialisent les écritures d’un dossier avec son organisation.
+Profiler contention et volumes avant d’élargir les limites ; aucun benchmark à
+millions d’utilisateurs revendiqué.
+
+Migration additive sans changement des anciennes migrations. SQLite utilise
+ALTER natif sur contracts pour préserver les triggers inter-tables ; les nouvelles
+références sont composites. PostgreSQL conserve les contraintes natives et un
+lock_timeout local de cinq secondes. Les tests de rollback respectent l’ordre
+de dépendance des migrations.

@@ -896,6 +896,18 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Périmètre** : séparation préparation, approbation, signature ; permissions au niveau des montants et modalités sensibles.
 - **Acceptation** : un coach non habilité ne reçoit aucun champ financier ; décisions tracées.
 - **Références CDC** : CTR-05, REC-01.
+- **État au 15 octobre 2026** : implémenté localement. Conditions financières
+  structurées chiffrées, accès dédiés financial.read/write/validate, nombres
+  décimaux en chaînes, aucune valeur financière dans les réponses administratives.
+  Approbation distincte du préparateur, option de troisième intervenant pour la
+  déclaration de signature, figée après approbation. Avenants : approbation de
+  la dernière préparation et version financière, invalidation après modification,
+  copie signée liée à sa décision. Historique paginé et audit sans montants.
+  Tous les documents du dossier exigent financial.read dès que des conditions
+  financières structurées existent ; recontrôle des anciens liens temporaires.
+  Migration additive SQLite/PostgreSQL, sans backfill ni attribution de droits.
+  CI CTR-003 confirmée verte avant ce travail ; mise en service ClamAV à confirmer.
+  Push/CI/migration CTR-004 à effectuer par l’utilisateur. Prochain P0 : CTR-005.
 
 ### UCG-CTR-005 — Planifier échéances et rappels
 

@@ -5,25 +5,29 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 14 octobre 2026.
+- Dernière mise à jour : 15 octobre 2026.
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-CTR-003` — analyse ClamAV et téléchargement privé
-  lié au compte, à la version immuable et au dernier verdict.
+- Dernier ticket traité : `UCG-CTR-004` — conditions financières chiffrées,
+  approbations des avenants et séparation du déclarant de signature par dossier.
+  Implémentation locale ; push, CI distante et migration CTR-004 à confirmer.
+- CTR-003 et correctifs `4fc416b` / `1a2c258` poussés ; CI verte confirmée par
+  l’utilisateur avant le démarrage de CTR-004. Branche propre et synchronisée à
+  cette reprise. Mise en service réelle de ClamAV/worker toujours à confirmer.
 - CTR-003 (`32100e5`) poussé par l’utilisateur ; CI backend échouée sur le test
   de comptage global des requêtes (41 puis 39). Correctif local : comptage limité
   aux versions/analyses et couverture explicite des caches array/database.
-  Validation CI du correctif encore à confirmer après son push utilisateur.
+  Échec corrigé par `4fc416b` ; CI désormais validée par l’utilisateur.
   Migration CTR-003 vérifiée en lecture seule après cet échec : Ran, batch 22.
-- Correctif backend `4fc416b` poussé, branche synchronisée à la reprise ; résultat
-  CI backend à confirmer. CI frontend signalée en échec dans le test documentaire :
+- Correctif backend `4fc416b` poussé, branche synchronisée à la reprise ; CI
+  désormais validée par l’utilisateur. CI frontend initialement en échec :
   extraction filename depuis request.postData(), alors que le nom transmis est vide.
   Course reproduite avec Chromium headless : sélection effectuée pendant le
   rechargement du dossier, puis champ recréé et sélection perdue. Correctif :
   attendre la réponse de chargement des versions puis le champ actif avant
   setInputFiles et vérifier le multipart réellement reçu sur un serveur de test
-  local partagé par les tests PDF et CSV. Validation CI à confirmer après push.
+  local partagé par les tests PDF et CSV. Correctif `1a2c258` poussé ; CI validée.
 - CTR-002 (`ce268f6`) : push, CI vertes et migration confirmés par l’utilisateur
   avant CTR-003 ; migration vérifiée en lecture seule : Ran, batch 21.
 - CTR-001 (`87953e0`) : push, CI vertes et migration confirmés par l’utilisateur
@@ -73,9 +77,10 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : push utilisateur du correctif CI frontend CTR-003 et validation des CI.
-  Migration `2026_10_14_204339_create_contract_document_scans` déjà appliquée,
-  vérifiée Ran, batch 22. Le correctif de test n’ajoute aucune migration.
+- Prochaine action : revue et push utilisateur de CTR-004, validation des CI,
+  sauvegarde puis migration `2026_10_14_231650_add_contract_financial_governance`.
+  Cette migration n’a pas été appliquée à la base principale par l’agent.
+  Migration CTR-003 déjà appliquée, vérifiée Ran, batch 22 lors du correctif précédent.
   Préparer clamd/freshclam et le worker reports, puis exécuter le test opt-in réel
   documenté dans README avant l’ouverture des téléchargements.
   Code, tests, CI et docs dans le même commit. Aucune référence réelle, personne
@@ -94,8 +99,8 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après push/CI/migration CTR-003 et configuration ClamAV/worker, prochain P0 :
-  `UCG-CTR-004`, approbations et champs financiers. ClamAV doit être vérifié en
+- Après push/CI/migration CTR-004, prochain P0 :
+  `UCG-CTR-005`, échéances et rappels. ClamAV doit être vérifié en
   environnement cible ; aucun téléchargement sans analyse clean réussie.
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
@@ -1877,3 +1882,60 @@ ensuite ce fichier pour qu'il reflète la réalité.
   ou donnée métier réelle. Tests et deux documents existants dans un commit
   local unique ; aucun push par l’agent. Prochaine action : pousser et confirmer
   les CI. Migration CTR-003 déjà vérifiée Ran, batch 22 lors du correctif précédent.
+
+## Approbations et champs financiers — UCG-CTR-004
+
+- Reprise sur staging propre et synchronisé. L’utilisateur a confirmé les CI
+  vertes après les correctifs CTR-003 4fc416b et 1a2c258, puis autorisé CTR-004.
+- Conditions financières structurées chiffrées pour le dossier et chaque avenant :
+  devise, rémunération/période, prime, part des gains et modalités sensibles.
+  Décimales conservées en chaînes ; validation des clés, précision, bornes et
+  versions. GET financier privé sans cache, PATCH confirmé avec deux versions.
+- financial.read/write/validate restent des habilitations explicites, sans droit
+  implicite du coach, propriétaire ni compte technique. Les valeurs financières
+  sont absentes des réponses ordinaires et des journaux d’audit. Les archives
+  opérateur conservent seulement leurs valeurs physiques chiffrées.
+- La présence d’un bloc financier dans le dossier ou un avenant soumet tous ses
+  documents à financial.read et leur préparation à financial.write. Analyses et
+  téléchargements contrôlés côté service ; un lien signé antérieur ne contourne
+  pas une restriction nouvelle. Vérification des droits après I/O conservée.
+- Préparateurs et approbateur distincts. Option par dossier pour imposer un
+  troisième intervenant déclarant la signature reçue, figée après approbation.
+  signature_recorded_by conserve l’acteur des nouvelles déclarations, sans
+  reconstruire les anciennes. Aucune signature électronique ajoutée.
+- Avenants : dernière préparation PDF et version financière liées à une décision
+  immuable ; historique paginé. Nouvelle préparation ou modification financière :
+  réapprobation obligatoire et ancienne copie signée inutilisable pour la nouvelle
+  décision. La liaison de copie est enregistrée dans la transaction du dépôt.
+  Signatures historiques conservées ; dossier archivé et avenant signé figés.
+- Interface : panneaux financiers à la demande, décimales en texte, confirmation
+  tenant, examen explicite d’avenant, séparation des intervenants, historique,
+  contrôles de droits et invalidation sur 403/409 sans rejeu d’écriture.
+- Migration additive 2026_10_14_231650_add_contract_financial_governance :
+  contract_financial_terms, contract_amendment_approvals, contract_approved_copies,
+  option et acteur de signature dans contracts. Aucune migration déployée modifiée.
+  SQLite : ALTER natif sur le parent pour préserver les triggers existants.
+  Gardes SQL, références composites tenant, rollback refusé en présence d’usage.
+  Pas de backfill, de rôle attribué ni de donnée métier réelle créée.
+- Les tests manuels d’anciennes migrations ont été adaptés pour retirer/recréer
+  CTR-004 avant/après leurs dépendances ; les erreurs initiales SQLite/PostgreSQL
+  étaient dues à cet ordre incomplet. Les invariants restent vérifiés.
+- Validation finale : composer test:ci avec TENANCY_CACHE_STORE=database :
+  1 417 tests, 1 413 réussis, 6 231 assertions, quatre skips attendus
+  (spécifique PostgreSQL, deux Redis réels et ClamAV réel opt-in).
+  PostgreSQL 17 : 212 tests ciblés contrats et rollbacks réussis, 969 assertions,
+  cache database, base dédiée ucg_ctr004_test_20261015_0040 supprimée ensuite.
+  Analyse PHPStan niveau 8, Pint et composer validate --strict réussis.
+- Front : 180 Vitest, lint et build réussis ; 18 Playwright Chromium headless,
+  worker unique, CI/UTC, retries=0. Nouveau scénario mobile passé trois fois de
+  suite, puis relancé après ajustement des données simulées de signature.
+  Capture finale relue sans débordement ni montant affiché au coach. Typecheck
+  strict E2E effectué. API métier du navigateur simulées, aucune donnée réelle.
+- Vérification finale en lecture seule : CTR-003 Ran batch 22 ; CTR-004 Pending
+  sur la base principale. Aucun migrate, seed, push, envoi d’e-mail ni installation
+  de service exécuté par l’agent sur l’environnement métier.
+- Un commit local regroupe code, tests et six documents existants. Suite :
+  push utilisateur, CI distante, sauvegarde et migration CTR-004, attribution
+  explicite des habilitations financières puis essai avec plusieurs intervenants.
+  ClamAV réel/freshclam et worker reports toujours à confirmer selon le README.
+  Prochain P0 après validation : CTR-005, échéances et rappels.

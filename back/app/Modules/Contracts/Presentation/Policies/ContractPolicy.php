@@ -26,4 +26,19 @@ final readonly class ContractPolicy
         return $this->manage($user, $context) && (! in_array($target, ContractLifecycle::VALIDATION_TARGETS, true)
             || $this->authorization->allows($context, 'administrative.validate'));
     }
+
+    public function financialRead(Authenticatable $user, TenantContext $context): bool
+    {
+        return $this->viewAny($user, $context) && $this->authorization->allows($context, 'financial.read');
+    }
+
+    public function financialWrite(Authenticatable $user, TenantContext $context): bool
+    {
+        return $this->manage($user, $context) && $this->financialRead($user, $context) && $this->authorization->allows($context, 'financial.write');
+    }
+
+    public function approveAmendment(Authenticatable $user, TenantContext $context): bool
+    {
+        return $this->transition($user, $context, 'approved');
+    }
 }

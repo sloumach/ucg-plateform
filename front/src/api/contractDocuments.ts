@@ -6,6 +6,8 @@ export type ContractDocument = {
   original_document_id: string | null; effective_on: string | null; versions_count: number
   created_by: number; created_at: string; publication_status: 'private'
   signature_evidence_status: 'not_declared' | 'declared_external'
+  latest_draft_id?: string | null; latest_prepared_by?: number | null; financial_terms_present?: boolean; financial_prepared_by?: number | null
+  approval?: { id: string; document_version_id: string; approved_by: number; approved_at: string } | null
   signed_version: { id: string; number: number; sha256: string; signed_on: string; recorded_by: number; recorded_at: string } | null
 }
 export type ContractDocumentVersion = {

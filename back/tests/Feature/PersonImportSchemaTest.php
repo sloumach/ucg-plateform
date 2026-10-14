@@ -97,12 +97,15 @@ class PersonImportSchemaTest extends TestCase
         $migration = require database_path('migrations/2026_10_12_211057_create_person_import_tables.php');
         $documents = require database_path('migrations/2026_10_14_193828_create_contract_documents_and_immutable_versions.php');
         $scans = require database_path('migrations/2026_10_14_204339_create_contract_document_scans.php');
+        $governance = require database_path('migrations/2026_10_14_231650_add_contract_financial_governance.php');
+        $governance->down();
         $scans->down();
         $documents->down();
         $migration->down();
         $migration->up();
         $documents->up();
         $scans->up();
+        $governance->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         app(PortabilityRepository::class)->assertCatalog();
     }

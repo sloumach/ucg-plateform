@@ -3,11 +3,19 @@
 use App\Modules\Contracts\Presentation\Http\Controllers\Api\V1\ContractController;
 use App\Modules\Contracts\Presentation\Http\Controllers\Api\V1\ContractDocumentController;
 use App\Modules\Contracts\Presentation\Http\Controllers\Api\V1\ContractDocumentSecurityController;
+use App\Modules\Contracts\Presentation\Http\Controllers\Api\V1\ContractGovernanceController;
 use App\Modules\Contracts\Presentation\Http\Middleware\ValidateDocumentDownloadLink;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('tenants/{tenant}/contracts')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
     $controller = ContractController::class;
+    $governance = ContractGovernanceController::class;
+    foreach (['{contract}' => 'contracts', '{contract}/documents/{document}' => 'contract-documents'] as $prefix => $name) {
+        Route::get($prefix.'/financial-terms', [$governance, 'financial'])->whereUuid(['contract', 'document'])->name($name.'.financial.show');
+        Route::patch($prefix.'/financial-terms', [$governance, 'saveFinancial'])->whereUuid(['contract', 'document'])->middleware('tenant.confirmed')->block(10, 10)->name($name.'.financial.save');
+    }
+    Route::get('{contract}/documents/{document}/approvals', [$governance, 'approvals'])->whereUuid(['contract', 'document'])->name('contract-documents.approvals');
+    Route::post('{contract}/documents/{document}/approvals', [$governance, 'approve'])->whereUuid(['contract', 'document'])->middleware('tenant.confirmed')->block(10, 10)->name('contract-documents.approve');
     Route::prefix('{contract}/documents')->whereUuid('contract')->group(function (): void {
         Route::prefix('{document}/versions/{version}')->whereUuid(['document', 'version'])->group(function (): void {
             Route::get('scans', [ContractDocumentSecurityController::class, 'index'])->name('contract-document-security.index');

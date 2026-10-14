@@ -14,6 +14,7 @@ export type ContractRecord = {
   in_force: boolean; sporting_eligibility: 'not_assessed'; publication_status: 'private'; parties_count: number
   obligations_count: number; pending_obligations_count: number; available_transitions: ContractStatus[]
   parties?: ContractParty[]; obligations?: ContractObligation[]
+  signature_separation_required?: boolean; signature_recorded_by?: number | null; financial_terms_present?: boolean; financial_documents_restricted?: boolean
 }
 export type ContractEvent = { id: string; from_status: ContractStatus | null; to_status: ContractStatus; contract_version: string; actor_user_id: number; occurred_at: string }
 export type ContractPerson = { id: string; label: string }

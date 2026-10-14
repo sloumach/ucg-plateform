@@ -118,6 +118,8 @@ class PersonSchemaTest extends TestCase
         $contracts = require database_path('migrations/2026_10_14_184245_create_contract_records_and_lifecycle.php');
         $documents = require database_path('migrations/2026_10_14_193828_create_contract_documents_and_immutable_versions.php');
         $scans = require database_path('migrations/2026_10_14_204339_create_contract_document_scans.php');
+        $governance = require database_path('migrations/2026_10_14_231650_add_contract_financial_governance.php');
+        $governance->down();
         $scans->down();
         $documents->down();
         $contracts->down();
@@ -139,6 +141,7 @@ class PersonSchemaTest extends TestCase
         $contracts->up();
         $documents->up();
         $scans->up();
+        $governance->up();
 
         $this->assertTrue(Schema::hasTable('people'));
         $this->assertDatabaseCount('people', 0);

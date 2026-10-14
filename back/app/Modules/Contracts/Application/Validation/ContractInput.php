@@ -29,6 +29,7 @@ final class ContractInput
             'type' => ['required', 'string', Rule::in(ContractLifecycle::TYPES)]] : ['version' => ['required', 'uuid']]),
             'title' => [$creating ? 'required' : 'sometimes', 'string', 'max:160', 'regex:/\\S/u'],
             'responsible_person_id' => [$creating ? 'required' : 'sometimes', 'uuid'],
+            'signature_separation_required' => ['sometimes', 'boolean:strict'],
             'starts_on' => ['sometimes', 'nullable', 'date_format:Y-m-d', 'after_or_equal:1900-01-01'],
             'ends_on' => ['sometimes', 'nullable', 'date_format:Y-m-d', 'after_or_equal:1900-01-01'],
             'parties' => [$creating ? 'required' : 'sometimes', 'array', 'list', 'min:1', 'max:10'],

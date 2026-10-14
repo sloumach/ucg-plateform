@@ -12,6 +12,8 @@ import { apiError, shouldReloadContext } from '../people/peopleFormValues'
 import { SelectField } from '../people/peopleForms'
 import { usePeopleMutation } from '../people/usePeopleMutation'
 import { ContractDocumentsPanel } from './ContractDocumentsPanel'
+import { ContractFinancialPanel } from './ContractFinancialPanel'
+import { financialText } from '../../api/contractGovernance'
 
 type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
 type PartyInput = { kind: 'person' | 'external'; person_id: string | null; name: string }
@@ -98,6 +100,11 @@ export function ContractsPanel({ active, disabled, onInvalid }: Props) {
         <h3 className="font-bold [overflow-wrap:anywhere]">{detail.title}</h3>
         <p>{text('status.' + detail.status)} · {detail.in_force ? text('inForce') : text('notInForce')}</p>
         <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('eligibility')}</p>
+        {detail.signature_separation_required && <p className="[overflow-wrap:anywhere]">{financialText('separateSignature')}</p>}
+        <ContractFinancialPanel key={'finance:' + detail.id + ':' + detail.version} active={active} path={detailPath + '/financial-terms'} contractVersion={detail.version}
+          editable={['draft', 'in_review'].includes(detail.status)} disabled={blocked} onInvalid={invalidate}
+          onChanged={() => { setDetailLoading(true); setEditing(false); setRefresh((value) => value + 1) }} />
+        {detail.financial_documents_restricted && !active.context?.permissions.includes('financial.read') && <p>{financialText('documentsRestricted')}</p>}
         <ContractDocumentsPanel key={detail.id} active={active} record={detail} disabled={blocked} onInvalid={invalidate}
           onChanged={() => { setDetailLoading(true); setEditing(false); setRefresh((value) => value + 1) }} />
         <p className="[overflow-wrap:anywhere]">{text('responsible')} : {detail.responsible_name}</p>
@@ -114,7 +121,7 @@ export function ContractsPanel({ active, disabled, onInvalid }: Props) {
         </form>)}
         {manage && detail.status !== 'archived' && <Button disabled={blocked} onClick={() => setEditing((value) => !value)}>{text('edit')}</Button>}
         {editing && <ContractForm key={detail.id + detail.version} active={active} record={detail} disabled={blocked} errors={mutation.errors(detailPath)} onInvalid={invalidate} onCancel={() => setEditing(false)} onSave={save} />}
-        {manage && detail.status !== 'archived' && <TransitionForm key={'transition:' + detail.version} record={detail} actor={active.context!.actor_user_id} validate={validate}
+        {manage && detail.status !== 'archived' && <TransitionForm key={'transition:' + detail.version} record={detail} actor={active.context!.actor_user_id} validate={validate} permissions={active.context!.permissions}
           disabled={blocked} errors={mutation.errors(detailPath + '/transitions')} onSubmit={(event, body) => mutation.propose(event, text('transition'), detailPath + '/transitions', { version: detail.version, ...body })} />}
         <ContractHistory key={'history:' + detail.id + ':' + detail.version} active={active} record={detail} onInvalid={invalidate} />
       </section>}
@@ -162,6 +169,8 @@ function ContractForm({ active, record, disabled, errors, onSave, onCancel, onIn
     }
     if (editable && (!record || JSON.stringify(parties) !== JSON.stringify(partyBase))) body.parties = parties
     if (editable && (!record || JSON.stringify(obligations) !== JSON.stringify(obligationBase))) body.obligations = obligations
+    const separate = data.has('signature_separation_required')
+    if (editable && separate !== (record?.signature_separation_required ?? false)) body.signature_separation_required = separate
     onSave(event, body, record)
   }}>
     {!record && <><FormField name="reference" label={text('reference')} required maxLength={80} disabled={blocked} error={errors.reference?.[0]} />
@@ -180,6 +189,8 @@ function ContractForm({ active, record, disabled, errors, onSave, onCancel, onIn
     {people && <Pagination currentPage={people.meta.current_page} totalPages={people.meta.last_page} disabled={blocked} onPageChange={setPeoplePage} />}
     <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('peopleHint')}</p>
     {editable && <>
+      <label className="flex min-w-0 items-start gap-2"><input type="checkbox" name="signature_separation_required" defaultChecked={record?.signature_separation_required ?? false} disabled={blocked} /><span className="[overflow-wrap:anywhere]">{financialText('separateSignature')}</span></label>
+      <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{financialText('separationHint')}</p>
       <h4 className="font-bold">{text('parties')}</h4>
       {parties.map((party, index) => <fieldset key={index} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
         <legend>{text('party')} {index + 1}</legend>
@@ -211,11 +222,13 @@ function ContractForm({ active, record, disabled, errors, onSave, onCancel, onIn
   </form>
 }
 
-function TransitionForm({ record, actor, validate, disabled, errors, onSubmit }: {
-  record: ContractRecord; actor: number; validate: boolean; disabled: boolean; errors: Record<string, string[]>
+function TransitionForm({ record, actor, validate, permissions, disabled, errors, onSubmit }: {
+  record: ContractRecord; actor: number; validate: boolean; permissions: string[]; disabled: boolean; errors: Record<string, string[]>
   onSubmit: (event: FormEvent<HTMLFormElement>, body: Record<string, unknown>) => void
 }) {
-  const choices = record.available_transitions.filter((status) => (!validationTargets.includes(status) || validate) && (status !== 'approved' || actor !== record.prepared_by))
+  const choices = record.available_transitions.filter((status) => (!validationTargets.includes(status) || validate)
+    && (status !== 'approved' || (actor !== record.prepared_by && (!record.financial_terms_present || (permissions.includes('financial.read') && permissions.includes('financial.validate')))))
+    && (status !== 'signed' || ((!record.signature_separation_required || ![record.prepared_by, record.approved_by].includes(actor)) && (!record.financial_documents_restricted || permissions.includes('financial.read')))))
   const [target, setTarget] = useState<ContractStatus>(choices[0] ?? 'draft')
   if (choices.length === 0) return <p className="[overflow-wrap:anywhere]">{text('validationRequired')}</p>
   return <form noValidate aria-label={text('transition')} className="grid min-w-0 gap-3 rounded-xl border border-amber-400/30 p-3" onSubmit={(event) => {

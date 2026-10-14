@@ -16,7 +16,10 @@ final readonly class EloquentContractRepository implements ContractRepository
     /** @return Builder<ContractRecord> */
     private function query(string $org): Builder
     {
-        return ContractRecord::query()->where('organization_id', strtolower($org))->withCount([
+        return ContractRecord::query()->where('organization_id', strtolower($org))->withExists([
+            'financialTerms as financial_terms_present' => fn (Builder $query) => $query->where('organization_id', strtolower($org))->whereNull('document_id'),
+            'financialTerms as financial_documents_restricted' => fn (Builder $query) => $query->where('organization_id', strtolower($org)),
+        ])->withCount([
             'parties' => fn (Builder $query) => $query->where('contract_parties.organization_id', strtolower($org)),
             'obligations' => fn (Builder $query) => $query->where('contract_obligations.organization_id', strtolower($org)),
             'transitions' => fn (Builder $query) => $query->where('contract_transitions.organization_id', strtolower($org)),

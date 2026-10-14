@@ -245,3 +245,27 @@ Référence de la limite d’inspection :
 Pour valider les différences de navigateur, utiliser le Chromium headless livré
 avec la version installée de Playwright (configuration CI par défaut), en plus
 du canal Chrome éventuellement utilisé en local.
+
+## Conditions financières et approbations — CTR-004
+
+Le détail du dossier propose « Conditions financières restreintes » uniquement
+avec administrative.read et financial.read. Chargement à l’ouverture, aucun cache
+local. L’édition exige financial.write et les droits administratifs ; les décimales
+restent des chaînes jusqu’au serveur. Chaque sauvegarde confirme l’organisation
+et porte la révision tenant, la version du contrat et la version financière attendue.
+
+Le formulaire de préparation permet d’exiger un déclarant de signature distinct.
+Les commandes incompatibles avec les droits ou cette séparation sont masquées.
+Le serveur contrôle chaque opération. Les documents du dossier sont masqués sans
+financial.read dès qu’un bloc financier est renseigné dans le dossier ou un avenant.
+
+L’avenant présente son bloc financier, sa décision courante et un historique paginé.
+Son approbation exige confirmation d’examen. Nouvelle préparation ou version
+financière : réapprobation puis nouvelle copie signée. Un refus 403 ou conflit 409
+invalide l’écran sans rejouer l’écriture. Les signatures historiques sont conservées
+sans leur inventer de décision.
+
+Tests dédiés aux panneaux financiers et d’approbation ; scénario mobile
+contract-governance.spec.ts : préparation, approbation, troisième déclarant puis
+coach sans lecture financière. API métier simulées dans le navigateur ; les tests
+Laravel couvrent les droits, transactions, versions et contraintes réels.

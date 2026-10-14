@@ -1,6 +1,13 @@
 <?php
 
 return [
+    'financial_period' => 'Renseignez une rémunération avant sa périodicité.',
+    'financial_saved' => 'Les conditions financières ont été enregistrées.',
+    'signature_separation' => 'La déclaration de signature exige un intervenant distinct des préparateurs et de l’approbateur.',
+    'amendment_approval' => 'Faites approuver la préparation actuelle et les conditions financières de cet avenant avant de déclarer sa signature.',
+    'amendment_draft' => 'Sélectionnez la dernière version de préparation de cet avenant.',
+    'already_approved' => 'Cette préparation et ces conditions ont déjà été approuvées.',
+    'amendment_approved' => 'La préparation de cet avenant a été approuvée.',
     'saved' => 'Le dossier de contrat a été enregistré.',
     'transitioned' => 'Le changement de statut a été enregistré.',
     'obligation_saved' => 'Le suivi de l’obligation a été enregistré.',

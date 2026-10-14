@@ -1598,3 +1598,51 @@ nouveaux cas de frontière de lease. 61 cas backend ajoutés au total.
 Suites de fichiers factices lancées successivement ; base PostgreSQL temporaire
 recréée avant chaque suite puis supprimée. Pint/format:check et composer validate
 verts. Aucun push ni migration de la base principale effectué par l’agent.
+
+## Conditions financières et approbations — UCG-CTR-004
+
+Les contrats et avenants disposent de blocs structurés chiffrés : rémunération,
+périodicité, prime, part des gains, devise et modalités de paiement. Les montants
+restent des chaînes décimales à deux chiffres après le point, sans flottants ni
+conversion de devise. Ces valeurs sont absentes des réponses administratives
+ordinaires et de l’audit.
+
+Les permissions IAM sont explicites, sans privilège métier implicite :
+
+- Lecture : administrative.read + financial.read.
+- Préparation : ces lectures + administrative.write + financial.write.
+- Approbation financière : droits administratifs de validation + financial.read
+  + financial.validate. L’approbateur est distinct du préparateur.
+- Dès qu’un bloc financier existe dans le dossier ou un avenant, tous les
+  documents du dossier exigent financial.read ; les préparer exige financial.write.
+  Les liens temporaires déjà émis sont recontrôlés à leur utilisation.
+
+Activer « Exiger un déclarant de signature distinct… » pendant la préparation
+pour imposer un troisième intervenant ; cette option est figée après approbation.
+La déclaration enregistre une signature reçue hors plateforme. CTR-004 ne fournit
+pas de signature électronique.
+
+Un avenant exige une préparation PDF et une approbation distincte avant la copie
+signée. Toute nouvelle préparation ou modification financière demande une
+réapprobation, puis une nouvelle copie. Les anciennes décisions, copies liées
+et signatures historiques sont conservées ; aucune approbation passée inventée.
+
+Migration à appliquer par l’utilisateur après sauvegarde, avant réouverture
+des écritures de contrats avec le nouveau code :
+
+~~~bash
+cd back
+php artisan migrate
+~~~
+
+Migration : 2026_10_14_231650_add_contract_financial_governance.
+Trois tables ajoutées et deux colonnes dans contracts ; aucun backfill ni droit
+attribué automatiquement. Les migrations déployées restent inchangées.
+Rollback refusé si ces nouvelles données ont été utilisées : correction en avant.
+Clés composites et gardes SQL SQLite/PostgreSQL ; exports opérateur chiffrés.
+Ne pas saisir de montants dans les champs administratifs génériques : les PDF
+historiques ne sont pas classifiés automatiquement par analyse de leur texte.
+
+Voir docs/conventions-api.md, section CTR-004, pour les routes et exemples.
+ClamAV réel et worker reports restent à vérifier selon CTR-003.
+Prochain P0 : CTR-005, échéances et rappels.

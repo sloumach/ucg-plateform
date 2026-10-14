@@ -16,6 +16,11 @@ final readonly class EloquentContractDocumentRepository implements ContractDocum
     {
         return ContractDocument::query()->where('organization_id', strtolower($org))->where('contract_id', strtolower($contract))
             ->with(['signature' => fn ($query) => $query->where('contract_document_signatures.organization_id', strtolower($org))])
+            ->with([
+                'latestDraft' => fn ($query) => $query->where('organization_id', strtolower($org))->select(['id', 'document_id', 'created_by']),
+                'latestApproval' => fn ($query) => $query->where('organization_id', strtolower($org)),
+                'financialTerms' => fn ($query) => $query->where('organization_id', strtolower($org))->select(['id', 'scope_id', 'version', 'prepared_by']),
+            ])
             ->withCount(['versions' => fn (Builder $query) => $query->where('contract_document_versions.organization_id', strtolower($org))]);
     }
 

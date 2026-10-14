@@ -22,6 +22,8 @@ final class ContractResource extends ApiResource
             'starts_on' => $contract->starts_on?->format('Y-m-d'), 'ends_on' => $contract->ends_on?->format('Y-m-d'),
             'status' => $contract->status, 'version' => $contract->version, 'prepared_by' => $contract->prepared_by,
             'approved_by' => $contract->approved_by, 'approved_at' => $contract->approved_at?->toIso8601String(),
+            'signature_separation_required' => $contract->signature_separation_required, 'signature_recorded_by' => $contract->signature_recorded_by,
+            'financial_terms_present' => (bool) $contract->financial_terms_present, 'financial_documents_restricted' => (bool) $contract->financial_documents_restricted,
             'signed_on' => $contract->signed_on?->format('Y-m-d'), 'signature_reference' => $contract->signature_reference,
             'signature_recorded_at' => $contract->signature_recorded_at?->toIso8601String(), 'terminated_on' => $contract->terminated_on?->format('Y-m-d'),
             'signature_evidence_status' => $contract->signed_on === null ? 'not_declared' : 'declared_external',

@@ -1967,3 +1967,83 @@ const blob = await tenancyRequest<Blob>(path + '/download' + signed.search, {
 ClamAV désactivé par défaut tant que l’opérateur n’a pas préparé son endpoint
 privé, ses signatures et la queue reports. Versions antérieures sans backfill :
 une relance explicite est nécessaire. Voir README, mise en service CTR-003.
+
+## Conditions financières et approbations — UCG-CTR-004
+
+Base : /api/v1/tenants/{tenant}/contracts/{contract}. Session, MFA et contexte serveur
+requis ; écritures protégées par CSRF, confirmation tenant et X-Tenant-Revision.
+
+| Route relative | Méthode | Usage |
+| --- | --- | --- |
+| /financial-terms | GET / PATCH | Lire/remplacer le bloc financier original |
+| /documents/{document}/financial-terms | GET / PATCH | Bloc d’avenant ; écriture interdite sur un original |
+| /documents/{document}/approvals | GET | Historique paginé page/per_page ≤100, UI 10 |
+| /documents/{document}/approvals | POST | Approuver la dernière préparation d’avenant |
+
+Lecture financière : administrative.read + financial.read ; écriture : ces lectures
++ administrative.write + financial.write. GET renvoie data=null si aucun bloc.
+GET/PATCH financiers : private, no-store ; PATCH renvoie 200, Resource financière
+et meta.contract_version. POST approbation renvoie 201 et meta.contract_version.
+
+Exemple, après confirmation tenant et lecture des versions :
+
+~~~bash
+curl 'https://api.example.test/api/v1/tenants/<tenant>/contracts/<contract>/financial-terms' \
+  -X PATCH -b cookies.txt \
+  -H 'Content-Type: application/json' \
+  -H 'X-XSRF-TOKEN: <jeton-csrf>' \
+  -H 'X-Tenant-Revision: <revision-confirmee>' \
+  --data '{"contract_version":"<version-dossier>","expected_version":null,"terms":{"currency":"EUR","remuneration":"1500.00","remuneration_period":"monthly","bonus":null,"prize_share_percent":"12.50","payment_terms":"Versement selon les conditions approuvées"}}'
+~~~
+
+expected_version est présent : null pour créer, UUID de la Resource lue pour
+remplacer. Montants en chaînes positives ou nulles, exactement deux décimales,
+douze chiffres maximum avant le point ; ni float, négatif, notation exponentielle
+ou conversion. currency : trois lettres majuscules ; prize_share_percent : 0.00
+à 100.00. remuneration_period : once/monthly/yearly, obligatoire avec rémunération,
+vide sinon. payment_terms nullable ≤2000 caractères. Clés inconnues refusées.
+Aucune valeur financière dans les Resources administratives, personnes,
+transitions ou audit.
+
+Un bloc financier rend tous les documents du dossier soumis à financial.read,
+y compris par lien déjà émis. Leur préparation exige financial.write ; analyses
+et téléchargements conservent leurs autres droits. Un bloc de valeurs nulles ne
+retire pas cette restriction. Les archives de maintenance gardent les valeurs
+physiques chiffrées et ne sont pas un endpoint navigateur.
+
+La transition approved d’un dossier financier exige financial.read/validate et
+les droits administratifs existants, avec approbateur distinct des préparateurs
+administratif et financier. Les conditions originales sont ensuite figées, sauf
+retour en revue autorisé.
+
+POST approbation d’avenant :
+
+~~~json
+{
+  "contract_version": "<version-dossier>",
+  "document_version_id": "<derniere-preparation-pdf>",
+  "confirm_approval": true
+}
+~~~
+
+Approbateur distinct du créateur documentaire et des préparateurs PDF/financier.
+financial.validate est requis dès que le dossier est financier, même sans bloc
+propre à l’avenant. Resource décision : id, number, document_version_id, approved_by,
+approved_at, sans valeurs financières. Nouvelle préparation ou version financière :
+décision conservée mais invalidée, nouvelle approbation puis nouvelle copie signée
+requises. Un avenant signé est figé.
+
+Les documents ajoutent latest_draft_id, latest_prepared_by, financial_terms_present,
+financial_prepared_by et approval courante ou null. Le contrat ajoute
+financial_terms_present, financial_documents_restricted, signature_separation_required,
+signature_recorded_by. L’option de séparation est un booléen strict modifiable
+en préparation, figé après approbation. Elle impose un déclarant distinct des
+préparateurs et de l’approbateur pour déclaration/dépôt/identification de copie
+signée. Réception hors plateforme uniquement, aucune certification externe.
+
+Erreurs 403 droits, 404 référence hors tenant/dossier, 422 validation ;
+409 CONTRACT_FINANCIAL_VERSION_STALE, CONTRACT_VERSION_STALE, CONTRACT_TERMS_FROZEN,
+CONTRACT_SELF_APPROVAL_FORBIDDEN, CONTRACT_SIGNATURE_SEPARATION_REQUIRED,
+CONTRACT_AMENDMENT_DRAFT_REQUIRED, CONTRACT_AMENDMENT_APPROVAL_REQUIRED,
+CONTRACT_AMENDMENT_ALREADY_APPROVED, CONTRACT_AMENDMENT_COPY_STALE.
+Après conflit, relire et reconfirmer sans rejeu.
