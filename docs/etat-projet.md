@@ -9,8 +9,10 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-TEAM-006` — références externes privées et
-  instantanés immuables d’adversaires, avec API, interface et contrôles d’isolation.
+- Dernier ticket traité : `UCG-CTR-001` — dossiers contractuels privés, parties,
+  responsable, dates, obligations et transitions contrôlées, avec API et interface.
+- TEAM-006 (`564dd59`) : push, CI vertes et migration confirmés par l’utilisateur
+  avant CTR-001 ; migration vérifiée en lecture seule : Ran, batch 19.
 - TEAM-005 (`0d46afe`) : push et CI vertes confirmés par l’utilisateur le
   14 octobre 2026. Migration appliquée par l’utilisateur, vérifiée en lecture
   seule : Ran, batch 18. Aucun changement aux données métier réelles par l’agent.
@@ -54,9 +56,9 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : push utilisateur TEAM-006 et validation des CI, sauvegarde
+- Prochaine action : push utilisateur CTR-001 et validation des CI, sauvegarde
   puis `php artisan migrate` depuis `back/`. Migration additive
-  `2026_10_14_121838_create_external_opponents_and_snapshots`, réservée à
+  `2026_10_14_184245_create_contract_records_and_lifecycle`, réservée à
   l’utilisateur sur la base principale, statut Pending vérifié en lecture seule.
   Code, tests, CI et docs dans le même commit. Aucune référence réelle, personne
   réelle, adhésion, attribution de rôle ou capture réelle créée par l’agent ;
@@ -74,8 +76,9 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après push/CI/migration TEAM-006, prochaine étape recommandée du backlog :
-  documents privés et contrats, à commencer par `UCG-CTR-001`.
+- Après push/CI/migration CTR-001, prochaine étape recommandée du backlog :
+  `UCG-CTR-002`, versions immuables de documents et avenants, puis CTR-003
+  pour le dépôt et le téléchargement privés.
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
@@ -1567,3 +1570,70 @@ ensuite ce fichier pour qu'il reflète la réalité.
 - Code, tests, CI et documentation regroupés dans le même commit de tâche.
   Prochaine action : push et CI utilisateur, sauvegarde puis php artisan migrate
   depuis back/. Prochaine étape recommandée : documents et contrats, UCG-CTR-001.
+
+## Dossiers contractuels — UCG-CTR-001
+
+- TEAM-006 564dd59 poussé, CI vertes et migration confirmés par l’utilisateur.
+  Branche propre et synchronisée au démarrage ; migration Ran, batch 19,
+  vérifiée en lecture seule. Phase contrats/documents commencée par CTR-001.
+- Dossier privé par tenant : référence et type fixes, titre, responsable People,
+  dates, 1..10 parties et jusqu’à 50 obligations. Organisation partie hôte
+  implicite ; autres parties People du tenant ou libellés externes déclarés.
+  Fiches conservées après départ référençables sans réactivation ni droits IAM.
+- Policy/Form Requests, Controller mince, ContractService/ContractRepository,
+  ContractLifecycle et Resources fermées. Port AdministrativePeopleDirectory :
+  id/libellé uniquement, noms administratifs sans coordonnées ou données sportives.
+  Champs privés chiffrés ; nom du responsable copié côté serveur.
+- Lecture administrative.read ; gestion aussi administrative.write ; validation
+  aussi administrative.validate. MFA/CSRF/révision/confirmation du tenant.
+  Pas de droit implicite propriétaire, technique ou sportif ; UUID étranger 404.
+- Brouillon → revue → approbation distincte → envoi → signature reçue déclarée →
+  activation → échéance/résiliation → archive. Retours contrôlés en revue,
+  approbation annulée ; préparateur actualisé à l’édition des termes.
+  Termes/parties figés après approbation ; responsable réaffectable ; obligations
+  régularisables après clôture mais avant archive. Archive terminale exige
+  zéro obligation pending ; remplacement des obligations régularisées refusé.
+- Signature déclarée hors plateforme : date non future, référence chiffrée et
+  confirmation explicite ; aucune version ou preuve de fichier avant CTR-002/003.
+  In_force exige statut active et période UTC courante, date de fin incluse.
+  Après échéance, in_force=false même si le statut reste manuel active.
+  Sporting_eligibility=not_assessed ; aucun montant avant CTR-004, aucun rappel
+  automatique avant CTR-005, signature électronique future CTR-007 (P1).
+- Verrou organisation/dossier, droits revérifiés, versions UUID dossier/obligation.
+  Historique de statuts append-only et audit minimal UUID/état/version sous
+  transaction ; panne d’audit annule toute mutation. Pas de contenu privé dans
+  l’audit. Conflit 409 : relecture et nouvelle confirmation, aucun rejeu.
+- Migration additive 2026_10_14_184245_create_contract_records_and_lifecycle :
+  contracts, contract_parties, contract_obligations, contract_transitions ;
+  FK tenant composites sans cascade, index, gardes SQLite/PostgreSQL.
+  Identité, transitions, validation distincte, signature, termes, parties,
+  obligations et archive protégés en SQL. Export fermé enrichi des quatre
+  tables/colonnes, chiffrement conservé. Down refuse les données avant DDL.
+  Pas de backfill ; migrations déployées inchangées.
+- Pages API ≤100/UI 10, 1000 dossiers/tenant, 200 transitions/dossier.
+  Liste avec agrégats, détail eager-loaded et nombre de requêtes constant testé.
+  Pas de benchmark à forte charge ; profiler pagination et verrou organisation
+  avant de relever ces budgets. Aucun cache de permissions.
+- React : recherche/filtres, création/édition partielle, sélecteur People paginé,
+  signature déclarée, obligations, historique paginé et archive. Remontage par
+  tenant/révision/droits, lectures annulables et réponses tardives ignorées.
+  422 conserve la saisie. Textes échappés, noms longs, mobile 375/320 et police
+  de repli vérifiés, capture inspectée.
+- Validation locale : 65 tests backend ajoutés ; SQLite complet 1277 tests,
+  1274 réussis, 5549 assertions, 3 exclusions attendues ; PostgreSQL 17 complet
+  1277 tests, 1275 réussis, 5550 assertions, 2 exclusions Redis attendues.
+  Base PostgreSQL temporaire distincte recréée à vide avant chaque suite pour
+  éviter les fonctions de triggers résiduelles, puis supprimée après validation.
+  Budget mémoire PHPUnit 512 Mo pour la suite complète (128 Mo local insuffisant),
+  sans changer php.ini/application. Erreur de type du callback eager-loading
+  détectée par les tests puis corrigée avant les suites complètes vertes.
+- 141 tests frontend dans 24 fichiers, dont 12 nouveaux ; lint/build et
+  16 Playwright verts sous Chrome Windows CI/UTC, API métier simulées.
+  PHPStan niveau 8, architecture, Pint dirty/format:check et composer validate
+  verts. CI PostgreSQL enrichie des trois fichiers Feature Contracts.
+- Migration principale CTR-001 Pending, vérifiée en lecture seule.
+  Aucun contrat, personne, compte ou rôle réel créé, aucun e-mail envoyé.
+  Code/tests/CI/README/API/architecture/backlog/reprise dans un seul commit local.
+  Prochaine action : push utilisateur, vérifier CI, sauvegarder puis
+  php artisan migrate depuis back/. Prochain P0 : UCG-CTR-002, versions immuables
+  des documents et avenants, avec CTR-003 pour leur dépôt privé.

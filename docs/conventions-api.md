@@ -1652,3 +1652,97 @@ await tenancyRequest(
   } },
 )
 ```
+
+## Contrats administratifs — UCG-CTR-001
+
+Routes privées sous /api/v1, organisation active :
+
+| Méthode | Route | Usage |
+| --- | --- | --- |
+| GET/POST | `tenants/{tenant}/contracts` | Liste paginée / création |
+| GET | `tenants/{tenant}/contracts/people` | Sélecteur administratif paginé |
+| GET/PATCH | `tenants/{tenant}/contracts/{contract}` | Détail / édition partielle |
+| GET/POST | `tenants/{tenant}/contracts/{contract}/transitions` | Historique / changement d’état |
+| PATCH | `tenants/{tenant}/contracts/{contract}/obligations/{obligation}` | Régularisation |
+
+Lecture administrative.read ; mutations aussi administrative.write ;
+approved/signed/active/ended/terminated aussi administrative.validate.
+MFA, cookies Sanctum, CSRF, révision et confirmation du tenant actif.
+UUID étrangers : 404 ; aucun droit implicite propriétaire ou technique.
+Pas de DELETE. Le responsable de suivi n’acquiert aucun droit IAM.
+
+POST exige reference slug local ≤80, type parmi player/coach/manager/analyst/
+contributor/sponsor, title ≤160, responsible_person_id et parties (1..10).
+Chaque partie : kind person/external, name ≤160 et person_id requis pour person.
+Personne et responsable doivent appartenir au tenant ; le nom du responsable
+est copié côté serveur. Les fiches People conservées après départ sont référençables
+sans réactivation. Organisation hôte implicite. Champs facultatifs starts_on/
+ends_on nullables YYYY-MM-DD ≥1900, fin ≥début ; obligations ≤50 avec title ≤160
+et due_on nullable. Champs racine et imbriqués inconnus refusés, aucun montant.
+
+PATCH exige version UUID courante et seulement les champs modifiés.
+Reference/type fixes. Termes et listes modifiables seulement draft/in_review ;
+responsable réaffectable après approbation. Obligations déjà régularisées
+conservées : remplacement de leur liste refusé. Archive terminale en lecture seule.
+
+Graphe :
+draft → in_review/archived ; in_review → draft/approved/archived ;
+approved → in_review/sent ; sent → in_review/signed ;
+signed → active/ended/terminated ; active → ended/terminated ;
+ended/terminated → archived.
+Chaque POST transition exige version et status. Approved exige un approbateur
+distinct de prepared_by. Retour draft/in_review efface l’approbation.
+Approved/sent/signed/active exigent starts_on. Active exige une période courante
+UTC ; ended exige une fin dépassée (fin incluse). Archived exige zéro obligation
+pending. Les statuts restent manuels ; in_force est recalculé à la lecture.
+
+Signed exige signed_on non future ≥1900, signature_reference non vide ≤160
+et confirm_signature_received accepté. Réception déclarée hors plateforme :
+signature_evidence_status=declared_external, aucune preuve de fichier rattachée
+avant CTR-002/003. Terminated exige terminated_on non future ≥signed_on.
+Aucun champ de signature n’est accepté pour les autres transitions.
+
+Obligation PATCH : version UUID obligation, contract_version UUID dossier,
+status pending/completed/waived différent de l’état courant. Mise à jour des
+deux versions, y compris après échéance ou résiliation, avant archivage.
+GET historique et people acceptent seulement page/per_page. Liste contrats :
+page/per_page, q préfixe de référence, type, status et responsible_person_id.
+Pages ≤100, UI 10 ; 1000 dossiers par tenant et 200 transitions par dossier.
+
+Réponse fermée : référence/type/titre, responsable id/nom copié, dates, état,
+version, préparation/approbation, déclaration de signature, résiliation,
+publication_status=private, in_force, sporting_eligibility=not_assessed,
+comptages et available_transitions (graphe métier, permissions toujours contrôlées
+au POST). Parties/obligations incluses seulement au détail ; historique paginé
+avec from_status/to_status, acteur, date et version. Sélecteur People id/label,
+sans coordonnées. Textes privés chiffrés en base ; audit minimal sans contenu.
+
+Conflits : CONTRACT_REFERENCE_ALREADY_EXISTS, CONTRACT_VERSION_STALE,
+CONTRACT_OBLIGATION_VERSION_STALE, CONTRACT_ARCHIVED, CONTRACT_TERMS_FROZEN,
+CONTRACT_OBLIGATIONS_RETAINED, CONTRACT_TRANSITION_INVALID,
+CONTRACT_DATES_REQUIRED, CONTRACT_NOT_EFFECTIVE, CONTRACT_TERM_NOT_ENDED,
+CONTRACT_PENDING_OBLIGATIONS, CONTRACT_SELF_APPROVAL_FORBIDDEN,
+CONTRACT_LIMIT_REACHED, CONTRACT_TRANSITION_LIMIT.
+Après 409 : recharger puis confirmer à nouveau, aucun rejeu automatique.
+
+```ts
+// Après confirmation humaine de l’action et du tenant actif.
+// tenancyRequest gère cookies et CSRF ; activeRevision vient du serveur.
+const created = await tenancyRequest<ApiSuccessResponse<ContractRecord>>(
+  `tenants/${organizationId}/contracts`,
+  { method: 'POST', revision: activeRevision, body: {
+    reference: 'contrat-joueur-2026', type: 'player', title: 'Contrat joueur',
+    responsible_person_id: responsibleId, starts_on: '2026-10-01',
+    ends_on: '2027-09-30',
+    parties: [{ kind: 'person', person_id: playerId, name: 'Partie contractante' }],
+    obligations: [{ title: 'Restituer le matériel', due_on: '2027-09-30' }],
+  } },
+)
+// Nouvelle confirmation humaine pour chaque changement d’état.
+await tenancyRequest(
+  `tenants/${organizationId}/contracts/${created.data.id}/transitions`,
+  { method: 'POST', revision: activeRevision,
+    body: { version: created.data.version, status: 'in_review' } },
+)
+// Un autre utilisateur habilité approuve avec la nouvelle version reçue.
+```

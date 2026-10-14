@@ -130,3 +130,30 @@ ExternalOpponentsPanel.test.tsx couvre droits, rendu, confirmations, mutations,
 conflits et réponses tardives. external-opponents.spec.ts couvre création → capture
 → renommage → archivage → historique conservé, mobile 375/320 et noms longs avec
 police de repli. Les API métier sont simulées ; aucune donnée réelle créée.
+
+### Contrats administratifs — CTR-001
+
+ContractsPanel est intégré à TenantWorkspace avec remontage par tenant,
+révision et permissions. Lecture administrative.read ; gestion aussi
+administrative.write ; transitions de validation aussi administrative.validate.
+Recherche par préfixe de référence, filtres type/statut, pages de 10, création
+et édition partielle, sélection paginée du responsable et des parties People,
+parties externes déclarées, dates et obligations.
+
+Le détail distingue signature déclarée, période en vigueur et éligibilité
+sportive non évaluée. L’approbation par le préparateur est masquée et refusée
+côté serveur. Signature reçue hors plateforme : date, référence et déclaration
+explicite ; aucune pièce jointe à ce stade. Historique paginé des statuts,
+résiliation, régularisation des obligations puis archive définitive.
+
+API TypeScript : src/api/contractRecords.ts. Confirmation de l’organisation
+avant mutation, versions du dossier et de l’obligation, CSRF/révision,
+notifications communes. Lectures annulables ; 422 conserve la saisie ;
+409 impose relecture et nouvelle confirmation sans rejeu automatique.
+Textes échappés, noms longs et police de repli vérifiés à 375/320 px.
+
+12 tests ContractsPanel ajoutés ; 141 tests frontend au total dans 24 fichiers,
+lint/build et 16 Playwright verts. contract-records.spec.ts exerce création →
+revue → validation distincte → envoi → signature déclarée → activation →
+résiliation → obligation levée → archive et historique. API métier simulées :
+aucun contrat réel créé par les navigateurs.

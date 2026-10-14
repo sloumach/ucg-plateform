@@ -1122,3 +1122,53 @@ Lectures annulables, réponses tardives ignorées, confirmations d’organisatio
 avant mutation, déclaration de faits publics, version courante et champs modifiés
 seulement. Source et date d’observation restent visibles ; données échappées.
 Archive et instantané sont conservés sans publication automatique.
+
+## Contrats administratifs — UCG-CTR-001
+
+Contracts possède contracts, contract_parties, contract_obligations et
+contract_transitions. L’organisation est la partie hôte implicite ; les autres
+parties sont des personnes de ce tenant ou des libellés externes déclarés.
+Le responsable désigne une fiche People, sans création de compte ni de permission.
+
+ContractController utilise Form Requests, Gate et Resources fermées.
+ContractService orchestre les mutations ; ContractLifecycle porte le graphe et
+les règles de dates ; ContractRepository/EloquentContractRepository portent
+la persistance filtrée par tenant. Contrats accède à People uniquement via
+AdministrativePeopleDirectory : projection bornée id/libellé administratif,
+sélection des noms sans coordonnées ni données sportives, y compris les fiches
+conservées après départ. Le nom du responsable est copié côté serveur et chiffré.
+
+Chaque mutation prend le verrou organisation puis le dossier, revérifie les
+permissions et écrit l’audit dans la transaction. Échec d’audit = rollback.
+Versions UUID optimistes du dossier et des obligations ; historique de statuts
+append-only. Audit limité aux UUID, état et version, sans textes privés.
+Aucun cache de droits. Pas de job pour ces petites écritures atomiques.
+
+Lecture administrative.read ; écriture administrative.read/write ;
+cibles approved/signed/active/ended/terminated : aussi administrative.validate.
+Aucun droit implicite propriétaire, technique ou sportif. Préparateur et
+approbateur distincts ; modifier les termes en revue change le préparateur,
+retourner en revue annule l’approbation. Après approbation, termes et parties
+figés ; réaffectation du responsable et régularisation des obligations possibles.
+Une obligation déjà régularisée ne peut être supprimée par remplacement de liste.
+
+Signed est une déclaration de réception externe avec date, référence chiffrée
+et date serveur ; aucun document ou hash fictif. In_force exige active et une
+période comprenant la date UTC, fin incluse. Après échéance, in_force devient
+false même si le statut manuel reste active. Sporting_eligibility reste
+not_assessed. Pas de dépendance vers Teams pour inférer l’admissibilité.
+Les documents immuables relèvent de CTR-002, leur stockage privé de CTR-003,
+les montants de CTR-004 et les rappels de CTR-005.
+
+Migration additive sans backfill, anciennes migrations déployées inchangées.
+FK composites tenant/dossier et tenant/People sans cascade, index de pagination
+et contraintes SQLite/PostgreSQL sur identité, transitions, approbation,
+signature, termes, parties, obligations et archive. Historique append-only.
+Down refuse les données avant DDL ; export fermé enrichi des quatre tables et
+de leurs colonnes, en conservant le chiffrement.
+
+Pages ≤100/UI 10, 1000 dossiers/tenant, 10 parties, 50 obligations et
+200 transitions/dossier. Liste avec agrégats, détail avec relations chargées
+en amont ; nombre de requêtes constant vérifié à plusieurs tailles de page.
+Ces budgets ne constituent pas un benchmark ; profiler pagination et contention
+du verrou organisation avant un déploiement à forte cardinalité.

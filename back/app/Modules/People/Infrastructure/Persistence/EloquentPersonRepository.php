@@ -11,6 +11,18 @@ use Illuminate\Support\Str;
 
 final class EloquentPersonRepository implements PersonRepository
 {
+    public function contractPeople(string $organizationId, array $ids): array
+    {
+        return array_values(Person::query()->forOrganization($organizationId)->whereIn('id', $ids)
+            ->select(['id', 'organization_id', 'first_name', 'last_name'])->orderBy('id')->lockForUpdate()->get()->all());
+    }
+
+    public function contractPeoplePage(string $organizationId, int $page, int $perPage): LengthAwarePaginator
+    {
+        return Person::query()->forOrganization($organizationId)
+            ->select(['id', 'organization_id', 'first_name', 'last_name'])->orderBy('id')->paginate($perPage, ['*'], 'page', $page);
+    }
+
     public function eligibilitySubjects(string $org, array $ids, string $gameKey, ?string $platform, bool $birth): array
     {
         $query = Person::query()->forOrganization($org)->whereIn('id', $ids)->select(['id', 'organization_id', 'version', ...($birth ? ['birth_date'] : [])]);

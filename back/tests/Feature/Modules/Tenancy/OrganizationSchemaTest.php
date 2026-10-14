@@ -108,6 +108,8 @@ class OrganizationSchemaTest extends TestCase
         $eligibility = require database_path('migrations/2026_10_13_215251_create_team_eligibility_rules_and_reports.php');
         $opponents = require database_path('migrations/2026_10_14_121838_create_external_opponents_and_snapshots.php');
         $opponents->down();
+        $contracts = require database_path('migrations/2026_10_14_184245_create_contract_records_and_lifecycle.php');
+        $contracts->down();
         $eligibility->down();
         $lineups->down();
         $memberships->down();
@@ -145,6 +147,7 @@ class OrganizationSchemaTest extends TestCase
         $memberships->up();
         $lineups->up();
         $eligibility->up();
+        $contracts->up();
         $opponents->up();
         $this->assertTrue(Schema::hasTable('organizations'));
         $this->assertTrue(Schema::hasTable('organization_settings'));

@@ -115,6 +115,8 @@ class PersonSchemaTest extends TestCase
         $memberships = require database_path('migrations/2026_10_13_152226_create_team_membership_and_movement_tables.php');
         $lineups = require database_path('migrations/2026_10_13_204834_create_team_lineup_tables.php');
         $eligibility = require database_path('migrations/2026_10_13_215251_create_team_eligibility_rules_and_reports.php');
+        $contracts = require database_path('migrations/2026_10_14_184245_create_contract_records_and_lifecycle.php');
+        $contracts->down();
         $eligibility->down();
         $lineups->down();
         $memberships->down();
@@ -130,6 +132,7 @@ class PersonSchemaTest extends TestCase
         $memberships->up();
         $lineups->up();
         $eligibility->up();
+        $contracts->up();
 
         $this->assertTrue(Schema::hasTable('people'));
         $this->assertDatabaseCount('people', 0);

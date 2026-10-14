@@ -837,6 +837,18 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Périmètre** : types, parties, propriétaire, dates, obligations et machine d’état du brouillon à l’archive.
 - **Acceptation** : transitions contrôlées, tenant unique et distinction signé/en vigueur/éligible.
 - **Références CDC** : CTR-01, CTR-09.
+- **État au 14 octobre 2026** : implémenté localement avec API, interface,
+  Policy/Form Requests, Service/Repository, migration additive et tests.
+  Référence/type fixes, parties People du tenant ou externes déclarées,
+  responsable administratif, dates, obligations et historique append-only.
+  Termes figés après approbation ; approbateur distinct du préparateur ;
+  signature reçue hors plateforme déclarée, sans fichier rattaché à ce stade.
+  En vigueur exige active et période UTC courante (fin incluse) ; éligibilité
+  sportive non évaluée. Archive terminale après régularisation des obligations.
+  Champs privés chiffrés, audit atomique, FK tenant composites, versions UUID,
+  pagination et contrôles SQLite/PostgreSQL. Aucun montant avant CTR-004.
+  Push/CI et migration principale réservés à l’utilisateur ; après validation,
+  prochain P0 : CTR-002. Code, tests, CI et docs dans le même commit de tâche.
 
 ### UCG-CTR-002 — Versionner documents et avenants
 

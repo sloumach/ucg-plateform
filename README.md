@@ -1388,3 +1388,49 @@ Redis), 129 tests frontend, lint/build et 15 Playwright verts. PHPStan niveau 8,
 Pint complet/dirty, composer format:check et validate verts. La base PostgreSQL
 utilisée pour les tests a été créée séparément puis supprimée. Migration principale
 TEAM-006 toujours Pending ; aucune donnée réelle créée par l’agent.
+
+## Contrats administratifs — UCG-CTR-001
+
+Le panneau « Contrats » permet de préparer un dossier privé, ses parties,
+son responsable de suivi, ses dates et ses obligations. Types : joueur, coach,
+manager, analyste, contributeur et sponsor. Le parcours va du brouillon à
+l’archive, avec validation par une personne distincte du préparateur, déclaration
+de signature reçue hors plateforme et historique conservé des statuts.
+
+Lecture : administrative.read ; gestion : aussi administrative.write ;
+approbation, signature, activation, échéance et résiliation : aussi
+administrative.validate. MFA, CSRF, révision et confirmation du tenant actif
+s’appliquent aux mutations. Les références People restent internes au tenant,
+y compris celles conservées après un départ ; elles n’attribuent aucun accès.
+
+Les termes sont modifiables au brouillon ou en revue. Après approbation, le
+responsable peut être réaffecté et les obligations régularisées ; revenir en
+revue annule l’approbation. L’archive est définitive et exige des obligations
+régularisées. « Signé », « en vigueur » et « éligible sportivement » restent
+distincts : en vigueur exige le statut actif et une période valide à la date UTC,
+avec date de fin incluse. Le suivi des statuts reste manuel à ce stade.
+
+La signature est une déclaration administrative, sans fichier signé rattaché.
+Versions et avenants : CTR-002 ; dépôt privé : CTR-003 ; montants et approbations
+financières : CTR-004 ; rappels : CTR-005. Aucun montant n’est collecté par CTR-001.
+API et exemples : docs/conventions-api.md, section CTR-001.
+
+Migration additive : `2026_10_14_184245_create_contract_records_and_lifecycle`.
+Après push et CI vertes, sauvegarder puis appliquer `php artisan migrate`
+depuis back/. La migration principale reste Pending ; aucune donnée métier
+réelle créée par l’agent. Down refuse un dossier ou ses enfants déjà conservés.
+TEAM-006 `564dd59` : push/CI/migration confirmés par l’utilisateur ; Ran, batch 19.
+
+Pagination API ≤100/UI 10 ; 1000 dossiers par tenant, 10 parties, 50 obligations
+et 200 transitions par dossier. Champs privés chiffrés, audit atomique minimal,
+FK tenant composites et export de maintenance fermé. Les requêtes restent
+constantes avec la taille de page ; mesurer la charge et la contention du verrou
+organisation avant de relever les limites.
+
+Validation CTR-001 : 65 tests backend ajoutés ; suite SQLite complète :
+1277 tests, 1274 réussis, 5549 assertions, 3 exclusions attendues. 141 tests
+frontend et 16 parcours Playwright verts ; lint/build, PHPStan niveau 8,
+Pint et composer validate verts. PostgreSQL complet : 1277 tests, 1275 réussis,
+5550 assertions, 2 exclusions Redis attendues, sur une base temporaire
+distincte supprimée après validation. Budget mémoire PHPUnit fixé à 512 Mo pour la suite complète,
+sans modification du PHP utilisé par l’application.

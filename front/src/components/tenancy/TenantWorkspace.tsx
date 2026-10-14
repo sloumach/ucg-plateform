@@ -16,6 +16,7 @@ import { PeoplePanel } from '../people/PeoplePanel'
 import { OrganizationGamesPanel } from '../teams/OrganizationGamesPanel'
 import { TeamsPanel } from '../teams/TeamsPanel'
 import { ExternalOpponentsPanel } from '../teams/ExternalOpponentsPanel'
+import { ContractsPanel } from '../contracts/ContractsPanel'
 import { Button } from '../Button'
 import { FormField } from '../FormField'
 import { Pagination } from '../data/Pagination'
@@ -235,6 +236,7 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
           {selected && <OrganizationGamesPanel key={'games:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
           {selected && <TeamsPanel key={'teams:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
           {selected && <ExternalOpponentsPanel key={'opponents:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
+          {selected && <ContractsPanel key={'contracts:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
           <div className="grid gap-3">
             {workspace.organizations.data.length === 0 && <p className="text-slate-400">{t('tenant.empty')}</p>}
             <div className="flex flex-wrap gap-3">

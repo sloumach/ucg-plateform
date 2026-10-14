@@ -10,6 +10,14 @@ interface PersonRepository
     /** @param list<string> $ids
      * @return list<Person>
      */
+    public function contractPeople(string $organizationId, array $ids): array;
+
+    /** @return LengthAwarePaginator<int, Person> */
+    public function contractPeoplePage(string $organizationId, int $page, int $perPage): LengthAwarePaginator;
+
+    /** @param list<string> $ids
+     * @return list<Person>
+     */
     public function eligibilitySubjects(string $org, array $ids, string $gameKey, ?string $platform, bool $birth): array;
 
     /** @param list<string> $ids

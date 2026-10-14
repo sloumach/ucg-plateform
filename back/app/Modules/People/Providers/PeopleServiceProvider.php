@@ -2,10 +2,12 @@
 
 namespace App\Modules\People\Providers;
 
+use App\Modules\People\Application\Contracts\AdministrativePeopleDirectory;
 use App\Modules\People\Application\Contracts\EligibilityPeopleDirectory;
 use App\Modules\People\Application\Contracts\PeopleDirectory;
 use App\Modules\People\Application\Contracts\PersonImportQueue;
 use App\Modules\People\Application\Contracts\SportingPeopleDirectory;
+use App\Modules\People\Application\Services\AdministrativePeopleService;
 use App\Modules\People\Application\Services\EligibilityPeopleService;
 use App\Modules\People\Application\Services\PersonDepartureService;
 use App\Modules\People\Application\Services\PersonService;
@@ -40,6 +42,7 @@ final class PeopleServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(AdministrativePeopleDirectory::class, AdministrativePeopleService::class);
         $this->app->bind(EligibilityPeopleDirectory::class, EligibilityPeopleService::class);
         $this->app->bind(SportingPeopleDirectory::class, SportingPeopleService::class);
         $this->app->bind(PersonImportQueue::class, LaravelPersonImportQueue::class);

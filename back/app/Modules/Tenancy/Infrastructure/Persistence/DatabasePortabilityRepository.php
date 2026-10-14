@@ -18,6 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
+        'contracts' => 'id', 'contract_parties' => 'id', 'contract_obligations' => 'id', 'contract_transitions' => 'id',
         'external_opponents' => 'id', 'external_opponent_snapshots' => 'id',
         'team_eligibility_rulesets' => 'id', 'team_lineup_rule_bindings' => 'id', 'team_lineup_eligibility_reports' => 'id',
         'team_lineups' => 'id', 'team_lineup_entries' => 'id',
@@ -40,6 +41,10 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'contracts' => ['id', 'organization_id', 'reference', 'type', 'title', 'responsible_person_id', 'responsible_name', 'starts_on', 'ends_on', 'status', 'version', 'created_by', 'prepared_by', 'approved_by', 'approved_at', 'signed_on', 'signature_reference', 'signature_recorded_at', 'terminated_on', 'created_at', 'updated_at'],
+        'contract_parties' => ['id', 'organization_id', 'contract_id', 'kind', 'person_id', 'name', 'position', 'created_at', 'updated_at'],
+        'contract_obligations' => ['id', 'organization_id', 'contract_id', 'title', 'due_on', 'position', 'status', 'version', 'created_at', 'updated_at'],
+        'contract_transitions' => ['id', 'organization_id', 'contract_id', 'from_status', 'to_status', 'contract_version', 'actor_user_id', 'occurred_at'],
         'external_opponents' => ['id', 'organization_id', 'key', 'kind', 'name', 'short_name', 'organization_name', 'game_id', 'source_label', 'source_url', 'observed_at', 'status', 'version', 'created_at', 'updated_at'],
         'external_opponent_snapshots' => ['id', 'organization_id', 'opponent_id', 'opponent_version', 'context_label', 'kind', 'name', 'short_name', 'organization_name', 'game_key', 'game_name', 'source_label', 'source_url', 'observed_at', 'captured_at', 'created_by'],
         'team_eligibility_rulesets' => ['id', 'organization_id', 'game_id', 'name', 'version', 'status', 'min_starters', 'max_starters', 'max_substitutes', 'platform_key', 'allowed_regions', 'allowed_ranks', 'min_age', 'max_age', 'observation_max_days', 'lock_at', 'created_by', 'created_at', 'updated_at'],
