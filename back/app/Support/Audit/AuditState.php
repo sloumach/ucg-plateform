@@ -15,7 +15,7 @@ final class AuditState
         $result = [];
         foreach ($state as $key => $value) {
             $valid = match ($key) {
-                'contract_id' => is_string($value) && Str::isUuid($value),
+                'contract_id', 'contract_document_id', 'contract_document_version_id' => is_string($value) && Str::isUuid($value),
                 'contract_status' => is_string($value) && in_array($value, ['draft', 'in_review', 'approved', 'sent', 'signed', 'active', 'ended', 'terminated', 'archived'], true),
                 'external_opponent_id', 'opponent_snapshot_id' => is_string($value) && Str::isUuid($value),
                 'opponent_status' => is_string($value) && in_array($value, ['active', 'archived'], true),

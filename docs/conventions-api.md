@@ -1699,7 +1699,8 @@ pending. Les statuts restent manuels ; in_force est recalculé à la lecture.
 Signed exige signed_on non future ≥1900, signature_reference non vide ≤160
 et confirm_signature_received accepté. Réception déclarée hors plateforme :
 signature_evidence_status=declared_external, aucune preuve de fichier rattachée
-avant CTR-002/003. Terminated exige terminated_on non future ≥signed_on.
+dans cette transition. Rattachement d’une copie via CTR-002 ; téléchargement
+réservé à CTR-003. Terminated exige terminated_on non future ≥signed_on.
 Aucun champ de signature n’est accepté pour les autres transitions.
 
 Obligation PATCH : version UUID obligation, contract_version UUID dossier,
@@ -1745,4 +1746,138 @@ await tenancyRequest(
     body: { version: created.data.version, status: 'in_review' } },
 )
 // Un autre utilisateur habilité approuve avec la nouvelle version reçue.
+```
+
+## Versions documentaires et avenants — UCG-CTR-002
+
+Routes privées sous /api/v1 :
+
+| Méthode | Route | Usage |
+| --- | --- | --- |
+| GET/POST | `tenants/{tenant}/contracts/{contract}/documents` | Liste / création |
+| GET/POST | `tenants/{tenant}/contracts/{contract}/documents/{document}/versions` | Historique / dépôt de version |
+| POST | `tenants/{tenant}/contracts/{contract}/documents/{document}/signature` | Identification définitive d’une copie signée |
+
+Chaque route exige MFA et administrative.read. POST exige aussi
+administrative.write ; dépôt purpose=signed_copy et identification de signature
+exigent administrative.validate. Cookies, CSRF, confirmation et révision du
+tenant actif ; tous les POST exigent contract_version UUID courante.
+Le contrat, le document, l’original lié et la version choisie restent dans ce
+tenant et ce contrat : référence étrangère 404, même pour un membre des deux
+organisations. Aucun droit implicite propriétaire ou technique.
+
+POST document JSON : reference slug local ≤80, kind original/amendment,
+title non vide ≤160 et contract_version. Un original par contrat ;
+original_document_id requis pour amendment, désignant l’original de ce contrat
+ayant une copie signée identifiée. Avenant uniquement après déclaration de
+signature du contrat, hors archive. effective_on nullable YYYY-MM-DD ≥1900,
+réservée aux avenants et déclarative : ne modifie pas les termes du contrat.
+Référence, titre, type, origine et date d’effet restent immuables.
+101 documents/contrat : un original et jusqu’à 100 avenants.
+
+POST version multipart : contract_version, purpose draft/signed_copy et file.
+PDF uniquement, extension et MIME, en-tête PDF ; ≤5 Mo (5 242 880 octets).
+Nom affiché ≤160, sans chemin, contrôle, barre inverse, deux-points ou pourcentage.
+Le client ne fournit ni empreinte, taille, numéro, artefact, URL ou chemin.
+Version numérotée consécutivement côté serveur (1..100), SHA-256 calculée sur
+les octets reçus ; taille des octets clairs, acteur et date serveur conservés.
+Les fichiers sont chiffrés et stockés sous un UUID neuf via TEN-005 ; nom de
+stockage générique, nom d’origine chiffré en base. Quota sur les octets chiffrés.
+
+Draft d’original seulement si contrat draft/in_review ; actualise prepared_by,
+préservant l’auto-approbation interdite. Après approbation, nouvelle préparation
+refusée ; revenir en revue via CTR-001. Signed_copy seulement si contrat
+signed/active/ended/terminated. Préparation d’avenant sans changer le contrat.
+Document ayant une version signée identifiée : aucun nouveau dépôt.
+
+POST signature JSON : contract_version, document_version_id, signed_on date
+non future ≥1900, confirm_signed_copy accepté. La version doit appartenir à ce
+document et avoir purpose=signed_copy ; le serveur copie son numéro et son hash.
+Original : signed_on égale à celle déjà déclarée dans le contrat. Une seule
+liaison par document, définitive et immutable. Signature externe déclarée,
+sans certification cryptographique/légale ni approbation financière implicite.
+
+Toutes les versions ont scan_status=pending et download_available=false à ce
+stade. Aucun aperçu, URL ou route de téléchargement. CTR-003 ajoutera l’analyse
+de contenu et une nouvelle autorisation pour délivrer les octets. Déclaration
+de signature et sécurité du fichier restent distinctes.
+Archive consultable mais ne reçoit plus de document, version ou liaison.
+Aucune version/backfill fictif pour un contrat signé avant CTR-002.
+
+GET documents et versions acceptent uniquement page/per_page, pages ≤100/UI 10.
+Documents triés date/id, versions numéro décroissant/id. Détail des versions
+sur route séparée ; aucun chargement massif de fichiers ou liste non bornée.
+Document : id/reference/kind/title/original_document_id/effective_on,
+created_by/at, versions_count, signed_version null ou objet
+{id, number, sha256, signed_on, recorded_by, recorded_at},
+signature_evidence_status not_declared/declared_external, publication_status private.
+Version : id/number/purpose/filename/sha256/bytes/created_by/at,
+scan_status pending, download_available false, publication_status private.
+Jamais organization_id, artifact_id, clé de disque ou chemin de stockage.
+
+POST réussis : meta.contract_version indique la nouvelle version UUID du contrat,
+avec meta.request_id et notification localisée. Le frontend recharge le parent
+avant la mutation suivante. Création et dépôt : 201 ; identification : 200.
+422 conserve la saisie/le fichier ; 409 impose relecture puis confirmation,
+sans rejeu automatique. Audit atomique minimal UUID/état/version, sans titre,
+nom, contenu ou empreinte. Rollback nettoie seulement le nouveau fichier ;
+échec de nettoyage conserve la réservation pour réconciliation opérateur.
+
+Conflits : CONTRACT_VERSION_STALE, CONTRACT_ARCHIVED,
+CONTRACT_DOCUMENT_REFERENCE_ALREADY_EXISTS, CONTRACT_DOCUMENT_ORIGIN_REQUIRED,
+CONTRACT_DOCUMENT_LIMIT, CONTRACT_DOCUMENT_VERSION_LIMIT,
+CONTRACT_DOCUMENT_SIGNED, CONTRACT_DOCUMENT_DRAFT_FROZEN,
+CONTRACT_DOCUMENT_SIGNATURE_REQUIRED, CONTRACT_DOCUMENT_SIGNED_COPY_REQUIRED.
+Quota : TENANT_LIMIT_EXCEEDED selon le contrat transversal TEN-005.
+Aucun PATCH ou DELETE documentaire ; les corrections passent par une nouvelle
+version avant identification signée, ou par un avenant après celle-ci.
+
+```ts
+type VersionResult<T> = ApiSuccessResponse<T> & {
+  meta: { request_id: string; contract_version: string }
+}
+// Après confirmation humaine de l’action et du tenant actif.
+// tenancyRequest gère cookies et CSRF ; révision issue du serveur.
+const original = await tenancyRequest<VersionResult<ContractDocument>>(
+  `tenants/${organizationId}/contracts/${contract.id}/documents`,
+  { method: 'POST', revision: activeRevision, body: {
+    contract_version: contract.version, reference: 'original',
+    kind: 'original', title: 'Contrat original',
+  } },
+)
+// Après une nouvelle confirmation humaine, au brouillon/en revue.
+const body = new FormData()
+body.set('contract_version', original.meta.contract_version)
+body.set('purpose', 'draft')
+body.set('file', selectedPdf)
+const deposited = await tenancyRequest<VersionResult<ContractDocumentVersion>>(
+  `tenants/${organizationId}/contracts/${contract.id}/documents/${original.data.id}/versions`,
+  { method: 'POST', revision: activeRevision, body },
+)
+// deposited.data.sha256 vient du serveur ; chaque dépôt conserve une nouvelle version.
+// Une fois la signature déclarée via CTR-001, relire le dossier courant.
+const current = await tenancyRequest<ApiSuccessResponse<ContractRecord>>(
+  `tenants/${organizationId}/contracts/${contract.id}`,
+  { revision: activeRevision },
+)
+// Après nouvelle confirmation humaine, un validateur dépose la copie signée.
+const signedBody = new FormData()
+signedBody.set('contract_version', current.data.version)
+signedBody.set('purpose', 'signed_copy')
+signedBody.set('file', selectedSignedPdf)
+const signedCopy = await tenancyRequest<VersionResult<ContractDocumentVersion>>(
+  `tenants/${organizationId}/contracts/${contract.id}/documents/${original.data.id}/versions`,
+  { method: 'POST', revision: activeRevision, body: signedBody },
+)
+// Après une nouvelle confirmation, identifier précisément cette version :
+await tenancyRequest(
+  `tenants/${organizationId}/contracts/${contract.id}/documents/${original.data.id}/signature`,
+  { method: 'POST', revision: activeRevision, body: {
+    contract_version: signedCopy.meta.contract_version,
+    document_version_id: signedCopy.data.id, signed_on: current.data.signed_on,
+    confirm_signed_copy: true,
+  } },
+)
+// Un avenant est ensuite créé avec kind=amendment et original_document_id=original.data.id.
+// Il n’est jamais un remplacement silencieux de l’original.
 ```

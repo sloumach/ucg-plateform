@@ -1410,15 +1410,17 @@ régularisées. « Signé », « en vigueur » et « éligible sportivement » r
 distincts : en vigueur exige le statut actif et une période valide à la date UTC,
 avec date de fin incluse. Le suivi des statuts reste manuel à ce stade.
 
-La signature est une déclaration administrative, sans fichier signé rattaché.
-Versions et avenants : CTR-002 ; dépôt privé : CTR-003 ; montants et approbations
+La signature est une déclaration administrative ; la copie signée et sa version
+peuvent être rattachées via Documents et avenants (CTR-002). Analyse de contenu
+et téléchargement privé : CTR-003 ; montants et approbations
 financières : CTR-004 ; rappels : CTR-005. Aucun montant n’est collecté par CTR-001.
 API et exemples : docs/conventions-api.md, section CTR-001.
 
 Migration additive : `2026_10_14_184245_create_contract_records_and_lifecycle`.
 Après push et CI vertes, sauvegarder puis appliquer `php artisan migrate`
-depuis back/. La migration principale reste Pending ; aucune donnée métier
-réelle créée par l’agent. Down refuse un dossier ou ses enfants déjà conservés.
+depuis back/. CTR-001 87953e0 : push/CI/migration validés par l’utilisateur,
+Ran, batch 20. Aucune donnée métier réelle créée par l’agent.
+Down refuse un dossier ou ses enfants déjà conservés.
 TEAM-006 `564dd59` : push/CI/migration confirmés par l’utilisateur ; Ran, batch 19.
 
 Pagination API ≤100/UI 10 ; 1000 dossiers par tenant, 10 parties, 50 obligations
@@ -1434,3 +1436,54 @@ Pint et composer validate verts. PostgreSQL complet : 1277 tests, 1275 réussis,
 5550 assertions, 2 exclusions Redis attendues, sur une base temporaire
 distincte supprimée après validation. Budget mémoire PHPUnit fixé à 512 Mo pour la suite complète,
 sans modification du PHP utilisé par l’application.
+
+## Documents et avenants — UCG-CTR-002
+
+« Documents et avenants », dans le détail d’un contrat, permet de créer son
+document original puis de conserver chaque version PDF. Le serveur calcule
+l’empreinte SHA-256 sur les octets reçus, numérote les versions et chiffre le
+contenu et le nom du fichier. Versions, auteur, date et empreinte restent immuables.
+
+Un utilisateur habilité à valider peut déposer une copie signée puis identifier
+précisément cette version comme celle reçue hors plateforme. La date de l’original
+doit correspondre à la déclaration du contrat. Cette liaison est définitive :
+les évolutions passent par un avenant distinct lié à l’original signé. La date
+d’effet déclarée d’un avenant ne modifie pas les dates ni les parties du contrat.
+
+Les PDF ≤5 Mo sont conservés dans le stockage privé TEN-005, sous quotas tenant,
+en attente d’analyse. Aucun téléchargement, aperçu, URL ou chemin de stockage
+n’est exposé à ce stade ; CTR-003 ajoutera l’analyse de contenu et la délivrance
+sécurisée. Identifier une copie signée ne certifie pas la signature ou le fichier.
+Les contrats antérieurs gardent leur déclaration sans document inventé.
+
+Lecture administrative.read ; création et préparation aussi administrative.write ;
+copie signée et identification aussi administrative.validate. MFA, CSRF, révision
+et confirmation du tenant actif ; version UUID du contrat exigée à chaque mutation.
+Terme original préparé uniquement au brouillon/en revue ; nouvelles copies
+signées après déclaration de signature ; archive en lecture seule. Un nouveau
+dépôt de préparation actualise le préparateur, sans permettre l’auto-approbation.
+
+Limites : un original et jusqu’à 100 avenants par contrat, 100 versions/document,
+pages API ≤100/UI 10. Index tenant/contrat/date et tenant/document/numéro,
+relations et comptages chargés en amont ; nombre de requêtes constant vérifié.
+Entrées et sorties de stockage hors transaction métier ; si celle-ci échoue,
+seul le nouveau fichier est nettoyé. Une suppression incertaine conserve sa
+réservation pour réconciliation opérateur. Audit minimal atomique sans texte ni hash.
+
+Migration additive : `2026_10_14_193828_create_contract_documents_and_immutable_versions`.
+Aucun backfill ni modification des migrations déployées. Gardes SQL sur identité,
+appartenance au tenant, numérotation, statut, fichiers prêts et liaison de signature.
+Down refuse les données documentaires ; export de maintenance enrichi des trois
+tables et conservant le chiffrement. La migration principale reste Pending.
+
+Après push et CI vertes, sauvegarder puis appliquer `php artisan migrate`
+depuis back/. Prochain P0 : CTR-003. Contrat API et exemples :
+docs/conventions-api.md, section CTR-002.
+
+Validation CTR-002 : 48 tests backend ajoutés ; SQLite complet 1325 tests,
+1322 réussis, 5783 assertions, 3 exclusions attendues ; PostgreSQL 17 complet
+1325 tests, 1323 réussis, 5784 assertions, 2 exclusions Redis attendues.
+152 tests frontend, 17 Playwright, lint/build, PHPStan niveau 8,
+Pint/format:check et composer validate verts. Suites SQLite/PostgreSQL lancées
+successivement pour isoler leurs fichiers factices ; base PostgreSQL temporaire
+distincte supprimée après validation. Aucune donnée réelle créée.

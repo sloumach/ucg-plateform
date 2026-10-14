@@ -2,8 +2,10 @@
 
 namespace App\Modules\Contracts\Providers;
 
+use App\Modules\Contracts\Domain\Contracts\ContractDocumentRepository;
 use App\Modules\Contracts\Domain\Contracts\ContractRepository;
 use App\Modules\Contracts\Domain\Models\ContractRecord;
+use App\Modules\Contracts\Infrastructure\Persistence\EloquentContractDocumentRepository;
 use App\Modules\Contracts\Infrastructure\Persistence\EloquentContractRepository;
 use App\Modules\Contracts\Presentation\Policies\ContractPolicy;
 use Illuminate\Support\Facades\Gate;
@@ -15,6 +17,7 @@ final class ContractsServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(ContractRepository::class, EloquentContractRepository::class);
+        $this->app->bind(ContractDocumentRepository::class, EloquentContractDocumentRepository::class);
     }
 
     public function boot(): void

@@ -1172,3 +1172,58 @@ Pages ≤100/UI 10, 1000 dossiers/tenant, 10 parties, 50 obligations et
 en amont ; nombre de requêtes constant vérifié à plusieurs tailles de page.
 Ces budgets ne constituent pas un benchmark ; profiler pagination et contention
 du verrou organisation avant un déploiement à forte cardinalité.
+
+## Documents immuables et avenants — UCG-CTR-002
+
+Contracts possède contract_documents, contract_document_versions et
+contract_document_signatures. Un original par contrat, avenants distincts avec
+FK composite vers cet original du même contrat. En-têtes documentaires immuables ;
+versions numérotées append-only ; une liaison de copie signée par document.
+Une liaison conserve version UUID, numéro, empreinte, date, auteur et date serveur.
+Le document lié ne peut plus recevoir de version ; l’évolution passe par un avenant.
+
+ContractDocumentController reste mince : ContractDocumentRequest/Gate/Resources
+fermées ; ContractDocumentService orchestre les mutations et
+ContractDocumentRepository/EloquentContractDocumentRepository filtrent tenant,
+contrat et document. Policies Contracts existantes réutilisées : lecture
+administrative.read, écriture aussi administrative.write, signed_copy et
+identification aussi administrative.validate. Pas de droit implicite propriétaire.
+
+Toutes les mutations prennent le verrou organisation puis le contrat,
+revérifient droits/statut/version et changent la version UUID du contrat.
+Préparation du document original uniquement draft/in_review ; actualise prepared_by
+pour maintenir l’auto-approbation interdite. Copie signée et liaison uniquement
+signed/active/ended/terminated ; date originale égale à signed_on du contrat.
+Avenant exige l’original lié à sa copie signée ; sa date d’effet est déclarative.
+Aucun changement automatique de termes, statut, éligibilité ou autorisation IAM.
+
+TenantArtifacts (TEN-005) conserve chaque nouveau PDF chiffré sous un UUID neuf.
+Nom de stockage constant et générique, nom original chiffré dans la version,
+empreinte SHA-256 calculée sur les octets clairs reçus. MIME/extension PDF, en-tête
+PDF, 5 Mo maximum et nom sans chemin/contrôle vérifiés précocement. Ce contrôle
+de forme n’est pas une analyse de sécurité. Fichiers en attente, jamais exécutés,
+interprétés ou servis ; aucune URL ou route de téléchargement avant CTR-003.
+
+Stockage et réservation durable avant transaction documentaire, avec recontrôle
+après I/O. Toute panne de metadata/audit nettoie seulement la nouvelle réservation ;
+nettoyage incertain rapporté, réservation conservée pour réconciliation.
+Fichiers des versions antérieures jamais remplacés ou supprimés par ce service.
+Le quota de stockage inclut les octets chiffrés, plus volumineux que le PDF original.
+Audit minimal atomique : UUID contrat/document/version et état, sans contenu/hash.
+
+Migration additive sans backfill, migrations déployées inchangées. FK tenant
+composites contrat/document/original/version/artefact sans cascade, indexes pour
+pages et numéros, unicité de l’original et de la liaison signée.
+Gardes SQLite/PostgreSQL : append-only, contexte du contrat, origine signée,
+numéros consécutifs ≤100, hash hexadécimal, artefact prêt, lien exact numéro/hash.
+Triggers PostgreSQL verrouillent aussi l’organisation avant insertion.
+Down refuse les données avant DDL. Export fermé inclut les trois tables et
+les noms/titres chiffrés ; les artefacts existants restent couverts par TEN-007.
+
+Un original +100 avenants/contrat, 100 versions/document, pages API ≤100/UI 10.
+Listes avec withCount et signature chargée en amont, versions sur route paginée
+séparée, nombre de requêtes constant vérifié sur 1/101 documents.
+Aucun benchmark de forte charge : mesurer quotas chiffrés, latence du stockage,
+pagination et contention du verrou avant de relever les budgets.
+CTR-003 ajoutera analyse de contenu et accès aux octets ; CTR-004 portera les
+approbations métier/financières des avenants. Aucune certification électronique.

@@ -61,9 +61,10 @@ final class ContractInput
 
     /** @param array<string, mixed> $input
      * @param  array<string, array<mixed>>  $rules
+     * @param  array<string, string>  $messages
      * @return array<string, mixed>
      */
-    public static function validate(Factory $factory, array $input, array $rules): array
+    public static function validate(Factory $factory, array $input, array $rules, array $messages = []): array
     {
         foreach (['starts_on', 'ends_on'] as $nullable) {
             if (($input[$nullable] ?? null) === '') {
@@ -76,7 +77,7 @@ final class ContractInput
             throw ValidationException::withMessages(array_fill_keys($unknown, __('managed_contracts.unknown')));
         }
 
-        return $factory->make($input, $rules, self::messages())->validate();
+        return $factory->make($input, $rules, [...self::messages(), ...$messages])->validate();
     }
 
     /** @return array<string, string> */

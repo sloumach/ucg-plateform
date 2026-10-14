@@ -847,8 +847,8 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   sportive non évaluée. Archive terminale après régularisation des obligations.
   Champs privés chiffrés, audit atomique, FK tenant composites, versions UUID,
   pagination et contrôles SQLite/PostgreSQL. Aucun montant avant CTR-004.
-  Push/CI et migration principale réservés à l’utilisateur ; après validation,
-  prochain P0 : CTR-002. Code, tests, CI et docs dans le même commit de tâche.
+  CTR-001 87953e0 poussé, CI vertes et migration validés par l’utilisateur ;
+  Ran, batch 20, vérifié en lecture seule avant CTR-002.
 
 ### UCG-CTR-002 — Versionner documents et avenants
 
@@ -856,6 +856,17 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Périmètre** : document, versions immuables, version signée et avenants liés.
 - **Acceptation** : aucun remplacement silencieux ; historique et hash du fichier conservés.
 - **Références CDC** : CTR-02, CTR-03.
+- **État au 14 octobre 2026** : implémenté localement avec API et interface.
+  Un original par contrat, avenants distincts liés à cet original signé,
+  versions numérotées append-only, empreinte SHA-256 calculée sur les octets
+  reçus, fichier et nom chiffrés, acteur et date conservés. Copie déclarée
+  signée identifiée par UUID/numéro/hash, liaison définitive et document figé.
+  Avenant sans modification implicite des termes ou de la période du contrat.
+  PDF ≤5 Mo conservés en stockage privé TEN-005 sous quotas, en attente d’analyse,
+  aucune route de téléchargement ou URL exposée avant CTR-003. Pas de certification
+  de signature ni d’approbation financière. Migrations déployées inchangées,
+  gardes SQLite/PostgreSQL, export fermé, audit atomique et nettoyage du nouveau
+  fichier après rollback. Après push/CI/migration utilisateur, prochain P0 : CTR-003.
 
 ### UCG-CTR-003 — Sécuriser dépôt et téléchargement des fichiers
 

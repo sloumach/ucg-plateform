@@ -157,3 +157,35 @@ lint/build et 16 Playwright verts. contract-records.spec.ts exerce création →
 revue → validation distincte → envoi → signature déclarée → activation →
 résiliation → obligation levée → archive et historique. API métier simulées :
 aucun contrat réel créé par les navigateurs.
+
+### Documents et avenants — CTR-002
+
+ContractDocumentsPanel est intégré au détail du contrat, sous les mêmes droits
+administratifs et la même isolation tenant/révision. Ouverture à la demande,
+documents et versions paginés par 10, original unique puis avenants liés.
+Après succès, le parent recharge le dossier et sa version courante ; les
+mutations suivantes utilisent cette version, sans rejeu automatique.
+
+Création d’un document avec référence et titre ; dépôt d’un PDF en multipart
+avec la version du contrat, distinction préparation/copie signée et confirmation
+du tenant. Les PDF sont privés, en attente d’analyse et sans téléchargement.
+Historique avec numéro, nom échappé, empreinte SHA-256 et nature de la version.
+Identification définitive d’une copie signée : UUID choisi, date et déclaration
+explicite. L’original signé est figé ; les évolutions passent par un avenant.
+
+Préparation originale au brouillon/en revue ; signed_copy et identification
+avec administrative.validate et contrat signé/actif/échu/résilié.
+Archive et lecteur en consultation seule. Les avenants ne modifient pas
+implicitement le statut ou les termes du contrat. Champs sensibles du fichier
+et l’empreinte sont reçus du serveur, jamais fournis par le navigateur.
+
+API TypeScript : src/api/contractDocuments.ts. usePeopleMutation réutilisé
+pour confirmations, notifications et erreurs ; 422 conserve saisie/fichier ;
+409 impose relecture/nouvelle confirmation. Lectures annulables, réponses
+tardives ignorées, aucun lien public ou stockage navigateur permanent.
+
+11 tests ContractDocumentsPanel ajoutés (152 frontend au total, 25 fichiers).
+contract-documents.spec.ts couvre deux préparations → copie signée → liaison
+définitive → avenant lié → dépôt → historique original conservé ; multipart,
+révision, confirmations, textes échappés, mobile 375/320 et police de repli.
+API métier simulées, aucune mutation documentaire réelle sur la base principale.

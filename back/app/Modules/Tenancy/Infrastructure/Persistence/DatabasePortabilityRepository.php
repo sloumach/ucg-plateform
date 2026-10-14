@@ -19,6 +19,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
         'contracts' => 'id', 'contract_parties' => 'id', 'contract_obligations' => 'id', 'contract_transitions' => 'id',
+        'contract_documents' => 'id', 'contract_document_versions' => 'id', 'contract_document_signatures' => 'id',
         'external_opponents' => 'id', 'external_opponent_snapshots' => 'id',
         'team_eligibility_rulesets' => 'id', 'team_lineup_rule_bindings' => 'id', 'team_lineup_eligibility_reports' => 'id',
         'team_lineups' => 'id', 'team_lineup_entries' => 'id',
@@ -42,6 +43,9 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
         'contracts' => ['id', 'organization_id', 'reference', 'type', 'title', 'responsible_person_id', 'responsible_name', 'starts_on', 'ends_on', 'status', 'version', 'created_by', 'prepared_by', 'approved_by', 'approved_at', 'signed_on', 'signature_reference', 'signature_recorded_at', 'terminated_on', 'created_at', 'updated_at'],
+        'contract_documents' => ['id', 'organization_id', 'contract_id', 'reference', 'kind', 'title', 'original_document_id', 'effective_on', 'created_by', 'created_at'],
+        'contract_document_versions' => ['id', 'organization_id', 'contract_id', 'document_id', 'artifact_id', 'number', 'purpose', 'filename', 'sha256', 'bytes', 'created_by', 'created_at'],
+        'contract_document_signatures' => ['id', 'organization_id', 'contract_id', 'document_id', 'document_version_id', 'version_number', 'sha256', 'signed_on', 'recorded_by', 'created_at'],
         'contract_parties' => ['id', 'organization_id', 'contract_id', 'kind', 'person_id', 'name', 'position', 'created_at', 'updated_at'],
         'contract_obligations' => ['id', 'organization_id', 'contract_id', 'title', 'due_on', 'position', 'status', 'version', 'created_at', 'updated_at'],
         'contract_transitions' => ['id', 'organization_id', 'contract_id', 'from_status', 'to_status', 'contract_version', 'actor_user_id', 'occurred_at'],

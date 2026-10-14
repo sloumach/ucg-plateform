@@ -63,13 +63,16 @@ class TenantStorageSchemaTest extends TestCase
         $organization = Organization::factory()->create();
         $migration = require database_path('migrations/2026_10_10_160242_create_tenant_artifact_ledger_tables.php');
         $importMigration = require database_path('migrations/2026_10_12_211057_create_person_import_tables.php');
+        $documents = require database_path('migrations/2026_10_14_193828_create_contract_documents_and_immutable_versions.php');
 
+        $documents->down();
         $importMigration->down();
         $migration->down();
         $this->assertFalse(Schema::hasTable('tenant_artifacts'));
         $this->assertFalse(Schema::hasTable('tenant_storage_usage'));
         $migration->up();
         $importMigration->up();
+        $documents->up();
 
         $this->assertTrue(Schema::hasTable('tenant_artifacts'));
         $this->assertTrue(Schema::hasTable('tenant_storage_usage'));

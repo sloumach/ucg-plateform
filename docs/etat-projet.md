@@ -9,8 +9,10 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-CTR-001` — dossiers contractuels privés, parties,
-  responsable, dates, obligations et transitions contrôlées, avec API et interface.
+- Dernier ticket traité : `UCG-CTR-002` — documents et avenants distincts,
+  versions de PDF immuables et identification de la copie déclarée signée.
+- CTR-001 (`87953e0`) : push, CI vertes et migration confirmés par l’utilisateur
+  avant CTR-002 ; migration vérifiée en lecture seule : Ran, batch 20.
 - TEAM-006 (`564dd59`) : push, CI vertes et migration confirmés par l’utilisateur
   avant CTR-001 ; migration vérifiée en lecture seule : Ran, batch 19.
 - TEAM-005 (`0d46afe`) : push et CI vertes confirmés par l’utilisateur le
@@ -56,9 +58,9 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : push utilisateur CTR-001 et validation des CI, sauvegarde
+- Prochaine action : push utilisateur CTR-002 et validation des CI, sauvegarde
   puis `php artisan migrate` depuis `back/`. Migration additive
-  `2026_10_14_184245_create_contract_records_and_lifecycle`, réservée à
+  `2026_10_14_193828_create_contract_documents_and_immutable_versions`, réservée à
   l’utilisateur sur la base principale, statut Pending vérifié en lecture seule.
   Code, tests, CI et docs dans le même commit. Aucune référence réelle, personne
   réelle, adhésion, attribution de rôle ou capture réelle créée par l’agent ;
@@ -76,9 +78,9 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après push/CI/migration CTR-001, prochaine étape recommandée du backlog :
-  `UCG-CTR-002`, versions immuables de documents et avenants, puis CTR-003
-  pour le dépôt et le téléchargement privés.
+- Après push/CI/migration CTR-002, prochaine étape recommandée du backlog :
+  `UCG-CTR-003`, analyse de contenu et téléchargement privé avec nouvelle
+  autorisation et liens temporaires. Les dépôts CTR-002 restent sans téléchargement.
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
@@ -1637,3 +1639,95 @@ ensuite ce fichier pour qu'il reflète la réalité.
   Prochaine action : push utilisateur, vérifier CI, sauvegarder puis
   php artisan migrate depuis back/. Prochain P0 : UCG-CTR-002, versions immuables
   des documents et avenants, avec CTR-003 pour leur dépôt privé.
+
+## Versions documentaires et avenants — UCG-CTR-002
+
+- CTR-001 87953e0 : push, CI vertes et migration confirmés par l’utilisateur.
+  Branche propre et synchronisée au démarrage ; migration Ran, batch 20,
+  vérifiée en lecture seule. Migration CTR-002 additive, jamais exécutée sur
+  la base principale par l’agent.
+- Document original unique, avenants distincts liés à cet original signé,
+  référence/titre/type/origine/date d’effet immuables. Jusqu’à 100 avenants
+  par contrat. Date d’effet déclarative, sans modification automatique de dates,
+  parties, obligations, statut ou éligibilité sportive du contrat.
+- PDF jusqu’à 5 Mo et 100 versions/document ; extension/MIME/en-tête vérifiés,
+  nom affiché borné et sans chemin/contrôle. Chaque dépôt conserve un UUID neuf,
+  numéro consécutif, empreinte SHA-256 calculée côté serveur, taille claire,
+  acteur et date serveur. Titres et noms chiffrés ; fichiers chiffrés.
+  Aucun hash, chemin, artefact, numéro ou contenu de preuve accepté du client.
+- TenantArtifacts TEN-005 réutilisé pour le stockage privé et les quotas
+  (octets chiffrés inclus). Le fichier n’est pas servi ou interprété :
+  scan_status=pending/download_available=false, aucune route de téléchargement,
+  aucun aperçu, aucune URL ni clé de stockage dans les Resources.
+  Analyse de contenu et délivrance sécurisée relèvent du prochain CTR-003.
+- Copie reçue hors plateforme déposée comme signed_copy puis identification
+  explicite de sa version. Liaison définitive avec UUID/numéro/hash/date/acteur ;
+  le document lié ne reçoit plus de version. Original : date de signature égale
+  à celle déclarée dans le contrat. Signature externe déclarative, aucun
+  certificat de validité ni approbation financière implicite.
+  Les contrats signés existants restent sans document inventé.
+- Contrôleur mince, Form Request/Gate/Resources fermées,
+  ContractDocumentService et ContractDocumentRepository/EloquentRepository.
+  Policy Contracts existante réutilisée ; lecture administrative.read,
+  gestion aussi administrative.write, copie signée/identification aussi
+  administrative.validate. MFA/CSRF/révision/confirmation du tenant actif,
+  version UUID du contrat exigée et actualisée à chaque mutation.
+  Aucun droit implicite propriétaire/technique/sportif ; références étrangères 404.
+- Préparation originale seulement draft/in_review, met à jour prepared_by
+  pour maintenir l’interdiction de s’auto-approuver. Copie signée/liaison après
+  déclaration du contrat en signed/active/ended/terminated. Avenant exige
+  l’original lié ; archive terminale en lecture seule. Pas de montant CTR-004.
+- Verrou organisation/contrat, permissions et versions recontrôlées après I/O.
+  Réservation durable avant transaction documentaire ; panne de metadata/audit
+  annule la mutation et nettoie seulement le nouveau fichier. En cas de nettoyage
+  incertain, erreur rapportée et réservation conservée pour réconciliation.
+  Versions précédentes jamais écrasées/supprimées. Audit atomique minimal :
+  UUID contrat/document/version et état, sans texte, nom, hash ou contenu.
+- Migration 2026_10_14_193828_create_contract_documents_and_immutable_versions :
+  contract_documents, contract_document_versions, contract_document_signatures.
+  FK composites tenant/contrat/document/original/version/artefact sans cascade ;
+  index de pages/numéros ; original et liaison signée uniques.
+  Gardes SQL SQLite/PostgreSQL sur append-only, numérotation, hash hexadécimal,
+  artefact prêt, état du contrat et cohérence de la copie signée.
+  PostgreSQL verrouille aussi l’organisation dans les triggers d’insertion.
+  Down refuse les données avant DDL ; aucun backfill ni migration déployée modifiée.
+- Export fermé TEN-007 enrichi des trois tables/colonnes, chiffrement conservé ;
+  fichiers couverts par le ledger existant. Tests de rollback vides de Contracts,
+  People, imports, stockage et Tenancy adaptés à l’ordre des nouvelles dépendances.
+- Pages API ≤100/UI 10. Listes avec comptages et signature eager-loaded ;
+  versions sur endpoint séparé, jamais les fichiers chargés en liste.
+  Nombre de requêtes constant vérifié sur 1/101 documents. Budgets techniques,
+  pas de benchmark millions d’utilisateurs ; profiler latence de stockage,
+  pagination, quotas chiffrés et contention du verrou avant de relever les limites.
+- React : panneau dans le dossier, chargement à l’ouverture, documents et
+  versions paginés, dépôt multipart, empreinte visible, identification déclarée
+  de la copie signée et avenant lié. Après succès, parent rechargé avec sa version.
+  Lectures annulables et réponses tardives ignorées ; changement de tenant/
+  révision/droits remonte le workspace. 422 conserve saisie/fichier ;
+  409 impose relecture et nouvelle confirmation sans rejeu automatique.
+  Textes échappés, mobile 375/320, noms longs et police de repli vérifiés.
+- 48 tests backend ajoutés ; SQLite complet : 1325 tests, 1322 réussis,
+  5783 assertions, 3 exclusions attendues. Tests de transactions, quotas,
+  100 versions retenues, conflit entre stockage et metadata, isolation, permissions,
+  chiffrement, hash réel, origine signée, rollback, export et UUID majuscules.
+  PostgreSQL temporaire recréé à vide avant chaque suite pour éviter les fonctions
+  de triggers résiduelles. Ne pas lancer SQLite et PostgreSQL simultanément :
+  leurs Storage::fake('local') nettoient le même répertoire, ce qui invalide les
+  assertions de fichiers d’une autre suite. Relances réalisées successivement.
+- PostgreSQL 17 complet : 1325 tests, 1323 réussis, 5784 assertions,
+  2 exclusions Redis attendues. Base de test temporaire supprimée après réussite.
+  Les tests de rollback vides imports/stockage ont détecté les nouvelles FK en
+  PostgreSQL ; ordre des dépendances corrigé dans les tests, puis suite complète
+  verte. Aucun changement de migration déjà déployée ni contournement par CASCADE.
+- 152 tests frontend dans 25 fichiers, dont 11 nouveaux ; 17 Playwright verts
+  sous Chrome Windows CI/UTC. Le parcours documentaire conserve deux préparations,
+  la copie déclarée signée puis un avenant, sans remplacement de l’original.
+  API métier simulées ; captures inspectées. Lint/build, PHPStan niveau 8,
+  architecture, Pint dirty/format:check et composer validate verts.
+  CI PostgreSQL enrichie des trois fichiers Feature documentaires.
+- Migration principale CTR-002 Pending, vérifiée en lecture seule.
+  Aucun document/contrat/personne/compte/rôle réel créé, aucun e-mail envoyé.
+  Code, tests, CI, README/API/architecture/backlog/reprise dans un seul commit local.
+  Prochaine action : push utilisateur, CI vertes, sauvegarde puis
+  php artisan migrate depuis back/. Prochain P0 : UCG-CTR-003, analyse de contenu
+  et téléchargement privé avec autorisation renouvelée et liens temporaires.

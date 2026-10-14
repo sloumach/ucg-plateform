@@ -11,6 +11,7 @@ import { Alert } from '../feedback/Alert'
 import { apiError, shouldReloadContext } from '../people/peopleFormValues'
 import { SelectField } from '../people/peopleForms'
 import { usePeopleMutation } from '../people/usePeopleMutation'
+import { ContractDocumentsPanel } from './ContractDocumentsPanel'
 
 type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
 type PartyInput = { kind: 'person' | 'external'; person_id: string | null; name: string }
@@ -58,7 +59,7 @@ export function ContractsPanel({ active, disabled, onInvalid }: Props) {
       } finally { if (!controller.signal.aborted) setDetailLoading(false) }
     }
     void load(); return () => controller.abort()
-  }, [org, revision, allowed, open, detailId, invalidate])
+  }, [org, revision, allowed, open, detailId, refresh, invalidate])
   if (!org || !allowed) return null
   const blocked = disabled || loading || detailLoading || mutation.blocked
   const detailPath = detail ? contractsPath(org, detail.id) : ''
@@ -97,6 +98,8 @@ export function ContractsPanel({ active, disabled, onInvalid }: Props) {
         <h3 className="font-bold [overflow-wrap:anywhere]">{detail.title}</h3>
         <p>{text('status.' + detail.status)} · {detail.in_force ? text('inForce') : text('notInForce')}</p>
         <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('eligibility')}</p>
+        <ContractDocumentsPanel key={detail.id} active={active} record={detail} disabled={blocked} onInvalid={invalidate}
+          onChanged={() => { setDetailLoading(true); setEditing(false); setRefresh((value) => value + 1) }} />
         <p className="[overflow-wrap:anywhere]">{text('responsible')} : {detail.responsible_name}</p>
         <p>{text('starts_on')} : {detail.starts_on ?? '—'} · {text('ends_on')} : {detail.ends_on ?? '—'}</p>
         {detail.signed_on && <p className="[overflow-wrap:anywhere]">{text('signature')} : {detail.signed_on} · {detail.signature_reference}. {text('signatureHint')}</p>}
