@@ -1354,3 +1354,37 @@ complètes SQLite 1144/1141, 4923 assertions (3 exclusions) et PostgreSQL 17
 118 tests frontend, 14 Playwright verts, mobile 375/320 et police de repli large.
 PHPStan 8, architecture, Pint/format:check, lint/build verts. CI distante à valider
 après push. Migration TEAM-005 Pending confirmée en lecture seule.
+
+## Adversaires et organisations externes — UCG-TEAM-006
+
+Le panneau « Adversaires et organisations externes » fournit un référentiel privé
+par organisation : organisations externes, équipes et pseudonymes adverses,
+source publique déclarée et date d’observation. Lecture avec sports.read organisation ;
+gestion aussi avec teams.manage, MFA, CSRF et confirmation du tenant actif.
+La saisie ne crée aucun compte ni droit pour l’adversaire.
+
+Clé, type et jeu fixes ; édition partielle avec version UUID, archive définitive
+et lisible. Les URL HTTPS sont conservées comme citations, sans accès réseau.
+L’utilisateur confirme que les faits sont publics et autorisés pour ce suivi.
+Les références ne publient aucune donnée sur un site public.
+
+« Instantanés conservés » copie les informations actuelles pour un contexte sportif
+nommé. Renommer/archiver la référence ne modifie pas cette preuve.
+Les futurs modules Match/Competition utiliseront ExternalOpponents ;
+aucune fiche fictive ni inscription n’est créée par ce ticket.
+Contrat API et exemples : docs/conventions-api.md, section TEAM-006.
+
+Migration additive `2026_10_14_121838_create_external_opponents_and_snapshots`.
+Après sauvegarde et validation des CI, appliquer `php artisan migrate` depuis
+back/. Aucun migrate:fresh sur la base principale. Down refuse de supprimer les
+données conservées ; préférer une correction en avant. Aucune donnée réelle à
+reprendre ni référence réelle préchargée. Export de maintenance enrichi des
+deux tables. Pages API ≤100/UI 10, 1000 références par tenant et 1000 instantanés
+par référence ; ces limites sont techniques, sans benchmark de forte charge.
+
+Validation TEAM-006 : 1212 tests backend (SQLite : 1209 réussis, 5258 assertions,
+3 exclusions attendues ; PostgreSQL : 1210 réussis, 5259 assertions, 2 exclusions
+Redis), 129 tests frontend, lint/build et 15 Playwright verts. PHPStan niveau 8,
+Pint complet/dirty, composer format:check et validate verts. La base PostgreSQL
+utilisée pour les tests a été créée séparément puis supprimée. Migration principale
+TEAM-006 toujours Pending ; aucune donnée réelle créée par l’agent.

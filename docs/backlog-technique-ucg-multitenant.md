@@ -594,6 +594,18 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : références externes, données publiques autorisées et snapshots de compétition, sans accès aux tenants des adversaires ni portail adversaire.
 - **Acceptation** : aucun droit interne attribué à un adversaire ; aucune donnée privée importée depuis un autre tenant.
 - **Références CDC** : TEAM-07, TEAM-09.
+- **Avancement (14 octobre 2026)** : référentiel organisation/team/player privé
+  au tenant, sources publiques déclarées et dates d’observation ; aucun compte,
+  droit ou accès au tenant adverse. Clé/type/jeu immuables, modification partielle
+  versionnée, archive définitive. Instantanés append-only capturés côté serveur,
+  provenance/version/auteur conservés ; port public ExternalOpponents pour les
+  futurs matchs/compétitions, sans identifiants métier fictifs. Form Requests,
+  Policies, Repository, Services, Resources, audit atomique minimal, FK tenant
+  composites et gardes SQL SQLite/PostgreSQL. API paginée et UI privée avec
+  confirmations, annulation des lectures et contrôle mobile 375/320. Migration
+  additive prête, application sur la base principale réservée à l’utilisateur.
+  Push et CI du nouveau ticket à confirmer. Prochaine étape recommandée :
+  documents privés et contrats (UCG-CTR-001).
 
 ## 9 Module Académie et coaching
 

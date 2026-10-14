@@ -113,3 +113,20 @@ imports.spec.ts couvre dépôt → preview → confirmation → rapport, mobile 
 sans débordement global. API métier simulées : aucune importation réelle dans le
 navigateur. Validation frontend totale : 77 tests Vitest, lint/build et 8 parcours
 Playwright verts.
+
+### Références externes — TEAM-006
+
+ExternalOpponentsPanel est intégré à TenantWorkspace et exige sports.read
+organisation ; teams.manage ajoute création/édition/archivage/capture.
+Source, date d’observation, nom public et pseudonyme sont rendus comme texte
+échappé ; les URL ne sont pas suivies automatiquement. Les mutations demandent
+confirmation du tenant et déclaration de faits publics autorisés, avec la version
+courante. Seuls les champs modifiés sont envoyés, sans rafraîchir automatiquement
+l’observation. Une archive reste lisible avec ses instantanés définitifs.
+
+API TypeScript : src/api/externalOpponents.ts. Remontage par tenant/révision/droits,
+lectures annulables, relecture après 409 et saisie conservée après 422.
+ExternalOpponentsPanel.test.tsx couvre droits, rendu, confirmations, mutations,
+conflits et réponses tardives. external-opponents.spec.ts couvre création → capture
+→ renommage → archivage → historique conservé, mobile 375/320 et noms longs avec
+police de repli. Les API métier sont simulées ; aucune donnée réelle créée.

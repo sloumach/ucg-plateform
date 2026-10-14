@@ -1557,3 +1557,98 @@ await tenancyRequest(
 )
 // Le figement, confirmé séparément, refait le contrôle ; ce rapport n’est pas une autorisation.
 ```
+
+## Références externes et instantanés — UCG-TEAM-006
+
+Ces routes sont privées à l’organisation active, sous `/api/v1` :
+
+| Méthode | Route | Usage |
+| --- | --- | --- |
+| GET | `tenants/{tenant}/external-opponents` | Recherche paginée |
+| POST | `tenants/{tenant}/external-opponents` | Création d’une référence |
+| GET | `tenants/{tenant}/external-opponents/{opponent}` | Lecture |
+| PATCH | `tenants/{tenant}/external-opponents/{opponent}` | Modification partielle ou archivage |
+| GET | `tenants/{tenant}/external-opponents/{opponent}/snapshots` | Historique paginé |
+| POST | `tenants/{tenant}/external-opponents/{opponent}/snapshots` | Capture définitive des faits actuels |
+
+Lecture : `sports.read` à l’échelle organisation. Écriture : aussi `teams.manage`,
+MFA, CSRF, révision et confirmation du tenant actif. Aucun droit implicite pour le
+propriétaire ou l’administrateur ; un périmètre équipe seul ne donne pas accès au
+référentiel organisationnel. Identifiants étrangers : 404, même pour un membre des
+deux tenants. Pas de DELETE, de portail adversaire ni de droit attribué à la saisie.
+
+POST référence exige `key` (slug local ≤80), `kind` parmi organization/team/player,
+`name` ≤120, `source_label` ≤160, `observed_at` au format
+`Y-m-dTH:i:sP` avec fuseau, non futur, et `confirm_public_data` accepté.
+Champs facultatifs : `game_id` nullable, `short_name` ≤24,
+`organization_name` ≤120, `source_url` HTTPS ≤1000 et `status` active/archived.
+Le nom d’organisation est un libellé public, jamais un lien vers un tenant réel.
+Le jeu, s’il est renseigné, doit être disponible dans le catalogue du tenant.
+Sans jeu associé, la référence peut être créée même sans activation de jeu.
+
+PATCH exige `version` UUID courante et `confirm_public_data` accepté. Seulement
+les champs réellement modifiés sont transmis. Identité `id/tenant/key/kind/game_id`
+fixe ; les champs inconnus, comptes, permissions, coordonnées et rosters sont
+refusés. Une date d’observation omise n’est pas rafraîchie par un renommage.
+Une archive reste lisible et réserve sa clé, mais ne peut être réactivée, éditée
+ou utilisée pour une nouvelle capture. L’archivage seul reste possible après le
+retrait du jeu.
+
+Les URL sont des citations saisies, jamais téléchargées, prévisualisées ni
+interrogées par le serveur. HTTPS exigé ; identifiants de connexion, localhost,
+domaines locaux évidents et adresses IP privées/réservées refusés. Aucune résolution
+DNS ni vérification automatique du caractère public des faits ; leur provenance
+et l’autorisation de les utiliser sont déclarées par l’utilisateur.
+L’interface affiche les URL comme texte échappé.
+
+POST instantané accepte exclusivement `version`, `context_label` ≤120 non vide
+et `confirm_public_data`. Les noms, jeu, source et observation sont copiés côté
+serveur, avec version de référence, auteur et date de capture. Aucune fiche Match
+ou Competition fictive : le contexte est un libellé humain et ne vaut pas
+inscription. Les futurs modules utiliseront le port `ExternalOpponents` puis leurs
+propres relations et Policies. Renommage, archivage et modification du catalogue
+ne réécrivent jamais un instantané déjà conservé.
+
+Réponse référence : id, key, kind, name, short_name, organization_name,
+game_id/key/name, source_label/url, observed_at, status, version,
+publication_status=private. Réponse instantané : id, opponent_id/version,
+context_label, kind, name, short_name, organization_name, game_key/name,
+source_label/url, observed_at, captured_at, created_by, publication_status=private.
+Pas d’organisation propriétaire, d’identité administrative ou de permission copiée.
+
+GET références : q (préfixe littéral ≤80), kind, status, game_id, sort=name/newest
+et page/per_page. GET instantanés : uniquement page/per_page.
+Pages API 1..100, UI 10, 1000 références par tenant et 1000 instantanés par référence.
+Limites et clés réservées incluent les archives. Recherche, relations catalogue et
+historique filtrent le tenant ; pagination stable, tri secondaire UUID.
+
+Conflits : `EXTERNAL_OPPONENT_VERSION_STALE`, `EXTERNAL_OPPONENT_ARCHIVED`,
+`EXTERNAL_OPPONENT_KEY_ALREADY_EXISTS`, `EXTERNAL_OPPONENT_LIMIT_REACHED`,
+`EXTERNAL_OPPONENT_SNAPSHOT_LIMIT_REACHED` ; jeu retiré :
+`GAME_CONTEXT_UNAVAILABLE`. Après 409 : relire puis confirmer à nouveau,
+sans rejeu automatique. Une capture est une nouvelle preuve : aucun rejeu
+automatique ni déduplication de captures explicitement confirmées.
+Audit atomique minimal (UUID, état, version, noms des champs modifiés),
+sans contenu des noms, URL, source ou libellé de contexte.
+
+```ts
+// Après confirmation humaine de l’action et du tenant actif.
+// tenancyRequest gère les cookies et CSRF ; activeRevision vient du serveur.
+const created = await tenancyRequest<ApiSuccessResponse<ExternalOpponent>>(
+  `tenants/${organizationId}/external-opponents`,
+  { method: 'POST', revision: activeRevision, body: {
+    key: 'adversaire-public', kind: 'team', name: 'Équipe adverse',
+    source_label: 'Liste publique des participants',
+    source_url: 'https://example.com/participants',
+    observed_at: '2026-10-01T12:00:00+00:00', confirm_public_data: true,
+  } },
+)
+// Nouvelle confirmation humaine pour conserver un instantané.
+await tenancyRequest(
+  `tenants/${organizationId}/external-opponents/${created.data.id}/snapshots`,
+  { method: 'POST', revision: activeRevision, body: {
+    version: created.data.version, context_label: 'Compétition suivie',
+    confirm_public_data: true,
+  } },
+)
+```

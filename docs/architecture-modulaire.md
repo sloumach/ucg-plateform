@@ -1076,3 +1076,49 @@ Pages <=100 (UI 10), 1000 règlements/organisation et 100 rapports/composition,
 dont une place réservée au contrôle final. Ces budgets ne sont pas un benchmark.
 Profiler cardinalités et contention du verrou organisation avant de les relever ;
 pas de traitement asynchrone pour le contrôle final qui doit rester atomique.
+
+## Références d’adversaires — UCG-TEAM-006
+
+Teams possède `external_opponents` et `external_opponent_snapshots`.
+Une référence décrit une organisation externe, une équipe ou un pseudonyme de
+joueur à partir de faits publics déclarés : aucun compte, adhésion, permission,
+People ou objet d’un tenant voisin n’est créé ou interrogé. Le libellé
+organization_name est indépendant des organisations réelles de la plateforme.
+
+Le Controller utilise Form Requests, Gate et Resources fermées.
+ExternalOpponentService orchestre création, édition partielle et archivage ;
+ExternalOpponentSnapshotService capture les faits actuels et expose le contrat
+public ExternalOpponents. ExternalOpponentRepository/EloquentExternalOpponentRepository
+portent les requêtes filtrées par UUID tenant. Le port public retourne une projection
+fermée ; le futur module appelant reste responsable de l’autorisation et des
+relations de son objet métier. Pas d’identifiant fictif de compétition ou de match.
+
+Toutes les mutations prennent le verrou organisation puis la référence, revérifient
+les droits et écrivent leur audit dans la même transaction. Contrôle optimiste
+par version UUID pour référence/capture, aucune permission mise en cache.
+sports.read organisation pour lire, aussi teams.manage pour écrire ; la politique
+ne transforme pas un rôle propriétaire ou un périmètre équipe en droit global.
+
+Migration additive, sans backfill ni modification des migrations déployées.
+FK organisation directe et FK composite tenant/source pour les instantanés,
+sans cascade. Identité et archives protégées en SQL SQLite/PostgreSQL ;
+instantané append-only avec comparaison des faits et version à l’insertion.
+PostgreSQL verrouille aussi l’organisation dans le trigger de capture.
+Les noms de jeu copiés ne sont pas résolus à la lecture historique.
+Down refuse les données avant toute DDL ; correction en avant sur une base utilisée.
+Les deux tables et chaque colonne sont inscrites explicitement dans l’export.
+
+Relations catalogue eager-loaded ; pagination ≤100 (UI 10), index tenant/nom,
+tenant/type/statut et tenant/jeu/statut ; historique tenant/source/date.
+1000 références par tenant et 1000 instantanés par référence, archives incluses.
+Nombre de requêtes constant vérifié sur plusieurs tailles de page.
+Aucun benchmark de forte charge ; mesurer recherche LOWER, profondeur de pagination
+et contention du verrou organisation avant d’augmenter ces budgets.
+Pas de cache de droits ni de job nécessaire pour la petite capture atomique.
+URLs jamais téléchargées ou suivies automatiquement.
+
+Le panneau React est remonté sur tenant/révision/permissions par TenantWorkspace.
+Lectures annulables, réponses tardives ignorées, confirmations d’organisation
+avant mutation, déclaration de faits publics, version courante et champs modifiés
+seulement. Source et date d’observation restent visibles ; données échappées.
+Archive et instantané sont conservés sans publication automatique.

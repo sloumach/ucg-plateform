@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Teams\Presentation\Http\Controllers\Api\V1\ExternalOpponentController;
 use App\Modules\Teams\Presentation\Http\Controllers\Api\V1\GameCatalogueController;
 use App\Modules\Teams\Presentation\Http\Controllers\Api\V1\OrganizationGameController;
 use App\Modules\Teams\Presentation\Http\Controllers\Api\V1\TeamController;
@@ -7,6 +8,16 @@ use App\Modules\Teams\Presentation\Http\Controllers\Api\V1\TeamEligibilityContro
 use App\Modules\Teams\Presentation\Http\Controllers\Api\V1\TeamLineupController;
 use App\Modules\Teams\Presentation\Http\Controllers\Api\V1\TeamMembershipController;
 use Illuminate\Support\Facades\Route;
+
+Route::prefix('tenants/{tenant}/external-opponents')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
+    $controller = ExternalOpponentController::class;
+    Route::get('/', [$controller, 'index'])->name('external-opponents.index');
+    Route::get('{opponent}', [$controller, 'show'])->whereUuid('opponent')->name('external-opponents.show');
+    Route::post('/', [$controller, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('external-opponents.store');
+    Route::patch('{opponent}', [$controller, 'update'])->whereUuid('opponent')->middleware('tenant.confirmed')->block(10, 10)->name('external-opponents.update');
+    Route::get('{opponent}/snapshots', [$controller, 'snapshots'])->whereUuid('opponent')->name('external-opponents.snapshots');
+    Route::post('{opponent}/snapshots', [$controller, 'capture'])->whereUuid('opponent')->middleware('tenant.confirmed')->block(10, 10)->name('external-opponents.capture');
+});
 
 Route::prefix('tenants/{tenant}/teams')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
     $eligibility = TeamEligibilityController::class;

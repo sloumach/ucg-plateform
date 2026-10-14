@@ -5,12 +5,15 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 13 octobre 2026.
+- Dernière mise à jour : 14 octobre 2026.
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-TEAM-005` — règlements versionnés et rapports
-  explicables d’éligibilité, contrôlés à la finalisation des compositions liées.
+- Dernier ticket traité : `UCG-TEAM-006` — références externes privées et
+  instantanés immuables d’adversaires, avec API, interface et contrôles d’isolation.
+- TEAM-005 (`0d46afe`) : push et CI vertes confirmés par l’utilisateur le
+  14 octobre 2026. Migration appliquée par l’utilisateur, vérifiée en lecture
+  seule : Ran, batch 18. Aucun changement aux données métier réelles par l’agent.
 - IAM-006 et son correctif `0b85252` poussés ; push, migration et CI validés
   par l’utilisateur dans cette discussion. Migration confirmée en lecture seule :
   `Ran`, batch 9. L’échec initial `38174777644` reste documenté ci-dessous.
@@ -51,12 +54,13 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : push utilisateur TEAM-005 et validation des CI, sauvegarde
+- Prochaine action : push utilisateur TEAM-006 et validation des CI, sauvegarde
   puis `php artisan migrate` depuis `back/`. Migration additive
-  `2026_10_13_215251_create_team_eligibility_rules_and_reports`, réservée à l’utilisateur sur la
-  base principale, statut Pending vérifié en lecture seule. Code, tests, CI et
-  docs dans le même commit. Aucun
-  fichier utilisateur réel importé, personne réelle créée, compte lié ou e-mail envoyé.
+  `2026_10_14_121838_create_external_opponents_and_snapshots`, réservée à
+  l’utilisateur sur la base principale, statut Pending vérifié en lecture seule.
+  Code, tests, CI et docs dans le même commit. Aucune référence réelle, personne
+  réelle, adhésion, attribution de rôle ou capture réelle créée par l’agent ;
+  aucun e-mail envoyé.
 - Format de commit convenu : `UCG-ID: description`, sans préfixe `feat(...)`.
 - Accord utilisateur : un seul commit de tâche regroupe code, tests et docs de
   reprise. Aucun commit documentaire séparé après la tâche ; les confirmations
@@ -70,8 +74,8 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après push/CI/migration TEAM-005, prochain ticket P0 : `UCG-TEAM-006`
-  (adversaires et organisations externes, références publiques privées au tenant).
+- Après push/CI/migration TEAM-006, prochaine étape recommandée du backlog :
+  documents privés et contrats, à commencer par `UCG-CTR-001`.
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
 - `TEN-004` : push utilisateur effectué ; CI backend et frontend confirmées réussies
@@ -1511,3 +1515,55 @@ ensuite ce fichier pour qu'il reflète la réalité.
   un seul commit de tâche. Prochaine action : push/CI utilisateur, sauvegarde puis
   php artisan migrate depuis back/. Prochain P0 : UCG-TEAM-006, adversaires et
   organisations externes (références publiques privées au tenant).
+
+## Références externes — UCG-TEAM-006
+
+- Confirmation utilisateur du 14 octobre : TEAM-005 poussé et CI vertes ; migration
+  principale appliquée par l’utilisateur et confirmée en lecture seule Ran, batch 18.
+- Référentiel tenant organization/team/player : clé stable, nom public/pseudonyme,
+  nom court, libellé d’organisation externe, jeu facultatif, source et observation.
+  Aucune liaison vers un tenant voisin, personne privée, compte ou permission.
+  Les URL sont des citations HTTPS, jamais téléchargées ou prévisualisées ;
+  faits publics et autorisés déclarés par l’utilisateur, pas de certification.
+- API GET liste/détail, POST et PATCH partiel/archive ; Policy et Form Requests,
+  Controller mince, Services et Repository injectés, Resources fermées. Lecture
+  sports.read organisation ; écriture aussi teams.manage, MFA, CSRF/révision et
+  confirmation du tenant. Aucun droit implicite propriétaire ni périmètre équipe.
+- Instantanés avec contexte sportif nommé, version de source, auteur/date et
+  faits copiés côté serveur sous verrou organisation/référence ; archive et
+  renommage ultérieurs sans réécriture. Port public ExternalOpponents pour les
+  futurs modules Match/Competition. Aucune fiche métier fictive ni inscription.
+- Audit minimal atomique (UUID/état/version/champs, pas les textes). Panne d’audit
+  = rollback de création, édition ou capture. Conflit 409 = relecture et nouvelle
+  confirmation ; pas de rejeu automatique. Lectures annulées et réponses tardives
+  ignorées au changement de tenant/révision/droits ou fermeture de l’historique.
+- Migration additive 2026_10_14_121838_create_external_opponents_and_snapshots :
+  deux tables, FK tenant composites sans cascade, identité/archives protégées,
+  snapshots append-only et copie cohérente protégées en SQL SQLite/PostgreSQL.
+  Export fermé enrichi des tables/colonnes. Down refuse les données avant DDL ;
+  tests de rollback des migrations antérieures adaptés à l’ordre des dépendances.
+  Migrations déjà déployées inchangées ; aucun backfill.
+- Pagination API <=100/UI 10, 1000 références/tenant et 1000 snapshots/référence,
+  archives incluses ; index tenant/nom, type/statut, jeu/statut et source/date.
+  Relations catalogue eager-loaded ; nombre de requêtes constant testé.
+  Pas de benchmark de forte charge, droits non mis en cache.
+- UI privée, recherche/filtres, création/édition/archive, provenance visible,
+  déclaration de faits publics, capture et historique. 422 conserve la saisie et
+  remet le focus sur le champ invalide. Textes échappés ; mobile 375/320 et longs
+  noms/sources/contextes vérifiés, avec police de repli, sans débordement global.
+- Validation : 68 tests backend ajoutés ; SQLite complet 1212 tests, 1209 réussis,
+  5258 assertions et 3 exclusions attendues. PostgreSQL 17 complet : 1212 tests,
+  1210 réussis, 5259 assertions et 2 exclusions Redis attendues. Première relance
+  sur la base temporaire réutilisée invalide à cause de fonctions de triggers
+  résiduelles ; base recréée à vide, suite complète verte, puis base supprimée.
+  Base principale consultée uniquement en lecture avec migrate:status.
+- Frontend : 129 tests (23 fichiers), lint/build et 15 Playwright verts avec
+  Chrome Windows en CI/UTC. Captures mobile inspectées. PHPStan niveau 8,
+  architecture, Pint complet/dirty, composer format:check et validate verts.
+  CI PostgreSQL enrichie des trois fichiers du ticket.
+- Nouvelle migration principale Pending, application réservée à l’utilisateur.
+  Aucun adversaire réel, instantané réel, compte, adhésion ou rôle créé, aucun
+  e-mail envoyé. Tests sur SQLite, PostgreSQL temporaire et API navigateur simulées.
+- Code, tests, CI et documentation regroupés dans le même commit de tâche.
+  Prochaine action : push et CI utilisateur, sauvegarde puis php artisan migrate
+  depuis back/. Prochaine étape recommandée : documents et contrats, UCG-CTR-001.
