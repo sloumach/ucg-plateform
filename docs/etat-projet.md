@@ -11,6 +11,11 @@
 - Branche de travail : `staging`.
 - Dernier ticket traité : `UCG-CTR-003` — analyse ClamAV et téléchargement privé
   lié au compte, à la version immuable et au dernier verdict.
+- CTR-003 (`32100e5`) poussé par l’utilisateur ; CI backend échouée sur le test
+  de comptage global des requêtes (41 puis 39). Correctif local : comptage limité
+  aux versions/analyses et couverture explicite des caches array/database.
+  Validation CI du correctif encore à confirmer après son push utilisateur.
+  Migration CTR-003 vérifiée en lecture seule après cet échec : Ran, batch 22.
 - CTR-002 (`ce268f6`) : push, CI vertes et migration confirmés par l’utilisateur
   avant CTR-003 ; migration vérifiée en lecture seule : Ran, batch 21.
 - CTR-001 (`87953e0`) : push, CI vertes et migration confirmés par l’utilisateur
@@ -60,10 +65,9 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : push utilisateur CTR-003 et validation des CI, sauvegarde
-  puis `php artisan migrate` depuis `back/`. Migration additive
-  `2026_10_14_204339_create_contract_document_scans`, réservée à
-  l’utilisateur sur la base principale, statut Pending vérifié en lecture seule.
+- Prochaine action : push utilisateur du correctif CI CTR-003 et validation des CI.
+  Migration `2026_10_14_204339_create_contract_document_scans` déjà appliquée,
+  vérifiée Ran, batch 22. Le correctif de test n’ajoute aucune migration.
   Préparer clamd/freshclam et le worker reports, puis exécuter le test opt-in réel
   documenté dans README avant l’ouverture des téléchargements.
   Code, tests, CI et docs dans le même commit. Aucune référence réelle, personne
@@ -1797,3 +1801,30 @@ ensuite ce fichier pour qu'il reflète la réalité.
   Aucun push, migration principale, installation de service ni donnée métier réelle
   par l’agent ; aucun e-mail envoyé. Prochaine action utilisateur : push, CI vertes,
   sauvegarde/migrate et mise en service ClamAV/worker. Prochain P0 : UCG-CTR-004.
+
+
+## Correctif CI de comptage documentaire — UCG-CTR-003
+
+- Commit 32100e5 poussé par l’utilisateur. CI backend échouée uniquement sur
+  test_version_list_loads_latest_verdicts_without_per_version_queries :
+  première lecture 41 requêtes SQL, lecture suivante 39. Migration principale
+  CTR-003 vérifiée en lecture seule : Ran, batch 22.
+- Échec reproduit exactement en local avec TENANCY_CACHE_STORE=database,
+  configuré dans .env.example repris par la CI. Le limiteur HTTP tenant crée
+  les deux entrées cache (compteur et timer) sur la première requête, puis les
+  réutilise. Le test comptait ces requêtes techniques dans son budget documentaire.
+- Correctif limité au test : comparer les requêtes visant les versions/analyses
+  sur une puis onze versions (page de dix), et exiger une seule requête de scans.
+  DataProvider couvrant array/database, horloge figée, query log nettoyé en finally.
+  Middleware, permissions, cache réel, ressources et base métier restent exercés.
+  Aucun relâchement en tolérance ±2, aucune modification du code de production.
+- Validation : composer test:ci avec TENANCY_CACHE_STORE=database, suite SQLite
+  complète 1387 tests, 1383 réussis, 6041 assertions, quatre exclusions attendues.
+  PHPUnit JUnit : zéro failure/error. PostgreSQL 17 ciblé : 11 tests du contrôleur,
+  tous réussis, 92 assertions, incluant les deux caches. Base temporaire isolée
+  créée uniquement pour ce correctif puis supprimée, sans migration principale.
+  PHPStan niveau 8, Pint dirty/format:check et composer validate verts.
+- Correctif et docs dans un commit local unique. Aucun push effectué par l’agent.
+  Prochaine action : pousser ce correctif puis confirmer les CI ; aucune nouvelle
+  migration à appliquer pour le correctif. Mise en service ClamAV inchangée :
+  test réel opt-in après configuration, aucun téléchargement sans analyse clean.

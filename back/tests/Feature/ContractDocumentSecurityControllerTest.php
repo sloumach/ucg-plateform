@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesDocumentSecurity;
 use Tests\TestCase;
@@ -100,24 +101,44 @@ class ContractDocumentSecurityControllerTest extends TestCase
             ->assertJsonPath('data.0.scan_status', 'stale')->assertJsonMissingPath('data.0.artifact_id')->assertJsonMissingPath('data.0.url');
     }
 
-    public function test_version_list_loads_latest_verdicts_without_per_version_queries(): void
+    /** @return array<string, array{string}> */
+    public static function tenantCacheStores(): array
     {
+        return ['memory cache' => ['array'], 'CI database cache' => ['database']];
+    }
+
+    #[DataProvider('tenantCacheStores')]
+    public function test_version_list_loads_latest_verdicts_without_per_version_queries(string $cacheStore): void
+    {
+        $this->freezeTime();
+        config(['tenancy.cache_store' => $cacheStore]);
         [$org, $user, $contract, $context, $document] = $this->securityScenario();
         $this->actingAsWithMfa($user);
         $path = $this->documentPath($org, $contract, $document->id).'/versions';
+        // Count document reads only: the HTTP limiter inserts cache entries on its first request.
+        $documentQueries = static fn (): array => array_values(array_filter(DB::getQueryLog(),
+            static fn (array $query): bool => str_contains($query['query'], '"contract_document_versions"')
+                || str_contains($query['query'], '"contract_document_scans"')));
         DB::enableQueryLog();
-        DB::flushQueryLog();
-        $this->getJson($path)->assertOk()->assertJsonPath('data.0.scan_status', 'queued');
-        $one = count(DB::getQueryLog());
-        for ($number = 0; $number < 10; $number++) {
-            $contract->refresh();
-            app(ContractDocumentService::class)->upload($context, $contract->id, $document->id,
-                ['contract_version' => $contract->version, 'purpose' => 'draft', 'file' => $this->documentPdf('Revision '.$number)]);
+        try {
+            DB::flushQueryLog();
+            $this->getJson($path)->assertOk()->assertJsonPath('data.0.scan_status', 'queued');
+            $one = count($documentQueries());
+            for ($number = 0; $number < 10; $number++) {
+                $contract->refresh();
+                app(ContractDocumentService::class)->upload($context, $contract->id, $document->id,
+                    ['contract_version' => $contract->version, 'purpose' => 'draft', 'file' => $this->documentPdf('Revision '.$number)]);
+            }
+            DB::flushQueryLog();
+            $this->getJson($path)->assertOk()->assertJsonCount(10, 'data')->assertJsonPath('meta.total', 11)->assertJsonPath('data.0.scan_status', 'queued');
+            $queries = $documentQueries();
+            $this->assertSame($one, count($queries));
+            $scanQueries = array_filter($queries, static fn (array $query): bool => str_contains($query['query'], 'from "contract_document_scans"'));
+            $this->assertCount(1, $scanQueries);
+        } finally {
+            DB::disableQueryLog();
+            DB::flushQueryLog();
         }
-        DB::flushQueryLog();
-        $this->getJson($path)->assertOk()->assertJsonCount(10, 'data')->assertJsonPath('meta.total', 11)->assertJsonPath('data.0.scan_status', 'queued');
-        $this->assertSame($one, count(DB::getQueryLog()));
-        DB::disableQueryLog();
         $this->assertDatabaseCount('contract_document_scans', 11);
     }
 

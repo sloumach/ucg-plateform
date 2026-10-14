@@ -1270,8 +1270,10 @@ conservé est invalidé et aucune donnée claire servie. HTTP attachment, privat
 no-store, nosniff, CSP sandbox ; pas de cache de décision IAM ni d’URL de stockage.
 
 Analyse/versions/historique paginés (API ≤100, UI 10), latestScan chargé en une
-requête corrélée indexée tenant/version/attempt ; nombre de requêtes constant
-vérifié sur 1/11 versions avec leurs scans. Dépôt/relance 10 par minute,
+requête corrélée indexée tenant/version/attempt ; nombre de requêtes documentaires
+constant sur 1/11 versions et une seule requête pour leurs scans, vérifiés avec
+les caches array/database. Le comptage exclut l’initialisation du limiteur HTTP.
+Dépôt/relance 10 par minute,
 liens 60, téléchargements 20, par tenant et compte. Mesurer mémoire PHP et clamd,
 latence, volume reports, stockage chiffré et contention avant d’augmenter budgets
 ou concurrence des workers ; aucun benchmark à millions d’utilisateurs réalisé.
