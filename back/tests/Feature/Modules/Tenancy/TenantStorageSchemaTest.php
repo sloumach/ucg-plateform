@@ -67,6 +67,8 @@ class TenantStorageSchemaTest extends TestCase
 
         $scans = require database_path('migrations/2026_10_14_204339_create_contract_document_scans.php');
         $governance = require database_path('migrations/2026_10_14_231650_add_contract_financial_governance.php');
+        $reminders = require database_path('migrations/2026_10_15_184218_create_contract_reminders.php');
+        $reminders->down();
         $governance->down();
         $scans->down();
         $documents->down();
@@ -79,6 +81,7 @@ class TenantStorageSchemaTest extends TestCase
         $documents->up();
         $scans->up();
         $governance->up();
+        $reminders->up();
 
         $this->assertTrue(Schema::hasTable('tenant_artifacts'));
         $this->assertTrue(Schema::hasTable('tenant_storage_usage'));

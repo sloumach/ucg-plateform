@@ -98,6 +98,8 @@ class PersonImportSchemaTest extends TestCase
         $documents = require database_path('migrations/2026_10_14_193828_create_contract_documents_and_immutable_versions.php');
         $scans = require database_path('migrations/2026_10_14_204339_create_contract_document_scans.php');
         $governance = require database_path('migrations/2026_10_14_231650_add_contract_financial_governance.php');
+        $reminders = require database_path('migrations/2026_10_15_184218_create_contract_reminders.php');
+        $reminders->down();
         $governance->down();
         $scans->down();
         $documents->down();
@@ -106,6 +108,7 @@ class PersonImportSchemaTest extends TestCase
         $documents->up();
         $scans->up();
         $governance->up();
+        $reminders->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         app(PortabilityRepository::class)->assertCatalog();
     }

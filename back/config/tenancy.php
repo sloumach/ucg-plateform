@@ -1,5 +1,7 @@
 <?php
 
+use App\Modules\Contracts\Application\Services\ProcessContractReminders;
+
 return [
     // Owning modules register tenant resource validators before enabling these scopes.
     'authorization_scope_resolvers' => [],
@@ -13,7 +15,8 @@ return [
         'purge_policies' => [],
     ],
     // Closed server-side task registry; business modules register their handlers explicitly.
-    'scheduled_tasks' => [],
+    'scheduled_tasks' => env('CONTRACT_REMINDERS_ENABLED', false)
+        ? ['contract-reminders' => ProcessContractReminders::class] : [],
     'schedule_connection' => env('TENANCY_SCHEDULE_CONNECTION'),
     'cache_store' => env('TENANCY_CACHE_STORE', env('CACHE_STORE', 'database')),
     // Technical defaults, not commercial plans. Operator-only overrides use immutable tenant UUIDs.

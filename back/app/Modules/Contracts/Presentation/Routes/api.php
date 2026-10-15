@@ -4,11 +4,18 @@ use App\Modules\Contracts\Presentation\Http\Controllers\Api\V1\ContractControlle
 use App\Modules\Contracts\Presentation\Http\Controllers\Api\V1\ContractDocumentController;
 use App\Modules\Contracts\Presentation\Http\Controllers\Api\V1\ContractDocumentSecurityController;
 use App\Modules\Contracts\Presentation\Http\Controllers\Api\V1\ContractGovernanceController;
+use App\Modules\Contracts\Presentation\Http\Controllers\Api\V1\ContractReminderController;
 use App\Modules\Contracts\Presentation\Http\Middleware\ValidateDocumentDownloadLink;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('tenants/{tenant}/contracts')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
     $controller = ContractController::class;
+    $reminders = ContractReminderController::class;
+    Route::get('reminders', [$reminders, 'inbox'])->name('contract-reminders.inbox');
+    Route::get('{contract}/reminders', [$reminders, 'show'])->whereUuid('contract')->name('contract-reminders.show');
+    Route::patch('{contract}/reminders', [$reminders, 'save'])->whereUuid('contract')->middleware('tenant.confirmed')->block(10, 10)->name('contract-reminders.save');
+    Route::get('{contract}/reminders/history', [$reminders, 'history'])->whereUuid('contract')->name('contract-reminders.history');
+    Route::post('{contract}/reminders/{delivery}/resolution', [$reminders, 'resolve'])->whereUuid(['contract', 'delivery'])->middleware('tenant.confirmed')->block(10, 10)->name('contract-reminders.resolve');
     $governance = ContractGovernanceController::class;
     foreach (['{contract}' => 'contracts', '{contract}/documents/{document}' => 'contract-documents'] as $prefix => $name) {
         Route::get($prefix.'/financial-terms', [$governance, 'financial'])->whereUuid(['contract', 'document'])->name($name.'.financial.show');

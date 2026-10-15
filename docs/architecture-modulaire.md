@@ -1329,3 +1329,50 @@ ALTER natif sur contracts pour préserver les triggers inter-tables ; les nouvel
 références sont composites. PostgreSQL conserve les contraintes natives et un
 lock_timeout local de cinq secondes. Les tests de rollback respectent l’ordre
 de dépendance des migrations.
+
+
+## Rappels de contrats — CTR-005
+
+ContractReminderService orchestre la configuration, l'historique, la boîte
+personnelle et la résolution humaine. ContractReminderSchedule calcule les dates
+calendaires dans le fuseau de l'organisation et le seuil atteint le plus urgent.
+ContractReminderRepository persiste plans et livraisons ; toutes les recherches
+restent explicitement tenant. La migration ajoute uniquement deux tables avec
+références composites, index et gardes d'identité SQLite/PostgreSQL, et refuse le
+rollback destructeur d'un historique utilisé. Les anciens contrats ne sont pas
+modifiés ni activés. Les colonnes sont enregistrées dans l'export opérateur fermé.
+
+ProcessContractReminders implémente le port public TenantScheduledTask. Le
+scheduler et RunTenantScheduledTask TEN-006 fournissent le contexte système,
+l'isolation, les verrous partagés, le dispatch durable et le checkpoint par run.
+Aucun propriétaire n'est impersonné. La progression par réglage est durable,
+la clé métier unique déduplique chaque contrat/date/type/seuil/responsable/compte.
+Une interruption partielle reprend les étapes non terminées. Les marqueurs de
+configuration proviennent du serveur ; ils ne sondent pas les workers.
+
+People expose LinkedPersonAccountDirectory, simple lien personne/compte ;
+Tenancy expose TenantNotificationRecipientDirectory, qui re-résout l'adhésion,
+le compte vérifié, la MFA et chaque permission actuelle via Identity. Contracts
+n'importe aucun modèle Identity ni Tenancy/People. L'e-mail et la boîte ne donnent
+aucun accès implicite ; une réaffectation et un retrait financial.read prennent
+effet lors de la lecture et du traitement des e-mails encore en attente.
+
+ContractReminderMailer isole le transport. LaravelContractReminderMailer
+utilise le mailer SMTP configuré et un message générique, sans données du dossier.
+Son identifiant technique stable pourra être fourni à un adaptateur Brevo API
+ultérieur ; le header SMTP ne crée aucune garantie d'idempotence fournisseur.
+La prise en charge sending est commitée avant l'appel réseau, puis sent après
+acceptation ; un échec ambigu ou un sending abandonné devient uncertain, jamais
+réessayé automatiquement. Une autorisation humaine de retry accepte un risque
+de doublon et est auditée avec l'UUID du rappel et l'acteur. Une panne avant prise
+en charge laisse pending ; un changement du dossier rend l'envoi obsolete.
+Le statut sent décrit l'acceptation du transport ou sa confirmation humaine,
+pas la livraison finale au destinataire.
+
+Lots bornés : 25 plans/passage, délai de quinze minutes entre vérifications d'un
+plan, trois e-mails/passage, timeout SMTP de 1 à 5 secondes par opération réseau,
+timeout du job TEN-006 conservé. Le débit est volontairement limité ; suivre les
+backlogs et profiler avant d'augmenter les lots, de sharder la file ou d'introduire
+un fournisseur avec idempotence native. Historique/boîte paginés, requêtes sans
+chargement des contenus contractuels ou documentaires sensibles. Audit minimal
+sur la configuration et les décisions ; le ledger conserve run, état et tentatives.

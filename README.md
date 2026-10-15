@@ -1645,4 +1645,98 @@ historiques ne sont pas classifiés automatiquement par analyse de leur texte.
 
 Voir docs/conventions-api.md, section CTR-004, pour les routes et exemples.
 ClamAV réel et worker reports restent à vérifier selon CTR-003.
-Prochain P0 : CTR-005, échéances et rappels.
+CTR-004 : push, CI et migration confirmés par l’utilisateur avant CTR-005 (Ran,
+  batch 23). Le ticket CTR-005 est décrit ci-dessous.
+
+
+## Échéances et rappels — UCG-CTR-005
+
+Le dossier configure sa fin (date déjà portée par le contrat), un préavis et un
+renouvellement facultatifs, ses délais (90/30/7 jours par défaut, 0 à 365,
+dix valeurs distinctes maximum), et ses canaux application/e-mail. Le destinataire
+est le responsable du dossier, via son compte lié vérifié et ses droits actuels.
+Les contrats approuvés, envoyés, signés ou actifs sont éligibles. Une date dépassée
+ne génère rien ; après interruption, seul le seuil atteint le plus urgent est
+rattrapé, sans rafale des anciens seuils. Un nouveau seuil produit un nouveau rappel.
+
+Après sauvegarde et migration utilisateur depuis back/ :
+
+```powershell
+php artisan migrate
+```
+
+La migration additive 2026_10_15_184218_create_contract_reminders crée les réglages
+et le journal d'envoi, sans activer ni remplir les contrats existants. Le rollback
+refuse de supprimer des réglages ou un historique déjà utilisés.
+
+Activer ensuite explicitement dans l'environnement cible :
+
+```dotenv
+CONTRACT_REMINDERS_ENABLED=true
+TENANCY_CACHE_STORE=database
+TENANCY_SCHEDULE_CONNECTION=database
+CONTRACT_REMINDERS_EMAIL_ENABLED=true
+CONTRACT_REMINDERS_MAILER=smtp
+MAIL_TIMEOUT=5
+MAIL_HOST=your-smtp-host
+MAIL_PORT=587
+MAIL_USERNAME=your-smtp-user
+MAIL_PASSWORD=your-smtp-secret
+MAIL_FROM_ADDRESS=no-reply@your-verified-domain.example
+```
+
+Utiliser les paramètres TLS et expéditeur validés par le fournisseur, conserver
+les secrets hors Git, actualiser la configuration déployée et redémarrer les
+workers après modification. Un cache partagé durable est obligatoire pour le
+scheduler ; aucun cache array/failover en production. Le worker doit consommer
+la queue default, avec le retry_after déjà supérieur au timeout des jobs.
+Installer le déclenchement système de php artisan schedule:run chaque minute
+(ou schedule:work en développement). Le scheduler utilise onOneServer et
+withoutOverlapping ; il distribue la tâche tenant contract-reminders dans la
+file durable TEN-006. Pour un contrôle opérateur :
+
+```powershell
+php artisan schedule:list
+php artisan tenancy:dispatch-scheduled contract-reminders
+```
+
+Les deux drapeaux CONTRACT_REMINDERS restent false par défaut : préparer les
+réglages ne déclenche aucun e-mail réel. L'API expose scheduler_enabled/email_ready
+comme indicateurs de configuration, sans prétendre mesurer la santé du worker.
+L'envoi attend une configuration SMTP avec un timeout de 1 à 5 secondes ; le
+transport log n'est jamais présenté comme un e-mail accepté. Les notifications
+dans l'application fonctionnent avec le scheduler même si l'e-mail reste désactivé.
+La configuration SMTP Laravel est décrite dans la
+[documentation officielle](https://laravel.com/docs/13.x/mail#configuration).
+L'interface ContractReminderMailer permet un futur adaptateur Brevo API ; aucune
+intégration HTTP Brevo ni clé API n'est installée dans CTR-005.
+
+Le traitement parcourt 25 réglages à la fois, au plus toutes les quinze minutes
+par réglage, puis traite trois e-mails par passage. Pour les grands tenants, le
+délai dépend du nombre de dossiers et du backlog : surveiller checked_at,
+email_status, les jobs échoués et les logs contract_reminder.email_uncertain ;
+profiler avant d'augmenter les lots ou de paralléliser par contrat. Les listes
+et l'historique sont paginés, avec index tenant/contrat, balayage, boîte et outbox.
+
+Le journal durable et sa clé unique dédupliquent les relances et les seuils.
+SMTP ne garantit pas un envoi exactement une fois : si l'accusé est perdu, si un
+listener annule l'envoi ou si le worker disparaît après la prise en charge,
+l'envoi devient uncertain (après cinq minutes pour un sending abandonné).
+Aucune relance automatique de cet envoi. Après contrôle fournisseur, un
+gestionnaire autorisé peut confirmer l'acceptation ou autoriser une nouvelle
+tentative en acceptant explicitement un risque de doublon ; la décision est
+auditée. Une confirmation manuelle date la vérification dans email_sent_at.
+Maximum vingt tentatives autorisées par occurrence. Les modifications de dates,
+responsable, canaux ou statut sont recontrôlées avant tout e-mail en attente.
+Un e-mail accepté par SMTP n'est pas une preuve de livraison dans la boîte finale.
+
+L'e-mail est générique, sans titre, date, nom, montant, pièce jointe ou lien privé.
+La boîte personnelle et l'historique recontrôlent les droits administratifs et,
+pour les dossiers financiers, financial.read. Les anciens rappels ne confèrent
+aucun droit après réaffectation. L'audit ne conserve que les identifiants et
+actions ; les tables figurent dans l'inventaire fermé d'export opérateur.
+
+Validation locale : suites SQLite/PostgreSQL, transport Laravel en mémoire,
+tests frontend et Chromium mobile ; aucun e-mail réel ni migration de la base
+principale exécutés par l'agent. Après push/CI/migration utilisateur, prochain
+P0 : CTR-006, audit des consultations et exports sensibles.

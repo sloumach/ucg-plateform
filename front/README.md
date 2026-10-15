@@ -269,3 +269,37 @@ Tests dédiés aux panneaux financiers et d’approbation ; scénario mobile
 contract-governance.spec.ts : préparation, approbation, troisième déclarant puis
 coach sans lecture financière. API métier simulées dans le navigateur ; les tests
 Laravel couvrent les droits, transactions, versions et contraintes réels.
+
+
+## Échéances et rappels — CTR-005
+
+Dans un dossier, « Échéances et rappels » charge à la demande les réglages et
+l'historique paginé. La fin provient du contrat ; le préavis et le renouvellement
+sont facultatifs. Délais par défaut 90, 30, 7 jours ; canaux application et e-mail
+sélectionnables. L'activation par dossier est explicite. Le responsable doit
+disposer d'un compte lié vérifié et des droits actuels, dont financial.read si
+le dossier contient des conditions financières.
+
+Les écritures passent par la confirmation humaine du tenant, CSRF, révision
+active et versions optimistes. Les champs financiers du contrat ne sont jamais
+ajoutés aux rappels. Le suivi distingue notification disponible, e-mail en attente,
+envoi en cours, acceptation par le transport, blocage ou résultat à vérifier.
+Un résultat SMTP incertain exige un contrôle humain : confirmer l'acceptation ou
+autoriser une relance avec acceptation du risque de doublon. L'e-mail ne fournit
+aucune preuve de livraison finale.
+
+« Mes rappels de contrats » liste les notifications du responsable actuel et
+ouvre le dossier choisi, y compris s'il était déjà sélectionné. Aucun chargement
+avant ouverture ; lectures annulées au démontage, réponses privées sans cache,
+contexte invalidé après refus ou conflit. Un profil de lecture n'obtient aucun
+formulaire ; un dossier financier exige la lecture financière explicite.
+
+Les indicateurs de configuration permettent de signaler l'attente d'activation
+automatique ou du service e-mail. SMTP et futur adaptateur Brevo restent côté
+backend ; aucune clé d'envoi dans le navigateur. Le worker peut être arrêté même
+si la configuration est activée : l'indicateur ne constitue pas une sonde de santé.
+
+Tests : ContractRemindersPanel.test.tsx (réglages, confirmation, versions, accès,
+résolution, annulation, boîte), contract-reminders.spec.ts (mobile 390 px,
+deux canaux, décision humaine et ouverture du dossier). Les API métier y sont
+simulées et aucun e-mail réel n'est envoyé.

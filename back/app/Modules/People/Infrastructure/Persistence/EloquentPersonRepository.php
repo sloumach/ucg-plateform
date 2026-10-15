@@ -11,6 +11,14 @@ use Illuminate\Support\Str;
 
 final class EloquentPersonRepository implements PersonRepository
 {
+    public function linkedAccount(string $organizationId, string $personId): ?int
+    {
+        $id = Person::query()->forOrganization($organizationId)->whereKey(strtolower($personId))
+            ->where('status', '!=', 'former')->value('user_id');
+
+        return $id === null ? null : (int) $id;
+    }
+
     public function contractPeople(string $organizationId, array $ids): array
     {
         return array_values(Person::query()->forOrganization($organizationId)->whereIn('id', $ids)

@@ -7,11 +7,15 @@ use App\Modules\Contracts\Domain\Contracts\ContractDocumentRepository;
 use App\Modules\Contracts\Domain\Contracts\ContractDocumentScanner;
 use App\Modules\Contracts\Domain\Contracts\ContractDocumentScanRepository;
 use App\Modules\Contracts\Domain\Contracts\ContractGovernanceRepository;
+use App\Modules\Contracts\Domain\Contracts\ContractReminderMailer;
+use App\Modules\Contracts\Domain\Contracts\ContractReminderRepository;
 use App\Modules\Contracts\Domain\Contracts\ContractRepository;
 use App\Modules\Contracts\Domain\Models\ContractRecord;
+use App\Modules\Contracts\Infrastructure\Mail\LaravelContractReminderMailer;
 use App\Modules\Contracts\Infrastructure\Persistence\EloquentContractDocumentRepository;
 use App\Modules\Contracts\Infrastructure\Persistence\EloquentContractDocumentScanRepository;
 use App\Modules\Contracts\Infrastructure\Persistence\EloquentContractGovernanceRepository;
+use App\Modules\Contracts\Infrastructure\Persistence\EloquentContractReminderRepository;
 use App\Modules\Contracts\Infrastructure\Persistence\EloquentContractRepository;
 use App\Modules\Contracts\Infrastructure\Queue\LaravelContractDocumentScanQueue;
 use App\Modules\Contracts\Infrastructure\Scanning\ClamAvDocumentScanner;
@@ -27,6 +31,8 @@ final class ContractsServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(ContractReminderRepository::class, EloquentContractReminderRepository::class);
+        $this->app->bind(ContractReminderMailer::class, LaravelContractReminderMailer::class);
         $this->app->bind(ContractGovernanceRepository::class, EloquentContractGovernanceRepository::class);
         $this->app->bind(ContractRepository::class, EloquentContractRepository::class);
         $this->app->bind(ContractDocumentRepository::class, EloquentContractDocumentRepository::class);

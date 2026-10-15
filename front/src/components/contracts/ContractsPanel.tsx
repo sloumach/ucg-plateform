@@ -12,6 +12,7 @@ import { apiError, shouldReloadContext } from '../people/peopleFormValues'
 import { SelectField } from '../people/peopleForms'
 import { usePeopleMutation } from '../people/usePeopleMutation'
 import { ContractDocumentsPanel } from './ContractDocumentsPanel'
+import { ContractRemindersPanel, MyContractReminders } from './ContractRemindersPanel'
 import { ContractFinancialPanel } from './ContractFinancialPanel'
 import { financialText } from '../../api/contractGovernance'
 
@@ -78,6 +79,7 @@ export function ContractsPanel({ active, disabled, onInvalid }: Props) {
       {loading || detailLoading ? <p role="status">{text('loading')}</p> : null}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
       {mutation.feedback}
+      <MyContractReminders active={active} disabled={blocked} onInvalid={invalidate} onSelect={(id) => { setCreating(false); setEditing(false); setDetail(null); setDetailId(id); setRefresh((value) => value + 1) }} />
       <form aria-label={text('search')} onSubmit={filter} className="grid min-w-0 gap-3 sm:grid-cols-2">
         <FormField name="q" label={text('q')} maxLength={80} disabled={blocked} />
         <SelectField name="type" title={text('type')} disabled={blocked}><option value="">{text('all')}</option>{contractTypes.map((kind) => <option key={kind} value={kind}>{text('type.' + kind)}</option>)}</SelectField>
@@ -105,6 +107,9 @@ export function ContractsPanel({ active, disabled, onInvalid }: Props) {
           editable={['draft', 'in_review'].includes(detail.status)} disabled={blocked} onInvalid={invalidate}
           onChanged={() => { setDetailLoading(true); setEditing(false); setRefresh((value) => value + 1) }} />
         {detail.financial_documents_restricted && !active.context?.permissions.includes('financial.read') && <p>{financialText('documentsRestricted')}</p>}
+        <ContractRemindersPanel key={'reminders:' + detail.id + ':' + detail.version} active={active} path={detailPath + '/reminders'} contractVersion={detail.version}
+          endDate={detail.ends_on} restricted={detail.financial_documents_restricted ?? false} editable={manage && detail.status !== 'archived'} disabled={blocked} onInvalid={invalidate}
+          onChanged={() => { setDetailLoading(true); setEditing(false); setRefresh((value) => value + 1) }} />
         <ContractDocumentsPanel key={detail.id} active={active} record={detail} disabled={blocked} onInvalid={invalidate}
           onChanged={() => { setDetailLoading(true); setEditing(false); setRefresh((value) => value + 1) }} />
         <p className="[overflow-wrap:anywhere]">{text('responsible')} : {detail.responsible_name}</p>

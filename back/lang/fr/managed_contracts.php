@@ -1,6 +1,16 @@
 <?php
 
 return [
+    'reminder_min' => 'Sélectionnez au moins un élément.',
+    'reminder_boolean' => 'Indiquez une activation valide.',
+    'reminder_distinct' => 'Chaque délai ou canal doit être unique.',
+    'reminder_retry_confirm' => 'Acceptez explicitement le risque de doublon avant une nouvelle tentative.',
+    'reminder_saved' => 'Rappels du contrat enregistrés.',
+    'reminder_resolved' => 'Décision sur l’envoi enregistrée.',
+    'reminder_archived' => 'Les rappels d’un contrat archivé ne peuvent plus être modifiés.',
+    'reminder_email_subject' => 'Un rappel vous attend dans UCG',
+    'reminder_email_body' => 'Un rappel de contrat vous attend. Connectez-vous à votre application UCG habituelle, sélectionnez votre organisation puis consultez « Mes rappels de contrats ». Aucun document n’est joint à cet e-mail.',
+
     'financial_period' => 'Renseignez une rémunération avant sa périodicité.',
     'financial_saved' => 'Les conditions financières ont été enregistrées.',
     'signature_separation' => 'La déclaration de signature exige un intervenant distinct des préparateurs et de l’approbateur.',

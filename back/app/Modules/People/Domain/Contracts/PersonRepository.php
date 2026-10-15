@@ -7,6 +7,8 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 interface PersonRepository
 {
+    public function linkedAccount(string $organizationId, string $personId): ?int;
+
     /** @param list<string> $ids
      * @return list<Person>
      */

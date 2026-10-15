@@ -2047,3 +2047,76 @@ CONTRACT_SELF_APPROVAL_FORBIDDEN, CONTRACT_SIGNATURE_SEPARATION_REQUIRED,
 CONTRACT_AMENDMENT_DRAFT_REQUIRED, CONTRACT_AMENDMENT_APPROVAL_REQUIRED,
 CONTRACT_AMENDMENT_ALREADY_APPROVED, CONTRACT_AMENDMENT_COPY_STALE.
 Après conflit, relire et reconfirmer sans rejeu.
+
+
+## Échéances et rappels — UCG-CTR-005
+
+Toutes les routes sont sous /api/v1/tenants/{tenant}/contracts, privées no-store,
+authentifiées avec MFA, contexte tenant et administrative.read. Un dossier
+contenant des conditions financières exige aussi financial.read. Les écritures
+exigent administrative.write, confirmation tenant, CSRF et X-Tenant-Revision.
+
+| Méthode et suffixe | Usage |
+| --- | --- |
+| GET /reminders | Boîte du compte connecté, responsable actuel et droits recontrôlés |
+| GET /{contract}/reminders | Réglage ou data=null ; meta.scheduler_enabled/email_ready |
+| PATCH /{contract}/reminders | Réglage avec contract_version et expected_version nullable |
+| GET /{contract}/reminders/history | Historique paginé par dossier |
+| POST /{contract}/reminders/{delivery}/resolution | Résoudre un e-mail uncertain après vérification |
+
+Pagination page >=1, per_page <=100 (défaut 10) ; les dates sont YYYY-MM-DD,
+offsets une liste de 1 à 10 entiers distincts de 0 à 365, channels une liste
+distincte contenant in_app et/ou email. Les champs inconnus sont rejetés. Un
+PATCH est intégral : enabled, notice_on, renewal_on, offsets et channels requis.
+expected_version est null à la création puis l'UUID retourné ; le contrat est
+également versionné dans meta.contract_version, sans modifier son approbation.
+
+Exemple avec le client tenancyRequest déjà configuré pour CSRF :
+
+```ts
+const path = 'tenants/' + organizationId + '/contracts/' + contractId + '/reminders'
+await tenancyRequest(path, {
+  method: 'PATCH', revision,
+  body: {
+    contract_version: contract.version,
+    expected_version: plan?.version ?? null,
+    enabled: true, notice_on: '2026-11-01', renewal_on: null,
+    offsets: [90, 30, 7], channels: ['in_app', 'email'],
+  },
+})
+```
+
+L'activation concerne les statuts approved/sent/signed/active. La date de fin
+provient du contrat. Le responsable lié à un compte vérifié est le destinataire ;
+l'adresse ne peut pas être fournie par le client. Le rattrapage ne génère qu'un
+seul seuil atteint par date ; les dates passées sont exclues. Les nouveaux
+seuils/date/responsable/compte créent des occurrences distinctes.
+
+Livraison : id, contract_id, version, kind (deadline/notice/renewal), due_on,
+offset_days, in_app_status (sent/blocked/not_requested), email_status
+(pending/sending/sent/uncertain/blocked/not_requested), reason, attempts,
+created_at et email_sent_at. Aucun compte destinataire, adresse, nom ou contenu
+documentaire dans ces réponses. La boîte contient uniquement les occurrences
+in-app sent encore consultables par leur responsable actuel. Le contrôle
+financier s'applique également aux rappels créés avant une restriction du dossier.
+
+reason : recipient_unavailable, smtp_unavailable, obsolete ou delivery_uncertain.
+Un SMTP désactivé laisse pending sans tentative ; une indisponibilité pendant
+l'appel est ambiguë et devient uncertain. Un sending abandonné depuis cinq
+minutes est aussi uncertain. La décision POST exige expected_version et action
+confirm_sent ou retry ; retry exige confirm_possible_duplicate=true, puis la
+tâche recontrôle l'éligibilité avant envoi. Le serveur plafonne les tentatives à 20.
+Une confirmation manuelle renseigne email_sent_at au moment de la vérification.
+
+```ts
+await tenancyRequest(path + '/' + delivery.id + '/resolution', {
+  method: 'POST', revision,
+  body: { expected_version: delivery.version, action: 'retry', confirm_possible_duplicate: true },
+})
+```
+
+Écritures 200 avec notification Flasher success. Erreurs : 403 droits, 404 tenant
+ou dossier étranger, 422 champs invalides/acceptation manquante, 409
+CONTRACT_VERSION_STALE, CONTRACT_REMINDER_VERSION_STALE ou CONTRACT_ARCHIVED.
+Relire et reconfirmer après conflit, sans rejeu automatique. Un indicateur activé
+reflète la configuration, jamais une garantie de worker actif ou de livraison SMTP.

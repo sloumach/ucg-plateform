@@ -907,7 +907,8 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   financières structurées existent ; recontrôle des anciens liens temporaires.
   Migration additive SQLite/PostgreSQL, sans backfill ni attribution de droits.
   CI CTR-003 confirmée verte avant ce travail ; mise en service ClamAV à confirmer.
-  Push/CI/migration CTR-004 à effectuer par l’utilisateur. Prochain P0 : CTR-005.
+  Push, CI verte et migration CTR-004 confirmés par l’utilisateur avant CTR-005 ;
+  migration Ran batch 23 vérifiée en lecture seule. Prochain P0 traité : CTR-005.
 
 ### UCG-CTR-005 — Planifier échéances et rappels
 
@@ -915,6 +916,18 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Périmètre** : échéance, préavis, renouvellement, règles 90/30/7 configurables et jobs idempotents.
 - **Acceptation** : propriétaire notifié, nouvelle tentative sans doublon et statut du traitement consultable.
 - **Références CDC** : CTR-04, REC-16.
+- **État au 15 octobre 2026** : implémenté localement. Réglages versionnés par
+  dossier, dates calendaires tenant, seuils 90/30/7 configurables, rattrapage du
+  seuil atteint le plus urgent, sans envoi après la date. Application et e-mail
+  retenus par l’utilisateur ; SMTP Laravel préparé, Brevo API ultérieur via port.
+  Responsable lié à un compte vérifié, adhésion/MFA/droits actuels recontrôlés ;
+  lecture financière exigée si nécessaire. Boîte personnelle et historique paginés.
+  Tâche asynchrone TEN-006, journal durable et déduplication des reprises. Les
+  résultats SMTP ambigus ne sont jamais relancés automatiquement ; vérification
+  humaine auditée et acceptation du risque de doublon avant retry. Aucune promesse
+  exactly-once SMTP ni de livraison finale. Activation technique explicite après
+  migration et configuration, pas d’envoi ni de migration principale par l’agent.
+  Push/CI/migration CTR-005 à effectuer par l’utilisateur. Prochain P0 : CTR-006.
 
 ### UCG-CTR-006 — Auditer consultations et exports sensibles
 

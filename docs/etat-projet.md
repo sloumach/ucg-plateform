@@ -9,9 +9,13 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-CTR-004` — conditions financières chiffrées,
-  approbations des avenants et séparation du déclarant de signature par dossier.
-  Implémentation locale ; push, CI distante et migration CTR-004 à confirmer.
+- Dernier ticket traité : `UCG-CTR-005` — échéances, préavis et renouvellement,
+  notifications dans l’application et e-mails SMTP configurables, historique et
+  résolution humaine des résultats d’envoi incertains. Implémentation locale ;
+  push, CI distante et migration CTR-005 à confirmer.
+- CTR-004 (`5205b77`) poussé ; CI verte et migration confirmées par l’utilisateur
+  avant CTR-005. Migration vérifiée en lecture seule : Ran, batch 23.
+  Branche staging propre et synchronisée avec origin/staging au début de CTR-005.
 - CTR-003 et correctifs `4fc416b` / `1a2c258` poussés ; CI verte confirmée par
   l’utilisateur avant le démarrage de CTR-004. Branche propre et synchronisée à
   cette reprise. Mise en service réelle de ClamAV/worker toujours à confirmer.
@@ -77,9 +81,12 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : revue et push utilisateur de CTR-004, validation des CI,
-  sauvegarde puis migration `2026_10_14_231650_add_contract_financial_governance`.
+- Prochaine action : revue et push utilisateur de CTR-005, validation des CI,
+  sauvegarde puis migration `2026_10_15_184218_create_contract_reminders`.
   Cette migration n’a pas été appliquée à la base principale par l’agent.
+  Configurer ensuite le scheduler, le cache partagé et le worker default ; activer
+  CONTRACT_REMINDERS_ENABLED puis, quand le SMTP est prêt,
+  CONTRACT_REMINDERS_EMAIL_ENABLED (voir README, section CTR-005).
   Migration CTR-003 déjà appliquée, vérifiée Ran, batch 22 lors du correctif précédent.
   Préparer clamd/freshclam et le worker reports, puis exécuter le test opt-in réel
   documenté dans README avant l’ouverture des téléchargements.
@@ -99,8 +106,8 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après push/CI/migration CTR-004, prochain P0 :
-  `UCG-CTR-005`, échéances et rappels. ClamAV doit être vérifié en
+- Après push/CI/migration CTR-005, prochain P0 :
+  `UCG-CTR-006`, audit des consultations et exports sensibles. ClamAV doit être vérifié en
   environnement cible ; aucun téléchargement sans analyse clean réussie.
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
@@ -1939,3 +1946,69 @@ ensuite ce fichier pour qu'il reflète la réalité.
   explicite des habilitations financières puis essai avec plusieurs intervenants.
   ClamAV réel/freshclam et worker reports toujours à confirmer selon le README.
   Prochain P0 après validation : CTR-005, échéances et rappels.
+
+
+## Échéances et rappels — UCG-CTR-005
+
+- CTR-004 5205b77 poussé, migration et CI verte confirmées par l’utilisateur.
+  Lecture seule en début et fin de tâche : CTR-004 Ran batch 23, CTR-005 Pending.
+  Aucun migrate principal exécuté par l’agent.
+- Choix utilisateur : notifications dans l’application et e-mail ; SMTP Laravel
+  préparé maintenant, Brevo API ultérieur via ContractReminderMailer. Aucun
+  logiciel installé, secret SMTP renseigné ni e-mail réel envoyé pendant la tâche.
+- Réglages par dossier : activation explicite, préavis/renouvellement facultatifs,
+  fin portée par le contrat, délais distincts 90/30/7 par défaut, 0 à 365 jours.
+  Le responsable lié à un compte vérifié doit conserver son adhésion, sa MFA et
+  ses droits administratifs et financiers si nécessaires. Aucun envoi à une
+  adresse privée fournie par le navigateur, aucun propriétaire impersonné.
+- ProcessContractReminders réutilise le scheduler et les jobs système TEN-006.
+  Lots bornés, dates calendaires dans le fuseau tenant, rattrapage du seul seuil
+  atteint le plus urgent ; brouillons, contrats terminés/archivés, plans désactivés
+  et dates dépassées ne produisent aucun nouveau rappel. Une modification des
+  dates, du responsable, des canaux ou du statut est recontrôlée avant e-mail.
+- Journal durable par occurrence et canal, clé unique et reprise dédupliquée ;
+  boîte personnelle et historique paginés sans N+1 sur les lectures. Les droits
+  et l’affectation sont revérifiés à la consultation. Les e-mails ne contiennent
+  aucun titre, date, nom, montant, pièce jointe ou lien de téléchargement privé.
+- SMTP : pending avant prise en charge, sending avant appel réseau, sent après
+  acceptation ; exception ou envoi abandonné devient uncertain (cinq minutes
+  pour un sending). Aucune relance automatique ambiguë. Vérification fournisseur
+  puis décision humaine auditée, avec consentement au risque de doublon avant
+  retry. Maximum vingt tentatives. L’acceptation SMTP ne prouve pas la livraison
+  finale ; aucun exactly-once fournisseur revendiqué.
+- Migration 2026_10_15_184218_create_contract_reminders : deux tables, références
+  composites tenant, index et gardes d’identité SQLite/PostgreSQL, rollback
+  interdit si données utilisées. Inventaire fermé d’export actualisé ; aucun
+  contrat existant activé ni backfill. Anciennes migrations conservées, tests de
+  round-trip adaptés à la nouvelle dépendance.
+- API : réglages et historique par contrat, boîte du compte connecté, résolution
+  d’un e-mail incertain. Form Requests, services/repository, policies, Resources,
+  CSRF/révision/confirmation tenant, versions optimistes, erreurs françaises et
+  notifications Flasher. Audit minimal configuration/décision avec UUID du rappel.
+- Front : réglages à la demande, deux canaux, historique et pagination, décision
+  explicite après incident, boîte personnelle et accès au dossier. Lectures
+  annulées, invalidation sur refus/conflit. Le test mobile a révélé puis vérifié
+  le correctif d’ouverture d’un dossier déjà sélectionné depuis sa notification.
+- Validation : composer test:ci avec cache database, 1 445 tests dont 1 441 réussis,
+  6 372 assertions et quatre skips attendus (cas spécifique PostgreSQL, deux Redis
+  réels et ClamAV opt-in). PostgreSQL 17 : 239 tests contrats/rollbacks réussis,
+  1 106 assertions. Base dédiée recréée entre suites, car migrate:fresh ne retire
+  pas les fonctions PostgreSQL des migrations historiques ; base temporaire
+  supprimée ensuite, jamais la base principale.
+- En revue finale, le filtre de boîte sans personne liée a été rendu compatible
+  avec les UUID PostgreSQL (IS NULL plutôt que chaîne vide), avec test dédié.
+  Les délais exigent des entiers JSON stricts pour empêcher la combinaison
+  30 et "30" de contourner l’unicité. Les 30 tests ciblés finaux passent sur SQLite et PostgreSQL (147 assertions
+  chacun), y compris ces bornes.
+- Front : 188 tests Vitest dans 29 fichiers, lint et build réussis, typecheck
+  strict du nouveau test E2E. Les 19 parcours Chromium passent sans retry ; le
+  nouveau parcours mobile passe aussi trois fois de suite. Capture relue à
+  390 px sans débordement. API métier simulées, transport Laravel en mémoire.
+  PHPStan niveau 8, Pint et composer validate --strict réussis.
+- Un seul commit local réunit code, tests et les six documents existants.
+  Suite utilisateur : push, CI distantes vertes, sauvegarde puis migrate dans
+  back/. Configurer scheduler/cache partagé/worker default puis activer
+  CONTRACT_REMINDERS_ENABLED. L’e-mail peut rester désactivé en attendant SMTP ;
+  activer CONTRACT_REMINDERS_EMAIL_ENABLED seulement une fois le service prêt.
+  Configuration et limites documentées dans README ; aucun service actif créé
+  par l’agent. Prochain P0 après validation : UCG-CTR-006, consultations et exports.
