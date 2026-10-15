@@ -2187,3 +2187,43 @@ ACCESS_AUDIT_UNAVAILABLE, message français, Retry-After: 30, aucun corps métie
 Une trace de téléchargement atteste une préparation autorisée pour servir le
 PDF, pas sa réception finale. Un export ne sort pas du service sans journalisation
 de sa lecture et nouveau contrôle de l'opérateur après stockage.
+
+## Prospects et contacts — UCG-SPON-001
+
+Base : `/api/v1/tenants/{tenant}/sponsors`. Sanctum, session, MFA, contexte tenant
+et Policies s’appliquent à chaque route ; confirmation/révision tenant requises
+pour POST/PATCH. Les permissions `partnerships.read` et `partnerships.write` sont
+explicites et distinctes des droits RH, sportifs et financiers.
+
+| Méthode | Chemin relatif | Contrat |
+| --- | --- | --- |
+| GET / POST | `/` | Recherche paginée / création de société |
+| GET / PATCH | `/{sponsor}` | Lecture / modification avec version |
+| GET / POST | `/{sponsor}/contacts` | Contacts paginés / création |
+| PATCH | `/{sponsor}/contacts/{record}` | Modification avec version |
+| GET / POST | `/{sponsor}/opportunities` | Opportunités paginées / création |
+| PATCH | `/{sponsor}/opportunities/{record}` | Modification avec version |
+| GET / POST | `/{sponsor}/interactions` | Historique paginé / ajout manuel |
+
+Société : `name`, `industry` nullable, `status` prospect/partner/archived.
+Contact : `name`, `position`, `email`, `phone` nullables, `status` active/archived.
+Opportunité : `title`, `description` nullable, `status`
+open/contacted/negotiating/won/lost/archived. Échange : `channel`
+note/email/phone/meeting/other, `summary` (4 000 caractères maximum),
+`occurred_at` ISO 8601 avec fuseau, non futur ; `contact_id` et `opportunity_id`
+facultatifs, rattachés au même dossier et tenant. Auteur et date de saisie sont
+établis par le serveur. Aucun champ RH, lien de compte, montant ou pièce jointe.
+
+Listes : `page` (1 à 100 000), `per_page` (1 à 100, défaut 10), `q` (préfixe
+littéral du nom/titre/compte rendu, maximum 80 caractères), statut selon la
+ressource. Historique : canal et UUID contact/opportunité optionnels, tri par
+date de réalisation décroissante puis date de saisie et UUID. Les caractères
+% et _ sont littéraux ; filtres inconnus rejetés. Enveloppe `data`, `links`,
+`meta` et `meta.request_id` conservée.
+
+Création : 201, modification : 200, notification Flasher française. Resources
+à liste fermée et `publication_status=private`, sans `organization_id`.
+UUID hors tenant/dossier : 404 ; entrée inconnue/invalide : 422 ; version
+obsolète : 409 `PARTNERSHIP_VERSION_STALE` ; archive : 409 `PARTNERSHIP_ARCHIVED`.
+Archivage irréversible via l’API actuelle ; aucun DELETE ni édition d’échange.
+Réponses privées no-store. La consignation d’un échange ne déclenche aucun envoi.

@@ -960,6 +960,9 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 
 ### UCG-SPON-001 — Gérer prospects et contacts
 
+- **État** : implémenté localement ; validation distante et migration principale à effectuer.
+- **Livraison** : sociétés privées, contacts distincts de People/Identity, opportunités déclaratives et échanges manuels append-only. Permissions partnerships.read/write avec MFA, recherche paginée, API/React, versions optimistes, archives immuables, audit minimal, contraintes composites SQLite/PostgreSQL et export opérateur. Aucun envoi, accord, montant ou portail créé.
+
 - **Priorité / taille** : P0 / M
 - **Périmètre** : organisation sponsor, contacts, opportunité, statut et historique saisi dans la plateforme.
 - **Acceptation** : recherche paginée et limitée au tenant ; données RH UCG inaccessibles aux rôles partenariat.

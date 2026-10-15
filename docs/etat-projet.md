@@ -9,10 +9,12 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-CTR-006` — audit des consultations, téléchargements
-  et exports opérateur sensibles, journal réservé aux rôles habilités, sans
-  contenu contractuel. Implémentation locale ; push, CI distante et migration
-  CTR-006 à confirmer.
+- Dernier ticket traité : `UCG-SPON-001` — sociétés prospects, contacts commerciaux,
+  opportunités et historique manuel des échanges. Implémentation locale ;
+  push utilisateur, CI distante et migration SPON-001 à effectuer.
+- CTR-006 (`8dd344d`) présent sur staging et la référence locale origin/staging
+  au démarrage ; CI distante non vérifiée dans cette tâche. Migration vérifiée
+  en lecture seule : Ran, batch 25. Aucun migrate principal par l’agent.
 - CTR-005 (`cadd683`) poussé ; CI verte et migration confirmées par l’utilisateur
   avant CTR-006. Migration vérifiée en lecture seule : Ran, batch 24.
   Branche staging propre et synchronisée avec origin/staging au démarrage.
@@ -84,11 +86,11 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : revue et push utilisateur de CTR-006, validation des CI,
-  sauvegarde puis migration `2026_10_15_192732_create_organization_sensitive_access_events`.
-  Cette migration n’a pas été appliquée à la base principale par l’agent.
-  La nouvelle table doit exister avant de rouvrir les consultations ; sinon
-  elles sont bloquées en 503 pour éviter de servir du contenu sans trace.
+- Prochaine action : revue du commit SPON-001, push utilisateur et CI vertes,
+  sauvegarde puis migration `2026_10_15_211008_create_partnership_prospects_and_contacts`
+  depuis back/. Migration principale vérifiée Pending en lecture seule.
+  Attribuer explicitement partnerships.read et partnerships.write aux membres
+  habilités via les rôles existants ; aucune attribution réelle par l’agent.
   Mise en service des rappels CTR-005 à confirmer : configurer le scheduler,
   le cache partagé et le worker default ; activer
   CONTRACT_REMINDERS_ENABLED puis, quand le SMTP est prêt,
@@ -112,8 +114,8 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après push/CI/migration CTR-006, prochain P0 :
-  `UCG-SPON-001`, prospects et contacts partenaires. Les P0 Contrats sont alors
+- Après push/CI/migration SPON-001, prochain P0 :
+  `UCG-SPON-002`, accords et périmètres d’exposition. Les P0 Contrats sont
   implémentés ; la signature électronique CTR-007 reste P1. ClamAV doit être vérifié en
   environnement cible ; aucun téléchargement sans analyse clean réussie.
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
@@ -2096,3 +2098,59 @@ ensuite ce fichier pour qu'il reflète la réalité.
   Après validation, P0 Contrats implémentés ; prochain P0 : UCG-SPON-001.
   Signature électronique CTR-007 et Brevo API restent ultérieurs ; ClamAV et
   rappels SMTP réels nécessitent encore leur validation d’exploitation.
+
+## Prospects et contacts partenaires — UCG-SPON-001
+
+- Démarrage sur staging propre, 8dd344d présent sur la référence locale
+  origin/staging. Migration CTR-006 vérifiée en lecture seule : Ran, batch 25 ;
+  CI distante précédente non confirmée dans cette tâche.
+- Nouveau parcours Partnerships : sociétés prospects, contacts commerciaux,
+  opportunités et historique d’échanges renseignés manuellement. Les contacts
+  restent propres au dossier, sans fiche People, compte utilisateur ou adhésion.
+  Aucun e-mail ni message externe n’est envoyé en consignant un échange.
+- Permissions explicites partnerships.read/write, MFA et preuve de session ;
+  aucun droit implicite pour propriétaire/administrateur, ni accès métier pour
+  un compte technique plateforme. Tests négatifs RH, contrats et équipes.
+  Création du rôle par le propriétaire testée avec audit et privilège MFA,
+  sans attribution automatique à un compte existant.
+- Form Requests fermées, Policies sur chaque action, Services et repository,
+  Resources explicites, pagination 1–100 et recherche par préfixe littéral.
+  Réponses privées no-store, confirmation/révision tenant, versions optimistes
+  et erreurs françaises/Flasher. Les droits sont relus sous verrou organisation.
+- Migration additive 2026_10_15_211008_create_partnership_prospects_and_contacts :
+  sponsors, sponsor_contacts, sponsorship_opportunities et sponsorship_interactions.
+  FK composites tenant/dossier et liens contact/opportunité, identités immuables,
+  suppression SQL interdite, archives figées et échanges append-only sur SQLite
+  et PostgreSQL. Aucun backfill ni seed. Rollback refusé en présence de données.
+  Catalogue complet de portabilité et round-trip Organization mis à jour.
+- Mutations et audit dans la même transaction ; audit limité aux UUID, type et
+  statut, sans coordonnées ni compte rendu. Un échec d’audit annule l’écriture.
+  Statuts partenaire/gagnée déclaratifs : aucun accord, montant, contrat, accès
+  externe ou exposition approuvée n’est créé. Ces fonctions restent SPON-002+.
+- React : panneau chargé à la demande, listes paginées, contacts, opportunités,
+  modification des statuts, consignation d’échange depuis un contact/opportunité,
+  historique conservé après archivage et confirmation des mutations. Lectures
+  annulées et contexte invalidé après refus/conflit. Affichage des dates dans
+  le fuseau de l’organisation ; texte libre échappé.
+- Validation finale SQLite avec cache database : composer test:ci, 1 515 tests,
+  1 511 réussis, 6 833 assertions et quatre skips attendus (cas PostgreSQL,
+  deux Redis réels et ClamAV réel opt-in). Aucun échec.
+- Validation PostgreSQL 17 finale : 88 tests partenariats/rôles/round-trip
+  réussis, 504 assertions, avec cache database. Base temporaire créée pour la
+  suite puis supprimée ; exécution successive à SQLite pour préserver l’isolation.
+- Front : 203 tests Vitest dans 31 fichiers ; les neuf nouveaux tests passent
+  aussi isolément. Lint et build réussis, typecheck strict du scénario E2E.
+  Les 21 parcours navigateur passent sans retry dans Chrome local ; API métier
+  simulées, transport Laravel en mémoire. Le navigateur Chromium Playwright
+  n’étant pas installé, Chrome existant a été utilisé sans installer de logiciel.
+  Capture mobile à 390 px relue, sans débordement et avec texte script échappé.
+- PHPStan niveau 8, Pint complet et composer validate --strict réussis. La CI
+  PostgreSQL existante inclut désormais les trois fichiers de tests Partnerships.
+- Aucun migrate principal, seed, attribution réelle de rôle, création de prospect
+  réel, e-mail, push ni installation de service par l’agent. Migration principale
+  vérifiée Pending en lecture seule. Code, tests et six documents existants
+  regroupés dans un seul commit local de tâche.
+- Suite utilisateur : revue/push, CI distantes vertes, sauvegarde puis migrate
+  depuis back/, attribution explicite des droits via IAM-003 et recette avec un
+  compte partenariats. Prochain P0 : UCG-SPON-002, accords et périmètres d’exposition.
+  Mise en service ClamAV et rappels SMTP réels du bloc Contrats toujours à confirmer.

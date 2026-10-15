@@ -385,6 +385,8 @@ Classer par organisation, personne, équipe, compétition, sponsor ou dossier. V
 ## 13 Sponsors partenariats et engagements
 
 - SPON-01 : gérer prospects, contacts, opportunités, statut de négociation et historique des échanges renseignés dans l’application.
+
+  Implémentation SPON-001 : sociétés et contacts commerciaux privés par tenant, opportunités déclaratives et historique manuel en ajout seul ; recherche paginée, MFA et permissions partenariats explicites, sans accès RH. Aucun envoi d’e-mail, compte externe, montant ou accord généré. Les archives préservent et figent les dossiers ; accords/livrables/portails restent les lots suivants. Migration et recette en environnement cible à effectuer.
 - SPON-02 : relier accord, période, montant ou apport en nature, responsable et pièces.
 - SPON-03 : préciser les périmètres d’exposition : organisation, équipe, événement, contenu ou joueur autorisé.
 - SPON-04 : suivre obligations, exclusivités définies, échéances et preuves de réalisation.

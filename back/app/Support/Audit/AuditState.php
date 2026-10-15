@@ -15,6 +15,9 @@ final class AuditState
         $result = [];
         foreach ($state as $key => $value) {
             $valid = match ($key) {
+                'partnership_kind' => is_string($value) && in_array($value, ['sponsor', 'contacts', 'opportunities', 'interactions'], true),
+                'sponsor_id', 'partnership_record_id' => is_string($value) && Str::isUuid($value),
+                'partnership_status' => $value === null || (is_string($value) && in_array($value, ['prospect', 'partner', 'active', 'archived', 'open', 'contacted', 'negotiating', 'won', 'lost'], true)),
                 'contract_reminder_action' => is_string($value) && in_array($value, ['configured', 'retry_authorized', 'delivery_confirmed'], true),
                 'contract_governance_action' => is_string($value) && in_array($value, ['financial_terms_saved', 'amendment_approved'], true),
                 'contract_reminder_id', 'contract_id', 'contract_document_id', 'contract_document_version_id', 'document_scan_id' => is_string($value) && Str::isUuid($value),
@@ -61,7 +64,7 @@ final class AuditState
                 'starts_at','ends_at','expires_at','observed_at' => $value === null || (is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?$/D', $value) === 1),
                 'http_status' => is_int($value) && in_array($value, [401, 403, 404], true),
                 'roles' => self::listWithin($value, ['member', 'administrator']),
-                'permissions' => self::listWithin($value, ['organization.view', 'organization.update', 'memberships.manage', 'invitations.manage', 'roles.manage', 'roles.assign', 'audit.view', 'games.manage', 'teams.manage', 'sports.read', 'sports.write', 'sports.validate', 'sports.publish', 'administrative.read', 'administrative.write', 'administrative.validate', 'financial.read', 'financial.write', 'financial.validate']),
+                'permissions' => self::listWithin($value, ['organization.view', 'organization.update', 'memberships.manage', 'invitations.manage', 'roles.manage', 'roles.assign', 'audit.view', 'games.manage', 'teams.manage', 'sports.read', 'sports.write', 'sports.validate', 'sports.publish', 'administrative.read', 'administrative.write', 'administrative.validate', 'financial.read', 'financial.write', 'financial.validate', 'partnerships.read', 'partnerships.write']),
                 'actions' => self::listWithin($value, ['organization.inspect', 'access.inspect']),
                 default => false,
             };

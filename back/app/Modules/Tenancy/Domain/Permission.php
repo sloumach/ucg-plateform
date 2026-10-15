@@ -24,6 +24,8 @@ enum Permission: string
     case FinancialRead = 'financial.read';
     case FinancialWrite = 'financial.write';
     case FinancialValidate = 'financial.validate';
+    case PartnershipsRead = 'partnerships.read';
+    case PartnershipsWrite = 'partnerships.write';
 
     public function privileged(): bool
     {

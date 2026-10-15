@@ -1427,3 +1427,27 @@ l'absence de divulgation sans trace. La source ajoute une requête bornée à la
 timeline générique (cinq sources tenant). Pas de jointure par événement ni de
 déchiffrement du contenu métier. Conservation illimitée sans purge IAM-006 ;
 mesurer volume/latence avant partitionnement, archivage ou modification de cette politique.
+
+## Prospection commerciale — UCG-SPON-001
+
+Partnerships possède `sponsors`, `sponsor_contacts`, `sponsorship_opportunities`
+et `sponsorship_interactions`. Il dépend uniquement de Tenancy, sans import de
+People, Identity, Teams ou Contracts. Les contacts ne sont ni comptes ni fiches RH.
+Les deux controllers délèguent aux Form Requests, Policy, Services, contrat
+`SponsorRepository` et Resources explicites. Le provider lie le repository et
+charge les routes API v1. Les mutations relisent les droits après verrou
+organisation ; version optimiste et verrou dossier empêchent les écrasements.
+L’audit transactionnel ne conserve aucun texte commercial ; sa panne annule
+la mutation.
+
+Les FK composites bornent chaque enfant au tenant et au sponsor, y compris
+les liens contact/opportunité des échanges. Les gardes SQL SQLite/PostgreSQL
+bloquent les changements d’identité, suppressions et modifications d’archives ;
+les échanges sont append-only. Le catalogue fermé de portabilité inclut les
+quatre tables. Le rollback refuse de supprimer un historique utilisé.
+Les listes sont paginées séparément, sans collections imbriquées non bornées.
+Profiler la recherche insensible à la casse et la contention par tenant avant
+ajout d’index d’expression ou changement de sérialisation. React annule les
+lectures obsolètes et invalide le contexte après refus/conflit. Les permissions
+partenariats sont explicites et privilégiées, sans droit RH ou financier induit.
+Accords, montants, livrables et portails restent les tickets SPON suivants.

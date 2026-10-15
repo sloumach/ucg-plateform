@@ -1812,3 +1812,64 @@ Après push/CI/migration utilisateur de CTR-006, les tickets P0 du module Contra
 sont implémentés. La prochaine tâche P0 du backlog est UCG-SPON-001, prospects et
 contacts partenaires. La signature électronique CTR-007 reste P1. Les essais
 de mise en service ClamAV et des rappels SMTP restent à effectuer dans l'environnement cible.
+
+
+### Prospects et contacts partenaires — UCG-SPON-001
+
+Le panneau « Prospects et partenariats » est chargé à la demande pour les comptes
+habilités. Il fournit sociétés prospects, contacts commerciaux, opportunités et
+historique manuel des échanges, avec recherche par préfixe et pagination séparée.
+Les contacts ne sont jamais des fiches People, des utilisateurs ni des adhésions.
+Aucun e-mail n’est envoyé par la consignation d’un échange.
+
+Attribuer explicitement les permissions `partnerships.read` et `partnerships.write`
+via les rôles existants, à un autre membre selon les règles IAM-003. Lecture et
+écriture nécessitent un compte enrôlé MFA et une preuve courante ; propriétaire,
+administrateur et opérateur technique n’obtiennent aucun droit métier implicite.
+Ces permissions n’ouvrent ni les dossiers RH ni les contrats confidentiels.
+
+Appliquer après sauvegarde la migration additive
+`2026_10_15_211008_create_partnership_prospects_and_contacts`
+avec `php artisan migrate` depuis `back/`. Elle ajoute quatre tables sans backfill,
+seed ou attribution automatique de droits. Elle n’a pas été appliquée à la base
+métier par l’agent. Ne pas utiliser `migrate:fresh` sur la base principale.
+Le rollback refuse de supprimer des données utilisées : privilégier un correctif
+en avant. Les archives restent lisibles mais deviennent immuables, avec leurs
+contacts et opportunités ; les échanges sont en ajout seul, correction par un
+nouvel échange. « Gagnée » et « Partenaire déclaré » sont des déclarations,
+sans création automatique de contrat, accord, montant, exposition ou portail.
+Ces parcours relèvent de SPON-002 et suivants.
+
+Les mutations exigent la confirmation de l’organisation et sa révision de
+session ; les modifications exigent la version courante. Les listes acceptent
+`page`, `per_page` (1 à 100), `q` (préfixe, 80 caractères maximum) et un statut.
+L’historique accepte aussi un canal et des UUID contact/opportunité du dossier.
+Les liens inter-tenant ou inter-société sont refusés. Toutes les réponses métier
+sont privées et non stockables en cache partagé. L’audit conserve uniquement
+identifiants, catégorie et statut, sans coordonnées ou contenu des échanges.
+Les exports opérateur complets incluent les quatre nouvelles tables.
+
+Exemple SPA, après connexion Sanctum/MFA et confirmation de l’organisation :
+
+```typescript
+import { tenancyRequest } from './front/src/api/tenancy'
+import type { ApiSuccessResponse } from './front/src/api/contracts'
+import type { Sponsor } from './front/src/api/partnerships'
+
+// tenantId et revision viennent du contexte serveur connecté et confirmé.
+const result = await tenancyRequest<ApiSuccessResponse<Sponsor>>('tenants/' + tenantId + '/sponsors', {
+  method: 'POST', revision,
+  body: { name: 'Société exemple', industry: 'Matériel', status: 'prospect' },
+})
+await tenancyRequest('tenants/' + tenantId + '/sponsors/' + result.data.id + '/contacts', {
+  method: 'POST', revision,
+  body: { name: 'Contact commercial', email: 'commercial@example.test' },
+})
+```
+
+Les index ciblent tenant, statut, dossier et tri stable. Les contacts et
+opportunités sont chargés par pages, sans chargement de collections imbriquées.
+Les écritures utilisent le verrou organisation déjà établi par le socle, puis
+le verrou dossier ; profiler contention, recherche insensible à la casse et
+pagination profonde sur des volumes représentatifs avant de les faire évoluer.
+Aucun résultat de charge à plusieurs millions d’utilisateurs n’est revendiqué.
