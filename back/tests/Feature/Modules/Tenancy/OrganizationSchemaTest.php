@@ -113,6 +113,8 @@ class OrganizationSchemaTest extends TestCase
         $scans = require database_path('migrations/2026_10_14_204339_create_contract_document_scans.php');
         $governance = require database_path('migrations/2026_10_14_231650_add_contract_financial_governance.php');
         $reminders = require database_path('migrations/2026_10_15_184218_create_contract_reminders.php');
+        $sensitiveAudit = require database_path('migrations/2026_10_15_192732_create_organization_sensitive_access_events.php');
+        $sensitiveAudit->down();
         $reminders->down();
         $governance->down();
         $scans->down();
@@ -160,6 +162,7 @@ class OrganizationSchemaTest extends TestCase
         $scans->up();
         $governance->up();
         $reminders->up();
+        $sensitiveAudit->up();
         $opponents->up();
         $this->assertTrue(Schema::hasTable('organizations'));
         $this->assertTrue(Schema::hasTable('organization_settings'));

@@ -18,6 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
+        'organization_sensitive_access_events' => 'id',
         'contract_reminder_plans' => 'id', 'contract_reminder_deliveries' => 'id',
         'contract_financial_terms' => 'id', 'contract_amendment_approvals' => 'id', 'contract_approved_copies' => 'id',
         'contracts' => 'id', 'contract_parties' => 'id', 'contract_obligations' => 'id', 'contract_transitions' => 'id',
@@ -45,6 +46,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'organization_sensitive_access_events' => ['id', 'organization_id', 'actor_user_id', 'action', 'target_type', 'target_id', 'reason_code', 'request_id', 'ip_address', 'occurred_at'],
         'contract_reminder_plans' => ['id', 'organization_id', 'contract_id', 'enabled', 'notice_on', 'renewal_on', 'offsets', 'channels', 'version', 'updated_by', 'checked_at', 'created_at', 'updated_at'],
         'contract_reminder_deliveries' => ['id', 'organization_id', 'contract_id', 'plan_id', 'person_id', 'recipient_id', 'occurrence', 'kind', 'due_on', 'offset_days', 'in_app_status', 'email_status', 'reason', 'attempts', 'version', 'run_id', 'email_started_at', 'email_sent_at', 'read_at', 'created_at', 'updated_at'],
         'contract_financial_terms' => ['id', 'organization_id', 'contract_id', 'document_id', 'scope_id', 'terms', 'version', 'prepared_by', 'created_at', 'updated_at'],

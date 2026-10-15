@@ -21,6 +21,9 @@ final readonly class EloquentTenantAuditJournal implements TenantAuditJournal
         $base = ['id', 'organization_id', 'actor_user_id', 'action', 'request_id', 'occurred_at'];
 
         return $this->timeline->page([
+            new AuditSource('tenancy.sensitive', 'organization_sensitive_access_events',
+                [...$base, 'target_type', 'target_id', 'reason_code', 'ip_address'], 'actor_user_id', 'target_id',
+                AuditTarget::Organization, AuditReason::Review, true, targetTypeColumn: 'target_type'),
             new AuditSource('tenancy.lifecycle', 'organization_lifecycle_events', [...$base, 'from_status', 'to_status'], 'actor_user_id', 'organization_id', AuditTarget::Organization, AuditReason::Governance, true, beforeMap: ['status' => 'from_status'], afterMap: ['status' => 'to_status']),
             new AuditSource('tenancy.access', 'organization_access_events', [...$base, 'subject_id', 'before', 'after'], 'actor_user_id', 'subject_id', AuditTarget::Membership, AuditReason::Governance, true, jsonStates: true, targetFromAction: true),
             new AuditSource('tenancy.support', 'organization_support_events', [...$base, 'support_access_id', 'ip_address'], 'actor_user_id', 'support_access_id', AuditTarget::SupportAccess, AuditReason::Support, true),

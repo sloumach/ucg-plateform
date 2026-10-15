@@ -9,10 +9,13 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-CTR-005` — échéances, préavis et renouvellement,
-  notifications dans l’application et e-mails SMTP configurables, historique et
-  résolution humaine des résultats d’envoi incertains. Implémentation locale ;
-  push, CI distante et migration CTR-005 à confirmer.
+- Dernier ticket traité : `UCG-CTR-006` — audit des consultations, téléchargements
+  et exports opérateur sensibles, journal réservé aux rôles habilités, sans
+  contenu contractuel. Implémentation locale ; push, CI distante et migration
+  CTR-006 à confirmer.
+- CTR-005 (`cadd683`) poussé ; CI verte et migration confirmées par l’utilisateur
+  avant CTR-006. Migration vérifiée en lecture seule : Ran, batch 24.
+  Branche staging propre et synchronisée avec origin/staging au démarrage.
 - CTR-004 (`5205b77`) poussé ; CI verte et migration confirmées par l’utilisateur
   avant CTR-005. Migration vérifiée en lecture seule : Ran, batch 23.
   Branche staging propre et synchronisée avec origin/staging au début de CTR-005.
@@ -81,10 +84,13 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : revue et push utilisateur de CTR-005, validation des CI,
-  sauvegarde puis migration `2026_10_15_184218_create_contract_reminders`.
+- Prochaine action : revue et push utilisateur de CTR-006, validation des CI,
+  sauvegarde puis migration `2026_10_15_192732_create_organization_sensitive_access_events`.
   Cette migration n’a pas été appliquée à la base principale par l’agent.
-  Configurer ensuite le scheduler, le cache partagé et le worker default ; activer
+  La nouvelle table doit exister avant de rouvrir les consultations ; sinon
+  elles sont bloquées en 503 pour éviter de servir du contenu sans trace.
+  Mise en service des rappels CTR-005 à confirmer : configurer le scheduler,
+  le cache partagé et le worker default ; activer
   CONTRACT_REMINDERS_ENABLED puis, quand le SMTP est prêt,
   CONTRACT_REMINDERS_EMAIL_ENABLED (voir README, section CTR-005).
   Migration CTR-003 déjà appliquée, vérifiée Ran, batch 22 lors du correctif précédent.
@@ -106,8 +112,9 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après push/CI/migration CTR-005, prochain P0 :
-  `UCG-CTR-006`, audit des consultations et exports sensibles. ClamAV doit être vérifié en
+- Après push/CI/migration CTR-006, prochain P0 :
+  `UCG-SPON-001`, prospects et contacts partenaires. Les P0 Contrats sont alors
+  implémentés ; la signature électronique CTR-007 reste P1. ClamAV doit être vérifié en
   environnement cible ; aucun téléchargement sans analyse clean réussie.
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
 - CI de `TEN-001`, `TEN-002` et `TEN-003` confirmées réussies après push.
@@ -2012,3 +2019,80 @@ ensuite ce fichier pour qu'il reflète la réalité.
   activer CONTRACT_REMINDERS_EMAIL_ENABLED seulement une fois le service prêt.
   Configuration et limites documentées dans README ; aucun service actif créé
   par l’agent. Prochain P0 après validation : UCG-CTR-006, consultations et exports.
+
+
+## Audit des accès sensibles — UCG-CTR-006
+
+- CTR-005 cadd683 poussé, CI verte et migration confirmées par l’utilisateur.
+  Vérification en lecture seule : CTR-005 Ran batch 24 ; migration CTR-006 Pending.
+  Le démarrage s’est fait sur staging propre et synchronisée avec origin/staging.
+- Journal dédié organization_sensitive_access_events exposé par le port public
+  Tenancy TenantSensitiveAccessJournal. DTO et actions fermés ; seules les
+  métadonnées acteur/tenant/UUID cible/requête/action/motif catégorisé/date/IP
+  facultative sont persistées. Aucun nom, montant, titre, nom de fichier, URL
+  signée, empreinte, contenu contractuel ou motif libre.
+- AuditContractAccess couvre les consultations HTTP réussies de Contracts,
+  y compris données financières, listes documentaires, versions, approbations,
+  analyses et rappels. Les contrôles actuels des Form Requests et policies sont
+  conservés. La liste est tracée par une cible collection/organisation ; les
+  détails et téléchargements par leur UUID de ressource. Les appels internes
+  de jobs ne sont pas présentés comme des consultations humaines.
+- X-Access-Purpose facultatif accepte operational, internal_control ou legal_review.
+  Le contenu libre est rejeté en 422 ; la catégorie n’est qu’une déclaration.
+  Les URL signées ne sont pas modifiées. Création de lien et autorisation de
+  servir un PDF restent distinctes ; aucune réception client prétendue.
+- Écriture synchrone avant remise de la réponse. Si l’audit échoue, réponse 503
+  ACCESS_AUDIT_UNAVAILABLE, message français et Retry-After 30, sans corps métier
+  JSON/PDF. Logs techniques limités à la classe d’erreur et aux identifiants.
+  Les réponses contractuelles et le journal tenant sont private, no-store.
+- Portabilité opérateur TEN-007 existante : demande et relance journalisées dans
+  leur transaction, génération avec passage à ready, pas de seconde génération
+  lors d’une reprise déjà ready. Lecture du stockage suivie d’un nouveau contrôle
+  de l’opérateur et de l’opération, puis audit avant restitution du flux.
+  Le flux est fermé si contrôle ou audit échoue. Motif libre non recopié ;
+  catégorie operator_portability. Aucun nouvel export CSV métier ni endpoint
+  navigateur d’archive opérateur ajouté.
+- Source tenancy.sensitive intégrée à la timeline IAM-006, sans nouveau droit.
+  audit.view et MFA actuels requis, profils techniques exclus, aucun droit de
+  lecture financière conféré par la lecture des seules métadonnées d’audit.
+  Curseurs chiffrés liés au tenant, à l’auditeur et aux filtres. La consultation
+  du journal lui-même reste dans tenancy.audit pour éviter la récursion.
+- Front : Journal des accès sensibles dans l’espace organisation, chargement
+  à la demande, filtres action/compte, curseurs précédent/suivant, affichage dans
+  le fuseau tenant, identifiants longs coupés, annulation des lectures et retrait
+  du journal après perte de droits. Aucun contenu arbitraire before/after rendu.
+- Migration additive 2026_10_15_192732_create_organization_sensitive_access_events :
+  FK tenant/acteur, index tenant/date, tenant/acteur/date et tenant/action/date,
+  cohérence SQL action/type de cible, gardes append-only et rollback refusé en cas
+  d’usage. Anciennes migrations conservées. Round-trip Organization adapté.
+  Inventaire fermé d’export mis à jour avec les colonnes de métadonnées.
+- Validation PostgreSQL 17 : 328 tests contrats, audit, portabilité et anciens
+  rollbacks réussis, 1 560 assertions. La garde SQL a nécessité des parenthèses
+  autour de CASE dans IF PL/pgSQL ; corrigée dans la migration non déployée.
+  Les 23 tests dédiés passent aussi seuls sur PostgreSQL (156 assertions).
+  Base temporaire recréée entre suites puis supprimée ; aucune migration de la
+  base principale. Les tests SQLite et PostgreSQL sont lancés successivement
+  pour préserver l’isolation des fichiers Storage::fake.
+- Une première passe complète SQLite a rencontré un timeout dans le simulateur
+  TCP fake-clamd sur le cas base antivirale ancienne. Les dix tests scanner
+  repassent isolément avec les 23 tests d’audit, sans modification du scanner ni
+  de ses assertions. Aucun service antivirus réel installé ou sollicité.
+- Front : 194 tests Vitest dans 30 fichiers, lint et build réussis ; typecheck
+  strict du scénario E2E. Les 20 parcours Chromium passent sans retry ; le
+  nouveau parcours mobile passe trois fois de suite. Capture 390 px relue
+  sans débordement. API métier simulées, aucun document réel.
+- Validation complète finale : composer test:ci avec cache database, 1 470 tests,
+  1 466 réussis, 6 540 assertions et quatre skips attendus (cas PostgreSQL,
+  deux Redis réels et ClamAV réel opt-in). Aucun échec à cette seconde passe.
+- PHPStan niveau 8, Pint et composer validate --strict réussis. Les attentes
+  de deux tests existants ont été ajustées pour la cinquième source de timeline
+  et l’événement de demande désormais inclus dans le snapshot d’export
+  (sept lignes au lieu de six). Bornes de requêtes et contrôles de fuite conservés.
+- Un seul commit local regroupe code, tests et les six documents existants.
+  Suite : push utilisateur, CI distante, sauvegarde et migrate depuis back/,
+  puis redémarrage des workers reports pour charger l’audit des générations.
+  Créer la nouvelle table avant de rouvrir les consultations. Aucun push,
+  e-mail, export réel, migration principale ou installation de service par l’agent.
+  Après validation, P0 Contrats implémentés ; prochain P0 : UCG-SPON-001.
+  Signature électronique CTR-007 et Brevo API restent ultérieurs ; ClamAV et
+  rappels SMTP réels nécessitent encore leur validation d’exploitation.

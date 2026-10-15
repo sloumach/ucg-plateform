@@ -18,6 +18,7 @@ use App\Modules\Tenancy\Application\Contracts\TenantJobMiddleware;
 use App\Modules\Tenancy\Application\Contracts\TenantNotificationRecipientDirectory;
 use App\Modules\Tenancy\Application\Contracts\TenantResourceLimits;
 use App\Modules\Tenancy\Application\Contracts\TenantScheduleQueue;
+use App\Modules\Tenancy\Application\Contracts\TenantSensitiveAccessJournal;
 use App\Modules\Tenancy\Application\Services\TenantArtifactService;
 use App\Modules\Tenancy\Application\Services\TenantBusinessGuardService;
 use App\Modules\Tenancy\Application\Services\TenantDataProjectionService;
@@ -55,6 +56,7 @@ use App\Modules\Tenancy\Infrastructure\Persistence\EloquentMembershipRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentOrganizationRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentPrivilegedAccountDirectory;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentRoleRepository;
+use App\Modules\Tenancy\Infrastructure\Persistence\EloquentSensitiveAccessJournal;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentSupportAccessRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentTenantAuditJournal;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentTenantWorkRepository;
@@ -92,6 +94,7 @@ final class TenancyServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(TenantSensitiveAccessJournal::class, EloquentSensitiveAccessJournal::class);
         $this->app->bind(TenantNotificationRecipientDirectory::class, TenantNotificationRecipientService::class);
         $this->app->bind(TenantDepartureAccess::class, TenantDepartureAccessService::class);
         $this->app->bind(TenantBusinessGuard::class, TenantBusinessGuardService::class);

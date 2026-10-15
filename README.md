@@ -1740,3 +1740,75 @@ Validation locale : suites SQLite/PostgreSQL, transport Laravel en mémoire,
 tests frontend et Chromium mobile ; aucun e-mail réel ni migration de la base
 principale exécutés par l'agent. Après push/CI/migration utilisateur, prochain
 P0 : CTR-006, audit des consultations et exports sensibles.
+
+
+## Audit des accès sensibles — UCG-CTR-006
+
+Les consultations HTTP réussies des contrats, informations financières, documents,
+versions, approbations, analyses et rappels sont maintenant journalisées.
+La création d'un lien temporaire et l'autorisation de servir le PDF sont des
+événements distincts. Une réponse prête à être servie ne prouve pas sa réception
+par le client. Les requêtes refusées gardent l'audit de refus IAM existant et ne
+créent pas de faux événement de consultation réussie.
+
+Les exports opérateur TEN-007 existants tracent leur demande, leur relance,
+la génération de l'archive et son ouverture en lecture. L'identité de l'opérateur
+est recontrôlée après l'accès au stockage. Il s'agit de la traçabilité de la
+portabilité existante ; aucun nouvel export métier CSV ni accès navigateur
+aux archives opérateur n'est ajouté.
+
+Après sauvegarde, appliquer depuis back/ la migration additive :
+
+```powershell
+php artisan migrate
+```
+
+Redémarrer ensuite les workers reports existants (par exemple php artisan
+queue:restart) pour que les générations d’archives chargent aussi le nouvel audit.
+
+2026_10_15_192732_create_organization_sensitive_access_events crée une table
+d'audit dédiée, sans backfill ni modification des contrats. Elle conserve les
+identifiants tenant/acteur/ressource/requête, l'action, un motif catégorisé,
+l'horodatage et éventuellement l'IP. Aucun titre, montant, nom de fichier, nom de
+personne, contenu du contrat, URL signée, empreinte de fichier ou motif libre
+n'est recopié. Le motif opérateur existant reste dans son circuit protégé ; le
+journal ne reçoit que la catégorie operator_portability.
+
+Créer la table avant de rouvrir les lectures lors du déploiement. Sans possibilité
+d'enregistrer l'accès, la réponse contractuelle est bloquée avec 503
+ACCESS_AUDIT_UNAVAILABLE et Retry-After: 30 ; ni JSON confidentiel ni PDF ne sort.
+Les erreurs techniques sont journalisées avec classe d'exception et identifiants,
+sans message susceptible de contenir un secret. Les réponses contractuelles et
+le journal tenant sont private, no-store.
+
+Dans l'espace organisation, « Journal des accès sensibles » exige audit.view et
+la MFA actuelle. L'auditeur ne reçoit aucun droit de lecture du contenu d'un
+contrat par cette permission. Le panneau charge à la demande les métadonnées,
+filtre par action ou compte et utilise les curseurs chiffrés IAM-006, liés à
+l'auditeur, au tenant et aux filtres. Un profil technique plateforme reste exclu
+du journal tenant. Aucune permission nouvelle ni attribution automatique.
+
+API : GET /api/v1/tenants/{tenant}/audit-events?source=tenancy.sensitive.
+Pour une consultation contractuelle, X-Access-Purpose est facultatif :
+operational (défaut), internal_control ou legal_review. Ce champ est une catégorie
+déclarée et non une justification vérifiée. Le contenu libre est refusé en 422.
+Les requêtes existantes sans cet en-tête restent compatibles.
+
+L'audit est enregistré synchroniquement avant remise de la réponse : le déplacer
+dans une file sans stockage durable préalable ferait perdre cette garantie.
+La lecture emploie les index tenant/date, tenant/acteur/date et tenant/action/date,
+avec des lots bornés et sans jointure aux contenus contractuels. La politique
+IAM-006 de conservation illimitée sans purge reste appliquée. Les gardes SQL
+interdisent UPDATE/DELETE et un rollback refuse de supprimer un historique utilisé.
+Surveiller la latence d'insertion, le volume et contract.access_audit_failed ;
+profiler avant toute partition ou évolution de la politique de conservation.
+
+Aucun événement passé n'est reconstitué. L'export opérateur inclut les événements
+déjà présents au moment de son snapshot ; sa fin de génération et ses lectures
+ultérieures restent dans le journal vivant. Le catalogue fermé d'export est mis
+à jour avec les seules colonnes de métadonnées.
+
+Après push/CI/migration utilisateur de CTR-006, les tickets P0 du module Contrats
+sont implémentés. La prochaine tâche P0 du backlog est UCG-SPON-001, prospects et
+contacts partenaires. La signature électronique CTR-007 reste P1. Les essais
+de mise en service ClamAV et des rappels SMTP restent à effectuer dans l'environnement cible.

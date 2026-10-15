@@ -15,6 +15,6 @@ final class TenantAuditRequest extends AuditTimelineRequest
 
     protected function sources(): array
     {
-        return ['tenancy.lifecycle', 'tenancy.access', 'tenancy.support', 'tenancy.audit'];
+        return ['tenancy.lifecycle', 'tenancy.access', 'tenancy.support', 'tenancy.audit', 'tenancy.sensitive'];
     }
 }

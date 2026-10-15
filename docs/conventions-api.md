@@ -2120,3 +2120,70 @@ ou dossier étranger, 422 champs invalides/acceptation manquante, 409
 CONTRACT_VERSION_STALE, CONTRACT_REMINDER_VERSION_STALE ou CONTRACT_ARCHIVED.
 Relire et reconfirmer après conflit, sans rejeu automatique. Un indicateur activé
 reflète la configuration, jamais une garantie de worker actif ou de livraison SMTP.
+
+
+## Consultations et exports sensibles — UCG-CTR-006
+
+Les routes existantes de lecture de contrats, conditions financières, documents,
+versions, approbations, analyses et rappels sont journalisées après succès.
+La création POST d'un lien et le GET qui prépare le PDF sont deux actions.
+Les contrôles métier, MFA, tenant et financiers existants sont conservés.
+Les refus ne sont pas présentés comme des consultations réussies ; leur audit
+IAM distinct reste en place.
+
+En-tête facultatif de consultation :
+
+```http
+GET /api/v1/tenants/{tenant}/contracts/{contract}
+Accept: application/json
+X-Tenant-Revision: {revision}
+X-Access-Purpose: internal_control
+```
+
+Valeurs : operational (défaut), internal_control ou legal_review. Une valeur
+libre, inconnue ou opérateur envoyée par le navigateur reçoit 422
+VALIDATION_FAILED, champ access_purpose, message français. La catégorie n'entre
+ni dans le payload métier validé ni dans une URL signée. Sans cet en-tête,
+les appels existants restent valides. La catégorie ne prouve pas le motif réel.
+
+Le journal se consulte par l'API IAM-006 existante :
+
+```bash
+curl "$API_BASE/tenants/$TENANT/audit-events?source=tenancy.sensitive&per_page=10&action=contract.document_downloaded" \
+  --cookie "$SESSION_COOKIE" -H "Accept: application/json"
+```
+
+audit.view, compte vérifié, MFA confirmée et accès tenant effectif requis ;
+aucun accès tenant par le journal plateforme. Les filtres actor_user_id, action,
+from/until et cursor de l'API IAM restent applicables. per_page <=100.
+Le curseur est lié à l'auditeur, au tenant et à tous les filtres ; un changement
+requiert une première page sans curseur. Les consultations du journal lui-même
+restent tracées par journal.viewed dans tenancy.audit, sans boucle dans la source
+tenancy.sensitive.
+
+Format AuditEntryResource inchangé : id, source, organization_id, actor_user_id,
+action, target {type,id}, before/after vides, reason_code, request_id, ip_address
+facultative et occurred_at. meta.next_cursor et meta.per_page pour la pagination.
+Cibles : contract_collection (UUID organisation), contract, contract_document,
+contract_document_version ou organization_export. Aucun titre, montant, nom,
+nom de fichier, contenu documentaire, empreinte ni URL signée dans ces entrées.
+
+Actions contractuelles : contract.listed, contract.viewed, contract.history_viewed,
+contract.financial_viewed, contract.amendment_financial_viewed,
+contract.documents_viewed, contract.versions_viewed, contract.approvals_viewed,
+contract.scan_history_viewed, contract.download_link_created,
+contract.document_downloaded, contract.reminders_viewed,
+contract.reminder_history_viewed et contract.reminder_inbox_viewed.
+
+Exports opérateur existants : tenant.export_requested, tenant.export_retried,
+tenant.export_generated, tenant.export_read ; motif operator_portability imposé
+côté serveur. Le motif libre de la commande n'est pas recopié. Il ne s'agit pas
+d'un nouvel endpoint d'export de contrats. Le snapshot d'archive ne contient pas
+ses propres événements futurs de fin de génération et de lecture.
+
+Les réponses contractuelles et le journal tenant sont private, no-store.
+Si l'audit d'une réponse contractuelle ne peut pas être enregistré : 503
+ACCESS_AUDIT_UNAVAILABLE, message français, Retry-After: 30, aucun corps métier.
+Une trace de téléchargement atteste une préparation autorisée pour servir le
+PDF, pas sa réception finale. Un export ne sort pas du service sans journalisation
+de sa lecture et nouveau contrôle de l'opérateur après stockage.

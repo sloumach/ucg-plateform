@@ -6,6 +6,7 @@ use App\Exceptions\DomainConflictException;
 use App\Modules\Identity\Application\Contracts\AccountDirectory;
 use App\Modules\Identity\Application\Contracts\PlatformAccountDirectory;
 use App\Modules\Tenancy\Application\Contracts\TenantExecutionContext;
+use App\Modules\Tenancy\Application\Contracts\TenantSensitiveAccessJournal;
 use App\Modules\Tenancy\Application\Data\OrganizationAuditData;
 use App\Modules\Tenancy\Application\Validation\OrganizationInput;
 use App\Modules\Tenancy\Domain\Contracts\OrganizationRepository;
@@ -16,6 +17,8 @@ use App\Modules\Tenancy\Domain\Data\PortabilityOperation;
 use App\Modules\Tenancy\Domain\Exceptions\InvalidOrganizationAccountException;
 use App\Modules\Tenancy\Domain\Exceptions\TenantLimitExceededException;
 use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Support\Audit\SensitiveAccessAction;
+use App\Support\Audit\SensitiveAccessData;
 use App\Support\Cache\TenantCacheStore;
 use App\Support\Storage\TenantResourceNamespace;
 use Carbon\CarbonImmutable;
@@ -37,6 +40,7 @@ final readonly class OrganizationPortabilityService
         private Connection $database, private Factory $validator, private Repository $config,
         private TenantTechnicalLimits $limits, private TenantCacheStore $locks,
         private TenantExecutionScope $scope, private LoggerInterface $logger, private Application $app,
+        private TenantSensitiveAccessJournal $sensitive,
     ) {}
 
     /** Operator-server entry point only; declaring an actor does not grant a platform role. */
@@ -74,11 +78,14 @@ final readonly class OrganizationPortabilityService
                 throw new TenantLimitExceededException;
             }
 
-            return $this->operations->create($organization->id, ['actor_user_id' => $audit->actorUserId,
+            $operation = $this->operations->create($organization->id, ['actor_user_id' => $audit->actorUserId,
                 'request_id' => $audit->requestId, 'kind' => 'export', 'status' => 'pending', 'reason' => $audit->reason,
                 'disk' => $disk, 'bytes' => $bytes,
                 'expires_at' => now()->addHours($this->setting('export_lifetime_hours', 1, 168)),
                 'details' => ['reserved_bytes' => $bytes]]);
+            $this->traceExport($operation, $audit, SensitiveAccessAction::ExportRequested);
+
+            return $operation;
         });
         // A transport failure retains a visible pending operation, safely re-dispatchable by UUID.
         try {
@@ -99,6 +106,7 @@ final readonly class OrganizationPortabilityService
             $this->assertNoPurge($organizationId);
             $operation = $this->operations->find($organizationId, $operationId);
             $this->assertLive($operation);
+            $this->traceExport($operation, $audit, SensitiveAccessAction::ExportRetried);
         });
         $this->queue->export($organizationId, $operationId);
     }
@@ -137,6 +145,8 @@ final readonly class OrganizationPortabilityService
                                 'organization_status' => $organization->status->value,
                                 'organization_updated_at' => $organization->updated_at?->format('Y-m-d\TH:i:s.uP')],
                         ]);
+                        $this->traceExport($operation, new OrganizationAuditData($operation->actorUserId, $operation->reason, $operation->requestId),
+                            SensitiveAccessAction::ExportGenerated);
                         $this->logger->info('tenant.export.ready', ['operation_id' => $operation->id, 'rows' => $result->rows, 'files' => $result->files]);
                     });
             });
@@ -164,7 +174,15 @@ final readonly class OrganizationPortabilityService
         }
         $stream = $this->archives->read($operation);
         try {
-            $this->assertLive($operation);
+            $this->database->transaction(function () use ($organizationId, $operationId, $audit): void {
+                $this->authorize($organizationId, $audit);
+                $current = $this->operations->find($organizationId, $operationId);
+                $this->assertLive($current);
+                if ($current->status !== 'ready') {
+                    throw new DomainConflictException(__('tenancy.portability.not_ready'), 'EXPORT_NOT_READY');
+                }
+                $this->traceExport($current, $audit, SensitiveAccessAction::ExportRead);
+            });
         } catch (Throwable $exception) {
             fclose($stream);
             throw $exception;
@@ -228,6 +246,12 @@ final readonly class OrganizationPortabilityService
         if ($operation->kind === 'export' && in_array($operation->status, ['pending', 'failed'], true)) {
             $this->operations->update($organizationId, $operationId, ['status' => 'failed']);
         }
+    }
+
+    private function traceExport(PortabilityOperation $operation, OrganizationAuditData $audit, SensitiveAccessAction $action): void
+    {
+        $this->sensitive->record($operation->organizationId, new SensitiveAccessData(
+            $audit->actorUserId, $action, $operation->id, $audit->requestId, 'operator_portability'));
     }
 
     private function assertLive(PortabilityOperation $operation): void

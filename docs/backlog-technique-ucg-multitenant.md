@@ -927,7 +927,8 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   humaine auditée et acceptation du risque de doublon avant retry. Aucune promesse
   exactly-once SMTP ni de livraison finale. Activation technique explicite après
   migration et configuration, pas d’envoi ni de migration principale par l’agent.
-  Push/CI/migration CTR-005 à effectuer par l’utilisateur. Prochain P0 : CTR-006.
+  Push, CI verte et migration CTR-005 confirmés par l’utilisateur avant CTR-006 ;
+  migration Ran batch 24 vérifiée en lecture seule. Prochain P0 traité : CTR-006.
 
 ### UCG-CTR-006 — Auditer consultations et exports sensibles
 
@@ -935,6 +936,18 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Périmètre** : lecture, téléchargement, export, acteur, motif éventuel et tenant.
 - **Acceptation** : audit consultable uniquement par les rôles autorisés et dépourvu du contenu du contrat.
 - **Références CDC** : CTR-06, CTR-10.
+- **État au 15 octobre 2026** : implémenté localement. Consultations HTTP réussies
+  des contrats et données sensibles journalisées ; lien temporaire et préparation
+  du téléchargement distincts. Exports opérateur TEN-007 existants : demande,
+  relance, génération et ouverture tracées ; opérateur recontrôlé après stockage.
+  Métadonnées fermées sans contenu contractuel, montant, nom, fichier, URL signée
+  ni motif libre. Motif facultatif catégorisé, journal append-only, lecture réservée
+  à audit.view/MFA et sans accès plateforme implicite. Écran mobile, filtres et
+  pagination par curseurs IAM-006. Réponse sensible bloquée si audit indisponible.
+  Migration additive et inventaire d’export mis à jour ; aucun accès passé inventé.
+  Pas de nouvel export CSV métier ni de signature électronique dans ce ticket.
+  Push/CI/migration CTR-006 à effectuer par l’utilisateur avant mise en service.
+  Dernier P0 Contrats implémenté ; prochain P0 du backlog : UCG-SPON-001.
 
 ### UCG-CTR-007 — Intégrer la signature électronique
 

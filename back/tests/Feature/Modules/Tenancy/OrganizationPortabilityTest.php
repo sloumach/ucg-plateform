@@ -62,7 +62,7 @@ class OrganizationPortabilityTest extends TestCase
 
         $this->assertIsString($contents);
         $this->assertSame('ready', $operation->status);
-        $this->assertSame(['rows' => 6, 'files' => 1, 'format' => 'ucg-tenant-ndjson-v1',
+        $this->assertSame(['rows' => 7, 'files' => 1, 'format' => 'ucg-tenant-ndjson-v1',
             'organization_status' => 'active', 'organization_updated_at' => $first->updated_at?->format('Y-m-d\TH:i:s.uP')], $operation->details);
         $this->assertSame(hash('sha256', $contents), $operation->sha256);
         $this->assertStringContainsString($firstFile->id, $contents);

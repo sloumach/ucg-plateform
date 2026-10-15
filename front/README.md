@@ -303,3 +303,37 @@ Tests : ContractRemindersPanel.test.tsx (réglages, confirmation, versions, acc�
 résolution, annulation, boîte), contract-reminders.spec.ts (mobile 390 px,
 deux canaux, décision humaine et ouverture du dossier). Les API métier y sont
 simulées et aucun e-mail réel n'est envoyé.
+
+
+## Journal des accès sensibles — CTR-006
+
+Le panneau de l'espace organisation exige audit.view ; les droits administratifs
+ou le statut de propriétaire ne sont pas interprétés comme une autorisation
+locale supplémentaire. Le serveur recontrôle la permission, la MFA et le statut
+du compte. Aucun contenu de contrat n'est rendu dans ce panneau, même si une
+réponse simulée contient des champs after arbitraires.
+
+Lecture à la demande via audit-events?source=tenancy.sensitive, dix événements
+par page. Filtres par action et identifiant du compte ; navigation par curseurs
+opaques, réinitialisée après modification des filtres ou actualisation.
+Les dates sont rendues dans le fuseau de l'organisation. Identifiants longs
+coupés sur mobile, requêtes annulées au démontage, ancien journal effacé en cas
+d'échec, contexte invalidé après retrait d'accès. Le composant est remonté
+après changement de tenant, révision ou permissions.
+
+Les libellés distinguent consultation, lien temporaire créé, téléchargement
+autorisé et étapes de l'export opérateur. « Téléchargement autorisé » indique une
+réponse préparée pour être servie, pas une preuve de réception du fichier.
+Le motif est une catégorie ; aucun nom de personne, nom de fichier, titre,
+montant ou motif libre n'est ajouté au journal. Les UUID ne sont pas des liens
+d'accès à des documents.
+
+Les API contractuelles bloquent la réponse avec 503 ACCESS_AUDIT_UNAVAILABLE
+si l'audit ne peut pas être enregistré. L'API du journal reste privée, no-store.
+Aucun bouton d'export d'archive opérateur n'est introduit dans le navigateur.
+
+Validation : SensitiveAccessPanel.test.tsx couvre permissions explicites,
+chargement, filtres, curseurs, fuseau, retrait d'accès, annulation et échappement.
+sensitive-access.spec.ts vérifie le parcours mobile à 390 px, les filtres, la
+navigation et l'absence du panneau après retrait de la permission. Les données
+métier du navigateur sont simulées.

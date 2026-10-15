@@ -1376,3 +1376,54 @@ backlogs et profiler avant d'augmenter les lots, de sharder la file ou d'introdu
 un fournisseur avec idempotence native. Historique/boîte paginés, requêtes sans
 chargement des contenus contractuels ou documentaires sensibles. Audit minimal
 sur la configuration et les décisions ; le ledger conserve run, état et tentatives.
+
+
+## Audit des accès sensibles — CTR-006
+
+Tenancy expose TenantSensitiveAccessJournal, port d'écriture de métadonnées pour
+des appels serveur déjà autorisés. EloquentSensitiveAccessJournal persiste
+organization_sensitive_access_events. SensitiveAccessData accepte uniquement
+acteur, action fermée, UUID de cible/requête, catégorie de motif et IP facultative.
+SensitiveAccessAction détermine le type de cible, sans texte provenant d'un contrat.
+Le journal n'est pas un mécanisme d'autorisation ; ses appelants doivent résoudre
+le tenant et vérifier l'accès avant de l'invoquer.
+
+AuditContractAccess est placé après la résolution du tenant sur les routes
+Contracts. Une table fermée de noms de routes sélectionne les lectures et
+l'émission de liens, puis les paramètres serveur fournissent la cible. Aucune
+URL, query string, empreinte, pièce ou réponse n'est persistée. Les Form Requests
+existantes conservent la validation et les policies ; l'en-tête facultatif
+X-Access-Purpose fait l'objet d'une validation de métadonnées séparée.
+Après une réponse 2xx, l'événement doit être enregistré avant de retourner cette
+réponse au pipeline. Un échec rend 503 avec Retry-After, sans fuite du corps
+JSON/PDF déjà préparé. Ce mécanisme ne convient pas à une réponse streamée
+différée sans adaptation ; les téléchargements CTR-003 actuels sont bornés et
+préparés avant leur retour. Les jobs internes ne sont pas attribués à un faux
+acteur humain de consultation.
+
+OrganizationPortabilityService TEN-007 écrit les événements de demande et relance
+dans leur transaction, puis l'événement de génération avec le passage à ready.
+Une reprise d'une opération déjà ready ne crée pas une seconde génération.
+Après lecture du stockage, le service revérifie l'opérateur et l'opération avant
+de journaliser l'ouverture ; toute erreur ferme le flux. Les archives restent
+privées et accessibles uniquement par l'outillage opérateur existant. Leur motif
+libre n'est pas recopié dans le journal de consultation.
+
+La source tenancy.sensitive rejoint le journal tenant IAM-006. TenantAuditService
+conserve audit.view, vérification du compte/MFA et exclusion des profils
+techniques plateforme. AuditTimelineQuery conserve ses bornes et curseurs chiffrés
+liés à l'auditeur, au tenant et aux filtres. Aucun modèle Contracts n'est importé
+dans Tenancy et aucun modèle privé Tenancy n'est importé dans Contracts.
+Le catalogue d'export opérateur référence les colonnes du nouveau journal fermé.
+
+Migration additive, aucune ancienne migration modifiée, aucune reprise
+rétrospective des accès. FK tenant/acteur, liste d'actions et catégories fermée,
+cohérence SQL action/type de cible, gardes append-only, rollback interdit si usage.
+Les tests de round-trip d'Organization retirent et réinstallent cette dépendance.
+
+Index pour les lectures réelles tenant/date, tenant/acteur/date et tenant/action/date.
+L'insertion synchrone constitue le coût par lecture ; elle est nécessaire à
+l'absence de divulgation sans trace. La source ajoute une requête bornée à la
+timeline générique (cinq sources tenant). Pas de jointure par événement ni de
+déchiffrement du contenu métier. Conservation illimitée sans purge IAM-006 ;
+mesurer volume/latence avant partitionnement, archivage ou modification de cette politique.

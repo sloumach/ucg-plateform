@@ -5,10 +5,11 @@ use App\Modules\Contracts\Presentation\Http\Controllers\Api\V1\ContractDocumentC
 use App\Modules\Contracts\Presentation\Http\Controllers\Api\V1\ContractDocumentSecurityController;
 use App\Modules\Contracts\Presentation\Http\Controllers\Api\V1\ContractGovernanceController;
 use App\Modules\Contracts\Presentation\Http\Controllers\Api\V1\ContractReminderController;
+use App\Modules\Contracts\Presentation\Http\Middleware\AuditContractAccess;
 use App\Modules\Contracts\Presentation\Http\Middleware\ValidateDocumentDownloadLink;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('tenants/{tenant}/contracts')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
+Route::prefix('tenants/{tenant}/contracts')->whereUuid('tenant')->middleware(['tenant', AuditContractAccess::class])->group(function (): void {
     $controller = ContractController::class;
     $reminders = ContractReminderController::class;
     Route::get('reminders', [$reminders, 'inbox'])->name('contract-reminders.inbox');

@@ -367,7 +367,7 @@ class AuditJournalTest extends TestCase
         DB::disableQueryLog();
         $this->assertSame($smallCount, count($queries));
         $timelineQueries = array_values(array_filter($queries, fn (array $query): bool => str_starts_with($query['query'], 'select') && str_contains($query['query'], 'order by "occurred_at" desc')));
-        $this->assertCount(4, $timelineQueries);
+        $this->assertCount(5, $timelineQueries);
         foreach ($timelineQueries as $query) {
             $this->assertStringContainsString('limit 21', $query['query']);
             $this->assertStringNotContainsString('offset', $query['query']);

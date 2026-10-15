@@ -5,6 +5,7 @@ namespace App\Http\Api;
 use App\Contracts\Exceptions\DomainExceptionContract;
 use App\Contracts\Exceptions\ValidationDomainExceptionContract;
 use App\Exceptions\DomainConflictException;
+use App\Exceptions\SensitiveAuditUnavailableException;
 use App\Modules\Tenancy\Domain\Exceptions\TenantLimitExceededException;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -29,6 +30,9 @@ final readonly class ApiExceptionRenderer
         }
 
         return match (true) {
+            $exception instanceof SensitiveAuditUnavailableException => $this->responses->error(
+                $request, $exception->getMessage(), 'ACCESS_AUDIT_UNAVAILABLE', 503,
+            )->withHeaders($exception->getHeaders()),
             $exception instanceof ValidationException => $this->responses->error(
                 request: $request,
                 message: __('api.errors.validation_failed'),
