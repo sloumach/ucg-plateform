@@ -10,8 +10,11 @@
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
 - Dernier ticket traité : `UCG-SPON-002` — accords et périmètres d’exposition.
-  Implémentation locale ; revue, push utilisateur, CI distantes et migration
-  SPON-002 à effectuer. Détails et validation dans la section dédiée ci-dessous.
+  Commit `a899bf2` poussé ; staging synchronisé avec origin/staging au début du
+  correctif. CI backend échouée sur trois round-trips PostgreSQL Catalogue/Teams.
+  Correctif local de leur ordre de migrations ; nouveau push/CI à effectuer.
+  Migration SPON-002 vérifiée en lecture seule : Ran, batch 27. Aucun migrate
+  principal par l’agent. Détails dans la section de correction ci-dessous.
 - SPON-001 (`68ec32e`) poussé et synchronisé avec origin/staging au démarrage ;
   CI et migration validées par l’utilisateur. Migration vérifiée en lecture
   seule : Ran, batch 26. Aucun migrate principal par l’agent.
@@ -89,9 +92,10 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : revue du commit SPON-002, push utilisateur et CI vertes,
-  sauvegarde puis migration `2026_10_16_000918_create_sponsorship_agreements_and_exposures`
-  depuis back/. Migration principale vérifiée Pending en lecture seule.
+- Prochaine action : revue du correctif CI SPON-002, push utilisateur et CI vertes.
+  Migration `2026_10_16_000918_create_sponsorship_agreements_and_exposures`
+  déjà appliquée, vérifiée Ran, batch 27 en lecture seule. Pas de nouvelle migration
+  ni de rollback requis pour le correctif des tests.
   Attribuer explicitement partnerships.read/write/validate et les droits
   financiers/administratifs nécessaires aux membres habilités via les rôles
   existants ; deux acteurs distincts sont nécessaires pour préparer et approuver.
@@ -119,7 +123,7 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après push/CI/migration SPON-002, prochain P0 :
+- Après push du correctif et CI SPON-002 vertes, prochain P0 :
   `UCG-SPON-003`, campagnes et livrables. Les P0 Contrats sont
   implémentés ; la signature électronique CTR-007 reste P1. ClamAV doit être vérifié en
   environnement cible ; aucun téléchargement sans analyse clean réussie.
@@ -2228,3 +2232,37 @@ ensuite ce fichier pour qu'il reflète la réalité.
   Recette avec deux membres habilités et ClamAV opérationnel pour les pièces.
   Prochain P0 : UCG-SPON-003, campagnes, livrables, échéances et preuves de
   réalisation. La référence d’autorisation d’exposition ne prouve pas une livraison.
+
+## Correctif CI PostgreSQL SPON-002 — dépendances Catalogue/Teams
+
+- Commit a899bf2 poussé, branche staging propre et synchronisée au démarrage.
+  Journal CI fourni par l’utilisateur : 3 échecs, 1 361 tests réussis et 2 skips
+  dans l’étape PostgreSQL. Migration principale vérifiée en lecture seule :
+  SPON-002 Ran, batch 27. Aucun migrate ni rollback principal par l’agent.
+- Cause reproduite sur PostgreSQL 17 : les deux round-trips de
+  GameCatalogueSchemaTest et celui de TeamSchemaTest supprimaient teams alors que
+  sponsorship_exposures la référençait encore par exposure_team (SQLSTATE 2BP01).
+  La sélection PostgreSQL locale précédente de 118 tests ne couvrait pas ces
+  scénarios ; la suite SQLite complète ne détectait pas ce blocage PostgreSQL.
+- Correctif limité aux prérequis de ces trois tests : retirer la migration
+  SPON-002 avant les tables parentes, puis la recréer après elles. Assertions,
+  contraintes FK et code métier conservés ; aucun CASCADE ni test désactivé.
+  Vérification de tous les appels de rollback teams dans les tests : le
+  round-trip Organization traitait déjà cette dépendance.
+- Validation ciblée après correction : 29 tests, 70 assertions réussis sous
+  SQLite puis PostgreSQL, avec cache database. Les trois erreurs PostgreSQL ont
+  été reproduites avant modification. Pint dirty, contrôle de formatage complet
+  et PHPStan niveau 8 passent.
+- Pour la validation PostgreSQL complète, utiliser une nouvelle base temporaire
+  par invocation PHPUnit. Une première relance après les tests ciblés dans la
+  même base a rencontré des fonctions de triggers déjà présentes lors du
+  migrate:fresh ; cette erreur d’orchestration locale ne justifie aucune
+  modification des migrations métier. Bases temporaires supprimées après usage.
+- Validation finale : sélection PostgreSQL complète extraite des 64 chemins du
+  workflow backend, cache array comme en CI, sur une base temporaire neuve.
+  1 366 tests, 1 364 réussis, 2 skips Redis attendus, 6 255 assertions, aucune
+  erreur ni échec. Base supprimée après exécution. Aucun changement frontend ;
+  pas de nouvelle recette navigateur pour ce correctif de prérequis de tests.
+- Un commit local regroupe correctif et documentation. Aucun push, seed, e-mail
+  ou changement de données métier par l’agent. Suite : push utilisateur puis CI
+  backend/frontend vertes ; aucune migration supplémentaire pour ce correctif.

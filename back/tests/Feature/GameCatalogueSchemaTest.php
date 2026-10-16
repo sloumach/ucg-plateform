@@ -122,6 +122,8 @@ class GameCatalogueSchemaTest extends TestCase
         $lineups = require database_path('migrations/2026_10_13_204834_create_team_lineup_tables.php');
         $eligibility = require database_path('migrations/2026_10_13_215251_create_team_eligibility_rules_and_reports.php');
         $opponents = require database_path('migrations/2026_10_14_121838_create_external_opponents_and_snapshots.php');
+        $agreements = require database_path('migrations/2026_10_16_000918_create_sponsorship_agreements_and_exposures.php');
+        $agreements->down();
         $opponents->down();
         $eligibility->down();
         $lineups->down();
@@ -134,6 +136,7 @@ class GameCatalogueSchemaTest extends TestCase
         $lineups->up();
         $eligibility->up();
         $opponents->up();
+        $agreements->up();
         $this->assertDatabaseCount('game_catalogue_entries', 18);
         $this->assertDatabaseCount('organization_games', 0);
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
@@ -165,6 +168,8 @@ class GameCatalogueSchemaTest extends TestCase
         $lineups = require database_path('migrations/2026_10_13_204834_create_team_lineup_tables.php');
         $eligibility = require database_path('migrations/2026_10_13_215251_create_team_eligibility_rules_and_reports.php');
         $opponents = require database_path('migrations/2026_10_14_121838_create_external_opponents_and_snapshots.php');
+        $agreements = require database_path('migrations/2026_10_16_000918_create_sponsorship_agreements_and_exposures.php');
+        $agreements->down();
         $opponents->down();
         $eligibility->down();
         $lineups->down();
@@ -185,6 +190,7 @@ class GameCatalogueSchemaTest extends TestCase
         $lineups->up();
         $eligibility->up();
         $opponents->up();
+        $agreements->up();
         $this->assertDatabaseCount('organization_games', 4);
         $this->assertSame(1, OrganizationGame::query()->where('organization_id', $org->id)->where('enabled', true)->count());
     }

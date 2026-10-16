@@ -970,7 +970,7 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 
 ### UCG-SPON-002 — Gérer accords et périmètres d’exposition
 
-- **État** : implémenté localement ; revue, push utilisateur, CI distantes et migration principale à effectuer.
+- **État** : implémenté et poussé (`a899bf2`), migration vérifiée Ran, batch 27. CI backend échouée sur trois tests de rollback Catalogue/Teams ; ordre des migrations corrigé localement, nouveau push/CI à effectuer. Aucune nouvelle migration requise.
 - **Livraison** : accords privés, période/responsable, conditions numéraire/nature/mixte chiffrées, lecture financière auditée et droits distincts, approbation indépendante et invalidation après modification. Périmètres organisation/équipe/joueur avec référence d’autorisation ; exclusivités par catégorie sur les périodes approuvées qui se chevauchent. Pièces via contrat sponsor associé et protections Contrats existantes. API/React, pagination, versions optimistes, contraintes SQLite/PostgreSQL et export opérateur.
 - **Limites explicites** : référentiels événement/contenu indisponibles, donc refusés ; aucune publication automatique ni preuve de réalisation inventée. Campagnes et livrables restent SPON-003. Aucune attribution réelle de rôle ni migration principale par l’agent.
 

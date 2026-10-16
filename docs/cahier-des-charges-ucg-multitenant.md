@@ -405,8 +405,9 @@ Classer par organisation, personne, équipe, compétition, sponsor ou dossier. V
   sur toute l’organisation et les périodes approuvées qui se chevauchent.
   Aucune publication automatique. Les campagnes, obligations livrées, échéances
   opérationnelles et preuves de réalisation restent SPON-003 ; la référence
-  d’autorisation n’est pas une preuve de livraison. Migration et CI distantes
-  SPON-002 restent à effectuer après revue du commit local.
+  d’autorisation n’est pas une preuve de livraison. Migration SPON-002 appliquée
+  (batch 27) ; CI backend à relancer après le correctif des tests de rollback
+  Catalogue/Teams. Les fonctionnalités métier et contraintes restent inchangées.
 - SPON-05 : gérer une campagne comme un ensemble de livrables assignés : publications, vidéos, présence événementielle ou placement de marque.
 - SPON-06 : produire un rapport distinguant engagement promis, livré, validé et mesure réellement disponible.
 - SPON-07 : en P1, ouvrir un portail limité à l’accord du sponsor avec validation préalable des informations partagées.
