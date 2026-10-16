@@ -1536,3 +1536,38 @@ audience, ni certifier une publication. Un changement de tenant/droits invalide
 les lectures et les formulaires ; les mutations actualisent le tableau par un
 callback explicite. Les campagnes restent dans le fragment React des accords ;
 le tableau de suivi possède son propre fragment chargé pour les lecteurs habilités.
+
+## Catalogue de médias — UCG-MEDIA-001
+
+Media possède la table tenant `media_items`. MediaController reste un point
+d’entrée mince : MediaRequest fermée, MediaPolicy, MediaService, port
+MediaRepository et adaptateur Eloquent, puis Resources à liste fermée. Les liens
+passent par la règle de domaine MediaLink. MediaTeamsDirectory expose depuis
+Teams uniquement des choix/noms actifs paginés et un contrôle de référence sous
+verrou ; aucun modèle Teams n’est importé par Media. Les méthodes internes de
+références d’équipes sont renommées referencePage/referenceLabels et partagées
+avec Partnerships sans partager leurs contrôles d’accès.
+
+Les mutations verrouillent l’organisation avant les ressources et recontrôlent
+les droits sous verrou. Version UUID optimiste ; audit minimal media_id/action
+dans la même transaction, sans titre, URL ou observation. Le schéma protège la
+FK composite tenant/équipe, les états de diffusion selon le type, la cohérence
+du partage et l’identité ; archives immuables, suppression physique interdite.
+Migration additive indépendante, export opérateur explicitement étendu.
+
+Droits media.read/write/publish explicites, MFA, aucun accès de gouvernance ou
+plateforme implicite. Lecture simple : seulement les médias non archivés dont
+le partage est effectif. Édition : accès aux références privées/planifiées et
+archives. Un scrim exige une date de partage, future lors de l’autorisation.
+Les contrôles temporels sont rejoués à la lecture ; aucun job n’envoie une
+autorisation périmée. Il n’existe pas de route publique ni de lecteur intégré.
+
+Liens officiels HTTPS contrôlés sans requête réseau, ouverture volontaire et sans
+référent. La disponibilité reste une observation manuelle distincte d’un score ;
+un renommage ne réaffirme pas une ancienne observation. L’horodatage tenant sert
+à l’affichage, les saisies locales sont converties en ISO avec fuseau.
+
+Seul le rattachement équipe est opérationnel : Competition et Scheduling restent
+des frontières vides pour matchs/événements. Aucun UUID libre ni nouvelle
+dépendance Media → Competition/Scheduling n’est introduit. Ces liaisons exigeront
+des contrats publics tenant et des contrôles scrim issus du référentiel réel.

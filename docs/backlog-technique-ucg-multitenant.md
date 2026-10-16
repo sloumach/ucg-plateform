@@ -981,7 +981,7 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 
 ### UCG-SPON-003 — Suivre campagnes et livrables
 
-- **État** : implémenté localement ; revue, push utilisateur, CI distantes et migration principale à effectuer.
+- **État** : `aba9205` poussé ; CI et migration validées par l’utilisateur avant MEDIA-001. Migration vérifiée Ran, batch 28.
 - **Livraison** : campagnes rattachées aux accords, périodes et responsables habilités, promesses liées aux périmètres, déclarations datées avec preuves textuelles chiffrées, validation indépendante et réouverture avec conservation de l’ancienne preuve. États promis/livré/validé distincts, annulation et archivage protégés, historique en ajout seul, tableau tenant paginé avec retards et compteurs séparés. API/React, versions optimistes, contraintes SQLite/PostgreSQL et portabilité opérateur.
 - **Limites** : aucune publication, ouverture automatique de référence, mesure d’audience, pièce téléversée ou notification externe. Une preuve est une référence manuelle à vérifier ; le statut livré ne prouve pas une exposition autorisée. Les types événementiel/contenu ne créent pas de référentiels indisponibles. Rapports SPON-004 et portail SPON-005 restent P1.
 
@@ -1007,6 +1007,10 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 ## 16 Module Live, communication et modération
 
 ### UCG-MEDIA-001 — Gérer streams, VOD et clips
+
+- **État** : implémenté localement ; revue/push utilisateur, CI distantes et migration à effectuer.
+- **Livraison** : catalogue tenant de streams/VOD/clips Twitch et YouTube, rattachés à une équipe active existante. Liens HTTPS normalisés et contrôlés sans accès réseau, statut de diffusion manuel et observation datée séparés du score. Médias privés par défaut, droits media.read/write/publish explicites et MFA, partage différé de scrim autorisé et filtré côté serveur, retrait et archive définitive. API/React, validation fermée, contrôle tenant, versions, audit atomique minimal, portabilité et contraintes SQLite/PostgreSQL.
+- **Limites** : aucune fiche match/événement n’existe encore ; ces UUID sont refusés, le contexte scrim reste déclaratif. Visibilité public = autorisation externe enregistrée, aucun endpoint anonyme ou changement chez le fournisseur. Pas de lecteur intégré, de collecte de disponibilité, d’audience ou de score. MEDIA-002 reste P1 ; prochain P0 du volet : COM-001 à cadrer après livraison.
 
 - **Priorité / taille** : P0 / M
 - **Périmètre** : média lié à un match, une équipe ou un événement ; statut, fournisseur et visibilité.

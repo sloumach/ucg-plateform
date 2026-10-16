@@ -2057,3 +2057,81 @@ de lignes. Les écritures sont sérialisées par organisation ; profiler agréga
 contention et pagination profonde sur les volumes réels avant d’ajouter un cache
 ou une projection asynchrone. Les droits courants ne sont pas mis en cache durable.
 Aucun résultat de charge à plusieurs millions d’utilisateurs n’est revendiqué.
+
+## Streams, VOD et clips — UCG-MEDIA-001
+
+Le catalogue **Streams, VOD et clips** de l’espace organisation référence les
+médias Twitch/YouTube d’une équipe active existante. Les fiches de matchs et
+d’événements n’existent pas encore : aucun identifiant libre ou fictif n’est
+accepté pour ces rattachements. Le contexte « scrim déclaré » qualifie le média
+manuellement ; il ne crée pas de match.
+
+Après sauvegarde, appliquer depuis `back/` la migration additive avec
+`php artisan migrate --no-interaction`. Le fichier
+`2026_10_16_192806_create_media_items_table.php` crée uniquement
+`media_items`, sans reprise de données. Ne pas ouvrir ce parcours avant la
+migration. Le rollback refuse de supprimer une table contenant des médias.
+
+Accorder explicitement via IAM-003, au niveau de l’organisation :
+
+- `media.read` : consultation des médias effectivement partagés.
+- `media.read` + `media.write` : gestion, références privées et archives.
+- Ajouter `media.publish` pour autoriser ou modifier un partage ; confirmer
+  à chaque mutation d’un média qui reste partagé. Ces droits exigent le MFA
+  et n’accordent aucun accès sportif, RH, financier ou partenaire. Le propriétaire
+  et les opérateurs plateforme n’ont pas de droit média implicite.
+
+Tous les médias, scrims inclus, sont privés par défaut, visibles seulement par
+les gestionnaires médias du tenant. Les visibilités `organization` et
+`public` enregistrent une autorisation de partage ; l’API reste authentifiée,
+et aucune page publique n’est créée. Un scrim partagé exige une date future
+`publish_at` lors de l’autorisation ou de la modification de cette date.
+Avant cette date, ni la liste ni le détail ne renvoient le média aux simples
+lecteurs. À l’échéance, le serveur applique la visibilité à la lecture, sans job,
+notification ou publication chez le fournisseur. Un gestionnaire peut retirer
+le partage ou archiver le média sans droit de publication. Une archive est
+définitive et ne peut être supprimée via l’API.
+
+Les liens sont contrôlés syntaxiquement par type/fournisseur et normalisés :
+HTTPS, hôtes officiels exacts, sans authentifiants, port, fragment ni paramètres
+de suivi. Sont pris en charge : chaîne Twitch (stream), vidéos Twitch (VOD),
+clips Twitch ; YouTube watch/youtu.be (stream ou VOD), live (stream),
+shorts/clip (clip). Retirer les paramètres de partage tels que `si`.
+Aucune requête réseau ne vérifie l’existence, la disponibilité ou les droits
+sur la vidéo. L’ouverture externe est explicite et ne transmet pas de référent.
+Le réglage local ne protège pas une vidéo déjà publique chez le fournisseur.
+Les lecteurs intégrés restent MEDIA-002.
+
+Le statut `scheduled/live/ended/unavailable` est une observation manuelle
+datée (`status_source=manual`), séparée de toute source de score. VOD et clips :
+`ended` ou `unavailable`. Modifier la source ou le statut exige une observation
+explicite, non future et non antérieure à la dernière observation. Un changement
+de titre ne rafraîchit pas automatiquement cette observation.
+
+Exemple SPA (client existant : CSRF, confirmation tenant puis révision) :
+
+```ts
+await tenancyRequest('active-organization/confirmation', {
+  method: 'POST', body: { organization_id: organizationId, revision, confirm: true },
+})
+await tenancyRequest('tenants/' + organizationId + '/media', {
+  method: 'POST', revision,
+  body: {
+    title: 'VOD équipe', team_id: selectedTeamId,
+    kind: 'vod', provider: 'youtube',
+    url: 'https://www.youtube.com/watch?v=abcdefghijk',
+    is_scrim: true, visibility: 'private',
+  },
+})
+```
+
+Cet identifiant vidéo illustre seulement le format ; il ne prouve pas l’existence
+d’un contenu. Les UUID d’équipe/révision doivent provenir des lectures autorisées.
+Pour éditer : PATCH du média avec sa `version`. Pour archiver : PATCH contenant
+seulement `version` et `archive: true`. Un 409 impose une relecture, sans rejeu.
+
+Listes et choix d’équipes paginés, 100 éléments maximum, tri stable, références
+chargées par lots. Index tenant/équipe/visibilité ; aucun cache durable des droits.
+La recherche est un préfixe littéral. À fort volume, mesurer les plans, la
+pagination profonde et la contention du verrou organisation avant d’introduire
+un index de recherche ou une pagination par curseur.

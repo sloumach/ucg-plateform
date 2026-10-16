@@ -19,7 +19,7 @@ final readonly class PartnershipTeamsService implements PartnershipTeamsDirector
             throw new \InvalidArgumentException('Partnership references must be paginated.');
         }
 
-        return $this->records->partnershipPage($context->organizationId, $page, $perPage);
+        return $this->records->referencePage($context->organizationId, $page, $perPage);
     }
 
     public function labels(TenantContext $context, array $ids): array
@@ -29,6 +29,6 @@ final readonly class PartnershipTeamsService implements PartnershipTeamsDirector
             throw new \InvalidArgumentException('Partnership references must be bounded.');
         }
 
-        return $this->records->partnershipLabels($context->organizationId, array_map('strtolower', $ids));
+        return $this->records->referenceLabels($context->organizationId, array_map('strtolower', $ids));
     }
 }

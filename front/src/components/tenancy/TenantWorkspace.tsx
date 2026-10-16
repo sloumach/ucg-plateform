@@ -20,6 +20,7 @@ import { SensitiveAccessPanel } from './SensitiveAccessPanel'
 import { PartnershipsPanel } from '../partnerships/PartnershipsPanel'
 import { ContractsPanel } from '../contracts/ContractsPanel'
 const SponsorshipDashboardPanel = lazy(() => import('../partnerships/SponsorshipDashboardPanel').then((module) => ({ default: module.SponsorshipDashboardPanel })))
+const MediaPanel = lazy(() => import('../media/MediaPanel').then((module) => ({ default: module.MediaPanel })))
 import { Button } from '../Button'
 import { FormField } from '../FormField'
 import { Pagination } from '../data/Pagination'
@@ -242,6 +243,7 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
           {selected && <TeamsPanel key={'teams:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
           {selected && <ExternalOpponentsPanel key={'opponents:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
           {selected && <SensitiveAccessPanel key={'sensitive-audit:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
+          {selected?.permissions.includes('media.read') && <Suspense fallback={<p role="status">{t('media.loading')}</p>}><MediaPanel key={'media:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
           {selected?.permissions.includes('partnerships.read') && <Suspense fallback={<p role="status">{t('sponsorships.loading')}</p>}><SponsorshipDashboardPanel key={'campaign-dashboard:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} refresh={campaignRefresh} onInvalid={invalidatePeopleContext} /></Suspense>}
           {selected && <PartnershipsPanel key={'partnerships:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} onCampaignChanged={refreshCampaignDashboard} />}
           {selected && <ContractsPanel key={'contracts:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}

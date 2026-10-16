@@ -8,12 +8,12 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 interface TeamRepository
 {
     /** @return LengthAwarePaginator<int, array{id: string, label: string}> */
-    public function partnershipPage(string $org, int $page, int $perPage): LengthAwarePaginator;
+    public function referencePage(string $org, int $page, int $perPage): LengthAwarePaginator;
 
     /** @param list<string> $ids
      * @return array<string, string>
      */
-    public function partnershipLabels(string $org, array $ids): array;
+    public function referenceLabels(string $org, array $ids): array;
 
     /** @param array<string, mixed> $filters
      * @return LengthAwarePaginator<int, Team>

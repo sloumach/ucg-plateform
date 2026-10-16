@@ -5,11 +5,13 @@ namespace App\Modules\Teams\Providers;
 use App\Modules\People\Application\Contracts\GameProfileCatalogue;
 use App\Modules\Teams\Application\Contracts\ExternalOpponents;
 use App\Modules\Teams\Application\Contracts\HistoricalLineups;
+use App\Modules\Teams\Application\Contracts\MediaTeamsDirectory;
 use App\Modules\Teams\Application\Contracts\OrganizationGameCatalogue;
 use App\Modules\Teams\Application\Contracts\PartnershipTeamsDirectory;
 use App\Modules\Teams\Application\Services\EffectiveGameCatalogue;
 use App\Modules\Teams\Application\Services\ExternalOpponentSnapshotService;
 use App\Modules\Teams\Application\Services\GameProfileCatalogueBridge;
+use App\Modules\Teams\Application\Services\MediaTeamsService;
 use App\Modules\Teams\Application\Services\PartnershipTeamsService;
 use App\Modules\Teams\Application\Services\TeamDepartureParticipant;
 use App\Modules\Teams\Application\Services\TeamLineupService;
@@ -46,6 +48,7 @@ final class TeamsServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(MediaTeamsDirectory::class, MediaTeamsService::class);
         $this->app->bind(PartnershipTeamsDirectory::class, PartnershipTeamsService::class);
         $this->app->bind(ExternalOpponentRepository::class, EloquentExternalOpponentRepository::class);
         $this->app->bind(ExternalOpponents::class, ExternalOpponentSnapshotService::class);

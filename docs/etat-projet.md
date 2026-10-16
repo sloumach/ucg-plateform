@@ -9,8 +9,11 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-SPON-003` — campagnes et livrables. Implémentation
+- Dernier ticket traité : `UCG-MEDIA-001` — streams, VOD et clips. Implémentation
   locale ; revue, push utilisateur, CI distantes et migration principale à effectuer.
+- SPON-003 (`aba9205`) poussé ; CI et migration validées par l’utilisateur avant
+  MEDIA-001. Migration vérifiée en lecture seule : Ran, batch 28. Staging propre
+  et synchronisé avec origin/staging au démarrage. Aucun migrate principal par l’agent.
 - SPON-002 (`a899bf2`, correctif `8fa6376`) poussé ; CI et migration validées par
   l’utilisateur avant SPON-003. Staging propre et synchronisé avec origin/staging
   au démarrage. Migration vérifiée en lecture seule : Ran, batch 27. Aucun migrate
@@ -92,14 +95,10 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : revue du commit SPON-003, push utilisateur et CI vertes,
-  sauvegarde puis migration `2026_10_16_013526_create_sponsorship_campaigns_and_deliverables`
-  depuis back/. Migration principale vérifiée Pending en lecture seule. SPON-002
-  est déjà appliqué, vérifié Ran, batch 27 ; aucun rollback requis.
-  Attribuer explicitement partnerships.read/write/validate et les droits
-  financiers/administratifs nécessaires aux membres habilités via les rôles
-  existants ; deux acteurs distincts sont nécessaires pour préparer et approuver.
-  Aucune attribution réelle par l’agent.
+- Prochaine action : revue/push du commit MEDIA-001, CI vertes, sauvegarde puis
+  migration `2026_10_16_192806_create_media_items_table` depuis back/.
+  Attribuer explicitement media.read/write/publish via IAM-003 aux membres habilités,
+  puis recetter un scrim privé et son partage différé. Aucune attribution réelle par l’agent.
   Mise en service des rappels CTR-005 à confirmer : configurer le scheduler,
   le cache partagé et le worker default ; activer
   CONTRACT_REMINDERS_ENABLED puis, quand le SMTP est prêt,
@@ -123,8 +122,8 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après push/CI/migration SPON-003, recetter les campagnes avec deux membres
-  habilités. Prochain P0 du volet Live : `UCG-MEDIA-001` ; rapports SPON-004 et
+- SPON-003 confirmé poussé/migré, CI validées. Après livraison de MEDIA-001,
+  prochain P0 du volet communication à cadrer : `UCG-COM-001` ; rapports SPON-004 et
   portail SPON-005 restent P1. Les P0 Contrats sont
   implémentés ; la signature électronique CTR-007 reste P1. ClamAV doit être vérifié en
   environnement cible ; aucun téléchargement sans analyse clean réussie.
@@ -2338,3 +2337,91 @@ ensuite ce fichier pour qu'il reflète la réalité.
   recette avec deux membres habilités. Les nouveaux services/tableau nécessitent
   les tables SPON-003 avant ouverture du parcours. Prochain P0 du volet Live à
   cadrer : UCG-MEDIA-001 ; aucune autre fonctionnalité démarrée automatiquement.
+
+## Streams, VOD et clips — UCG-MEDIA-001
+
+- Reprise sur staging propre et synchronisé avec origin/staging, SPON-003
+  aba9205 poussé ; CI/migration validées par l’utilisateur. Vérification en
+  lecture seule : SPON-003 Ran, batch 28.
+- Catalogue de médias lié à une équipe active du tenant : stream, VOD ou clip ;
+  fournisseur Twitch/YouTube, titre, URL normalisée et état scheduled/live/
+  ended/unavailable. VOD/clips limités à ended/unavailable. Le statut est une
+  déclaration manuelle datée, jamais un score ou une disponibilité vérifiée.
+  Une nouvelle source/un nouveau statut exige une observation non future et
+  non antérieure à la précédente ; un renommage ne réaffirme pas cette date.
+- Validation de domaine MediaLink : HTTPS et hôtes officiels exacts, chemins
+  compatibles type/fournisseur, sans authentifiants, port, fragment, encodage
+  de chemin ni paramètres de suivi. Aucune requête externe, téléchargement ou
+  lecteur. Lien sortant volontaire, sans référent ; titre échappé dans React.
+- Droits media.read/write/publish ajoutés au catalogue fermé, sans attribution.
+  MFA et droits organisation requis ; droits RH/finance/sport/partenariat
+  séparés. Propriétaire et compte technique n’ont pas d’accès métier implicite.
+- Privé par défaut, y compris les scrims déclarés : seuls les gestionnaires
+  médias y accèdent. Lecteurs simples limités au partage effectif, filtré dans
+  les requêtes liste/détail avant pagination ; avant publish_at, aucun ID/URL.
+  Archive masquée aux lecteurs ; son filtre exige media.write. Pas de cache
+  durable des droits, réponses private/no-store.
+- Tout partage maintenu/modifié exige media.publish et confirm_sharing accepté ;
+  acteur/date d’autorisation conservés. Scrim : date future explicite lors de
+  l’autorisation, reclassification en scrim ou modification de la date. À
+  l’échéance, visibilité recalculée à la lecture ; aucun job de publication.
+  Retrait/archive possibles avec read/write. Archive définitive, versionnée.
+- Visibilité public = autorisation externe enregistrée ; aucune route anonyme,
+  page publique ou modification chez le fournisseur. Un lien unlisted/public
+  reste soumis aux règles du fournisseur. Aucun contrôle de score/audience.
+- Matchs/événements absents des référentiels actuels : seul team_id est accepté.
+  Scrim est une déclaration sur le média, sans match inventé. Les futurs liens
+  exigeront des ports publics tenant Competition/Scheduling, sans accès direct
+  aux modèles voisins. MEDIA-002/003 restent P1/P2.
+- MVC, Form Request fermée, Policy pour chaque action, service, repository
+  injecté, Resources explicites. Confirmation/révision tenant, version UUID,
+  verrou organisation avant dossier/équipe, droits revérifiés en transaction.
+  Audit transversal minimal media_id/action, atomique, sans titre/URL.
+- Migration additive 2026_10_16_192806_create_media_items_table : media_items,
+  FK composite tenant/équipe, états et cohérence de partage, identité immuable,
+  archive figée/suppression interdite, contraintes SQLite/PostgreSQL. Rollback
+  refuse une table non vide ; aucune ancienne migration modifiée. Inventaire
+  d’export opérateur fermé étendu, index tenant/équipe/visibilité.
+- MediaTeamsDirectory ne transmet que choix/noms actifs paginés et contrôle de
+  référence. Méthodes internes referencePage/referenceLabels partagées avec
+  Partnerships, autorisations séparées ; chargement des labels par lots avec
+  test d’une seule requête pour toute la page, bornée à 100.
+- Round-trips Organization, Teams et Catalogue (deux scénarios) retirent MEDIA-001
+  avant les parents puis le recréent après. Aucune assertion existante retirée.
+  Les quatre nouveaux fichiers backend sont ajoutés à la sélection PostgreSQL :
+  70 chemins au total.
+- 52 nouveaux cas backend et 8 tests frontend. Première passe ciblée corrigée :
+  fixture d’adhésion créée deux fois et assertion du code JSON ; aucune erreur
+  métier masquée. 122 tests ciblés/architecture/parents verts, 576 assertions.
+- SQLite complet, cache database : 1 632 tests, 1 628 réussis, 4 skips attendus
+  (cas PostgreSQL, deux Redis réels, ClamAV réel opt-in), 7 538 assertions,
+  aucun échec. Pint dirty/complet, PHPStan niveau 8 et composer validate réussis.
+- Orchestration PostgreSQL locale : ne pas lancer SQLite et PostgreSQL en même
+  temps dans ce checkout. Storage::fake nettoie un dossier partagé entre
+  processus : la première sélection complète (1 446 cas) a connu trois échecs
+  d’exports/maintenance pendant le chevauchement, sans échec MEDIA-001. Relance
+  monolithique seule interrompue par la limite locale de 900 secondes. La
+  vérification finale exécute la même sélection en sept groupes successifs,
+  chacun avec une base temporaire neuve puis supprimée, sans modifier les
+  tests métier ni la commande CI pour contourner ces incidents. Les exports
+  précédemment en échec passent dans le premier groupe (133 tests/654 assertions).
+
+- Validation PostgreSQL 17 finale : même sélection CI de 70 chemins, exécutée
+  intégralement en sept groupes séquentiels sur bases neuves : 1 446 tests,
+  1 444 réussis, 2 skips Redis attendus, 6 716 assertions, aucun échec/erreur.
+  Les sept bases temporaires ont été supprimées. Rapports JUnit par groupe et
+  résumé JSON local ; aucune autre suite backend exécutée simultanément.
+
+- Frontend complet : 229 tests dans 34 fichiers, lint/build et typecheck strict
+  du nouveau scénario E2E réussis. Les 24 parcours Chrome passent sans retry,
+  API métier simulées ; parcours MEDIA-001 : scrim privé, partage différé,
+  confirmation tenant, titre échappé, archive et filtre. Capture mobile 390 px
+  relue, aucun débordement ni chargement Twitch/YouTube automatique. Aucun
+  navigateur installé ; composant média chargé à la demande.
+- Migration principale MEDIA-001 vérifiée Pending. Aucun migrate principal,
+  seed, rôle attribué, donnée métier réelle, e-mail, publication ou push par
+  l’agent. Code, tests, CI et six documents existants dans un seul commit local.
+- Suite : revue/push utilisateur, CI vertes, sauvegarde puis migrate depuis back/.
+  Attribution explicite des droits médias et recette avec éditeur/lecteur/publieur.
+  Prochain P0 du volet communication à cadrer : UCG-COM-001. Aucun autre ticket
+  démarré automatiquement.

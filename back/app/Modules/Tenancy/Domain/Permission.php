@@ -27,6 +27,9 @@ enum Permission: string
     case PartnershipsRead = 'partnerships.read';
     case PartnershipsWrite = 'partnerships.write';
     case PartnershipsValidate = 'partnerships.validate';
+    case MediaRead = 'media.read';
+    case MediaWrite = 'media.write';
+    case MediaPublish = 'media.publish';
 
     public function privileged(): bool
     {

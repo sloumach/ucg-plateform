@@ -69,7 +69,9 @@ final class AuditState
                 'starts_at','ends_at','expires_at','observed_at' => $value === null || (is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?$/D', $value) === 1),
                 'http_status' => is_int($value) && in_array($value, [401, 403, 404], true),
                 'roles' => self::listWithin($value, ['member', 'administrator']),
-                'permissions' => self::listWithin($value, ['organization.view', 'organization.update', 'memberships.manage', 'invitations.manage', 'roles.manage', 'roles.assign', 'audit.view', 'games.manage', 'teams.manage', 'sports.read', 'sports.write', 'sports.validate', 'sports.publish', 'administrative.read', 'administrative.write', 'administrative.validate', 'financial.read', 'financial.write', 'financial.validate', 'partnerships.read', 'partnerships.write', 'partnerships.validate']),
+                'media_id' => is_string($value) && Str::isUuid($value),
+                'media_action' => is_string($value) && in_array($value, ['created', 'updated', 'archived'], true),
+                'permissions' => self::listWithin($value, ['organization.view', 'organization.update', 'memberships.manage', 'invitations.manage', 'roles.manage', 'roles.assign', 'audit.view', 'games.manage', 'teams.manage', 'sports.read', 'sports.write', 'sports.validate', 'sports.publish', 'administrative.read', 'administrative.write', 'administrative.validate', 'financial.read', 'financial.write', 'financial.validate', 'partnerships.read', 'partnerships.write', 'partnerships.validate', 'media.read', 'media.write', 'media.publish']),
                 'actions' => self::listWithin($value, ['organization.inspect', 'access.inspect']),
                 default => false,
             };

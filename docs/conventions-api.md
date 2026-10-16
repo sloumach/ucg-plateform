@@ -2364,3 +2364,54 @@ TRANSITION, INDEPENDENT, AUTHORIZATION, REOPEN, PENDING, FROZEN et ACTIVE_CAMPAI
 (chaque suffixe est précédé de SPONSORSHIP_CAMPAIGN_). Les conflits de version
 parent conservent SPONSORSHIP_VERSION_STALE. Aucun texte de preuve n’est recopié
 dans le journal transversal ni dans les événements HTTP.
+
+## Médias d’équipe — UCG-MEDIA-001
+
+Base authentifiée : `/api/v1/tenants/{tenant}/media`.
+Middleware de session/MFA/tenant ; écritures : confirmation tenant, révision,
+verrou de session et droits revérifiés sous verrou organisation.
+
+| Méthode / suffixe | Droit organisation | Résultat |
+| --- | --- | --- |
+| GET / | media.read | Page de médias autorisés |
+| GET /teams | media.read | Choix id/label d’équipes actives, paginés |
+| GET /{media} | media.read | Détail visible, sinon 404 |
+| POST / | media.read + media.write | Création privée par défaut |
+| PATCH /{media} | media.read + media.write | Modification avec version |
+| POST/PATCH avec partage maintenu | ajouter media.publish | Confirmation explicite obligatoire |
+
+Filtres fermés : page 1–100000, per_page 1–100, q (préfixe littéral, 80),
+kind, status, team_id, archived (booléen ; true exige media.write).
+/teams accepte seulement page/per_page. Tri created_at descendant puis id.
+Un lecteur ne reçoit ni média privé, ni archive, ni partage dont publish_at
+est futur, y compris lors d’un accès direct. Les réponses sont private/no-store.
+
+Création : title (160), team_id (UUID tenant actif), kind stream/vod/clip,
+provider twitch/youtube, url (500). Champs facultatifs : status,
+status_observed_at (ISO 8601 avec fuseau, non futur), is_scrim (booléen),
+visibility private/organization/public, publish_at nullable, confirm_sharing.
+Privé par défaut ; statut par défaut scheduled pour stream, ended sinon.
+VOD/clip : seulement ended/unavailable. Toute source/statut transmis au PATCH
+exige status_observed_at, au moins égal à la dernière observation. Le client
+omet les champs inchangés.
+
+Le partage exige confirm_sharing accepté, y compris pour modifier un média
+déjà partagé. Le service conserve l’acteur et la date d’autorisation. Pour un
+scrim, publish_at est obligatoire et futur à l’autorisation, à sa reclassification
+en scrim ou au changement de date. Le retrait du partage efface ces données.
+public désigne une autorisation externe : aucun endpoint anonyme ou changement
+de visibilité chez Twitch/YouTube. Le contexte scrim est déclaratif, sans match
+créé. Seul team_id est disponible ; match_id/event_id/score et les champs serveur
+sont refusés.
+
+PATCH exige version ; une archive est demandée uniquement avec version + archive
+accepté. Pas de DELETE, pas de réouverture. Codes 409 MEDIA_VERSION_STALE et
+MEDIA_ARCHIVED, 422 de validation et 404 inter-tenant. Audit atomique minimal,
+sans titre/URL. Aucun accès sportif/RH/finance/partenariats induit.
+
+Resource explicite : id, title, team_id, team_label nullable, kind, provider, url,
+status, status_source=manual, status_observed_at, is_scrim, visibility,
+effective_visibility, publish_at, archived_at, version. Aucun score ou mesure
+d’audience. Les liens sont normalisés par MediaLink, sans accès réseau :
+HTTPS, hôtes exacts, chemins compatibles type/fournisseur, aucun paramètre de
+suivi ni identifiant secret. Un lien accepté n’est pas une vérification d’existence.

@@ -430,6 +430,14 @@ Les mesures d’audience précisent leur fournisseur, leur période et leur mét
 
 ## 14 Live communication et modération
 
+Livraison MEDIA-001 : catalogue tenant des streams/VOD/clips Twitch/YouTube avec
+rattachement aux équipes existantes, liens contrôlés syntaxiquement sans accès
+réseau, statut manuel et fraîcheur séparés des scores, droits médias explicites,
+privé par défaut et partage de scrim différé autorisé. Le contexte scrim est
+déclaratif ; les fiches matchs/événements ne sont pas encore disponibles et leurs
+identifiants ne sont pas acceptés. Visibilité externe enregistrée sans portail
+public ni changement de visibilité chez le fournisseur. Lecteurs intégrés : P1.
+
 - LIVE-01 : associer un stream, une VOD ou un clip à un match, une équipe ou un événement.
 - LIVE-02 : en P1, intégrer les lecteurs officiels Twitch et YouTube selon leurs paramètres et politiques.
 - LIVE-03 : afficher séparément statut de diffusion, score sportif et fraîcheur de la donnée.

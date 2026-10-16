@@ -18,6 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
+        'media_items' => 'id',
         'sponsorship_campaigns' => 'id', 'sponsorship_deliverables' => 'id', 'sponsorship_campaign_events' => 'id',
         'sponsorship_agreements' => 'id', 'sponsorship_agreement_terms' => 'id', 'sponsorship_exposures' => 'id', 'sponsorship_agreement_events' => 'id',
         'sponsors' => 'id', 'sponsor_contacts' => 'id', 'sponsorship_opportunities' => 'id', 'sponsorship_interactions' => 'id',
@@ -49,6 +50,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'media_items' => ['id', 'organization_id', 'team_id', 'title', 'kind', 'provider', 'url', 'status', 'status_observed_at', 'is_scrim', 'visibility', 'publish_at', 'sharing_authorized_by', 'sharing_authorized_at', 'archived_at', 'created_by', 'version', 'created_at', 'updated_at'],
         'sponsorship_campaigns' => ['id', 'organization_id', 'agreement_id', 'title', 'starts_on', 'ends_on', 'responsible_user_id', 'status', 'version', 'created_by', 'created_at', 'updated_at'],
         'sponsorship_deliverables' => ['id', 'organization_id', 'agreement_id', 'campaign_id', 'exposure_id', 'kind', 'title', 'responsible_user_id', 'due_at', 'status', 'proof_reference', 'delivered_at', 'delivered_by', 'validated_at', 'validated_by', 'validated_agreement_version', 'validated_exposure_version', 'prepared_by', 'version', 'created_at', 'updated_at'],
         'sponsorship_campaign_events' => ['id', 'organization_id', 'campaign_id', 'deliverable_id', 'action', 'from_status', 'to_status', 'record_version', 'actor_user_id', 'occurred_at', 'delivery_snapshot'],
