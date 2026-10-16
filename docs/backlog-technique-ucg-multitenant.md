@@ -960,7 +960,7 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 
 ### UCG-SPON-001 — Gérer prospects et contacts
 
-- **État** : implémenté localement ; validation distante et migration principale à effectuer.
+- **État** : livré (`68ec32e`), CI et migration validées par l’utilisateur avant SPON-002 ; migration vérifiée Ran, batch 26.
 - **Livraison** : sociétés privées, contacts distincts de People/Identity, opportunités déclaratives et échanges manuels append-only. Permissions partnerships.read/write avec MFA, recherche paginée, API/React, versions optimistes, archives immuables, audit minimal, contraintes composites SQLite/PostgreSQL et export opérateur. Aucun envoi, accord, montant ou portail créé.
 
 - **Priorité / taille** : P0 / M
@@ -969,6 +969,10 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Références CDC** : SPON-01.
 
 ### UCG-SPON-002 — Gérer accords et périmètres d’exposition
+
+- **État** : implémenté localement ; revue, push utilisateur, CI distantes et migration principale à effectuer.
+- **Livraison** : accords privés, période/responsable, conditions numéraire/nature/mixte chiffrées, lecture financière auditée et droits distincts, approbation indépendante et invalidation après modification. Périmètres organisation/équipe/joueur avec référence d’autorisation ; exclusivités par catégorie sur les périodes approuvées qui se chevauchent. Pièces via contrat sponsor associé et protections Contrats existantes. API/React, pagination, versions optimistes, contraintes SQLite/PostgreSQL et export opérateur.
+- **Limites explicites** : référentiels événement/contenu indisponibles, donc refusés ; aucune publication automatique ni preuve de réalisation inventée. Campagnes et livrables restent SPON-003. Aucune attribution réelle de rôle ni migration principale par l’agent.
 
 - **Priorité / taille** : P0 / L
 - **Périmètre** : période, montant ou apport, responsable, équipe/événement/joueur, exclusivités et pièces.

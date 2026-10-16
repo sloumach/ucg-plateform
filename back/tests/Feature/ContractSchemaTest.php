@@ -112,6 +112,8 @@ class ContractSchemaTest extends TestCase
         $scans = require database_path('migrations/2026_10_14_204339_create_contract_document_scans.php');
         $governance = require database_path('migrations/2026_10_14_231650_add_contract_financial_governance.php');
         $reminders = require database_path('migrations/2026_10_15_184218_create_contract_reminders.php');
+        $agreements = require database_path('migrations/2026_10_16_000918_create_sponsorship_agreements_and_exposures.php');
+        $agreements->down();
         $reminders->down();
         $governance->down();
         $scans->down();
@@ -122,6 +124,7 @@ class ContractSchemaTest extends TestCase
         $scans->up();
         $governance->up();
         $reminders->up();
+        $agreements->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         $contract = ContractRecord::factory()->create();
         $this->reject(fn () => DB::table('contracts')->where('id', $contract->id)->delete());

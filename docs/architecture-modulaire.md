@@ -23,7 +23,7 @@ dépendance signifie que le module de gauche peut consommer l’API publique du 
 | `Competition` | `Tenancy`, `Teams`, `Scheduling` |
 | `Performance` | `Tenancy`, `People`, `Teams`, `Competition` |
 | `Contracts` | `Tenancy`, `People` |
-| `Partnerships` | `Tenancy` |
+| `Partnerships` | `Tenancy`, `People`, `Teams`, `Contracts` |
 | `Finance` | `Tenancy`, `Contracts`, `Partnerships` |
 | `Media` | `Tenancy`, `People`, `Teams` |
 | `Reporting` | tous les modules métier nécessaires à ses projections de lecture |
@@ -1451,3 +1451,45 @@ ajout d’index d’expression ou changement de sérialisation. React annule les
 lectures obsolètes et invalide le contexte après refus/conflit. Les permissions
 partenariats sont explicites et privilégiées, sans droit RH ou financier induit.
 Accords, montants, livrables et portails restent les tickets SPON suivants.
+
+## Accords et expositions — UCG-SPON-002
+
+Partnerships ajoute sponsorship_agreements, sponsorship_agreement_terms,
+sponsorship_exposures et sponsorship_agreement_events. Ses dépendances autorisées
+incluent maintenant People, Teams et Contracts en plus de Tenancy, par leurs
+seuls contrats publics ; le graphe reste acyclique. People/Teams proposent des
+références sportives minimales, Tenancy des noms de compte membres, Contracts des
+références de contrats sponsor et une vérification booléenne de version/activité.
+Les données RH ne transitent pas vers Partnerships. Aucun modèle/table d’un autre
+module n’est lu directement par une couche de Partnerships.
+
+Controllers/Form Requests/Policies délèguent aux Services accords, périmètres,
+finances, références et projection ; persistence par le repository dédié.
+TenantDataVisibility projette les champs de l’accord et réserve le rattachement
+contractuel au droit administratif. Les finances sont dans une table chiffrée,
+servies par un endpoint distinct et autorisé. L’interface documentaire réutilise
+les composants et routes Contrats ; elle ne contourne ni ses Policies, ni ses
+restrictions financières, ni ClamAV. Aucune duplication du stockage de documents.
+
+Verrou organisation puis dossier, révision optimiste, droits et références relus
+à l’écriture. Une modification annule l’approbation entière ; validation par un
+acteur distinct des deux préparateurs. Les exclusivités par catégorie sont
+réservées sur tout le tenant pendant les périodes inclusives approuvées.
+L’autorisation d’exposition est recalculée sur un lot borné de références,
+sans N+1, avec dates tenant et contrôles de responsable, approbateur et contrat.
+Elle ne vaut ni publication publique ni preuve de réception client.
+
+Les FK composites et gardes SQLite/PostgreSQL protègent rattachement, identités,
+dates, structure des approbations, modifications d’un accord approuvé et archives.
+Les journaux sont append-only. L’audit de mutation participe à sa transaction ;
+la consultation financière ajoute une trace synchrone avant remise de réponse,
+avec échec fermé 503 sans contenu. Aucun montant, description ou autorisation
+libre n’est copié au journal. Portabilité et round-trip schéma incluent les quatre
+tables, rollback refusé en présence de données. Pas de migration/backfill de
+l’environnement métier par l’agent. Les futurs modules événement/contenu devront
+fournir un port de référence réel avant activation de leurs périmètres.
+
+Les noms des responsables et pseudonymes sont chargés en bloc, par page de 100
+maximum ; le fragment React des accords est chargé à l’ouverture de l’onglet.
+Mesurer coût des droits courants, écritures de journal financier et contention
+par tenant avant toute optimisation ou revendication de volume.

@@ -2227,3 +2227,71 @@ UUID hors tenant/dossier : 404 ; entrée inconnue/invalide : 422 ; version
 obsolète : 409 `PARTNERSHIP_VERSION_STALE` ; archive : 409 `PARTNERSHIP_ARCHIVED`.
 Archivage irréversible via l’API actuelle ; aucun DELETE ni édition d’échange.
 Réponses privées no-store. La consignation d’un échange ne déclenche aucun envoi.
+
+## Accords partenaires — UCG-SPON-002
+
+Base : `/api/v1/tenants/{tenant}/sponsors/{sponsor}/agreements`.
+Sanctum, session, MFA, tenant, Policies et validation fermée s’appliquent partout.
+POST/PATCH exigent confirmation et révision tenant ; les mutations utilisent
+une version optimiste de l’accord, plus celle de la ressource enfant si nécessaire.
+
+| Méthode | Chemin relatif | Usage |
+| --- | --- | --- |
+| GET / POST | `/` | Recherche paginée / préparation d’un accord |
+| GET / PATCH | `/{agreement}` | Lecture / révision qui annule l’approbation |
+| POST | `/{agreement}/transitions` | Approbation, clôture, archivage |
+| GET | `/{agreement}/history` | Journal paginé, sans texte ou valeur financière |
+| GET / POST | `/{agreement}/exposures` | Périmètres paginés / préparation |
+| PATCH | `/{agreement}/exposures/{exposure}` | Révision ou archivage d’un périmètre |
+| GET / PATCH | `/{agreement}/financial` | Consultation auditée / préparation d’apports |
+
+Références : `GET /api/v1/tenants/{tenant}/sponsorship-references/{kind}`,
+avec kind = members/teams/players/contracts, `page` et `per_page` (1–100).
+Réponse de référence strictement `id` et `label`. Le catalogue contrats exige
+`administrative.read` et ne retourne que référence/id de contrats sponsor.
+Les sélecteurs de membres ne montrent pas leurs rôles/e-mails ; les références
+People ne montrent ni identité RH, coordonnées, compte ou biographie interne.
+Les références devenues indisponibles sont refusées à l’écriture/approbation.
+
+Accord : `reference` immuable (slug, 80), `title` (160), `starts_on`, `ends_on`
+(AAAA-MM-JJ, fin >= début), `responsible_user_id` ; `opportunity_id` facultatif
+et immuable, limité au dossier sponsor. `contract_id` facultatif et protégé par
+le droit administratif ; son `contract_version` est établi par le serveur.
+La réponse inclut le nom de compte `responsible_label` courant, ou null si
+indisponible. Elle n’inclut jamais conditions financières ou montant. Les champs
+contract_id/contract_version sont projetés par droit administratif serveur.
+
+États : draft → approved/archived, approved → ended, ended → archived.
+Transition : `version`, `target_status` ; approbation avec
+`confirm_authorizations=true`, `partnerships.validate`, droits lecture/validation
+financiers, préparateurs distincts, apport et périmètres vérifiés. Toute révision
+d’accord, d’apport ou de périmètre remet en draft avec nouvelle version.
+
+Périmètre : `agreement_version`, `target_type` organization/team/player,
+`target_id` UUID, `channel` jersey/social/stream/event/website/other,
+`authorization_reference` obligatoire (160), `description` facultative (2000),
+`exclusivity_key` facultative (slug, 80). Modifier exige aussi `version` ; cible
+immuable, `status=archived` disponible. Maximum 100 périmètres conservés par accord.
+Les cibles event/content sont préparées dans la validation mais refusées en 409
+SPONSORSHIP_TARGET_UNAVAILABLE jusqu’à vérification par leurs modules réels.
+L’autorisation n’est jamais implicite : `exposure_authorized` est recalculé selon
+statut, période, références et droits courants. `publication_status` reste private.
+
+Finances : `agreement_version`, `expected_version` nullable obligatoire,
+`terms` avec cinq clés fermées : kind cash/in_kind/mixed, currency nullable,
+amount nullable (chaîne décimale positive à deux décimales, 12 chiffres entiers
+maximum), in_kind nullable (2000), payment_terms nullable (2000). Cash/mixed
+exigent amount et devise ASCII majuscule à trois lettres ; in_kind/mixed exigent
+la description d’apport. Un apport en nature seul interdit montant/devise.
+Aucun nombre flottant JSON n’est accepté. `financial.read/write/validate` sont
+indépendants des droits partenariats et n’accordent aucun accès RH. La réponse
+financière seule contient terms, sa version et agreement_version.
+
+Réponses privées no-store ; 201 pour les créations, 200 pour les révisions,
+Flasher français. Hors tenant/dossier : 404 ; champs inconnus/invalides : 422 ;
+conflit de version : 409 SPONSORSHIP_VERSION_STALE / SPONSORSHIP_FINANCIAL_STALE /
+SPONSORSHIP_EXPOSURE_STALE ; préparateur approbateur identique : 409
+SPONSORSHIP_SELF_APPROVAL_FORBIDDEN ; exclusivité chevauchante : 409
+SPONSORSHIP_EXCLUSIVITY_CONFLICT. Une panne d’audit financier renvoie 503
+ACCESS_AUDIT_UNAVAILABLE sans données métier. Les pièces utilisent les routes
+Contrats existantes et conservent leurs contrôles d’autorisation et antivirus.

@@ -5,12 +5,14 @@ namespace App\Modules\People\Providers;
 use App\Modules\People\Application\Contracts\AdministrativePeopleDirectory;
 use App\Modules\People\Application\Contracts\EligibilityPeopleDirectory;
 use App\Modules\People\Application\Contracts\LinkedPersonAccountDirectory;
+use App\Modules\People\Application\Contracts\PartnershipPeopleDirectory;
 use App\Modules\People\Application\Contracts\PeopleDirectory;
 use App\Modules\People\Application\Contracts\PersonImportQueue;
 use App\Modules\People\Application\Contracts\SportingPeopleDirectory;
 use App\Modules\People\Application\Services\AdministrativePeopleService;
 use App\Modules\People\Application\Services\EligibilityPeopleService;
 use App\Modules\People\Application\Services\LinkedPersonAccountService;
+use App\Modules\People\Application\Services\PartnershipPeopleService;
 use App\Modules\People\Application\Services\PersonDepartureService;
 use App\Modules\People\Application\Services\PersonService;
 use App\Modules\People\Application\Services\SportingPeopleService;
@@ -44,6 +46,7 @@ final class PeopleServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(PartnershipPeopleDirectory::class, PartnershipPeopleService::class);
         $this->app->bind(LinkedPersonAccountDirectory::class, LinkedPersonAccountService::class);
         $this->app->bind(AdministrativePeopleDirectory::class, AdministrativePeopleService::class);
         $this->app->bind(EligibilityPeopleDirectory::class, EligibilityPeopleService::class);

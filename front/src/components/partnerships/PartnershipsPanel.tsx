@@ -1,6 +1,5 @@
-import { useEffect, useId, useState, type FormEvent } from 'react'
-import { tenancyRequest, type ActiveOrganization, type Page } from '../../api/tenancy'
-import { isAbortError } from '../../api/errors'
+import { lazy, Suspense, useId, useState, type FormEvent } from 'react'
+import type { ActiveOrganization } from '../../api/tenancy'
 import {
   partnershipText as text, sponsorsPath, sponsorStatuses, opportunityStatuses, interactionChannels,
   type Sponsor, type PartnershipKind, type PartnershipRecord, type SponsorContact, type SponsorshipOpportunity,
@@ -12,35 +11,16 @@ import { Pagination } from '../data/Pagination'
 import { Alert } from '../feedback/Alert'
 import { AsyncState } from '../feedback/AsyncState'
 import { SelectField } from '../people/peopleForms'
-import { apiError, changedValues, isoDate, localDate, shouldReloadContext } from '../people/peopleFormValues'
+import { changedValues, isoDate, localDate } from '../people/peopleFormValues'
+import { usePartnershipList } from './usePartnershipList'
 import { usePeopleMutation } from '../people/usePeopleMutation'
+
+const SponsorshipAgreementsPanel = lazy(() => import('./SponsorshipAgreementsPanel').then((module) => ({ default: module.SponsorshipAgreementsPanel })))
 
 type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
 type Editable = Sponsor | SponsorContact | SponsorshipOpportunity
 type ExchangeLink = { field: 'contact_id' | 'opportunity_id'; id: string; name: string }
 
-function usePartnershipList<T>(path: string, active: ActiveOrganization, enabled: boolean, onInvalid: () => void, refresh = 0) {
-  const [list, setList] = useState<Page<T> | null>(null), [loading, setLoading] = useState(false)
-  const [error, setError] = useState<ReturnType<typeof apiError> | null>(null)
-  const revision = active.revision ?? undefined
-  useEffect(() => {
-    const controller = new AbortController()
-    if (!enabled) return () => controller.abort()
-    const load = async () => {
-      setLoading(true); setList(null); setError(null)
-      await tenancyRequest<Page<T>>(path, { revision, signal: controller.signal }).then((result) => {
-        if (!controller.signal.aborted) setList(result)
-      }).catch((failure: unknown) => {
-        if (controller.signal.aborted || isAbortError(failure)) return
-        const next = apiError(failure); setError(next)
-        if (shouldReloadContext(next)) onInvalid()
-      }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
-    }
-    void load()
-    return () => controller.abort()
-  }, [path, revision, enabled, onInvalid, refresh])
-  return { list, loading, error }
-}
 
 export function PartnershipsPanel({ active, disabled, onInvalid }: Props) {
   const [open, setOpen] = useState(false), [page, setPage] = useState(1), [refresh, setRefresh] = useState(0)
@@ -86,12 +66,12 @@ export function PartnershipsPanel({ active, disabled, onInvalid }: Props) {
 }
 
 function SponsorDetails({ active, sponsor, disabled, onInvalid, onClose }: Props & { sponsor: Sponsor; onClose: () => void }) {
-  const [kind, setKind] = useState<PartnershipKind>('contacts'), [link, setLink] = useState<ExchangeLink | null>(null)
+  const [kind, setKind] = useState<PartnershipKind | 'agreements'>('contacts'), [link, setLink] = useState<ExchangeLink | null>(null)
   return <section aria-label={sponsor.name} className="grid min-w-0 gap-4 rounded-xl border border-cyan-400/30 p-4">
     <h3 className="font-bold [overflow-wrap:anywhere]">{sponsor.name}</h3>
     <Button disabled={disabled} onClick={onClose}>{text('closeDetails')}</Button>
-    <div className="flex flex-wrap gap-3">{(['contacts', 'opportunities', 'interactions'] as const).map((tab) => <Button key={tab} disabled={disabled} aria-pressed={kind === tab} onClick={() => { setLink(null); setKind(tab) }}>{text(tab)}</Button>)}</div>
-    <RelatedPanel key={kind + (link?.id ?? '')} {...{ active, sponsor, disabled, onInvalid, kind, link }} onLink={(next) => { setLink(next); setKind('interactions') }} />
+    <div className="flex flex-wrap gap-3">{(['contacts', 'opportunities', 'interactions', 'agreements'] as const).map((tab) => <Button key={tab} disabled={disabled} aria-pressed={kind === tab} onClick={() => { setLink(null); setKind(tab) }}>{text(tab)}</Button>)}</div>
+    {kind === 'agreements' ? <Suspense fallback={<p role="status">{t('sponsorships.loading')}</p>}><SponsorshipAgreementsPanel {...{ active, sponsor, disabled, onInvalid }} /></Suspense> : <RelatedPanel key={kind + (link?.id ?? '')} {...{ active, sponsor, disabled, onInvalid, kind, link }} onLink={(next) => { setLink(next); setKind('interactions') }} />}
   </section>
 }
 

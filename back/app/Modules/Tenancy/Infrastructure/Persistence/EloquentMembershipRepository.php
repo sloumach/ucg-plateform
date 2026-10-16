@@ -11,6 +11,19 @@ use Illuminate\Database\Eloquent\Builder;
 
 final class EloquentMembershipRepository implements MembershipRepository
 {
+    /** @return \Illuminate\Pagination\LengthAwarePaginator<int, OrganizationMembership> */
+    public function activePage(string $organizationId, int $perPage, int $page): \Illuminate\Pagination\LengthAwarePaginator
+    {
+        return OrganizationMembership::query()->where('organization_id', $organizationId)->effective(now())->orderBy('id')
+            ->paginate($perPage, ['id', 'organization_id', 'user_id'], 'page', $page);
+    }
+
+    public function activeAccountIds(string $organizationId, array $ids): array
+    {
+        return array_values(OrganizationMembership::query()->where('organization_id', $organizationId)->effective(now())
+            ->whereIn('user_id', $ids)->pluck('user_id')->all());
+    }
+
     /** @return LengthAwarePaginator<int, OrganizationMembership> */
     public function paginate(string $organizationId, int $perPage, int $page): LengthAwarePaginator
     {

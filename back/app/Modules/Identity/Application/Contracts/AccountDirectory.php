@@ -4,6 +4,11 @@ namespace App\Modules\Identity\Application\Contracts;
 
 interface AccountDirectory
 {
+    /** @param list<int> $ids
+     * @return array<int, string> Verified account display names only; no email, MFA secret or HR data.
+     */
+    public function displayNames(array $ids): array;
+
     /** Locks any account for cleanup, even if email verification was withdrawn. */
     public function lockAccountEmail(int $userId): ?string;
 

@@ -8,6 +8,15 @@ use Illuminate\Support\Str;
 
 final class EloquentAccountDirectory implements AccountDirectory
 {
+    public function displayNames(array $ids): array
+    {
+        if (count($ids) > 100) {
+            throw new \LogicException('Account labels require a bounded page.');
+        }
+
+        return User::query()->whereIn('id', $ids)->whereNotNull('email_verified_at')->pluck('name', 'id')->all();
+    }
+
     public function lockAccountEmail(int $userId): ?string
     {
         $account = User::query()->whereKey($userId)->lockForUpdate()->first();

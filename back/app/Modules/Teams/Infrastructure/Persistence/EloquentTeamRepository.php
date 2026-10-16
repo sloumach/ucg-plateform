@@ -8,6 +8,17 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 final readonly class EloquentTeamRepository implements TeamRepository
 {
+    public function partnershipPage(string $org, int $page, int $perPage): LengthAwarePaginator
+    {
+        return Team::query()->where('organization_id', $org)->where('status', 'active')->select(['id', 'name'])->orderBy('name')->orderBy('id')
+            ->paginate($perPage, ['*'], 'page', $page)->through(fn (Team $record): array => ['id' => $record->id, 'label' => $record->name]);
+    }
+
+    public function partnershipLabels(string $org, array $ids): array
+    {
+        return Team::query()->where('organization_id', $org)->where('status', 'active')->whereIn('id', $ids)->pluck('name', 'id')->all();
+    }
+
     public function paginate(string $organizationId, array $filters): LengthAwarePaginator
     {
         $query = Team::query()->where('organization_id', strtolower($organizationId))->with('game:id,key,name,active');

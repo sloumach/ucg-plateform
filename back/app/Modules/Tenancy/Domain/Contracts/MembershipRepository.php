@@ -8,6 +8,13 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface MembershipRepository
 {
+    /** @param list<int> $ids
+     * @return list<int> */
+    public function activeAccountIds(string $organizationId, array $ids): array;
+
+    /** @return \Illuminate\Pagination\LengthAwarePaginator<int, OrganizationMembership> */
+    public function activePage(string $organizationId, int $perPage, int $page): \Illuminate\Pagination\LengthAwarePaginator;
+
     /** @return LengthAwarePaginator<int, OrganizationMembership> */
     public function paginate(string $organizationId, int $perPage, int $page): LengthAwarePaginator;
 

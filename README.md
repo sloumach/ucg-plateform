@@ -1873,3 +1873,100 @@ Les écritures utilisent le verrou organisation déjà établi par le socle, pui
 le verrou dossier ; profiler contention, recherche insensible à la casse et
 pagination profonde sur des volumes représentatifs avant de les faire évoluer.
 Aucun résultat de charge à plusieurs millions d’utilisateurs n’est revendiqué.
+
+### Accords et périmètres d’exposition — UCG-SPON-002
+
+L’onglet « Accords » d’un dossier partenaire fournit période, responsable,
+opportunité d’origine facultative, rattachement à un contrat sponsor, conditions
+financières ou apport en nature et périmètres d’exposition. Les listes, sélecteurs
+et historiques sont paginés. Aucun envoi, portail sponsor ou publication publique
+n’est déclenché.
+
+Les droits sont explicites, avec MFA :
+
+- `partnerships.read` : accords et références utiles, sans coordonnées RH.
+- `partnerships.write` : préparation et modification des accords/périmètres.
+- `partnerships.validate` : approbation et clôture.
+- `financial.read` / `financial.write` : consultation / préparation des apports,
+  en plus des droits partenariats requis.
+- `financial.validate` et `financial.read` : approbation financière de l’accord,
+  en plus des droits de validation partenariat.
+
+L’approbateur doit être distinct du dernier préparateur de l’accord et du
+préparateur financier. Préparer au moins un périmètre actif et un apport valide,
+puis faire approuver l’ensemble par un autre compte habilité, après vérification
+explicite des références d’autorisation. Toute modification remet l’accord en
+brouillon et retire son approbation. Un statut commercial SPON-001 ne vaut jamais
+approbation d’exposition.
+
+Organisation, équipe active et personne active/remplaçante non partie sont les
+cibles vérifiables actuelles. Les références d’événement et de contenu sont
+refusées jusqu’à l’existence de leur référentiel ; le support « présence
+événementielle » n’invente pas d’événement. Les sélecteurs People ne donnent que
+les pseudonymes utiles, sans identité administrative, coordonnées ou biographie
+interne. Les membres sont affichés par nom de compte, sans e-mail ni rôle ; leur
+habilitation actuelle est vérifiée à l’affectation et avant exposition.
+
+Chaque catégorie d’exclusivité est réservée de façon conservatrice sur toute
+l’organisation, avec dates inclusives, même si ses périmètres diffèrent. Un
+chevauchement avec un autre accord approuvé est refusé. Il ne s’agit pas d’une
+interprétation automatique du texte contractuel. Clôturer l’accord avant
+l’archivage du sponsor pour libérer volontairement une réservation ; un sponsor
+archivé bloque l’exposition et conserve les réservations approuvées sur leur
+période. Les dates des accords suivent le fuseau tenant ; le contrat lié garde
+ses règles calendaires existantes.
+
+`exposure_authorized` est recalculé à la lecture : accord approuvé, période
+courante, sponsor disponible, responsable et approbateur toujours habilités,
+cible disponible et contrat lié toujours actif dans sa version rattachée.
+Un changement du contrat lié impose un nouveau rattachement et une nouvelle
+approbation. Cette réponse privée n’est pas une autorisation durable pour une
+publication future : les futurs consommateurs devront revérifier le contexte.
+
+Les pièces utilisent le module Contrats existant. Rattacher un contrat exige
+`administrative.read` ; consulter ou modifier ses pièces conserve tous les droits
+et contrôles financiers/antivirus de ce module. Aucun droit administratif n’est
+ajouté aux rôles partenariats. Un compte partenariat sans habilitation
+administrative ne reçoit pas les identifiants du contrat lié. La relation ne
+prouve pas automatiquement que le sponsor est une partie contractante : cette
+cohérence est vérifiée par l’intervenant administratif habilité.
+
+Après revue et CI, sauvegarder puis appliquer depuis `back/` :
+
+```powershell
+php artisan migrate
+```
+
+La migration additive `2026_10_16_000918_create_sponsorship_agreements_and_exposures`
+ajoute quatre tables, sans backfill ni attribution de droits. Elle n’a pas été
+appliquée à la base principale par l’agent. Son rollback refuse de supprimer un
+historique utilisé. Les apports et références d’autorisation sont chiffrés ; les
+journaux ne contiennent ni montants ni descriptions. Toute consultation
+financière est tracée avant réponse ; un échec du journal bloque la réponse en
+503. Le catalogue de portabilité opérateur inclut ces données privées.
+
+Exemple SPA après connexion Sanctum, MFA et confirmation du tenant :
+
+```typescript
+import { tenancyRequest } from './front/src/api/tenancy'
+import type { ApiSuccessResponse } from './front/src/api/contracts'
+import { agreementsPath, type SponsorshipAgreement } from './front/src/api/sponsorshipAgreements'
+
+// active et sponsorId proviennent des réponses serveur autorisées.
+const root = agreementsPath(active.context!.organization_id, sponsorId)
+const result = await tenancyRequest<ApiSuccessResponse<SponsorshipAgreement>>(root, {
+  method: 'POST', revision: active.revision!,
+  body: { reference: 'accord-exemple', title: 'Accord matériel',
+    starts_on: '2026-10-16', ends_on: '2026-12-31',
+    responsible_user_id: active.context!.actor_user_id },
+})
+// Utiliser ensuite result.data.version pour ajouter un périmètre ou un apport.
+// Chaque mutation renvoie une nouvelle version, nécessaire à la suivante.
+```
+
+Les sélections de responsables et de cibles se chargent par pages ; les noms et
+pseudonymes sont projetés en bloc. L’autorisation est relue sans cache durable,
+et les écritures sont sérialisées par organisation. Profiler la contention et
+les recherches par préfixe avant évolution des index ou du verrouillage. Les
+accords sont chargés dans un fragment JavaScript à l’ouverture de l’onglet.
+Aucune validation de charge à plusieurs millions d’utilisateurs n’est revendiquée.

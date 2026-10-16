@@ -7,6 +7,14 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 interface PersonRepository
 {
+    /** @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, array{id: string, label: string}> */
+    public function partnershipPage(string $org, int $page, int $perPage): \Illuminate\Contracts\Pagination\LengthAwarePaginator;
+
+    /** @param list<string> $ids
+     * @return array<string, string>
+     */
+    public function partnershipLabels(string $org, array $ids): array;
+
     public function linkedAccount(string $organizationId, string $personId): ?int;
 
     /** @param list<string> $ids

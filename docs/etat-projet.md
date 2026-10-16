@@ -5,13 +5,16 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 15 octobre 2026.
+- Dernière mise à jour : 16 octobre 2026.
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-SPON-001` — sociétés prospects, contacts commerciaux,
-  opportunités et historique manuel des échanges. Implémentation locale ;
-  push utilisateur, CI distante et migration SPON-001 à effectuer.
+- Dernier ticket traité : `UCG-SPON-002` — accords et périmètres d’exposition.
+  Implémentation locale ; revue, push utilisateur, CI distantes et migration
+  SPON-002 à effectuer. Détails et validation dans la section dédiée ci-dessous.
+- SPON-001 (`68ec32e`) poussé et synchronisé avec origin/staging au démarrage ;
+  CI et migration validées par l’utilisateur. Migration vérifiée en lecture
+  seule : Ran, batch 26. Aucun migrate principal par l’agent.
 - CTR-006 (`8dd344d`) présent sur staging et la référence locale origin/staging
   au démarrage ; CI distante non vérifiée dans cette tâche. Migration vérifiée
   en lecture seule : Ran, batch 25. Aucun migrate principal par l’agent.
@@ -86,11 +89,13 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : revue du commit SPON-001, push utilisateur et CI vertes,
-  sauvegarde puis migration `2026_10_15_211008_create_partnership_prospects_and_contacts`
+- Prochaine action : revue du commit SPON-002, push utilisateur et CI vertes,
+  sauvegarde puis migration `2026_10_16_000918_create_sponsorship_agreements_and_exposures`
   depuis back/. Migration principale vérifiée Pending en lecture seule.
-  Attribuer explicitement partnerships.read et partnerships.write aux membres
-  habilités via les rôles existants ; aucune attribution réelle par l’agent.
+  Attribuer explicitement partnerships.read/write/validate et les droits
+  financiers/administratifs nécessaires aux membres habilités via les rôles
+  existants ; deux acteurs distincts sont nécessaires pour préparer et approuver.
+  Aucune attribution réelle par l’agent.
   Mise en service des rappels CTR-005 à confirmer : configurer le scheduler,
   le cache partagé et le worker default ; activer
   CONTRACT_REMINDERS_ENABLED puis, quand le SMTP est prêt,
@@ -114,8 +119,8 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après push/CI/migration SPON-001, prochain P0 :
-  `UCG-SPON-002`, accords et périmètres d’exposition. Les P0 Contrats sont
+- Après push/CI/migration SPON-002, prochain P0 :
+  `UCG-SPON-003`, campagnes et livrables. Les P0 Contrats sont
   implémentés ; la signature électronique CTR-007 reste P1. ClamAV doit être vérifié en
   environnement cible ; aucun téléchargement sans analyse clean réussie.
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
@@ -2154,3 +2159,72 @@ ensuite ce fichier pour qu'il reflète la réalité.
   depuis back/, attribution explicite des droits via IAM-003 et recette avec un
   compte partenariats. Prochain P0 : UCG-SPON-002, accords et périmètres d’exposition.
   Mise en service ClamAV et rappels SMTP réels du bloc Contrats toujours à confirmer.
+
+## Accords et périmètres d’exposition — UCG-SPON-002
+
+- Démarrage sur staging propre et synchronisé avec origin/staging, commit
+  SPON-001 68ec32e. CI et migration précédentes validées par l’utilisateur ;
+  migration SPON-001 vérifiée Ran, batch 26, en lecture seule.
+- Accords privés : référence immuable, période, responsable habilité,
+  opportunité facultative du même sponsor, contrat sponsor facultatif et
+  historique en ajout seul. Conditions numéraire/nature/mixte chiffrées,
+  montants décimaux sous forme de chaînes, accès financier séparé et lecture
+  tracée avant réponse. Audit indisponible : 503 sans données sensibles.
+- Nouveau droit partnerships.validate, sans attribution automatique. Préparation
+  et approbation par deux acteurs distincts, y compris l’auteur des conditions
+  financières. L’approbateur dispose aussi de financial.read/validate ; chaque
+  modification des conditions, du dossier ou d’un périmètre annule l’approbation.
+- Périmètres organisation, équipe active ou joueur actif/remplaçant non parti,
+  avec référence d’autorisation obligatoire. Validation des sujets par ports
+  publics minimaux People/Teams ; responsables par Tenancy/Identity et pièces
+  via Contracts. Aucune fiche RH, adresse électronique ou droit documentaire
+  supplémentaire exposé. Événements et contenus refusés faute de référentiel.
+- L’exposition n’est autorisée que pendant la période, avec approbation,
+  responsable/approbateur toujours habilités, sujet éligible et contrat associé
+  toujours actif à la version liée. Toute publication reste privée. Exclusivité
+  par catégorie conservatrice sur toute l’organisation et les périodes approuvées
+  qui se chevauchent. L’archivage du sponsor stoppe l’exposition mais conserve les
+  réservations ; terminer l’accord auparavant si elles doivent être libérées.
+- Pièces : réutilisation des versions privées Contrats, autorisations
+  administratives/financières, analyse ClamAV et liens temporaires existants.
+  Le rattachement est un choix administratif explicite ; vérifier humainement
+  la cohérence de la partie externe. Aucune signature électronique nouvelle.
+- Architecture MVC, Form Requests fermées, Policies, Services, Repository,
+  Resources explicites, tenant confirmé pour les mutations et versions optimistes.
+  Transactions/verrou organisation sérialisent les mutations et exclusivités ;
+  audit minimal sans montant, texte libre ni référence d’autorisation.
+- Migration additive 2026_10_16_000918_create_sponsorship_agreements_and_exposures :
+  sponsorship_agreements, sponsorship_agreement_terms, sponsorship_exposures et
+  sponsorship_agreement_events. FK composites, identités immuables, conditions
+  cohérentes d’approbation, enfants modifiables seulement au brouillon, archives
+  figées, historique append-only et suppression interdite sur SQLite/PostgreSQL.
+  Rollback refuse les données existantes ; aucun backfill, seed ou rôle créé.
+  Inventaire de portabilité et ordre des round-trips Organization/People/Contracts
+  adaptés aux nouvelles dépendances, sans relâcher leurs assertions.
+- React : onglet Accords chargé à la demande, listes/références/historique paginés,
+  préparation, périmètres, consultation financière distincte, pièces et transitions
+  confirmées. Libellés responsables groupés, sujets vérifiés par lots, borne de
+  100 périmètres conservés par accord. Contexte invalidé sur refus/conflit,
+  lectures annulables, texte échappé et capture mobile 390 px relue sans débordement.
+- Validation frontend : 212 tests dans 32 fichiers, lint, build et typecheck strict
+  E2E réussis ; 22 parcours Chrome local réussis sans retry, API métier simulées.
+  Un échec ponctuel du scénario existant de départ sous charge a été suivi de
+  trois réussites isolées puis d’une suite complète verte ; aucun changement de
+  ce scénario ni de sa fonctionnalité. Aucun navigateur installé.
+- Validation backend finale avec cache database : composer test:ci, 1 552 tests,
+  1 548 réussis, 7 077 assertions, quatre skips attendus (cas PostgreSQL,
+  deux Redis réels et ClamAV réel opt-in). PHPStan niveau 8, Pint complet et
+  composer validate --strict réussis. Les tests TCP ClamAV exigent l’autorisation
+  de réseau local hors bac à sable ; leurs premiers échecs n’ont pas entraîné de
+  changement du scanner ou de ses tests. Suite complète verte après autorisation.
+- Validation PostgreSQL 17 finale : 118 tests partenariats, accords, schémas
+  People/Contracts/Organization et architecture réussis, 660 assertions, avec
+  cache database. Base temporaire créée puis supprimée ; aucun chevauchement
+  avec la suite SQLite. La CI PostgreSQL inclut les trois nouveaux fichiers.
+- Aucun migrate principal, seed, donnée métier réelle, attribution réelle de rôle,
+  e-mail, push ni installation de service par l’agent. Migration SPON-002 Pending.
+  Un seul commit local regroupe code, tests, CI et six documents existants.
+- Suite utilisateur : revue/push, CI vertes, sauvegarde puis migrate depuis back/.
+  Recette avec deux membres habilités et ClamAV opérationnel pour les pièces.
+  Prochain P0 : UCG-SPON-003, campagnes, livrables, échéances et preuves de
+  réalisation. La référence d’autorisation d’exposition ne prouve pas une livraison.

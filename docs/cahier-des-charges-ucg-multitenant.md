@@ -390,6 +390,23 @@ Classer par organisation, personne, équipe, compétition, sponsor ou dossier. V
 - SPON-02 : relier accord, période, montant ou apport en nature, responsable et pièces.
 - SPON-03 : préciser les périmètres d’exposition : organisation, équipe, événement, contenu ou joueur autorisé.
 - SPON-04 : suivre obligations, exclusivités définies, échéances et preuves de réalisation.
+
+  Implémentation SPON-002 : accords privés avec période et responsable habilité,
+  conditions financières chiffrées (numéraire, nature ou mixte), accès financier
+  distinct et consultation auditée. Les pièces réutilisent un contrat sponsor
+  explicitement associé, avec les autorisations administratives/financières et
+  l’analyse antivirus existantes. Organisation, équipes actives et joueurs
+  actifs/remplaçants non partis disposent de périmètres avec référence
+  d’autorisation obligatoire. Événements et contenus sont refusés tant que leurs
+  référentiels autorisés ne sont pas disponibles. Une approbation indépendante
+  avec droits partenariats/finances est nécessaire ; toute modification annule
+  l’approbation. L’exposition dépend aussi de la période, des habilitations et du
+  contrat toujours valides. Les exclusivités par catégorie sont conservatrices,
+  sur toute l’organisation et les périodes approuvées qui se chevauchent.
+  Aucune publication automatique. Les campagnes, obligations livrées, échéances
+  opérationnelles et preuves de réalisation restent SPON-003 ; la référence
+  d’autorisation n’est pas une preuve de livraison. Migration et CI distantes
+  SPON-002 restent à effectuer après revue du commit local.
 - SPON-05 : gérer une campagne comme un ensemble de livrables assignés : publications, vidéos, présence événementielle ou placement de marque.
 - SPON-06 : produire un rapport distinguant engagement promis, livré, validé et mesure réellement disponible.
 - SPON-07 : en P1, ouvrir un portail limité à l’accord du sponsor avec validation préalable des informations partagées.
