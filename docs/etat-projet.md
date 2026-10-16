@@ -9,12 +9,12 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-SPON-002` — accords et périmètres d’exposition.
-  Commit `a899bf2` poussé ; staging synchronisé avec origin/staging au début du
-  correctif. CI backend échouée sur trois round-trips PostgreSQL Catalogue/Teams.
-  Correctif local de leur ordre de migrations ; nouveau push/CI à effectuer.
-  Migration SPON-002 vérifiée en lecture seule : Ran, batch 27. Aucun migrate
-  principal par l’agent. Détails dans la section de correction ci-dessous.
+- Dernier ticket traité : `UCG-SPON-003` — campagnes et livrables. Implémentation
+  locale ; revue, push utilisateur, CI distantes et migration principale à effectuer.
+- SPON-002 (`a899bf2`, correctif `8fa6376`) poussé ; CI et migration validées par
+  l’utilisateur avant SPON-003. Staging propre et synchronisé avec origin/staging
+  au démarrage. Migration vérifiée en lecture seule : Ran, batch 27. Aucun migrate
+  principal par l’agent. L’échec CI initial reste documenté dans la section dédiée.
 - SPON-001 (`68ec32e`) poussé et synchronisé avec origin/staging au démarrage ;
   CI et migration validées par l’utilisateur. Migration vérifiée en lecture
   seule : Ran, batch 26. Aucun migrate principal par l’agent.
@@ -92,10 +92,10 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : revue du correctif CI SPON-002, push utilisateur et CI vertes.
-  Migration `2026_10_16_000918_create_sponsorship_agreements_and_exposures`
-  déjà appliquée, vérifiée Ran, batch 27 en lecture seule. Pas de nouvelle migration
-  ni de rollback requis pour le correctif des tests.
+- Prochaine action : revue du commit SPON-003, push utilisateur et CI vertes,
+  sauvegarde puis migration `2026_10_16_013526_create_sponsorship_campaigns_and_deliverables`
+  depuis back/. Migration principale vérifiée Pending en lecture seule. SPON-002
+  est déjà appliqué, vérifié Ran, batch 27 ; aucun rollback requis.
   Attribuer explicitement partnerships.read/write/validate et les droits
   financiers/administratifs nécessaires aux membres habilités via les rôles
   existants ; deux acteurs distincts sont nécessaires pour préparer et approuver.
@@ -123,8 +123,9 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- Après push du correctif et CI SPON-002 vertes, prochain P0 :
-  `UCG-SPON-003`, campagnes et livrables. Les P0 Contrats sont
+- Après push/CI/migration SPON-003, recetter les campagnes avec deux membres
+  habilités. Prochain P0 du volet Live : `UCG-MEDIA-001` ; rapports SPON-004 et
+  portail SPON-005 restent P1. Les P0 Contrats sont
   implémentés ; la signature électronique CTR-007 reste P1. ClamAV doit être vérifié en
   environnement cible ; aucun téléchargement sans analyse clean réussie.
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
@@ -2266,3 +2267,74 @@ ensuite ce fichier pour qu'il reflète la réalité.
 - Un commit local regroupe correctif et documentation. Aucun push, seed, e-mail
   ou changement de données métier par l’agent. Suite : push utilisateur puis CI
   backend/frontend vertes ; aucune migration supplémentaire pour ce correctif.
+
+## Campagnes et livrables partenaires — UCG-SPON-003
+
+- Démarrage sur staging propre et synchronisé avec origin/staging, correctif
+  SPON-002 8fa6376 poussé. CI et migration validées par l’utilisateur. Migration
+  SPON-002 vérifiée en lecture seule : Ran, batch 27.
+- Campagnes privées liées aux accords, période incluse dans l’accord, responsable
+  membre habilité. Promesses publication/vidéo/présence événementielle/placement
+  de marque, chacune liée à un périmètre du même accord, un responsable et une
+  échéance ISO 8601 avec fuseau. Le type événementiel ne crée pas de référentiel.
+- Cycle promis → livré → validé : livraison déclarée avec date non future et
+  référence de preuve obligatoire, distincte d’une validation. Validation par un
+  membre avec partnerships.read/write/validate, différent du préparateur, du
+  responsable et du livreur. Aucun droit financier induit ou exigé pour cette
+  revue opérationnelle. Accord approuvé et périmètre encore autorisé exigés.
+- Statut historique préservé si accord/périmètre changent, avec indicateur de
+  correspondance actuelle. Réouverture par un validateur : capture chiffrée de
+  l’ancienne preuve puis retrait de la preuve/validation courantes. Annulation
+  définitive possible pour promis/livré. Aucune exposition/publication déclenchée.
+- Tableau tenant des campagnes actives : compteurs distincts et retards promis
+  paginés, contexte sponsor/accord/campagne et noms de responsables, sans preuve
+  détaillée ou montant. Retard : échéance passée et état promis ; une livraison
+  tardive conserve son indicateur séparé. Actualisation après mutation, bouton de
+  relecture et affichage selon le fuseau tenant ; champs de saisie avec fuseau local.
+- Gardes complémentaires : dates de campagne couvrant les échéances conservées,
+  réduction de période d’accord refusée si elle exclut une campagne active,
+  campagne archivable seulement après validation/annulation de ses livrables,
+  accord/partenaire archivables seulement après archivage des campagnes actives.
+  Cela évite de figer une promesse encore à traiter derrière une archive parent.
+- Migration additive 2026_10_16_013526_create_sponsorship_campaigns_and_deliverables :
+  sponsorship_campaigns, sponsorship_deliverables, sponsorship_campaign_events.
+  FK composites tenant/accord/campagne/périmètre, identités et annulations/archives
+  immuables, contraintes de livraison/validation indépendante, preuve protégée
+  pendant validation, événements append-only. Gardes parent dans la nouvelle
+  migration ; aucune migration déployée modifiée. Rollback refuse les données.
+- MVC, Form Requests fermées et Policy SPON-002 réutilisée, Services, Repository
+  injecté, Resources à liste fermée, confirmation/révision tenant et versions
+  optimistes accord/campagne/livrable. Verrou organisation puis dossier ; audit
+  transversal minimal en transaction. Preuves/captures chiffrées, sans texte dans
+  les journaux transversaux/événements HTTP. Portabilité des trois tables incluse.
+- Références/noms chargés par lots, pages bornées à 100 ; tests de nombre de
+  requêtes constant pour les périmètres et le tableau. Agrégats de taille fixe,
+  pas de cache durable des droits ni traitement externe long dans les requêtes.
+  Mesurer contention, agrégats et pagination profonde avant évolution à fort volume.
+- Round-trips Organization, People, Contracts, Catalogue (deux scénarios) et Teams
+  retirent SPON-003 avant SPON-002 puis le recréent après. La CI PostgreSQL inclut
+  les deux nouveaux fichiers de tests. Validation globale sur une base neuve par
+  invocation ; aucune réutilisation des fonctions PostgreSQL entre suites.
+- Validation SQLite complète avec cache database : 1 580 tests, 1 576 réussis,
+  7 348 assertions et 4 skips attendus (cas PostgreSQL, deux Redis réels, ClamAV
+  réel opt-in). 144 tests ciblés réussis au préalable, 880 assertions. Pint complet,
+  PHPStan niveau 8 et composer validate --strict réussis.
+- Validation PostgreSQL 17 finale : sélection CI complète des 66 chemins,
+  1 394 tests, 1 392 réussis, 2 skips Redis attendus, 6 526 assertions. Cache array
+  comme en CI ; base temporaire neuve créée pour cette seule invocation puis
+  supprimée. Aucun échec, notamment sur les six round-trips parent modifiés.
+- Frontend : 221 tests dans 33 fichiers, lint/build et typecheck strict E2E réussis.
+  23 parcours Chrome local passent sans retry avec API métier simulées. Nouveau
+  scénario : campagne, promesse en retard, tableau actualisé, preuve échappée,
+  séparation de validation, historique et affichage mobile. Captures à 390 px
+  relues ; marges imbriquées réduites, aucun débordement. Aucun navigateur installé.
+- Pas de téléchargement de preuve, d’appel externe, de publication, d’audience
+  inventée, de portail ou de nouveau dépôt de fichier. Rapports et portail restent
+  SPON-004/005 (P1). Les pièces Contrats gardent leurs contrôles/ClamAV existants.
+- Aucun migrate principal, seed, rôle attribué, donnée métier réelle, e-mail ou
+  push par l’agent. Migration SPON-003 vérifiée Pending. Un seul commit local
+  regroupe code, tests, CI et les six documents existants.
+- Suite : revue/push utilisateur, CI vertes, sauvegarde puis migrate depuis back/,
+  recette avec deux membres habilités. Les nouveaux services/tableau nécessitent
+  les tables SPON-003 avant ouverture du parcours. Prochain P0 du volet Live à
+  cadrer : UCG-MEDIA-001 ; aucune autre fonctionnalité démarrée automatiquement.

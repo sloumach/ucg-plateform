@@ -1493,3 +1493,46 @@ Les noms des responsables et pseudonymes sont chargés en bloc, par page de 100
 maximum ; le fragment React des accords est chargé à l’ouverture de l’onglet.
 Mesurer coût des droits courants, écritures de journal financier et contention
 par tenant avant toute optimisation ou revendication de volume.
+
+## Campagnes et livrables — UCG-SPON-003
+
+Le module Partnerships ajoute sponsorship_campaigns, sponsorship_deliverables
+et sponsorship_campaign_events. Le graphe de dépendances ne change pas : les
+références membres et sujets utilisent les ports publics de SPON-002. Les
+campagnes dépendent d’un accord ; chaque livrable conserve accord/campagne/
+périmètre immuables et des FK composites. Aucune table RH ou financière n’est
+chargée pour le suivi opérationnel.
+
+Controllers et Form Requests dédiés réutilisent SponsorshipAgreementPolicy
+(viewAny/manage/validate), Services campagnes/livrables, projection à liste
+fermée et SponsorshipCampaignRepository. Tenant confirmé, version d’accord,
+version de campagne et version du livrable sont relues sous verrou organisation.
+Les versions de campagne changent à chaque mutation enfant ; une version obsolète
+est refusée sans rejeu automatique. Les noms et périmètres sont projetés par lots.
+
+Les statuts promis/livré/validé restent distincts. La livraison est déclarative,
+avec date et référence manuelle chiffrée. La validation indépendante contrôle
+l’approbation et les droits actuels ; aucune publication n’est effectuée. Les
+versions accord/périmètre de la validation sont conservées, et leur correspondance
+courante est calculée à la lecture. Rouvrir préserve la preuve antérieure dans
+une capture chiffrée de l’historique métier, puis retire la preuve/validation
+courantes. Le journal transversal ne contient que UUID et action ; le journal
+métier HTTP ne projette pas les captures privées.
+
+Gardes SQL SQLite/PostgreSQL : identités immuables, liens cohérents,
+structure livraison/validation et indépendance, absence de réécriture silencieuse
+de la preuve pendant validation, annulations/archives figées et journal en ajout
+seul. La période d’un accord ne peut exclure une campagne active. Accord et
+partenaire ne peuvent être archivés avec des campagnes actives ; une campagne
+ne peut être archivée avec des livrables promis/livrés. Aucune migration déployée
+n’est modifiée. Catalogue de portabilité étendu aux colonnes physiques des trois
+tables, rollback refusé en présence de données. Tous les round-trips qui retirent
+SPON-002 retirent désormais SPON-003 auparavant et le recréent après.
+
+Le tableau tenant est une projection privée des campagnes actives : agrégats
+fixes par statut, retards promis paginés, noms de responsables et contexte
+sponsor/accord/campagne, sans preuve ni montant. Il ne prétend pas mesurer une
+audience, ni certifier une publication. Un changement de tenant/droits invalide
+les lectures et les formulaires ; les mutations actualisent le tableau par un
+callback explicite. Les campagnes restent dans le fragment React des accords ;
+le tableau de suivi possède son propre fragment chargé pour les lecteurs habilités.

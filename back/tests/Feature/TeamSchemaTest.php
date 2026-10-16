@@ -85,6 +85,8 @@ class TeamSchemaTest extends TestCase
         $lineups = require database_path('migrations/2026_10_13_204834_create_team_lineup_tables.php');
         $eligibility = require database_path('migrations/2026_10_13_215251_create_team_eligibility_rules_and_reports.php');
         $agreements = require database_path('migrations/2026_10_16_000918_create_sponsorship_agreements_and_exposures.php');
+        $campaigns = require database_path('migrations/2026_10_16_013526_create_sponsorship_campaigns_and_deliverables.php');
+        $campaigns->down();
         $agreements->down();
         $eligibility->down();
         $lineups->down();
@@ -95,6 +97,7 @@ class TeamSchemaTest extends TestCase
         $lineups->up();
         $eligibility->up();
         $agreements->up();
+        $campaigns->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         $this->assertDatabaseCount('teams', 0);
     }

@@ -970,7 +970,7 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 
 ### UCG-SPON-002 — Gérer accords et périmètres d’exposition
 
-- **État** : implémenté et poussé (`a899bf2`), migration vérifiée Ran, batch 27. CI backend échouée sur trois tests de rollback Catalogue/Teams ; ordre des migrations corrigé localement, nouveau push/CI à effectuer. Aucune nouvelle migration requise.
+- **État** : livré (`a899bf2`, correctif `8fa6376` poussé), CI et migration validées par l’utilisateur avant SPON-003. Migration vérifiée Ran, batch 27 ; branche synchronisée au démarrage.
 - **Livraison** : accords privés, période/responsable, conditions numéraire/nature/mixte chiffrées, lecture financière auditée et droits distincts, approbation indépendante et invalidation après modification. Périmètres organisation/équipe/joueur avec référence d’autorisation ; exclusivités par catégorie sur les périodes approuvées qui se chevauchent. Pièces via contrat sponsor associé et protections Contrats existantes. API/React, pagination, versions optimistes, contraintes SQLite/PostgreSQL et export opérateur.
 - **Limites explicites** : référentiels événement/contenu indisponibles, donc refusés ; aucune publication automatique ni preuve de réalisation inventée. Campagnes et livrables restent SPON-003. Aucune attribution réelle de rôle ni migration principale par l’agent.
 
@@ -980,6 +980,10 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Références CDC** : SPON-02 à SPON-04.
 
 ### UCG-SPON-003 — Suivre campagnes et livrables
+
+- **État** : implémenté localement ; revue, push utilisateur, CI distantes et migration principale à effectuer.
+- **Livraison** : campagnes rattachées aux accords, périodes et responsables habilités, promesses liées aux périmètres, déclarations datées avec preuves textuelles chiffrées, validation indépendante et réouverture avec conservation de l’ancienne preuve. États promis/livré/validé distincts, annulation et archivage protégés, historique en ajout seul, tableau tenant paginé avec retards et compteurs séparés. API/React, versions optimistes, contraintes SQLite/PostgreSQL et portabilité opérateur.
+- **Limites** : aucune publication, ouverture automatique de référence, mesure d’audience, pièce téléversée ou notification externe. Une preuve est une référence manuelle à vérifier ; le statut livré ne prouve pas une exposition autorisée. Les types événementiel/contenu ne créent pas de référentiels indisponibles. Rapports SPON-004 et portail SPON-005 restent P1.
 
 - **Priorité / taille** : P0 / L
 - **Périmètre** : publications, vidéos, événementiel, placement de marque, responsable, échéance et preuve.

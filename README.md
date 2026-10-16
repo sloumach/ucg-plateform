@@ -1970,3 +1970,90 @@ et les écritures sont sérialisées par organisation. Profiler la contention et
 les recherches par préfixe avant évolution des index ou du verrouillage. Les
 accords sont chargés dans un fragment JavaScript à l’ouverture de l’onglet.
 Aucune validation de charge à plusieurs millions d’utilisateurs n’est revendiquée.
+
+### Campagnes et livrables — UCG-SPON-003
+
+Depuis Partenariats → Accords → un accord → Campagnes, préparer une campagne
+avec période et responsable, puis ses livrables : publication, vidéo, présence
+événementielle ou placement de marque. Chaque promesse désigne un périmètre
+existant de cet accord, un membre habilité et une échéance. Les listes, références
+et historiques sont paginés ; les campagnes se chargent à la demande.
+
+Les droits restent explicites et soumis au MFA : partnerships.read pour le suivi,
+partnerships.write pour préparer/déclarer/annuler, partnerships.validate avec
+lecture/écriture pour valider une preuve ou rouvrir un livrable. Aucun droit
+financier, administratif, RH ou accès externe n’est accordé par ce parcours.
+
+Le cycle distingue :
+
+1. **Promis** : engagement attendu, modifiable avant déclaration.
+2. **Livré** : date réelle et référence de preuve saisies, en attente de revue.
+3. **Validé** : preuve contrôlée et confirmation explicite par un membre distinct
+   du préparateur, du responsable et de l’auteur de la livraison.
+
+Une déclaration ne vaut jamais autorisation de publier. La validation exige un
+accord actuellement approuvé, un périmètre éligible, les habilitations actuelles
+et un éventuel contrat toujours actif selon SPON-002. Une validation antérieure
+reste historique si l’accord ou le périmètre change ; l’interface signale cet
+écart. Rouvrir exige partnerships.validate et efface la preuve courante/la
+validation, tout en conservant une capture chiffrée dans le journal métier.
+Une promesse ou livraison peut être annulée ; l’annulation est définitive.
+
+Le tableau « Suivi des engagements partenaires » montre les campagnes actives :
+livraisons attendues, promesses en retard, preuves à valider et validations
+historiques enregistrées. Un retard signifie promis avec échéance strictement
+passée ; une livraison tardive conserve séparément sa date et cet indicateur.
+Les mutations du parcours actualisent ce tableau ; le bouton Actualiser permet
+une nouvelle lecture. Aucun montant ni preuve détaillée n’y est projeté.
+
+La campagne reste dans la période de l’accord, et ses dates couvrent toutes les
+échéances conservées. Les échéances et livraisons sont transmises en ISO 8601
+avec fuseau, contrôlées selon le fuseau de l’organisation ; la livraison déclarée
+ne peut pas être future. Le champ de saisie affiche son fuseau local. Archiver
+une campagne exige des livrables validés ou annulés. Archiver accord/partenaire
+exige d’abord l’archivage des campagnes actives, pour préserver leur traitement.
+
+Les preuves sont des **références textuelles manuelles**, chiffrées au repos,
+jamais téléchargées ni consultées automatiquement. Aucun dépôt de fichier,
+publication sociale, mesure d’audience ou vérification externe n’est ajouté.
+Les pièces contractuelles conservent le parcours privé/antivirus Contrats.
+Le type présence événementielle ne crée pas de référentiel d’événements ; les
+cibles event/content SPON-002 restent indisponibles. Rapports sponsor SPON-004
+et portail SPON-005 restent ultérieurs.
+
+Après revue, push et CI vertes, sauvegarder puis appliquer depuis back/ :
+
+```powershell
+php artisan migrate
+```
+
+La nouvelle migration est
+2026_10_16_013526_create_sponsorship_campaigns_and_deliverables. Elle ajoute trois
+tables et des gardes de cohérence, sans backfill ni attribution de rôle. Elle
+n’a pas été appliquée à la base principale par l’agent. Son rollback refuse de
+supprimer un historique utilisé ; utiliser une correction en avant dans ce cas.
+
+Exemple SPA après connexion, MFA et confirmation du tenant :
+
+```typescript
+import { tenancyRequest } from './front/src/api/tenancy'
+import { campaignsPath, type SponsorshipCampaign } from './front/src/api/sponsorshipCampaigns'
+import type { ApiSuccessResponse } from './front/src/api/contracts'
+
+const root = campaignsPath(active.context!.organization_id, sponsor.id, agreement.id)
+const response = await tenancyRequest<ApiSuccessResponse<SponsorshipCampaign>>(root, {
+  method: 'POST', revision: active.revision!,
+  body: { agreement_version: agreement.version, title: 'Campagne automne',
+    starts_on: agreement.starts_on, ends_on: agreement.ends_on,
+    responsible_user_id: active.context!.actor_user_id },
+})
+// POST root + '/' + response.data.id + '/deliverables' exige agreement_version
+// et campaign_version. Chaque mutation d’un livrable renouvelle campaign_version.
+```
+
+Les agrégats restent de taille fixe, les retards sont paginés et les noms/cibles
+chargés par lots. Des tests vérifient le nombre de requêtes indépendant du nombre
+de lignes. Les écritures sont sérialisées par organisation ; profiler agrégats,
+contention et pagination profonde sur les volumes réels avant d’ajouter un cache
+ou une projection asynchrone. Les droits courants ne sont pas mis en cache durable.
+Aucun résultat de charge à plusieurs millions d’utilisateurs n’est revendiqué.

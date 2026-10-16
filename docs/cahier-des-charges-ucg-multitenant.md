@@ -406,10 +406,23 @@ Classer par organisation, personne, équipe, compétition, sponsor ou dossier. V
   Aucune publication automatique. Les campagnes, obligations livrées, échéances
   opérationnelles et preuves de réalisation restent SPON-003 ; la référence
   d’autorisation n’est pas une preuve de livraison. Migration SPON-002 appliquée
-  (batch 27) ; CI backend à relancer après le correctif des tests de rollback
-  Catalogue/Teams. Les fonctionnalités métier et contraintes restent inchangées.
+  (batch 27) ; correctif de rollback Catalogue/Teams poussé (`8fa6376`), CI validées
+  par l’utilisateur avant SPON-003.
 - SPON-05 : gérer une campagne comme un ensemble de livrables assignés : publications, vidéos, présence événementielle ou placement de marque.
 - SPON-06 : produire un rapport distinguant engagement promis, livré, validé et mesure réellement disponible.
+
+  Implémentation SPON-003 : campagnes privées rattachées aux accords et promesses
+  assignées, avec période/échéance, type de livrable et périmètre autorisé. La
+  livraison déclare une date et une référence de preuve textuelle chiffrée ; un
+  autre membre habilité vérifie explicitement la preuve et les autorisations
+  actuelles avant validation. Rouvrir préserve l’ancienne preuve et retire la
+  validation courante. Le tableau tenant distingue livraisons attendues, promesses
+  en retard, preuves à valider et validations historiques. Les livraisons tardives
+  sont identifiées séparément. Archivage et changements de période protègent les
+  campagnes actives ; aucune exposition ni publication automatique n’est créée.
+  Aucun dépôt de preuve, appel de site externe ou mesure d’audience n’est ajouté.
+  Le rapport sponsor avec mesures/méthodes/fournisseurs relève de SPON-004 (P1).
+  SPON-003 reste à pousser, valider en CI et migrer après revue du commit local.
 - SPON-07 : en P1, ouvrir un portail limité à l’accord du sponsor avec validation préalable des informations partagées.
 - SPON-08 : si un même compte sponsor intervient auprès de plusieurs organisations, présenter des espaces et accords séparés sans agrégation ni navigation croisée implicite.
 

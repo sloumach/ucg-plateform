@@ -17,12 +17,12 @@ import { usePeopleMutation } from '../people/usePeopleMutation'
 
 const SponsorshipAgreementsPanel = lazy(() => import('./SponsorshipAgreementsPanel').then((module) => ({ default: module.SponsorshipAgreementsPanel })))
 
-type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
+type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void; onCampaignChanged?: () => void }
 type Editable = Sponsor | SponsorContact | SponsorshipOpportunity
 type ExchangeLink = { field: 'contact_id' | 'opportunity_id'; id: string; name: string }
 
 
-export function PartnershipsPanel({ active, disabled, onInvalid }: Props) {
+export function PartnershipsPanel({ active, disabled, onInvalid, onCampaignChanged }: Props) {
   const [open, setOpen] = useState(false), [page, setPage] = useState(1), [refresh, setRefresh] = useState(0)
   const [query, setQuery] = useState(''), [status, setStatus] = useState('')
   const [editor, setEditor] = useState<Sponsor | 'new' | null>(null), [selected, setSelected] = useState<Sponsor | null>(null)
@@ -59,19 +59,19 @@ export function PartnershipsPanel({ active, disabled, onInvalid }: Props) {
           const record = editor === 'new' ? null : editor
           mutation.propose(event, text('save'), path + (record ? '/' + record.id : ''), { ...changedValues(event.currentTarget, record), ...(record ? { version: record.version } : {}) }, !!record)
         }} />}
-      {selected && <SponsorDetails key={selected.id + selected.version} {...{ active, disabled: blocked, onInvalid }} sponsor={selected} onClose={() => setSelected(null)} />}
+      {selected && <SponsorDetails key={selected.id + selected.version} {...{ active, disabled: blocked, onInvalid, onCampaignChanged }} sponsor={selected} onClose={() => setSelected(null)} />}
       <p className="text-sm text-slate-400">{text('historyHint')}</p>
     </>}
   </section>
 }
 
-function SponsorDetails({ active, sponsor, disabled, onInvalid, onClose }: Props & { sponsor: Sponsor; onClose: () => void }) {
+function SponsorDetails({ active, sponsor, disabled, onInvalid, onClose, onCampaignChanged }: Props & { sponsor: Sponsor; onClose: () => void }) {
   const [kind, setKind] = useState<PartnershipKind | 'agreements'>('contacts'), [link, setLink] = useState<ExchangeLink | null>(null)
   return <section aria-label={sponsor.name} className="grid min-w-0 gap-4 rounded-xl border border-cyan-400/30 p-4">
     <h3 className="font-bold [overflow-wrap:anywhere]">{sponsor.name}</h3>
     <Button disabled={disabled} onClick={onClose}>{text('closeDetails')}</Button>
     <div className="flex flex-wrap gap-3">{(['contacts', 'opportunities', 'interactions', 'agreements'] as const).map((tab) => <Button key={tab} disabled={disabled} aria-pressed={kind === tab} onClick={() => { setLink(null); setKind(tab) }}>{text(tab)}</Button>)}</div>
-    {kind === 'agreements' ? <Suspense fallback={<p role="status">{t('sponsorships.loading')}</p>}><SponsorshipAgreementsPanel {...{ active, sponsor, disabled, onInvalid }} /></Suspense> : <RelatedPanel key={kind + (link?.id ?? '')} {...{ active, sponsor, disabled, onInvalid, kind, link }} onLink={(next) => { setLink(next); setKind('interactions') }} />}
+    {kind === 'agreements' ? <Suspense fallback={<p role="status">{t('sponsorships.loading')}</p>}><SponsorshipAgreementsPanel {...{ active, sponsor, disabled, onInvalid, onCampaignChanged }} /></Suspense> : <RelatedPanel key={kind + (link?.id ?? '')} {...{ active, sponsor, disabled, onInvalid, kind, link }} onLink={(next) => { setLink(next); setKind('interactions') }} />}
   </section>
 }
 

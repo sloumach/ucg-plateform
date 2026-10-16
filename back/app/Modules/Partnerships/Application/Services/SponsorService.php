@@ -5,6 +5,7 @@ namespace App\Modules\Partnerships\Application\Services;
 use App\Exceptions\DomainConflictException;
 use App\Modules\Partnerships\Application\Validation\PartnershipInput;
 use App\Modules\Partnerships\Domain\Contracts\SponsorRepository;
+use App\Modules\Partnerships\Domain\Contracts\SponsorshipCampaignRepository;
 use App\Modules\Partnerships\Domain\Models\Sponsor;
 use App\Modules\Tenancy\Application\Contracts\TenantAuditJournal;
 use App\Modules\Tenancy\Application\Contracts\TenantAuthorization;
@@ -24,7 +25,7 @@ final readonly class SponsorService
 {
     public function __construct(private SponsorRepository $sponsors, private TenantAuthorization $authorization,
         private TenantBusinessGuard $guard, private TenantAuditJournal $audit, private Factory $validator,
-        private ConnectionInterface $database) {}
+        private ConnectionInterface $database, private SponsorshipCampaignRepository $campaigns) {}
 
     /** @param array<string, mixed> $filters
      * @return LengthAwarePaginator<int, Sponsor>
@@ -55,6 +56,9 @@ final readonly class SponsorService
             $this->authorizeWrite($context);
             $record = $id === null ? null : $this->sponsors->find($context->organizationId, $id, true);
             $this->assertEditable($record?->status, $record?->version, $values['version'] ?? null);
+            if ($record !== null && ($values['status'] ?? null) === 'archived' && $this->campaigns->hasActiveForSponsor($context->organizationId, $record->id)) {
+                throw new DomainConflictException(__('campaigns.active_campaigns'), 'SPONSORSHIP_CAMPAIGN_ACTIVE_CAMPAIGNS');
+            }
             $attributes = $this->attributes($values);
             $saved = $this->sponsors->save($record, [...($record === null ? ['organization_id' => $context->organizationId,
                 'industry' => null, 'status' => 'prospect'] : []), ...$attributes]);

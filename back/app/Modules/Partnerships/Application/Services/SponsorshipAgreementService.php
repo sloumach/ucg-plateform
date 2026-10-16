@@ -7,6 +7,7 @@ use App\Modules\Partnerships\Application\Validation\PartnershipInput;
 use App\Modules\Partnerships\Application\Validation\SponsorshipAgreementInput as Input;
 use App\Modules\Partnerships\Domain\Contracts\SponsorRepository;
 use App\Modules\Partnerships\Domain\Contracts\SponsorshipAgreementRepository;
+use App\Modules\Partnerships\Domain\Contracts\SponsorshipCampaignRepository;
 use App\Modules\Partnerships\Domain\Models\SponsorshipAgreement;
 use App\Modules\Partnerships\Domain\Models\SponsorshipAgreementEvent;
 use App\Modules\Tenancy\Application\Contracts\TenantAuditJournal;
@@ -29,7 +30,7 @@ final readonly class SponsorshipAgreementService
 {
     public function __construct(private SponsorshipAgreementRepository $records, private SponsorRepository $sponsors,
         private SponsorshipReferenceService $references, private TenantAuthorization $authorization, private TenantBusinessGuard $guard,
-        private TenantAuditJournal $audit, private Factory $validator, private ConnectionInterface $database) {}
+        private TenantAuditJournal $audit, private Factory $validator, private ConnectionInterface $database, private SponsorshipCampaignRepository $campaigns) {}
 
     /** @param array<string, mixed> $filters
      * @return LengthAwarePaginator<int, SponsorshipAgreement> */
@@ -80,6 +81,10 @@ final readonly class SponsorshipAgreementService
                 if ($end < $start) {
                     throw ValidationException::withMessages(['ends_on' => __('sponsorships.dates')]);
                 }
+                if ($record !== null && (isset($values['starts_on']) || isset($values['ends_on']))
+                    && $this->campaigns->hasCampaignOutside($context->organizationId, $record->id, $start, $end)) {
+                    throw new DomainConflictException(__('campaigns.period'), 'SPONSORSHIP_CAMPAIGN_PERIOD');
+                }
                 $responsible = (int) ($values['responsible_user_id'] ?? $record?->responsible_user_id);
                 if (! $this->references->responsibleEligible($context, $responsible)) {
                     $this->conflict('responsible', 'SPONSORSHIP_RESPONSIBLE_UNAVAILABLE');
@@ -119,6 +124,9 @@ final readonly class SponsorshipAgreementService
         return $this->database->transaction(function () use ($context, $sponsor, $id, $values, $ip): SponsorshipAgreement {
             $record = $this->lock($context, $sponsor, $id, $values['version']);
             $target = $values['target_status'];
+            if ($target === 'archived' && $this->campaigns->hasActiveForAgreement($context->organizationId, $record->id)) {
+                throw new DomainConflictException(__('campaigns.active_campaigns'), 'SPONSORSHIP_CAMPAIGN_ACTIVE_CAMPAIGNS');
+            }
             $allowed = match ($record->status) {
                 'draft' => ['approved', 'archived'], 'approved' => ['ended'], 'ended' => ['archived'], default => []
             };

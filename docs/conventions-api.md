@@ -2295,3 +2295,72 @@ SPONSORSHIP_SELF_APPROVAL_FORBIDDEN ; exclusivité chevauchante : 409
 SPONSORSHIP_EXCLUSIVITY_CONFLICT. Une panne d’audit financier renvoie 503
 ACCESS_AUDIT_UNAVAILABLE sans données métier. Les pièces utilisent les routes
 Contrats existantes et conservent leurs contrôles d’autorisation et antivirus.
+
+## Campagnes et livrables partenaires — UCG-SPON-003
+
+Base : /api/v1/tenants/{tenant}/sponsors/{sponsor}/agreements/{agreement}/campaigns.
+Sanctum, MFA, Policies, confirmation/révision tenant, validation fermée et réponses
+privées no-store s’appliquent comme dans SPON-002. Aucun DELETE ni envoi externe.
+
+| Méthode | Chemin relatif | Usage |
+| --- | --- | --- |
+| GET / POST | / | Liste paginée / préparation de campagne |
+| GET / PATCH | /{campaign} | Lecture / révision ou archivage |
+| GET | /{campaign}/history | Historique paginé sans capture de preuve |
+| GET / POST | /{campaign}/deliverables | Liste filtrée / nouvelle promesse |
+| PATCH | /{campaign}/deliverables/{deliverable} | Modifier une promesse |
+| POST | /{campaign}/deliverables/{deliverable}/deliveries | Déclarer une livraison |
+| POST | /{campaign}/deliverables/{deliverable}/transitions | Valider, rouvrir ou annuler |
+
+Tableau : GET /api/v1/tenants/{tenant}/sponsorship-dashboard. Enveloppe paginée
+standard data/links/meta pour les retards, plus summary avec promised, delivered,
+validated, cancelled et overdue. Tous ces compteurs portent sur les campagnes
+actives. Les lignes ne contiennent ni preuve ni montant ; seulement contexte et
+métadonnées de suivi, sans promesse d’autorisation d’exposition.
+
+Pagination page 1–100000, per_page 1–100, défaut 10. Filtre status sur campagnes
+(active/archived) ou livrables (promised/delivered/validated/cancelled) ; aucun
+filtre inconnu accepté. Les historiques sont ordonnés par date/UUID, les retards
+et livrables par échéance/UUID.
+
+Campagne : agreement_version requis, title (160), starts_on/ends_on au format
+AAAA-MM-JJ et responsible_user_id entier habilité. PATCH exige version ; status
+archived s’envoie seul avec les versions. Période dans l’accord et couvrant les
+échéances conservées. Aucun changement de rattachement possible.
+
+Promesse : agreement_version, campaign_version, exposure_id actif du même accord,
+title (160), kind publication/video/event_presence/brand_placement,
+responsible_user_id habilité et due_at ISO 8601 avec fuseau. PATCH exige aussi
+version, reste limité à l’état promised et ne permet pas de changer le périmètre.
+Une mutation enfant retourne les nouvelles version/campaign_version et la version
+inchangée de l’accord ; les requêtes suivantes doivent reprendre ces versions.
+
+Livraison : les trois versions, delivered_at ISO 8601 non futur et
+proof_reference textuelle obligatoire (2000). La date et l’échéance sont dans la
+période de campagne selon le fuseau tenant. La réponse passe à delivered,
+conserve delivered_by et distingue delivered_late ; aucune validation implicite.
+La preuve n’est ni un téléversement ni une URL ouverte automatiquement.
+
+Transition : les trois versions et target_status validated/promised/cancelled.
+Validated exige delivered, confirm_evidence=true, droits partnerships.read/write/
+validate, acteur distinct du préparateur/responsable/livreur et accord/périmètre
+actuellement autorisés. Les droits financiers ne sont pas requis pour cette
+revue opérationnelle. Promised exige delivered/validated et partnerships.validate
+pour rouvrir, retire preuve/validation courantes et conserve l’ancienne capture
+chiffrée. Cancelled exige promised/delivered et write ; cet état est définitif.
+Les campagnes restent archivables une fois leurs livrables validés ou annulés.
+
+La lecture des livrables inclut exposure_authorized selon SPON-002,
+validation_matches_agreement, les dates et acteurs de livraison/validation,
+overdue et versions. Une validation historique reste visible si les références
+changent ; son indicateur de correspondance devient faux. publication_status
+reste private partout.
+
+201 pour créations, 200 pour révisions/actions, notification Flasher française.
+401 sans session ; 403 sans habilitation ; 404 pour UUID hors tenant/accord/
+campagne ; 422 pour forme/clé inconnue/confirmation ; 409 pour conflit métier.
+Codes de conflit : SPONSORSHIP_CAMPAIGN_STALE, PERIOD, DUE, RESPONSIBLE, SCOPE,
+TRANSITION, INDEPENDENT, AUTHORIZATION, REOPEN, PENDING, FROZEN et ACTIVE_CAMPAIGNS
+(chaque suffixe est précédé de SPONSORSHIP_CAMPAIGN_). Les conflits de version
+parent conservent SPONSORSHIP_VERSION_STALE. Aucun texte de preuve n’est recopié
+dans le journal transversal ni dans les événements HTTP.

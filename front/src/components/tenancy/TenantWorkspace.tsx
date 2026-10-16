@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import type { ApiFieldErrors, ApiSuccessResponse } from '../../api/contracts'
 import { ApiClientError, isAbortError } from '../../api/errors'
 import {
@@ -19,6 +19,7 @@ import { ExternalOpponentsPanel } from '../teams/ExternalOpponentsPanel'
 import { SensitiveAccessPanel } from './SensitiveAccessPanel'
 import { PartnershipsPanel } from '../partnerships/PartnershipsPanel'
 import { ContractsPanel } from '../contracts/ContractsPanel'
+const SponsorshipDashboardPanel = lazy(() => import('../partnerships/SponsorshipDashboardPanel').then((module) => ({ default: module.SponsorshipDashboardPanel })))
 import { Button } from '../Button'
 import { FormField } from '../FormField'
 import { Pagination } from '../data/Pagination'
@@ -47,6 +48,8 @@ const firstPages: Pages = { organizations: 1, inbox: 1, memberships: 1, invitati
 const selectClass = 'rounded-xl border border-white/15 bg-slate-900 px-3 py-3 text-slate-100'
 
 export function TenantWorkspace({ onContextChange }: { onContextChange?: (context: ActiveOrganization['context']) => void }) {
+  const [campaignRefresh, setCampaignRefresh] = useState(0)
+  const refreshCampaignDashboard = useCallback(() => setCampaignRefresh((n) => n + 1), [])
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
   const [pages, setPages] = useState<Pages>(firstPages)
   const [loading, setLoading] = useState(true)
@@ -239,7 +242,8 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
           {selected && <TeamsPanel key={'teams:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
           {selected && <ExternalOpponentsPanel key={'opponents:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
           {selected && <SensitiveAccessPanel key={'sensitive-audit:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
-          {selected && <PartnershipsPanel key={'partnerships:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
+          {selected?.permissions.includes('partnerships.read') && <Suspense fallback={<p role="status">{t('sponsorships.loading')}</p>}><SponsorshipDashboardPanel key={'campaign-dashboard:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} refresh={campaignRefresh} onInvalid={invalidatePeopleContext} /></Suspense>}
+          {selected && <PartnershipsPanel key={'partnerships:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} onCampaignChanged={refreshCampaignDashboard} />}
           {selected && <ContractsPanel key={'contracts:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
           <div className="grid gap-3">
             {workspace.organizations.data.length === 0 && <p className="text-slate-400">{t('tenant.empty')}</p>}

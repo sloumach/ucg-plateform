@@ -3,6 +3,9 @@
 use App\Modules\Partnerships\Presentation\Http\Controllers\Api\V1\SponsorController;
 use App\Modules\Partnerships\Presentation\Http\Controllers\Api\V1\SponsorRelationshipController;
 use App\Modules\Partnerships\Presentation\Http\Controllers\Api\V1\SponsorshipAgreementController;
+use App\Modules\Partnerships\Presentation\Http\Controllers\Api\V1\SponsorshipCampaignController;
+use App\Modules\Partnerships\Presentation\Http\Controllers\Api\V1\SponsorshipDashboardController;
+use App\Modules\Partnerships\Presentation\Http\Controllers\Api\V1\SponsorshipDeliverableController;
 use App\Modules\Partnerships\Presentation\Http\Controllers\Api\V1\SponsorshipExposureController;
 use App\Modules\Partnerships\Presentation\Http\Controllers\Api\V1\SponsorshipFinancialController;
 use App\Modules\Partnerships\Presentation\Http\Controllers\Api\V1\SponsorshipReferenceController;
@@ -39,3 +42,20 @@ Route::prefix('tenants/{tenant}/sponsors/{sponsor}/agreements')->whereUuid(['ten
 });
 Route::get('tenants/{tenant}/sponsorship-references/{kind}', [SponsorshipReferenceController::class, 'index'])
     ->whereUuid('tenant')->where('kind', 'members|teams|players|contracts')->middleware('tenant')->name('sponsorship-references.index');
+
+Route::prefix('tenants/{tenant}/sponsors/{sponsor}/agreements/{agreement}/campaigns')->whereUuid(['tenant', 'sponsor', 'agreement'])->middleware('tenant')->group(function (): void {
+    $controller = SponsorshipCampaignController::class;
+    Route::get('/', [$controller, 'index'])->name('sponsorship-campaigns.index');
+    Route::get('{campaign}', [$controller, 'show'])->whereUuid('campaign')->name('sponsorship-campaigns.show');
+    Route::get('{campaign}/history', [$controller, 'history'])->whereUuid('campaign')->name('sponsorship-campaigns.history');
+    Route::post('/', [$controller, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('sponsorship-campaigns.store');
+    Route::patch('{campaign}', [$controller, 'update'])->whereUuid('campaign')->middleware('tenant.confirmed')->block(10, 10)->name('sponsorship-campaigns.update');
+    $deliverables = SponsorshipDeliverableController::class;
+    Route::get('{campaign}/deliverables', [$deliverables, 'index'])->whereUuid('campaign')->name('sponsorship-deliverables.index');
+    Route::post('{campaign}/deliverables', [$deliverables, 'store'])->whereUuid('campaign')->middleware('tenant.confirmed')->block(10, 10)->name('sponsorship-deliverables.store');
+    Route::patch('{campaign}/deliverables/{deliverable}', [$deliverables, 'update'])->whereUuid(['campaign', 'deliverable'])->middleware('tenant.confirmed')->block(10, 10)->name('sponsorship-deliverables.update');
+    Route::post('{campaign}/deliverables/{deliverable}/deliveries', [$deliverables, 'deliver'])->whereUuid(['campaign', 'deliverable'])->middleware('tenant.confirmed')->block(10, 10)->name('sponsorship-deliverables.deliver');
+    Route::post('{campaign}/deliverables/{deliverable}/transitions', [$deliverables, 'transition'])->whereUuid(['campaign', 'deliverable'])->middleware('tenant.confirmed')->block(10, 10)->name('sponsorship-deliverables.transition');
+});
+Route::get('tenants/{tenant}/sponsorship-dashboard', [SponsorshipDashboardController::class, 'index'])
+    ->whereUuid('tenant')->middleware('tenant')->name('sponsorship-campaigns.dashboard');

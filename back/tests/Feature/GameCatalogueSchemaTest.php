@@ -123,6 +123,8 @@ class GameCatalogueSchemaTest extends TestCase
         $eligibility = require database_path('migrations/2026_10_13_215251_create_team_eligibility_rules_and_reports.php');
         $opponents = require database_path('migrations/2026_10_14_121838_create_external_opponents_and_snapshots.php');
         $agreements = require database_path('migrations/2026_10_16_000918_create_sponsorship_agreements_and_exposures.php');
+        $campaigns = require database_path('migrations/2026_10_16_013526_create_sponsorship_campaigns_and_deliverables.php');
+        $campaigns->down();
         $agreements->down();
         $opponents->down();
         $eligibility->down();
@@ -137,6 +139,7 @@ class GameCatalogueSchemaTest extends TestCase
         $eligibility->up();
         $opponents->up();
         $agreements->up();
+        $campaigns->up();
         $this->assertDatabaseCount('game_catalogue_entries', 18);
         $this->assertDatabaseCount('organization_games', 0);
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
@@ -169,6 +172,8 @@ class GameCatalogueSchemaTest extends TestCase
         $eligibility = require database_path('migrations/2026_10_13_215251_create_team_eligibility_rules_and_reports.php');
         $opponents = require database_path('migrations/2026_10_14_121838_create_external_opponents_and_snapshots.php');
         $agreements = require database_path('migrations/2026_10_16_000918_create_sponsorship_agreements_and_exposures.php');
+        $campaigns = require database_path('migrations/2026_10_16_013526_create_sponsorship_campaigns_and_deliverables.php');
+        $campaigns->down();
         $agreements->down();
         $opponents->down();
         $eligibility->down();
@@ -191,6 +196,7 @@ class GameCatalogueSchemaTest extends TestCase
         $eligibility->up();
         $opponents->up();
         $agreements->up();
+        $campaigns->up();
         $this->assertDatabaseCount('organization_games', 4);
         $this->assertSame(1, OrganizationGame::query()->where('organization_id', $org->id)->where('enabled', true)->count());
     }

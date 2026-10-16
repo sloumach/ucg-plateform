@@ -17,9 +17,10 @@ import { SponsorshipReferenceSelect } from './SponsorshipFields'
 import { AgreementExposuresPanel } from './AgreementExposuresPanel'
 import { AgreementFinancialPanel } from './AgreementFinancialPanel'
 import { AgreementDocumentsPanel } from './AgreementDocumentsPanel'
+import { SponsorshipCampaignsPanel } from './SponsorshipCampaignsPanel'
 
-type Props = { active: ActiveOrganization; sponsor: Sponsor; disabled: boolean; onInvalid: () => void }
-export function SponsorshipAgreementsPanel({ active, sponsor, disabled, onInvalid }: Props) {
+type Props = { active: ActiveOrganization; sponsor: Sponsor; disabled: boolean; onInvalid: () => void; onCampaignChanged?: () => void }
+export function SponsorshipAgreementsPanel({ active, sponsor, disabled, onInvalid, onCampaignChanged }: Props) {
   const [page, setPage] = useState(1), [refresh, setRefresh] = useState(0), [query, setQuery] = useState(''), [status, setStatus] = useState('')
   const [creating, setCreating] = useState(false), [selected, setSelected] = useState<string | null>(null)
   const path = agreementsPath(active.context!.organization_id, sponsor.id)
@@ -52,11 +53,11 @@ export function SponsorshipAgreementsPanel({ active, sponsor, disabled, onInvali
     {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={(next) => { setPage(next); setSelected(null); setCreating(false) }} />}
     {creating && <AgreementForm {...{ active, sponsor, onInvalid }} record={null} errors={mutation.errors(path)} disabled={blocked} onCancel={() => setCreating(false)}
       onSubmit={(event) => { const body = changedValues(event.currentTarget, null); body.responsible_user_id = Number(body.responsible_user_id); mutation.propose(event, text('save'), path, body) }} />}
-    {selected && <AgreementDetails key={selected} {...{ active, sponsor, onInvalid, disabled: blocked }} path={path + '/' + selected} refresh={refresh} onChanged={changed} onClose={() => setSelected(null)} />}
+    {selected && <AgreementDetails key={selected} {...{ active, sponsor, onInvalid, onCampaignChanged, disabled: blocked }} path={path + '/' + selected} refresh={refresh} onChanged={changed} onClose={() => setSelected(null)} />}
   </section>
 }
 
-function AgreementDetails({ active, sponsor, path, refresh, disabled, onInvalid, onChanged, onClose }: Props & { path: string; refresh: number; onChanged: () => void; onClose: () => void }) {
+function AgreementDetails({ active, sponsor, path, refresh, disabled, onInvalid, onChanged, onClose, onCampaignChanged }: Props & { path: string; refresh: number; onChanged: () => void; onClose: () => void }) {
   const { data: record, loading, error } = useAgreementRead<SponsorshipAgreement>(path, active, true, onInvalid, refresh)
   const [editing, setEditing] = useState(false), [history, setHistory] = useState(false)
   const mutation = usePeopleMutation(active, () => { setEditing(false); onChanged() }, onInvalid)
@@ -81,6 +82,7 @@ function AgreementDetails({ active, sponsor, path, refresh, disabled, onInvalid,
       <AgreementExposuresPanel key={'exposures:' + record.version} {...{ active, record, onInvalid, onChanged, disabled: blocked, readOnly: sponsor.status === 'archived' }} path={path + '/exposures'} />
       <AgreementFinancialPanel key={'financial:' + record.version} {...{ active, record, onInvalid, onChanged, disabled: blocked, readOnly: sponsor.status === 'archived' }} path={path + '/financial'} />
       <AgreementDocumentsPanel key={'documents:' + record.version} {...{ active, record, onInvalid, onChanged, disabled: blocked }} />
+      <SponsorshipCampaignsPanel key={'campaigns:' + record.version} {...{ active, agreement: record, onInvalid, disabled: blocked, readOnly: sponsor.status === 'archived' }} path={path + '/campaigns'} onChanged={onCampaignChanged} />
       {validate && record.status === 'draft' && permissions.includes('financial.read') && permissions.includes('financial.validate') && (record.prepared_by === active.context!.actor_user_id ? <p>{text('otherApprover')}</p> : <form aria-label={text('approve')} className="grid min-w-0 gap-3" onSubmit={(event) => mutation.propose(event, text('approve'), path + '/transitions', { version: record.version, target_status: 'approved', confirm_authorizations: new FormData(event.currentTarget).has('confirm_authorizations') })}>
         <label className="flex items-start gap-3"><input type="checkbox" name="confirm_authorizations" disabled={blocked} /><span>{text('confirm_authorizations')}</span></label>
         {mutation.errors(path + '/transitions').confirm_authorizations && <p role="alert">{mutation.errors(path + '/transitions').confirm_authorizations[0]}</p>}
