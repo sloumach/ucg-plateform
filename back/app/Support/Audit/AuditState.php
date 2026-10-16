@@ -15,6 +15,8 @@ final class AuditState
         $result = [];
         foreach ($state as $key => $value) {
             $valid = match ($key) {
+                'communication_id' => $value === null || (is_string($value) && Str::isUuid($value)),
+                'communication_action' => is_string($value) && in_array($value, ['created', 'updated', 'publish', 'withdraw', 'comments', 'comment', 'preferences'], true),
                 'sponsorship_campaign_id' => is_string($value) && Str::isUuid($value),
                 'sponsorship_campaign_action' => is_string($value) && in_array($value, ['campaign_created', 'campaign_updated', 'campaign_archived', 'promised', 'updated', 'delivered', 'validated', 'reopened', 'cancelled'], true),
                 'sponsorship_agreement_id' => is_string($value) && Str::isUuid($value),
@@ -71,7 +73,7 @@ final class AuditState
                 'roles' => self::listWithin($value, ['member', 'administrator']),
                 'media_id' => is_string($value) && Str::isUuid($value),
                 'media_action' => is_string($value) && in_array($value, ['created', 'updated', 'archived'], true),
-                'permissions' => self::listWithin($value, ['organization.view', 'organization.update', 'memberships.manage', 'invitations.manage', 'roles.manage', 'roles.assign', 'audit.view', 'games.manage', 'teams.manage', 'sports.read', 'sports.write', 'sports.validate', 'sports.publish', 'administrative.read', 'administrative.write', 'administrative.validate', 'financial.read', 'financial.write', 'financial.validate', 'partnerships.read', 'partnerships.write', 'partnerships.validate', 'media.read', 'media.write', 'media.publish']),
+                'permissions' => self::listWithin($value, ['organization.view', 'organization.update', 'memberships.manage', 'invitations.manage', 'roles.manage', 'roles.assign', 'audit.view', 'games.manage', 'teams.manage', 'sports.read', 'sports.write', 'sports.validate', 'sports.publish', 'administrative.read', 'administrative.write', 'administrative.validate', 'financial.read', 'financial.write', 'financial.validate', 'partnerships.read', 'partnerships.write', 'partnerships.validate', 'media.read', 'media.write', 'media.publish', 'communication.read', 'communication.write', 'communication.publish', 'communication.comment']),
                 'actions' => self::listWithin($value, ['organization.inspect', 'access.inspect']),
                 default => false,
             };

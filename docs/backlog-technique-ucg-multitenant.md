@@ -1008,9 +1008,11 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 
 ### UCG-MEDIA-001 — Gérer streams, VOD et clips
 
-- **État** : implémenté localement ; revue/push utilisateur, CI distantes et migration à effectuer.
+- **Validation** : `1f7cc8c` poussé ; CI et migration confirmées par l’utilisateur avant COM-001. Migration vérifiée Ran, batch 29.
+
+- **État** : socle livré, push/CI/migration validés ; rattachements match/événement réservés à leurs référentiels.
 - **Livraison** : catalogue tenant de streams/VOD/clips Twitch et YouTube, rattachés à une équipe active existante. Liens HTTPS normalisés et contrôlés sans accès réseau, statut de diffusion manuel et observation datée séparés du score. Médias privés par défaut, droits media.read/write/publish explicites et MFA, partage différé de scrim autorisé et filtré côté serveur, retrait et archive définitive. API/React, validation fermée, contrôle tenant, versions, audit atomique minimal, portabilité et contraintes SQLite/PostgreSQL.
-- **Limites** : aucune fiche match/événement n’existe encore ; ces UUID sont refusés, le contexte scrim reste déclaratif. Visibilité public = autorisation externe enregistrée, aucun endpoint anonyme ou changement chez le fournisseur. Pas de lecteur intégré, de collecte de disponibilité, d’audience ou de score. MEDIA-002 reste P1 ; prochain P0 du volet : COM-001 à cadrer après livraison.
+- **Limites** : aucune fiche match/événement n’existe encore ; ces UUID sont refusés, le contexte scrim reste déclaratif. Visibilité public = autorisation externe enregistrée, aucun endpoint anonyme ou changement chez le fournisseur. Pas de lecteur intégré, de collecte de disponibilité, d’audience ou de score. MEDIA-002 reste P1 ; socle COM-001 livré dans la présente étape.
 
 - **Priorité / taille** : P0 / M
 - **Périmètre** : média lié à un match, une équipe ou un événement ; statut, fournisseur et visibilité.
@@ -1025,6 +1027,11 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Références CDC** : LIVE-02.
 
 ### UCG-COM-001 — Publier annonces et commentaires ciblés
+
+- **État** : socle implémenté localement ; revue/push, CI distantes et migration COM-001 restent à valider. Le ticket demeure partiel pour les rattachements contextuels ci-dessous.
+- **Livré** : annonces tenant/équipe/jeu/rôle, brouillons versionnés, publication confirmée, contenu publié figé, retrait définitif, discussions sous les annonces, ouverture des commentaires, boîte interne et préférences par compte/tenant. Permissions communication.read/write/publish/comment explicites, MFA, audience courante filtrée avant comptage/pagination ; notifications remises seulement si les droits sont toujours effectifs. Pas d’envoi externe ni de liste figée de destinataires.
+- **Sécurité** : cinq tables tenant, FKs composites, textes chiffrés, historique append-only, audit atomique minimal, rollback sans perte de données, portabilité exhaustive ; références et listes paginées. API fermée, contrôles sous verrou organisation et absence de participation hors audience même en mode gestion.
+- **Reliquat explicite** : ciblage événement et commentaires sur tâches/matchs/séances, dépendants de leurs futurs référentiels. Aucun UUID libre accepté pour ces contextes. COM-002 Discord et MOD-001 restent P1.
 
 - **Priorité / taille** : P0 / L
 - **Périmètre** : annonces par tenant/équipe/jeu/rôle/événement et commentaires sur tâches, matchs et séances.

@@ -443,6 +443,16 @@ public ni changement de visibilité chez le fournisseur. Lecteurs intégrés : P
 - LIVE-03 : afficher séparément statut de diffusion, score sportif et fraîcheur de la donnée.
 - LIVE-04 : définir une publication différée pour les scrims si elle est autorisée ; conserver les scrims privés par défaut.
 - LIVE-05 : en P2, proposer un overlay de score avec accès révocable et champs strictement autorisés.
+Livraison partielle COM-001 : annonces ciblées organisation/équipe/jeu/rôle,
+brouillons puis publication confirmée et retrait, discussions sous les annonces,
+notifications internes configurables sans envoi externe. Les droits et
+appartenances sont réévalués à chaque consultation du contenu et de la boîte.
+Une révocation, un départ d’effectif ou une expiration masque aussi les anciennes
+notifications. Textes chiffrés, rendu texte simple et audit minimal. Le ciblage
+événement et les commentaires sur tâches/matchs/séances restent à intégrer quand
+leurs fiches métier seront disponibles ; aucun identifiant arbitraire accepté.
+Les exigences COM-01/COM-02 complètes restent donc ouvertes sur ces rattachements.
+
 - COM-01 : publier annonces internes ciblées par équipe, jeu, rôle ou événement.
 - COM-02 : proposer commentaires contextualisés sur tâches, matchs et séances, avec notifications configurables.
 - COM-03 : intégrer Discord par connecteur en P1 pour les rappels autorisés ; garder l’application comme référentiel du planning et des résultats.

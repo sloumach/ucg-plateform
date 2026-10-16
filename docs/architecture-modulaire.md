@@ -1571,3 +1571,60 @@ Seul le rattachement équipe est opérationnel : Competition et Scheduling reste
 des frontières vides pour matchs/événements. Aucun UUID libre ni nouvelle
 dépendance Media → Competition/Scheduling n’est introduit. Ces liaisons exigeront
 des contrats publics tenant et des contrôles scrim issus du référentiel réel.
+
+## Communications internes — socle UCG-COM-001
+
+Media possède `announcements`, `announcement_comments`, `communication_events`,
+`communication_preferences` et `communication_receipts`. Flux MVC existant :
+CommunicationRequest fermée, CommunicationPolicy par action, CommunicationService,
+port CommunicationRepository et persistance Eloquent, puis Resources explicites.
+Titres et corps chiffrés via les casts Laravel ; aucun de ces textes dans l’audit,
+les événements ou les accusés de lecture.
+
+Les contrats publics CommunicationTeamsDirectory (Teams) et
+CommunicationRolesDirectory (Tenancy) exposent des choix minimaux paginés,
+le contrôle d’une cible active et les identifiants effectifs du compte courant.
+Les requêtes restent dans les repositories de leurs modules propriétaires.
+Teams obtient la personne liée via SportingPeopleDirectory de People. Media
+n’importe aucun modèle d’un autre module et le graphe de dépendances reste inchangé.
+Les ensembles effectifs sont bornés à 1 000 et une limite dépassée échoue explicitement.
+
+CommunicationAudience est une valeur éphémère par requête ; la visibilité est
+appliquée en SQL avant pagination, déchiffrement et comptage. Cible organisation,
+équipe, jeu ou rôle ; équipe/jeu exigent un effectif effectif et un jeu activé.
+Seules les attributions de rôles actives au niveau de l’organisation constituent
+une audience de rôle. Membership/MFA et permission read restent nécessaires.
+Le mode gestion exige read + write et ne permet jamais de commenter hors audience.
+
+Les mutations verrouillent l’organisation avant l’annonce, recontrôlent les droits,
+puis comparent la version UUID. L’audit est atomique avec contenu/événement.
+Brouillon éditable ; publication confirmée, contenu/cible/expiration immuables ;
+ouverture des commentaires mutable ; retrait définitif. Append de commentaire
+sous verrou du parent sans changement de version du parent. Préférences
+personnelles versionnées, création initiale avec version null. Lecture idempotente
+d’un événement visible, unicité tenant/utilisateur/événement.
+
+La boîte interne matérialise les événements, sans liste persistée de destinataires
+ni job de diffusion. Au GET de remise, le service vérifie les droits actuels puis
+le repository filtre audience, état, expiration, préférences et participation
+avant les métadonnées. Les titres sont chargés par lot depuis les annonces
+visibles ; aucun extrait périmé ne survit à une révocation. L’auteur d’un événement
+ne reçoit pas sa propre notification. Les réponses visent l’auteur de l’annonce
+ou les comptes ayant déjà commenté avant la réponse, seulement sur opt-in.
+Aucun envoi externe et aucune configuration de worker/scheduler requise pour ce
+socle. Un futur connecteur devra refaire ces contrôles au moment de son envoi.
+
+Les FKs composites protègent les liens tenant/équipe/rôle/annonce/commentaire/
+événement. Les triggers SQLite/PostgreSQL figent l’identité et le contenu publié,
+interdisent les suppressions d’annonces et les modifications/suppressions
+d’historique. Index d’audience/fil, unicités tenant des notifications et lectures.
+Les cinq tables et toutes les colonnes physiques sont ajoutées au catalogue de
+portabilité ; rollback refusé si une table contient des données. Les round-trips
+Organization, Teams et Catalogue retirent COM-001 avant leurs parents.
+
+Le panneau React est chargé à la demande selon communication.read, avec une clé
+tenant/révision/permissions. Lectures abortables ; confirmation et révision via
+le hook de mutation existant, erreurs 409 sans rejeu, texte échappé, pagination
+des annonces/références/réponses/notifications et préférences propres au tenant.
+Les liens vers tâches, matchs, séances et événements restent un reliquat explicite
+de COM-001 : aucun modèle ou identifiant libre simulé dans ces frontières vides.

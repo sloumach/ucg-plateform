@@ -2415,3 +2415,87 @@ effective_visibility, publish_at, archived_at, version. Aucun score ou mesure
 d’audience. Les liens sont normalisés par MediaLink, sans accès réseau :
 HTTPS, hôtes exacts, chemins compatibles type/fournisseur, aucun paramètre de
 suivi ni identifiant secret. Un lien accepté n’est pas une vérification d’existence.
+
+## Annonces, commentaires et notifications internes — socle UCG-COM-001
+
+Préfixe privé authentifié `/api/v1/tenants/{tenant}/communication`. MFA, session et
+tenant actifs ; toutes les mutations exigent la confirmation/révision tenant et
+le verrou de session existants. Permission organisation communication.read pour
+toutes les routes, write pour gestion/références, publish pour publication/retrait,
+comment pour participation. Aucun accès implicite propriétaire/plateforme.
+
+| Méthode | Suffixe | Fonction |
+| --- | --- | --- |
+| GET | /announcements | Fil ciblé ; mode gestion explicite |
+| POST | /announcements | Créer un brouillon |
+| GET | /announcements/{id} | Détail autorisé |
+| PATCH | /announcements/{id} | Éditer le brouillon ou une action isolée |
+| GET | /targets?type=team\|game\|role | Références actives id/label paginées, write requis |
+| GET/POST | /announcements/{id}/comments | Lire/ajouter une réponse |
+| GET | /inbox | Remise des notifications visibles au compte courant |
+| POST | /inbox/{event}/read | Lecture idempotente d’un événement encore accessible |
+| GET/PATCH | /preferences | Préférences du compte et du tenant courants |
+
+Listes : page 1–100000, per_page 1–100, défaut 10, tri stable. Annonces :
+management booléen facultatif (write requis), status draft/published/withdrawn
+seulement en gestion. Détail/commentaires : management facultatif à la lecture.
+Inbox : unread booléen facultatif. Cache-Control private,no-store partout.
+Aucun champ de tri, recherche de texte chiffré, user_id ou organization_id accepté.
+
+POST brouillon : title (160), body (12000), target_type organization/team/game/role,
+target_id UUID nullable ; null pour organization, obligatoire sinon.
+comments_enabled booléen facultatif, vrai par défaut. expires_at ISO avec fuseau,
+nullable et futur. Choix équipe/jeu actifs, rôle actif du tenant. Mise à jour :
+version obligatoire et au moins un champ de brouillon. Changer le type impose
+la transmission de la cible cohérente ; target_id peut seul changer dans le même type.
+
+PATCH d’action exige seulement les champs suivants :
+
+- Publication : version, action=publish, confirm_publication accepté ;
+  notify_members booléen facultatif, faux par défaut.
+- Retrait définitif : version, action=withdraw.
+- Ouvrir/fermer les commentaires d’une annonce publiée : version, action=comments,
+  comments_enabled booléen obligatoire.
+
+Aucun mélange d’action et de contenu ; la cible est recontrôlée à la publication.
+Contenu/cible/expiration publiés figés. Éditer une annonce publiée exige son retrait
+puis un nouveau brouillon. POST commentaire : version actuelle du parent, body
+(4000), notify_members facultatif faux par défaut. Autorisation de commenter
+rejouée sur l’audience actuelle, sans dérogation de gestion. Historique append-only,
+sans modification/suppression API ni modification automatique de version du parent.
+
+Resource annonce : id/title/body/target_type/target_id/status/comments_enabled/
+can_comment/published_at/expires_at/withdrawn_at/version. Resource commentaire :
+id/announcement_id/body/is_mine/created_at ; pas d’identité globale ou de donnée RH.
+Resource inbox : id/announcement_id/comment_id/title/kind announcement|comment/
+read/created_at ; aucun texte de réponse, acteur ou liste de destinataires.
+Resource préférences : announcements_enabled (défaut vrai), comments_enabled
+(défaut faux), version nullable (GET initial sans écriture). PATCH exige ces trois
+champs, version null au premier enregistrement, UUID courant ensuite.
+POST read retourne data.read=true. Mutations : notification succès standard.
+
+La remise dans la boîte vérifie les droits et les cibles à cet instant, même
+pour une ancienne notification déjà lue ; aucun snapshot d’autorisation. La
+préférence réponses cible l’auteur de l’annonce et les participants déjà présents,
+sans notifier l’auteur de la réponse lui-même. Il s’agit d’une consultation
+interne, sans e-mail, webhook ou Discord ; aucun travailleur requis.
+
+409 : COMMUNICATION_VERSION_STALE, COMMUNICATION_CONTENT_FROZEN,
+COMMUNICATION_WITHDRAWN, COMMUNICATION_TRANSITION_INVALID,
+COMMUNICATION_COMMENTS_CLOSED. 404 pour ressource hors tenant/hors audience ou
+cible inactive ; 403 pour permission absente ; 422 pour payload fermé/incohérent.
+Une annonce expirée ou retirée disparaît des lectures ordinaires et de l’inbox.
+Pas de DELETE. event_id/task_id/match_id/session_id libres refusés : intégrations
+aux futurs référentiels encore à livrer, sans prétendre achever ces volets.
+
+Exemple de commentaire après lecture de la version courante :
+
+```ts
+await tenancyRequest('tenants/' + organizationId + '/communication/announcements/' + announcement.id + '/comments', {
+  method: 'POST', revision,
+  body: { version: announcement.version, body: 'Bien reçu.', notify_members: false },
+})
+```
+
+Utiliser le client SPA existant avec CSRF et confirmation tenant. Après 409,
+recharger les données et refaire une décision humaine, sans réessayer en boucle.

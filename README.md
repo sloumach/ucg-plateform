@@ -2135,3 +2135,76 @@ chargées par lots. Index tenant/équipe/visibilité ; aucun cache durable des d
 La recherche est un préfixe littéral. À fort volume, mesurer les plans, la
 pagination profonde et la contention du verrou organisation avant d’introduire
 un index de recherche ou une pagination par curseur.
+
+## Annonces et discussions internes — socle UCG-COM-001
+
+MEDIA-001 (`1f7cc8c`) est poussé ; CI et migration confirmées par l’utilisateur,
+migration vérifiée Ran, batch 29. Le socle COM-001 ajoute un panneau dans l’espace
+tenant : Mon fil, gestion des brouillons, commentaires, notifications internes
+et préférences personnelles. Les rattachements aux tâches, matchs, séances et
+événements restent à livrer avec leurs référentiels ; le ticket garde ce reliquat.
+
+Après revue/push utilisateur et CI vertes, sauvegarder puis exécuter depuis
+`back/` : `php artisan migrate`. La migration additive
+`2026_10_16_210818_create_communication_tables` crée cinq tables ; elle ne crée
+aucun rôle, contenu ou destinataire. Son rollback refuse toute donnée existante.
+
+Accorder explicitement au niveau de l’organisation via IAM-003 :
+
+- `communication.read` : fil ciblé, commentaires accessibles et boîte personnelle.
+- Ajouter `communication.write` : brouillons, choix de cibles, mode gestion et
+  ouverture/fermeture des commentaires.
+- Ajouter `communication.publish` : publication confirmée et retrait.
+- Ajouter `communication.comment` : participation, seulement dans l’audience actuelle.
+
+MFA requis ; aucun droit métier implicite du propriétaire ou des opérateurs
+plateforme. Les annonces organisation ciblent les lecteurs habilités ; équipe et
+jeu ciblent les personnes liées au compte avec une période d’effectif effective
+dans une équipe active et un jeu activé. Un rôle cible une attribution effective
+à l’échelle de l’organisation, liée à l’adhésion actuelle (ou au propriétaire).
+Le mode gestion permet la consultation administrative hors audience mais pas
+la participation. Les listes filtrent avant pagination et comptage.
+
+Un brouillon est éditable. Publier exige sa version et une confirmation explicite ;
+contenu, cible et expiration sont ensuite figés. Pour corriger, retirer puis créer
+un nouveau brouillon. Le retrait est définitif et masque fil, réponses et
+notifications aux lecteurs. Les commentaires sont append-only ; leur ouverture
+peut changer avec une nouvelle version de l’annonce. Un commentaire n’invalide
+pas à lui seul les versions des autres participants.
+
+Les notifications sont une boîte consultée dans l’application, sans liste de
+destinataires matérialisée, ni e-mail, Discord ou envoi externe. La publication et chaque
+commentaire proposent une notification désactivée par défaut. La préférence
+annonces est active par défaut ; les réponses sont désactivées par défaut et
+concernent l’auteur ou les participants déjà présents. Les droits, effectifs,
+rôles, expiration et préférences sont recalculés à chaque remise dans la boîte,
+y compris pour les notifications déjà lues. Aucune copie de contenu n’est stockée
+dans les événements ou accusés de lecture. Actualisation manuelle, sans polling.
+
+Titres/messages chiffrés en base ; rendu texte simple, aucun HTML ni pièce jointe.
+Audit transactionnel limité aux identifiants/actions, export opérateur explicitement
+étendu. Pagination 100 maximum, références bornées et requêtes par lots ; pas de
+cache durable de droits. Au-delà de 1 000 équipes ou rôles effectifs par compte,
+la consultation échoue explicitement au lieu de tronquer les autorisations.
+À fort volume, mesurer les sous-requêtes de visibilité et les pages profondes
+avant d’introduire une pagination par curseur. Aucune installation supplémentaire.
+
+Exemple SPA, après sélection et confirmation de l’organisation active :
+
+```ts
+const draft = await tenancyRequest<ApiSuccessResponse<Announcement>>(
+  'tenants/' + organizationId + '/communication/announcements',
+  { method: 'POST', revision, body: {
+    title: 'Informations équipe', body: 'Le message interne.',
+    target_type: 'team', target_id: selectedTeamId, comments_enabled: true,
+  } },
+)
+await tenancyRequest('tenants/' + organizationId + '/communication/announcements/' + draft.data.id, {
+  method: 'PATCH', revision,
+  body: { version: draft.data.version, action: 'publish', confirm_publication: true, notify_members: false },
+})
+```
+
+Les types proviennent des clients `api/contracts` et `api/communication`.
+Les UUID viennent des lectures autorisées. Toute réponse 409 impose une relecture,
+sans rejeu automatique. COM-002 Discord et MOD-001 modération restent distincts.

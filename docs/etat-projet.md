@@ -9,8 +9,12 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-MEDIA-001` — streams, VOD et clips. Implémentation
-  locale ; revue, push utilisateur, CI distantes et migration principale à effectuer.
+- Dernier ticket traité : socle `UCG-COM-001` — annonces et discussions ciblées.
+  Implémentation locale testée ; revue/push utilisateur, CI distantes et migration
+  principale à effectuer. Reliquat : événement/tâche/match/séance avec leurs référentiels.
+- MEDIA-001 (`1f7cc8c`) poussé ; CI et migration confirmées par l’utilisateur
+  avant COM-001. Vérification en lecture seule : Ran, batch 29. Staging propre
+  et synchronisé avec origin/staging au démarrage. Aucun migrate principal par l’agent.
 - SPON-003 (`aba9205`) poussé ; CI et migration validées par l’utilisateur avant
   MEDIA-001. Migration vérifiée en lecture seule : Ran, batch 28. Staging propre
   et synchronisé avec origin/staging au démarrage. Aucun migrate principal par l’agent.
@@ -95,10 +99,11 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : revue/push du commit MEDIA-001, CI vertes, sauvegarde puis
-  migration `2026_10_16_192806_create_media_items_table` depuis back/.
-  Attribuer explicitement media.read/write/publish via IAM-003 aux membres habilités,
-  puis recetter un scrim privé et son partage différé. Aucune attribution réelle par l’agent.
+- Prochaine action : revue/push du commit COM-001, CI vertes, sauvegarde puis
+  migration `2026_10_16_210818_create_communication_tables` depuis back/.
+  Attribuer explicitement communication.read/write/publish/comment au niveau
+  organisation via IAM-003, puis recetter les audiences et révocations avec deux comptes.
+  Aucune attribution réelle par l’agent ; migration principale vérifiée Pending.
   Mise en service des rappels CTR-005 à confirmer : configurer le scheduler,
   le cache partagé et le worker default ; activer
   CONTRACT_REMINDERS_ENABLED puis, quand le SMTP est prêt,
@@ -122,9 +127,9 @@
   `72fb380` poussés. CI backend/frontend du dernier commit confirmées vertes
   (runs `38155883372` et `38155883213`), y compris Playwright.
 - IAM-002 poussé (`d61c131`) ; CI backend/frontend vérifiées vertes via GitHub.
-- SPON-003 confirmé poussé/migré, CI validées. Après livraison de MEDIA-001,
-  prochain P0 du volet communication à cadrer : `UCG-COM-001` ; rapports SPON-004 et
-  portail SPON-005 restent P1. Les P0 Contrats sont
+- MEDIA-001 et SPON-003 confirmés poussés/migrés, CI validées. Le socle
+  `UCG-COM-001` est implémenté ; ses rattachements aux futurs référentiels restent
+  ouverts. Rapports SPON-004 et portail SPON-005 restent P1. Les P0 Contrats sont
   implémentés ; la signature électronique CTR-007 reste P1. ClamAV doit être vérifié en
   environnement cible ; aucun téléchargement sans analyse clean réussie.
   `UCG-IAM-007` (tokens API) et `UCG-TEN-008` (branding/domaines) restent P1.
@@ -2425,3 +2430,74 @@ ensuite ce fichier pour qu'il reflète la réalité.
   Attribution explicite des droits médias et recette avec éditeur/lecteur/publieur.
   Prochain P0 du volet communication à cadrer : UCG-COM-001. Aucun autre ticket
   démarré automatiquement.
+
+## Annonces et discussions ciblées — socle UCG-COM-001
+
+### Livraison et limites
+
+- MEDIA-001 `1f7cc8c` poussé ; CI/migration confirmées par l’utilisateur.
+  Migration MEDIA vérifiée Ran, batch 29 ; démarrage COM sur staging propre et
+  synchronisé avec origin/staging.
+- Socle COM-001 : annonces organisation/équipe/jeu/rôle, brouillons éditables,
+  publication confirmée, contenu/ciblage/expiration figés après publication,
+  retrait définitif, ouverture des commentaires et discussions paginées.
+- Cible équipe/jeu issue de l’effectif effectif du compte lié, équipes et jeux
+  actifs ; cible rôle issue des attributions organisation actives de l’adhésion
+  courante (ou du propriétaire). Contrôles de permission/MFA indépendants.
+  Mode gestion explicite pour read + write, sans droit de participation hors audience.
+- Quatre permissions communication.read/write/publish/comment explicites.
+  Aucun accès métier implicite propriétaire/superadmin ; aucune attribution réelle.
+- Boîte de notifications internes avec préférences personnelles versionnées.
+  Événements opaques sans copie du contenu ni liste de destinataires. Remise
+  par consultation avec droits/cibles/expiration/préférences actuels, y compris
+  pour une notification déjà lue. Réponses sur opt-in pour auteur/participants
+  déjà présents ; pas d’auto-notification de l’acteur de l’événement.
+  Aucun e-mail, Discord, webhook, worker ou scheduler pour ce socle.
+- Titres/corps chiffrés ; React les rend comme texte, sans HTML ni pièce jointe.
+  Audit transactionnel limité aux identifiants/actions, contrôle optimiste UUID,
+  verrou organisation puis annonce, API fermée et Resources explicites.
+- Cinq tables tenant, FKs composites, index et unicités incluant organization_id,
+  triggers SQLite/PostgreSQL pour figement/historique, rollback refusé en présence
+  de données ; catalogue de portabilité étendu à toutes les colonnes.
+  Round-trips Organization, Teams et Catalogue adaptés à l’ordre des dépendances.
+- Contrats publics Teams/Tenancy ; aucun accès direct aux modèles inter-modules.
+  Références paginées, audiences bornées avec refus explicite au-delà de 1 000,
+  visibilité appliquée avant comptage et pagination, chargement des titres inbox
+  par lot. Pas de cache durable de droits.
+- **COM-001 demeure partiel** : événements et commentaires sur tâches/matchs/séances
+  nécessitent leurs futurs référentiels métier. Ces UUID libres sont refusés.
+  COM-002 Discord et MOD-001 restent P1 ; aucun autre ticket démarré.
+- Six documents existants mis à jour, sans nouvelle documentation autonome :
+  README, architecture, conventions API, backlog, CDC et état-projet.
+
+### Vérifications locales
+
+- Backend SQLite complet via composer test:ci : **1 669 tests**, **1 665 réussis**,
+  **4 ignorés attendus**, **7 792 assertions**. Inclut 37 nouveaux cas COM-001 :
+  autorisations, MFA, chiffrement, versions, transitions, audiences, notifications,
+  révocations temporelles, contrôles DB et rollback.
+- PostgreSQL dans une base temporaire dédiée, supprimée ensuite : **163 tests
+  ciblés réussis**, **845 assertions**. COM controller/audience/schema, architecture,
+  contraintes tenant, round-trips Organization/Team/Catalogue, rôles et MFA.
+  Cette sélection locale ne remplace pas la suite PostgreSQL complète de CI.
+- Le contrôle de schéma a signalé une unicité de commentaire sans organization_id
+  lors de la première suite complète. Index corrigé avant la sélection PostgreSQL
+  et la relance complète verte, sans assouplir l’inspecteur ni modifier une
+  migration déjà déployée.
+- Pint dirty puis format:check, PHPStan niveau 8 et composer validate --strict
+  réussis. Routes contrôlées : onze endpoints privés de communication.
+- Frontend : **239 tests dans 35 fichiers** réussis ; les dix nouveaux tests COM
+  ont aussi été relancés après correction du typage des sélecteurs de test.
+  Lint et build de production réussis.
+- Chrome local : **25 parcours E2E réussis**, API métier simulées. COM sur mobile
+  390 px : brouillon équipe, publication confirmée, réponse échappée, préférences,
+  notification lue puis retrait ; absence de script exécuté et de débordement.
+  Capture inspectée : front/reports/com001-mobile.png. Aucun navigateur installé.
+- CI PostgreSQL étendue aux quatre fichiers COM ; CI frontend découvre tests et
+  parcours automatiquement. CI distantes de COM-001 encore à valider après push.
+- Migration principale COM-001 vérifiée **Pending** ; aucun migrate/seed principal,
+  aucune donnée métier, permission ou notification réelle créée par l’agent.
+  Aucun push. Un seul commit local contient code, migration, tests, CI et six docs.
+- Prochaine action utilisateur : revue/push, CI vertes, sauvegarde puis
+  `php artisan migrate` depuis back/. Attribuer les droits via IAM-003 et recetter
+  deux comptes (audience autorisée puis révocation) avant utilisation réelle.

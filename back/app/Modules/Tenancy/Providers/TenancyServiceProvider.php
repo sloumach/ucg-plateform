@@ -5,6 +5,7 @@ namespace App\Modules\Tenancy\Providers;
 use App\Http\Api\RequestId;
 use App\Modules\Identity\Application\Contracts\PrivilegedAccountDirectory;
 use App\Modules\Tenancy\Application\Contracts\AuthorizationScopeDirectory;
+use App\Modules\Tenancy\Application\Contracts\CommunicationRolesDirectory;
 use App\Modules\Tenancy\Application\Contracts\PartnershipMemberDirectory;
 use App\Modules\Tenancy\Application\Contracts\TenantArtifacts;
 use App\Modules\Tenancy\Application\Contracts\TenantAuditJournal;
@@ -20,6 +21,7 @@ use App\Modules\Tenancy\Application\Contracts\TenantNotificationRecipientDirecto
 use App\Modules\Tenancy\Application\Contracts\TenantResourceLimits;
 use App\Modules\Tenancy\Application\Contracts\TenantScheduleQueue;
 use App\Modules\Tenancy\Application\Contracts\TenantSensitiveAccessJournal;
+use App\Modules\Tenancy\Application\Services\CommunicationRolesService;
 use App\Modules\Tenancy\Application\Services\PartnershipMemberService;
 use App\Modules\Tenancy\Application\Services\TenantArtifactService;
 use App\Modules\Tenancy\Application\Services\TenantBusinessGuardService;
@@ -32,6 +34,7 @@ use App\Modules\Tenancy\Application\Services\TenantTechnicalLimits;
 use App\Modules\Tenancy\Domain\Contracts\AccessAuditRepository;
 use App\Modules\Tenancy\Domain\Contracts\ApprovedTenantDomains;
 use App\Modules\Tenancy\Domain\Contracts\ArtifactLedger;
+use App\Modules\Tenancy\Domain\Contracts\CommunicationRolesRepository;
 use App\Modules\Tenancy\Domain\Contracts\InvitationNotifier;
 use App\Modules\Tenancy\Domain\Contracts\InvitationRepository;
 use App\Modules\Tenancy\Domain\Contracts\MembershipRepository;
@@ -53,6 +56,7 @@ use App\Modules\Tenancy\Infrastructure\Mail\MailInvitationNotifier;
 use App\Modules\Tenancy\Infrastructure\Persistence\DatabaseArtifactLedger;
 use App\Modules\Tenancy\Infrastructure\Persistence\DatabasePortabilityRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentAccessAuditRepository;
+use App\Modules\Tenancy\Infrastructure\Persistence\EloquentCommunicationRolesRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentInvitationRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentMembershipRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentOrganizationRepository;
@@ -96,6 +100,8 @@ final class TenancyServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(CommunicationRolesDirectory::class, CommunicationRolesService::class);
+        $this->app->bind(CommunicationRolesRepository::class, EloquentCommunicationRolesRepository::class);
         $this->app->bind(PartnershipMemberDirectory::class, PartnershipMemberService::class);
         $this->app->bind(TenantSensitiveAccessJournal::class, EloquentSensitiveAccessJournal::class);
         $this->app->bind(TenantNotificationRecipientDirectory::class, TenantNotificationRecipientService::class);

@@ -30,6 +30,10 @@ enum Permission: string
     case MediaRead = 'media.read';
     case MediaWrite = 'media.write';
     case MediaPublish = 'media.publish';
+    case CommunicationRead = 'communication.read';
+    case CommunicationWrite = 'communication.write';
+    case CommunicationPublish = 'communication.publish';
+    case CommunicationComment = 'communication.comment';
 
     public function privileged(): bool
     {
