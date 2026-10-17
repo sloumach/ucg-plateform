@@ -2673,3 +2673,81 @@ AvailabilityPage vient de api/availability. Utiliser le transport existant pour
 CSRF/session/révision. Une annulation après départ reste permise au gestionnaire ;
 la réécriture du créneau d’une personne partie est refusée. Aucun changement RH,
 envoi de message, convocation, conflit d’activité ou récurrence dans ce ticket.
+
+## Réservations et exceptions de conflit — UCG-CAL-003
+
+Préfixe privé /api/v1/tenants/{tenant}/calendar ; session/MFA/tenant et CSRF.
+Les mutations persistantes exigent confirmation du tenant et X-Tenant-Revision.
+L’aperçu est un POST de lecture sans confirmation préalable : les champs privés
+ne sont pas placés dans une URL. Toutes les réponses sont private,no-store.
+
+| Méthode | Suffixe | Autorisation |
+| --- | --- | --- |
+| GET | /resources | calendar.read + calendar.write |
+| POST | /resources | read/write + calendar.resources.manage |
+| PATCH | /resources/{resource} | read/write + calendar.resources.manage |
+| POST | /activity-conflicts | calendar.read + calendar.write |
+| GET | /activities/{activity}/conflict-overrides | read/write + availability.read |
+
+Ressource : création key (80, minuscules/chiffres séparés par tirets, unique
+tenant), label (120), kind room/equipment/other. Réponse id,key,label,kind,status,
+version. PATCH exige version ; label modifiable, ou archive accepté seul avec
+version. key/kind restent fixes, archivage terminal, aucun DELETE.
+Liste : page 1–100000, per_page 1–100 (défaut 10), archived booléen (défaut false),
+tri key/id. Le lecteur ordinaire ne peut pas énumérer le référentiel.
+
+Activités POST/PATCH : resource_ids liste facultative de 0–20 UUID distincts,
+même tenant et ressources actives lors d’une affectation ou d’un changement de
+période. Absence au PATCH = conservation ; [] = retrait complet. Une activité
+renvoie resources [{id,label,archived}], y compris aux lecteurs de son audience.
+Une archive d’activité conserve ses réservations mais les exclut des conflits.
+Un nom de lieu ne réserve pas automatiquement une ressource.
+
+POST aperçu : même payload métier que POST activité, sans archive ni champs
+d’exception ; à l’édition, activity_id UUID et version courante, puis seulement
+les champs modifiés. Le préparateur complète les références et horaires depuis
+l’activité. Les règles horaires/partage CAL-001 restent intégralement appliquées.
+
+Réponse CalendarConflictReport : conflicts (0–100), truncated, availability_checked,
+can_override, review_token, expires_in=300. Chaque conflit : type activity,
+unavailable ou uncertain ; id,version,title nullable, starts_at/ends_at UTC,
+causes [person,team,resource,availability], person_ids et resource_ids communs.
+L’aperçu est réservé aux writers, déjà habilités au mode gestion des activités
+privées. Aucun commentaire de disponibilité ou description/URL/lieu projeté.
+
+Le périmètre est constitué des participants explicitement inscrits, de l’identité
+de l’équipe associée et des ressources sélectionnées. Aucun roster développé
+automatiquement. Activités archivées et disponibilités annulées exclues ;
+adjacence permise. Les disponibilités unavailable/uncertain sont incluses
+seulement avec availability.read, sinon availability_checked=false. Pas de
+déclaration ne signifie pas disponible ; un créneau available ne bloque pas.
+
+Enregistrement : conflict_review facultatif s’il n’y a aucun conflit, mais vérifié
+s’il est transmis. Si conflit, aperçu exact et courant obligatoire, puis permission
+calendar.conflicts.override, confirm_conflicts accepté et conflict_reason (10–1000
+caractères après trim). Tout nouveau PATCH restant en conflit exige une nouvelle
+exception ; l’ancienne ne vaut pas dérogation permanente. Pas de motif privé dans
+l’audit générique. Plus de 100 conflits = refus de toute exception.
+
+Le jeton authentifié expire après cinq minutes et lie acteur/tenant,
+activité/version, instants, participants, équipe, ressources et résultats.
+Changement de portée, de conflit ou d’habilitation à la lecture de disponibilité :
+nouvel aperçu nécessaire. La sauvegarde réévalue dans sa transaction sous verrou
+organisation, y compris la création sans activité préexistante.
+
+Historique : page/per_page seulement, défaut 10, maximum 100, tri created_at/id
+décroissant. Éléments id,activity_version,reason,conflict_count,conflicts,
+availability_checked,created_at ; pas d’acteur global, tenant ou jeton dans la
+réponse. Motif et instantané sont immuables et chiffrés en base.
+
+404 : activité/ressource hors tenant ou ressource inactive affectée.
+403 : droit manquant. 422 : payload fermé, référence/période/partage invalide,
+motif/confirmation manquant ou exception sans conflit.
+409 : CALENDAR_RESOURCE_STALE, CALENDAR_RESOURCE_ARCHIVED,
+CALENDAR_RESOURCE_KEY_TAKEN, CALENDAR_CONFLICT_REVIEW_REQUIRED,
+CALENDAR_CONFLICTS_CHANGED ou CALENDAR_CONFLICT_LIMIT ; les codes de version et
+d’archive CAL-001 restent valables. Relire et confirmer à nouveau sans rejeu.
+
+Exemple : voir le client SPA et le déroulement aperçu/décision/confirmation dans
+README. Ajouter activity_id/version seulement pour l’aperçu d’une édition ;
+l’URL cible et version identifient ensuite le PATCH.

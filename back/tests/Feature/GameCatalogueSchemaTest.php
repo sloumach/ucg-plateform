@@ -127,6 +127,8 @@ class GameCatalogueSchemaTest extends TestCase
         $media = require database_path('migrations/2026_10_16_192806_create_media_items_table.php');
         $communication = require database_path('migrations/2026_10_16_210818_create_communication_tables.php');
         $calendar = require database_path('migrations/2026_10_17_094942_create_calendar_activities_and_participants.php');
+        $bookings = require database_path('migrations/2026_10_17_112802_create_calendar_resources_reservations_and_conflict_overrides.php');
+        $bookings->down();
         $calendar->down();
         $communication->down();
         $media->down();
@@ -149,6 +151,7 @@ class GameCatalogueSchemaTest extends TestCase
         $media->up();
         $communication->up();
         $calendar->up();
+        $bookings->up();
         $this->assertDatabaseCount('game_catalogue_entries', 18);
         $this->assertDatabaseCount('organization_games', 0);
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
@@ -185,6 +188,8 @@ class GameCatalogueSchemaTest extends TestCase
         $media = require database_path('migrations/2026_10_16_192806_create_media_items_table.php');
         $communication = require database_path('migrations/2026_10_16_210818_create_communication_tables.php');
         $calendar = require database_path('migrations/2026_10_17_094942_create_calendar_activities_and_participants.php');
+        $bookings = require database_path('migrations/2026_10_17_112802_create_calendar_resources_reservations_and_conflict_overrides.php');
+        $bookings->down();
         $calendar->down();
         $communication->down();
         $media->down();
@@ -215,6 +220,7 @@ class GameCatalogueSchemaTest extends TestCase
         $media->up();
         $communication->up();
         $calendar->up();
+        $bookings->up();
         $this->assertDatabaseCount('organization_games', 4);
         $this->assertSame(1, OrganizationGame::query()->where('organization_id', $org->id)->where('enabled', true)->count());
     }

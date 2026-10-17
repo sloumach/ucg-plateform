@@ -18,6 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
+        'calendar_resources' => 'id', 'calendar_reservations' => 'id', 'calendar_conflict_overrides' => 'id',
         'availabilities' => 'id', 'availability_revisions' => 'id',
         'calendar_activities' => 'id',
         'calendar_participants' => 'id',
@@ -58,6 +59,9 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'calendar_resources' => ['id', 'organization_id', 'key', 'label', 'kind', 'status', 'version', 'created_by', 'created_at', 'updated_at'],
+        'calendar_reservations' => ['id', 'organization_id', 'activity_id', 'resource_id', 'created_at'],
+        'calendar_conflict_overrides' => ['id', 'organization_id', 'activity_id', 'activity_version', 'actor_user_id', 'reason', 'snapshot', 'conflict_count', 'created_at'],
         'availabilities' => ['id', 'organization_id', 'person_id', 'status', 'comment', 'starts_at', 'ends_at', 'origin_timezone', 'cancelled_at', 'created_by', 'version', 'number', 'created_at', 'updated_at'],
         'availability_revisions' => ['id', 'organization_id', 'availability_id', 'person_id', 'action', 'status', 'comment', 'starts_at', 'ends_at', 'origin_timezone', 'cancelled_at', 'version', 'number', 'actor_user_id', 'created_at'],
         'calendar_activities' => ['id', 'organization_id', 'title', 'description', 'kind', 'starts_at', 'ends_at', 'origin_timezone', 'team_id', 'location', 'url', 'visibility', 'sharing_authorized_by', 'sharing_authorized_at', 'created_by', 'archived_at', 'version', 'created_at', 'updated_at'],

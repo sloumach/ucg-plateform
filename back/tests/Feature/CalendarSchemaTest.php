@@ -86,11 +86,16 @@ class CalendarSchemaTest extends TestCase
     public function test_empty_migration_round_trip_and_nonempty_rollback_guard(): void
     {
         $migration = require database_path('migrations/2026_10_17_094942_create_calendar_activities_and_participants.php');
+        $bookings = require database_path('migrations/2026_10_17_112802_create_calendar_resources_reservations_and_conflict_overrides.php');
+        $bookings->down();
         $migration->down();
         $this->assertFalse(Schema::hasTable('calendar_activities'));
         $migration->up();
+        $bookings->up();
         CalendarActivity::factory()->create();
         try {
+            $bookings = require database_path('migrations/2026_10_17_112802_create_calendar_resources_reservations_and_conflict_overrides.php');
+            $bookings->down();
             $migration->down();
             $this->fail('Rollback must retain business data.');
         } catch (\RuntimeException) {

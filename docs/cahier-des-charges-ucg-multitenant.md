@@ -294,6 +294,16 @@ Une absence de déclaration ne signifie pas disponibilité ; les états/période
 distincts. Conflits d’activités, convocations, ICS, notifications et récurrences
 restent des lots séparés, sans réduction des exigences ci-dessus.
 
+Livraison CAL-003 : contrôle des réservations des participants explicitement
+inscrits, de l’équipe associée et des ressources unitaires communes. Aperçu avant
+confirmation et recontrôle transactionnel ; exception avec droit distinct,
+motif, confirmation et instantané immuable chiffré. Les indisponibilités/incertitudes
+sont incluses avec leur permission de lecture, sans commentaire privé. Aucun
+roster développé automatiquement ; les personnes mobilisées doivent être inscrites.
+Le référentiel minimal des ressources ne remplace pas la logistique CAL-008.
+Les collisions anciennes ne sont pas corrigées automatiquement. Convocations,
+rappels, ICS, reports et récurrences restent des lots dédiés.
+
 Règle de date : les instants sont stockés en UTC. Les événements récurrents conservent aussi le fuseau IANA et l’heure locale de référence pour traiter correctement les changements d’heure. Un flux ICS est une première étape ; une synchronisation bidirectionnelle Google ou Microsoft est un lot distinct avec règles de conflit.
 
 ## 9 Scrims matchs parties et scores

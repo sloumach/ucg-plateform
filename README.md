@@ -2360,4 +2360,106 @@ sont dans api/availability. Voir les conventions API pour les six routes.
 
 Les créneaux ne changent pas le statut RH ni les périodes HUM-003 et ne créent
 ni convocation, notification ni récurrence. Les conflits avec activités, équipes
-et ressources restent CAL-003, non démarré ; CAL-004 à CAL-007 restent distincts.
+et ressources sont traités par CAL-003 ci-dessous ; CAL-004 à CAL-007 restent distincts.
+
+## Conflits de réservation — UCG-CAL-003
+
+CAL-002 (`2c786d2`) est poussé ; CI et migration validées par l’utilisateur.
+Migration vérifiée Ran, batch 32. CAL-003 ajoute le contrôle des réservations et
+un référentiel minimal de ressources unitaires (salle, matériel, autre).
+
+Après push et CI vertes, sauvegarder puis exécuter `php artisan migrate` depuis
+`back/`. La migration additive
+`2026_10_17_112802_create_calendar_resources_reservations_and_conflict_overrides`
+crée trois tables vides, sans modifier les activités existantes ni créer de
+ressource/rôle réel. Son rollback refuse les données de réservation.
+
+Droits organisationnels explicites via IAM-003, toujours avec MFA :
+
+- calendar.read + calendar.write : réserver, vérifier les conflits, choisir
+  des ressources et consulter leur référentiel.
+- Ajouter calendar.resources.manage : créer, renommer ou archiver une ressource.
+- Ajouter calendar.conflicts.override : accepter les conflits examinés, avec
+  confirmation explicite et motif opérationnel de 10–1000 caractères.
+- Ajouter availability.read : inclure les créneaux indisponibles/incertains des
+  participants et consulter l’historique des exceptions, qui peut en contenir.
+
+Aucun droit implicite propriétaire, administrateur ou opérateur technique.
+Les lecteurs calendrier ordinaires voient seulement les ressources des activités
+accessibles ; le contrôle des conflits exige write, qui permet déjà le mode
+gestion des activités privées. Il n’expose aucun commentaire de disponibilité,
+description, lieu ou lien d’une autre activité.
+
+Un conflit concerne un participant explicitement inscrit, la même équipe
+associée ou une ressource commune sur des intervalles UTC [début,fin[.
+L’adjacence ne crée pas de conflit et les activités archivées libèrent les
+réservations. Inscrire les personnes réellement mobilisées : l’équipe associée
+ne développe pas automatiquement son effectif. Sans availability.read, les
+disponibilités ne sont pas consultées et l’interface le signale. Sans déclaration,
+aucune disponibilité n’est présumée ; available ne constitue pas un conflit.
+
+L’interface vérifie avant de proposer l’enregistrement, affiche les conflits et
+demande une exception motivée si nécessaire, puis confirme le tenant via le
+mécanisme existant. Un changement du formulaire invalide le contrôle.
+Le serveur recontrôle sous verrou organisation, puis activité : un aperçu
+chiffré valable cinq minutes lie acteur, tenant, activité/version, horaires,
+participants, équipe, ressources et résultats. Si le périmètre ou les conflits
+changent, un 409 impose une nouvelle vérification, sans rejeu automatique.
+
+Les API existantes peuvent enregistrer directement une activité sans conflit.
+Un conflit ne peut être contourné : aperçu courant, permission distincte,
+confirmation et motif sont tous nécessaires. Chaque nouvelle modification
+d’une activité qui reste en conflit exige un nouvel examen ; une ancienne
+exception n’accorde aucun droit permanent. Plus de 100 conflits : blocage,
+même avec permission d’exception, pour garder un résultat complet et borné.
+
+Chaque ressource représente une unité, pas un stock ni une capacité multiple.
+Référence unique par tenant, nom chiffré, type/référence immuables, versions UUID.
+Archivage définitif : pas de nouvelle affectation ni déplacement d’une réservation
+conservant une ressource archivée ; retirer cette référence avant de déplacer
+l’activité. Renommer une activité sans changer sa réservation la conserve.
+20 ressources maximum par activité, choix/référentiel paginés (100/page).
+
+Les exceptions conservent motif et instantané chiffrés avec la version de
+l’activité, l’acteur et la date. Journal append-only et audit minimal atomiques
+avec l’activité et les réservations ; aucune raison privée dans l’audit générique.
+L’historique paginé exige calendar.read/write + availability.read. Les gardes
+SQLite/PostgreSQL, FKs tenant et portabilité conservent aussi les anciennes
+réservations. Aucun cache durable de droits ou de résultats de conflit.
+
+Exemple SPA, après sélection du tenant :
+
+```ts
+const draft = {
+  title: 'Entraînement', kind: 'training',
+  starts_at: '2026-10-18T10:00:00+02:00',
+  ends_at: '2026-10-18T11:00:00+02:00',
+  origin_timezone: 'Europe/Paris',
+  participant_ids: selectedPersonIds,
+  resource_ids: selectedResourceIds,
+}
+const review = await tenancyRequest<ApiSuccessResponse<CalendarConflictReport>>(
+  'tenants/' + organizationId + '/calendar/activity-conflicts',
+  { method: 'POST', revision, body: draft },
+)
+// Afficher review.data, recueillir la décision, puis confirmer le tenant.
+await tenancyRequest('tenants/' + organizationId + '/calendar/activities', {
+  method: 'POST', revision,
+  body: { ...draft, conflict_review: review.data.review_token },
+})
+```
+
+En présence de conflit, ajouter conflict_reason et confirm_conflicts:true
+uniquement après décision explicite d’une personne habilitée. Pour modifier,
+inclure activity_id/version dans l’aperçu ; conserver version dans le PATCH.
+Les types sont dans api/calendarConflicts. Utiliser le transport SPA existant
+pour CSRF, révision et confirmation ; UUID issus des lectures autorisées.
+
+Requêtes filtrées par tenant, période et références avant limite ; relations
+chargées par lot. Mesurer les plans des intersections et la contention du verrou
+organisation avant optimisation à grande échelle. Toutes les écritures de
+réservation doivent passer par ce protocole ; les FKs/triggers ne remplacent pas
+le contrôle applicatif des chevauchements ni l’autorisation d’une exception.
+Les collisions existantes ne sont pas corrigées automatiquement par migration.
+Aucune convocation, notification, réservation récurrente, stock, transport ou
+hébergement ajouté : CAL-004 à CAL-008 restent des lots distincts.

@@ -9,9 +9,12 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-CAL-002` — disponibilités et absences.
+- Dernier ticket traité : `UCG-CAL-003` — conflits de réservation.
   Implémentation locale testée ; push utilisateur, CI distantes et migration
-  principale à effectuer. CAL-003 non démarré.
+  principale à effectuer. CAL-004 non démarré.
+- Socle CAL-002 (`2c786d2`) poussé ; CI et migration confirmées par l’utilisateur
+  avant CAL-003. Migration vérifiée en lecture seule : Ran, batch 32. Staging
+  propre et synchronisé avec origin/staging au démarrage de CAL-003.
 - Socle CAL-001 (`3051aa8`) poussé ; CI et migration confirmées par l’utilisateur
   avant CAL-002. Migration vérifiée en lecture seule : Ran, batch 31. Staging
   propre et synchronisé avec origin/staging au démarrage de CAL-002.
@@ -106,12 +109,13 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : revue/push du commit CAL-002, CI vertes, sauvegarde puis
-  migration `2026_10_17_105547_create_availabilities_and_immutable_revisions` depuis back/.
-  Attribuer availability.self/read/manage explicitement au niveau organisation
-  via IAM-003, puis recetter deux comptes, commentaires privés, historique et
-  révocation. Aucune attribution réelle par l’agent ; migration CAL-002 principale
-  non appliquée. CAL-001 est désormais validé par l’utilisateur.
+- Prochaine action : revue/push du commit CAL-003, CI vertes, sauvegarde puis
+  migration `2026_10_17_112802_create_calendar_resources_reservations_and_conflict_overrides`
+  depuis back/. Attribuer calendar.resources.manage et calendar.conflicts.override
+  seulement aux personnes habilitées via IAM-003 ; availability.read active le
+  contrôle des disponibilités et la consultation des exceptions. Recetter deux
+  comptes et les révocations. Aucune attribution réelle par l’agent ; migration
+  CAL-003 principale non appliquée. CAL-002 est validé par l’utilisateur.
   Mise en service des rappels CTR-005 à confirmer : configurer le scheduler,
   le cache partagé et le worker default ; activer
   CONTRACT_REMINDERS_ENABLED puis, quand le SMTP est prêt,
@@ -2700,3 +2704,115 @@ ensuite ce fichier pour qu'il reflète la réalité.
   personne et ne déclenchent aucun rappel. Conflits d’activités CAL-003,
   convocations/rappels CAL-004, ICS CAL-005, reports CAL-006, récurrences P1
   CAL-007 restent des lots distincts.
+
+## Conflits de réservation — UCG-CAL-003
+
+### Reprise et périmètre
+
+- Démarrage sur staging propre et synchronisé avec origin/staging, HEAD 2c786d2.
+  L’utilisateur a validé la CI et la migration CAL-002 ; vérification en lecture
+  seule Ran, batch 32. Aucun migrate principal par l’agent.
+- Contrôle des participants explicitement inscrits, de l’équipe associée et des
+  ressources communes sur des intervalles UTC [début,fin[. Adjacence permise,
+  activité elle-même exclue à l’édition, archives exclues des collisions.
+  Aucun roster développé automatiquement : inscrire les personnes mobilisées.
+- Disponibilités CAL-002 : unavailable/uncertain incluses uniquement avec
+  availability.read ; aucun commentaire sélectionné. Sinon, résultat marqué
+  non vérifié pour cette source et avertissement UI. available ne bloque pas,
+  absence de déclaration ne signifie pas disponible.
+- Référentiel minimal de ressources unitaires room/equipment/other : référence
+  unique par tenant, nom chiffré, version UUID, création/renommage/archivage,
+  20 ressources maximum par activité. Référence/type immuables, archive terminale.
+  Pas de stock, capacité multiple, transport, hébergement ou logistique CAL-008.
+- calendar.read/write pour contrôler/réserver et consulter les ressources ;
+  calendar.resources.manage pour gérer le référentiel ; calendar.conflicts.override
+  pour accepter une exception. Tous organisationnels, avec MFA ; aucun droit
+  implicite propriétaire/administrateur/plateforme, opérateurs techniques refusés.
+- Les writers sont déjà habilités au mode gestion des activités privées.
+  L’aperçu retourne seulement titre/période/références communes/causes, sans
+  description, lieu ou URL. L’historique d’exception exige aussi availability.read
+  car les instantanés peuvent contenir d’anciennes indisponibilités.
+
+### Contrôle et atomicité
+
+- Même préparation métier pour aperçu/sauvegarde, notamment PATCH partiel avec
+  horaires/participants/ressources effectifs. Les règles CAL-001 de fuseau,
+  validation, partage confirmé, références tenant et durée restent appliquées.
+- Aperçu POST privé sans confirmation préalable, avec CSRF/session/révision ;
+  aucun champ privé dans une URL. Résultat borné à 100 conflits ; dépassement
+  bloquant même avec droit d’exception. Références et historique paginés.
+- Jeton Laravel chiffré/authentifié, cinq minutes, lié à l’acteur/tenant,
+  activité/version, horaires, personnes, équipe, ressources et résultats.
+  Toute modification du formulaire annule le contrôle et ses lectures en cours.
+- Enregistrement après confirmation existante du tenant ; verrou organisation
+  puis activité, droits/références/versions recontrôlés et conflits recalculés.
+  Créations sans ligne préalable aussi sérialisées. Un changement entre aperçu
+  et sauvegarde produit 409 et exige une nouvelle décision ; aucun rejeu automatique.
+- API antérieure conservée pour une réservation sans conflit : aperçu facultatif
+  mais vérifié s’il est transmis. Tout conflit exige aperçu courant, permission
+  d’exception, confirmation explicite et motif opérationnel de 10–1000 caractères.
+  Chaque nouvelle écriture restant conflictuelle exige un nouvel examen, sans
+  dérogation permanente héritée d’une ancienne exception.
+- Activité, participants, réservations, journal d’exception et audit minimal
+  identifiant/action/nombre sont atomiques. Motif et instantané chiffrés,
+  journal append-only avec activité/version/acteur/date ; aucun motif privé dans
+  l’audit générique. Panne d’audit annule les nouveaux enregistrements.
+- Trois tables additives calendar_resources/calendar_reservations/
+  calendar_conflict_overrides, FKs composites tenant, contraintes de référence
+  et rétention SQLite/PostgreSQL. L’archive d’activité conserve ses réservations
+  et les libère du contrôle ; l’archive de ressource interdit nouvelles affectations
+  et déplacements la conservant. Down refuse les données de réservation.
+- Inventaire de portabilité physique et round-trips CAL-001/Person/Team/Catalogue/
+  Organization adaptés. Requêtes filtrées avant limite, eager loading des relations,
+  aucun cache durable de droits ou résultat. Profiler intersections et contention
+  avant optimisation. Les accès SQL externes doivent respecter le protocole
+  applicatif ; les triggers ne remplacent pas l’autorisation des conflits.
+- Les collisions anciennes ne sont pas corrigées par la migration. Aucun
+  rattachement fictif, score, convocation, notification ou récurrence ajouté.
+
+### Vérifications et livraison
+
+- Nouveaux tests backend : contrôleur des conflits 13, ressources 3, schéma 5,
+  concurrence PostgreSQL 3, et 5 cas supplémentaires de Policy.
+  Contrôles d’aperçu, expiration/falsification/acteur, changement des conflits,
+  confidentialité des disponibilités, références étrangères/archivées, limites,
+  chiffrement, archivage, rollback d’audit, inventaire et exceptions immuables.
+- PostgreSQL ciblé final : 221 tests réussis, 1067 assertions, aucun ignoré.
+  Inclut CAL-001/CAL-002, COM, architecture/isolation et round-trips des parents.
+  Base temporaire dédiée supprimée en finally. Ceci ne remplace pas la CI
+  PostgreSQL complète, dont la sélection est enrichie des quatre nouveaux fichiers.
+- Les trois scénarios de concurrence créent chacun une base éphémère :
+  deux acteurs/processus indépendants examinent le même créneau libre,
+  une barrière commune libère les deux écritures ; une seule activité persiste,
+  l’autre reçoit CALENDAR_CONFLICTS_CHANGED, sans exception ni audit parasite.
+  Les bases et barrières sont supprimées en finally. Ces trois cas sont ignorés
+  sous SQLite et réellement exécutés sous PostgreSQL, sans installation ajoutée.
+- Incident de test local résolu : le flux d’entrée puis waitUntil de Symfony
+  Process sous Windows pouvaient manquer un READY déjà lu et atteindre le délai maximal
+  la libération. Le test utilise désormais une barrière commune et l’état de
+  sortie accumulé, avec attente bornée ; aucune modification produit pour contourner
+  ce défaut de synchronisation. Relance isolée puis sélection PostgreSQL verte.
+- Suite complète SQLite : 1802 tests, 1795 réussis, 7 ignorés attendus, 8450 assertions. Les trois cas de concurrence sont exécutés dans la sélection PostgreSQL ci-dessus.
+- Relecture finale des libellés : messages spécifiques aux ressources, au motif,
+  à la confirmation d’exception et à la version d’aperçu ajoutés. Relance ciblée
+  des deux contrôleurs : 16 tests réussis, 149 assertions, après ces seuls
+  changements de messages et leurs assertions.
+- Frontend : 268 tests dans 38 fichiers réussis, dont 6 nouveaux cas calendrier
+  et adaptation des parcours précédents au contrôle préalable. Lint/build et
+  vérification TypeScript stricte des deux parcours calendrier réussis.
+- Chrome : 28 parcours réussis, mode CI/UTC, sans retry ni reprise de serveurs
+  existants. API métier simulées ; création de ressource, conflit privé, motif/
+  confirmation, historique et rendu mobile contrôlés. Screenshots
+  reports/cal003-review-mobile.png et cal003-history-mobile.png inspectés :
+  textes échappés, pas de débordement horizontal.
+- PHPStan niveau 8 sans erreur, sans suppression/baseline ; Pint dirty et
+  contrôle complet réussis, composer validate --strict valide. Dix-sept routes
+  calendar vérifiées. Aucune dépendance ni configuration d’environnement modifiée.
+- Migration principale CAL-003 vérifiée **Pending**, CAL-002 demeure Ran batch 32.
+  Aucun push, migrate/seed principal, ressource/activité/personne/rôle réel,
+  e-mail/message ou notification créé par l’agent. Données de tests isolées seulement.
+- Code, migration, tests, CI et six documents existants dans un seul commit local.
+  Prochaine action utilisateur : push, CI vertes, sauvegarde puis php artisan migrate
+  depuis back/. Accorder les nouveaux droits explicitement via IAM-003 et recetter
+  deux comptes avant utilisation réelle. Prochain P0 recommandé après validation :
+  CAL-004, convocations/réponses/rappels, non démarré.

@@ -22,7 +22,8 @@ final class CalendarInput
                 'timezone' => ['sometimes', 'required', 'timezone'], 'kind' => ['sometimes', Rule::in(self::KINDS)], 'team_id' => ['sometimes', 'uuid'],
                 'management' => ['sometimes', 'boolean'], 'archived' => ['sometimes', 'boolean']],
             'show' => ['management' => ['sometimes', 'boolean']],
-            'people','teams' => $page,
+            'people','teams','conflictOverrides' => $page,
+            'conflicts' => [...self::previewRules(), 'activity_id' => ['sometimes', 'uuid']],
             'store','update' => self::saveRules($operation === 'store'),
             default => [],
         };
@@ -40,7 +41,21 @@ final class CalendarInput
             'starts_at' => [$required, 'required', 'date_format:Y-m-d\\TH:i:sP'], 'ends_at' => [$required, 'required', 'date_format:Y-m-d\\TH:i:sP'],
             'origin_timezone' => [$required, 'required', 'timezone'], 'visibility' => ['sometimes', 'required', Rule::in(self::VISIBILITIES)],
             'confirm_sharing' => ['sometimes', 'accepted'], 'participant_ids' => ['sometimes', 'array', 'list', 'max:50'],
-            'participant_ids.*' => ['required', 'uuid', 'distinct:ignore_case']];
+            'participant_ids.*' => ['required', 'uuid', 'distinct:ignore_case'],
+            'resource_ids' => ['sometimes', 'array', 'list', 'max:20'], 'resource_ids.*' => ['required', 'uuid', 'distinct:ignore_case'],
+            'conflict_review' => ['sometimes', 'required', 'string', 'max:4096'],
+            'conflict_reason' => ['sometimes', 'required', 'string', 'min:10', 'max:1000', 'regex:/\\S/u'],
+            'confirm_conflicts' => ['sometimes', 'accepted']];
+    }
+
+    /** @return array<string,array<mixed>> */
+    private static function previewRules(): array
+    {
+        $rules = self::saveRules(false);
+        unset($rules['archive'], $rules['conflict_review'], $rules['conflict_reason'], $rules['confirm_conflicts']);
+        $rules['version'] = ['required_with:activity_id', 'uuid'];
+
+        return $rules;
     }
 
     /** @param array<string,mixed> $values
@@ -64,6 +79,10 @@ final class CalendarInput
             'in' => __('calendar.choice'), 'uuid' => __('calendar.uuid'), 'regex' => __('calendar.format'), 'integer' => __('calendar.integer'),
             'min' => __('calendar.min'), 'boolean' => __('calendar.boolean'), 'accepted' => __('calendar.confirm'),
             'date_format' => __('calendar.date'), 'timezone' => __('calendar.timezone'), 'array' => __('calendar.participants'),
-            'list' => __('calendar.participants'), 'distinct' => __('calendar.distinct')];
+            'list' => __('calendar.participants'), 'distinct' => __('calendar.distinct'),
+            'resource_ids.array' => __('calendar.resource_list'), 'resource_ids.list' => __('calendar.resource_list'),
+            'resource_ids.max' => __('calendar.resource_list'), 'resource_ids.*.distinct' => __('calendar.resource_distinct'),
+            'confirm_conflicts.accepted' => __('calendar.conflicts_reason_required'), 'conflict_reason.min' => __('calendar.conflicts_reason_required'),
+            'version.required_with' => __('calendar.required'), 'archive.accepted' => __('calendar.confirm_archive')];
     }
 }

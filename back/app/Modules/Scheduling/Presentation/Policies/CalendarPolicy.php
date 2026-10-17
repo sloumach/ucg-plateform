@@ -19,4 +19,14 @@ final readonly class CalendarPolicy
     {
         return $this->viewAny($user, $context) && $this->authorization->allows($context, 'calendar.write');
     }
+
+    public function manageResources(Authenticatable $user, TenantContext $context): bool
+    {
+        return $this->manage($user, $context) && $this->authorization->allows($context, 'calendar.resources.manage');
+    }
+
+    public function overrideConflicts(Authenticatable $user, TenantContext $context): bool
+    {
+        return $this->manage($user, $context) && $this->authorization->allows($context, 'calendar.conflicts.override');
+    }
 }

@@ -20,6 +20,8 @@ final class CalendarActivityResource extends ApiResource
             'ends_at_origin' => $item->ends_at->setTimezone($item->origin_timezone)->toIso8601String(),
             'team_id' => $item->team_id, 'team_label' => $item->getAttribute('team_label'), 'location' => $item->location, 'url' => $item->url,
             'visibility' => $item->visibility, 'participants' => $item->participants->map(fn ($participant): array => ['id' => $participant->person_id, 'label' => $labels[$participant->person_id] ?? null])->all(),
+            'resources' => $item->reservations->map(fn ($reservation): array => ['id' => $reservation->resource_id,
+                'label' => $reservation->resource->label, 'archived' => $reservation->resource->status === 'archived'])->all(),
             'archived_at' => $item->archived_at?->toIso8601String(), 'version' => $item->version];
     }
 }

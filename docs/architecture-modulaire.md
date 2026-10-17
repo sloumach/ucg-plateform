@@ -1738,5 +1738,64 @@ Le panneau React est chargé à la demande et remonté sur changement
 tenant/révision/permissions. Lectures annulables, confirmation humaine, erreurs
 localisées/toasts, aucun rejeu sur 409. L’historique est lui-même paginé. Les
 capacités renvoyées par le serveur guident les commandes de chaque ligne, sans
-remplacer les contrôles serveur. CAL-003 traitera les conflits avec les activités
+remplacer les contrôles serveur. CAL-003 traite les conflits avec les activités
 et ressources ; aucun raccordement implicite COM/MEDIA ou rappel ajouté ici.
+
+## Contrôle transactionnel des réservations — UCG-CAL-003
+
+Scheduling ajoute CalendarConflictService/Review et CalendarConflictReport,
+CalendarConflictRepository/Eloquent et CalendarResourceService/Repository,
+avec Request/Controller/Resources explicites. CalendarService réutilise le même
+préparateur de réservation pour l’aperçu et la sauvegarde, incluant les références
+effectives lors des PATCH partiels. Aucun changement du graphe modulaire.
+
+Trois tables additives : calendar_resources, calendar_reservations,
+calendar_conflict_overrides. FKs composites tenant/activité/ressource, référence
+de ressource unique par tenant, réservations uniques par activité/ressource.
+Nom, motif d’exception et instantané sont chiffrés ; exceptions append-only,
+réservations archivées conservées, ressources archivées terminales. Down refuse
+les données. Portabilité physique fermée et round-trips dépendants adaptés.
+
+L’intersection [début,fin[ utilise UTC et les participants explicitement inscrits,
+l’équipe associée ou des ressources communes. La réservation d’équipe est une
+réservation de cette identité, sans expansion implicite du roster. Les personnes
+mobilisées doivent donc être explicitement inscrites. Disponibilités CAL-002 :
+lecture locale au même module uniquement avec availability.read, statuts
+unavailable/uncertain, aucun commentaire sélectionné. Sans droit, métadonnée
+availability_checked=false et avertissement UI ; pas de présomption d’available.
+
+Les writers disposent déjà d’un mode gestion de toutes les activités privées :
+l’aperçu exige calendar.read/write. Il projette seulement titre, période,
+références communes et causes, sans description/lien/lieu, ni personne étrangère
+à la réservation candidate. L’historique des exceptions exige aussi
+availability.read pour préserver les droits sur les anciens instantanés.
+
+Aperçu sous verrou organisation et relecture des droits/références/versions ;
+jeton Laravel chiffré et authentifié, cinq minutes, empreinte des identités,
+horaires, références et résultats. La sauvegarde prend le même verrou, relit
+l’activité et recalcule les conflits. Le contrôle peut être omis par un client
+API seulement s’il n’existe aucun conflit courant ; une exception exige le
+contrôle exact et courant, calendar.conflicts.override, motif et confirmation.
+L’exception est enregistrée à chaque écriture restant conflictuelle, jamais
+héritée comme une autorisation permanente.
+
+Le verrou organisation sérialise aussi les créations sans ligne préalable et
+les modifications de disponibilité/ressource, qui suivent le même protocole.
+Une modification entre aperçu et sauvegarde produit 409 ; aucun rejeu implicite.
+Le journal, l’activité, les participants/ressources et l’audit minimal sont
+atomiques. Les écritures SQL externes doivent respecter ce protocole ; les
+triggers protègent rétention/identités mais n’autorisent pas une exception.
+
+Deux requêtes bornées de conflits, relations eager-loaded ; 100 résultats utiles
+maximum, dépassement bloquant même pour un gestionnaire. Aucun cache durable des
+droits ou des résultats. Référentiel et historiques paginés, sélection de
+20 ressources, pagination existante des 50 participants. Index de référence et
+de réservation ajoutés ; profiler intersection et contention avant de modifier
+le verrou ou les index.
+
+React sépare le contrôle annulable de la mutation confirmée ; toute modification
+du formulaire annule l’aperçu. Un motif ne modifie pas le périmètre contrôlé.
+Les erreurs 422 gardent la saisie et les champs concernés ; les 409 nécessitent
+une nouvelle décision. Les textes des activités, ressources et motifs restent
+échappés. Les processus de tests PostgreSQL utilisent des bases temporaires et
+une barrière commune, sans écriture dans la base principale.

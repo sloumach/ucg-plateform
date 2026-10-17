@@ -18,6 +18,7 @@ interface CalendarRepository
 
     /** @param array<string,mixed> $attributes
      * @param  list<string>|null  $personIds
+     * @param  list<string>|null  $resourceIds
      */
-    public function save(?CalendarActivity $record, array $attributes, ?array $personIds): CalendarActivity;
+    public function save(?CalendarActivity $record, array $attributes, ?array $personIds, ?array $resourceIds = null): CalendarActivity;
 }

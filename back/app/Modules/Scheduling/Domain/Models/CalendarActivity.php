@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $version
  * @property CarbonImmutable|null $archived_at
  * @property-read Collection<int,CalendarParticipant> $participants
+ * @property-read Collection<int,CalendarReservation> $reservations
  */
 final class CalendarActivity extends Model
 {
@@ -45,6 +46,12 @@ final class CalendarActivity extends Model
     public function participants(): HasMany
     {
         return $this->hasMany(CalendarParticipant::class, 'activity_id')->orderBy('person_id');
+    }
+
+    /** @return HasMany<CalendarReservation,$this> */
+    public function reservations(): HasMany
+    {
+        return $this->hasMany(CalendarReservation::class, 'activity_id')->orderBy('resource_id');
     }
 
     /** @return array<string,string> */

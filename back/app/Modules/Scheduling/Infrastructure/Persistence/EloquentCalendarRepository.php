@@ -23,18 +23,18 @@ final readonly class EloquentCalendarRepository implements CalendarRepository
             }
         }
 
-        return $query->with('participants')->orderBy('starts_at')->orderBy('id')
+        return $query->with(['participants', 'reservations.resource'])->orderBy('starts_at')->orderBy('id')
             ->paginate((int) ($filters['per_page'] ?? 10), ['*'], 'page', (int) ($filters['page'] ?? 1));
     }
 
     public function find(string $org, string $id, CalendarAudience $audience, bool $management, bool $lock = false): CalendarActivity
     {
-        $query = $this->visible($org, $audience, $management)->with('participants');
+        $query = $this->visible($org, $audience, $management)->with(['participants', 'reservations.resource']);
 
         return ($lock ? $query->lockForUpdate() : $query)->findOrFail(strtolower($id));
     }
 
-    public function save(?CalendarActivity $record, array $attributes, ?array $personIds): CalendarActivity
+    public function save(?CalendarActivity $record, array $attributes, ?array $personIds, ?array $resourceIds = null): CalendarActivity
     {
         $record ??= new CalendarActivity;
         $record->forceFill($attributes)->save();
@@ -46,7 +46,15 @@ final readonly class EloquentCalendarRepository implements CalendarRepository
             }
         }
 
-        return $record->load('participants');
+        if ($resourceIds !== null) {
+            $record->reservations()->delete();
+            if ($resourceIds !== []) {
+                $record->reservations()->insert(array_map(fn (string $resourceId): array => ['id' => (string) Str::uuid(),
+                    'organization_id' => $record->organization_id, 'activity_id' => $record->id, 'resource_id' => $resourceId, 'created_at' => now()], $resourceIds));
+            }
+        }
+
+        return $record->load(['participants', 'reservations.resource']);
     }
 
     /** @return Builder<CalendarActivity> */

@@ -19,10 +19,17 @@ let rows: CalendarActivity[]
 function page<T>(data: T[]) { return { data, meta: { current_page: 1, last_page: 1, total: data.length } } }
 function show(selection = active) { return render(<NotificationProvider><CalendarPanel active={selection} disabled={false} onInvalid={invalid} /></NotificationProvider>) }
 async function open(user: ReturnType<typeof userEvent.setup>) { await user.click(screen.getByRole('button', { name: 'Ouvrir le calendrier' })); await screen.findByRole('heading', { name: rows[0].title }) }
+async function verifyAndSave(user: ReturnType<typeof userEvent.setup>, form: ReturnType<typeof within>) {
+  await user.click(form.getByRole('button', { name: 'Vérifier les conflits' }))
+  await form.findByText('Aucun conflit détecté dans le périmètre contrôlé.')
+  await user.click(form.getByRole('button', { name: 'Enregistrer l’activité' }))
+}
 beforeEach(() => {
   vi.resetAllMocks(); rows = [{ ...base }]
   request.mockImplementation(async (path, options) => {
     if (path === 'active-organization/confirmation') return { data: { ...active, confirmed: true } }
+    if (path.endsWith('/activity-conflicts')) return { data: { conflicts: [], truncated: false, availability_checked: false, can_override: false, review_token: 'review-token', expires_in: 300 } }
+    if (path.includes('/resources?')) return page([])
     if (options?.method) return { data: { ...base, ...options.body } }
     if (path.includes('/teams?')) return page([{ id: team, label: '<script>Équipe</script>' }])
     if (path.includes('/people?')) return page([{ id: person, label: '<img>Joueur</img>' }])
@@ -54,8 +61,8 @@ describe('calendrier des activités', () => {
     await form.findByRole('option', { name: '<script>Équipe</script>' })
     await user.selectOptions(form.getByLabelText('Équipe associée'), team)
     await user.click(await form.findByLabelText('<img>Joueur</img>'))
-    await user.click(form.getByRole('button', { name: 'Enregistrer l’activité' }))
-    expect(request.mock.calls.some(([, options]) => options?.method === 'POST')).toBe(false)
+    await verifyAndSave(user, form)
+    expect(request.mock.calls.some(([path, options]) => options?.method === 'POST' && !path.endsWith('/activity-conflicts'))).toBe(false)
     await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
     await waitFor(() => expect(request).toHaveBeenCalledWith(root + '/activities', expect.objectContaining({ method: 'POST', revision: version, body: expect.objectContaining({
       title: 'Séance', starts_at: '2026-10-18T10:00:00+09:00', ends_at: '2026-10-18T11:00:00+09:00', origin_timezone: 'Asia/Tokyo', visibility: 'private', participant_ids: [person], team_id: team,
@@ -69,9 +76,9 @@ describe('calendrier des activités', () => {
     await user.type(form.getByLabelText('Titre de l’activité'), 'Changement d’heure')
     await user.type(form.getByLabelText('Début dans le fuseau d’origine'), '2026-10-25T02:30')
     await user.type(form.getByLabelText('Fin dans le fuseau d’origine'), '2026-10-25T03:30')
-    expect(form.getByRole('button', { name: 'Enregistrer l’activité' })).toBeDisabled()
+    expect(form.getByRole('button', { name: 'Vérifier les conflits' })).toBeDisabled()
     await user.selectOptions(form.getByLabelText('Occurrence du début'), '2026-10-25T02:30:00+01:00')
-    await user.click(form.getByRole('button', { name: 'Enregistrer l’activité' }))
+    await verifyAndSave(user, form)
     await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
     await waitFor(() => expect(request).toHaveBeenCalledWith(root + '/activities', expect.objectContaining({ body: expect.objectContaining({ starts_at: '2026-10-25T02:30:00+01:00' }) })))
   })
@@ -79,8 +86,8 @@ describe('calendrier des activités', () => {
     const user = userEvent.setup(); show(); await open(user); await user.click(screen.getByRole('button', { name: 'Modifier l’activité' }))
     const form = within(screen.getByRole('form', { name: 'Enregistrer l’activité' }))
     await user.clear(form.getByLabelText('Titre de l’activité')); await user.type(form.getByLabelText('Titre de l’activité'), 'Nouveau titre')
-    await user.click(form.getByRole('button', { name: 'Enregistrer l’activité' })); await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
-    await waitFor(() => expect(request).toHaveBeenCalledWith(root + '/activities/' + id, expect.objectContaining({ method: 'PATCH', body: { version, title: 'Nouveau titre' } })))
+    await verifyAndSave(user, form); await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
+    await waitFor(() => expect(request).toHaveBeenCalledWith(root + '/activities/' + id, expect.objectContaining({ method: 'PATCH', body: { version, title: 'Nouveau titre', conflict_review: 'review-token' } })))
   })
   it('limite la gestion et le partage aux permissions dédiées', async () => {
     const user = userEvent.setup(); const { unmount } = show({ ...active, context: { ...active.context!, permissions: ['calendar.read'] } }); await open(user)
@@ -103,5 +110,80 @@ describe('calendrier des activités', () => {
     const user = userEvent.setup(); const { unmount } = show(); await user.click(screen.getByRole('button', { name: 'Ouvrir le calendrier' }))
     await waitFor(() => expect(invalid).toHaveBeenCalled()); const signal = request.mock.calls[0][1].signal as AbortSignal
     unmount(); expect(signal.aborted).toBe(true)
+  })
+
+  it('affiche les conflits avant confirmation et bloque une exception sans habilitation', async () => {
+    const handler = request.getMockImplementation()!
+    request.mockImplementation((path, options) => path.endsWith('/activity-conflicts') ? Promise.resolve({ data: { conflicts: [{ type: 'activity', id, version, title: '<script>Activité privée</script>',
+      starts_at: base.starts_at, ends_at: base.ends_at, causes: ['person'], person_ids: [], resource_ids: [] }], truncated: false, availability_checked: false, can_override: false, review_token: 'blocked', expires_in: 300 } }) : handler(path, options))
+    const user = userEvent.setup(); const { container } = show(); await open(user); await user.click(screen.getByRole('button', { name: 'Modifier l’activité' }))
+    const form = within(screen.getByRole('form', { name: 'Enregistrer l’activité' }))
+    await user.clear(form.getByLabelText('Titre de l’activité')); await user.type(form.getByLabelText('Titre de l’activité'), 'Nouvel horaire')
+    await user.click(form.getByRole('button', { name: 'Vérifier les conflits' }))
+    await form.findByText('<script>Activité privée</script>')
+    expect(form.getByRole('button', { name: 'Enregistrer l’activité' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Confirmer et continuer' })).not.toBeInTheDocument()
+    expect(container.querySelector('script')).toBeNull()
+    expect(request.mock.calls.filter(([path, options]) => path.includes('/activities/') && options?.method === 'PATCH')).toHaveLength(0)
+  })
+  it('exige un motif et une acceptation explicite avant de proposer une exception autorisée', async () => {
+    const handler = request.getMockImplementation()!
+    request.mockImplementation((path, options) => path.endsWith('/activity-conflicts') ? Promise.resolve({ data: { conflicts: [{ type: 'activity', id, version, title: 'Autre réservation',
+      starts_at: base.starts_at, ends_at: base.ends_at, causes: ['resource'], person_ids: [], resource_ids: [] }], truncated: false, availability_checked: true, can_override: true, review_token: 'exception-review', expires_in: 300 } }) : handler(path, options))
+    const user = userEvent.setup(); show({ ...active, context: { ...active.context!, permissions: [...active.context!.permissions, 'calendar.conflicts.override'] } }); await open(user)
+    await user.click(screen.getByRole('button', { name: 'Modifier l’activité' })); const form = within(screen.getByRole('form', { name: 'Enregistrer l’activité' }))
+    await user.type(form.getByLabelText('Titre de l’activité'), ' modifiée')
+    await user.click(form.getByRole('button', { name: 'Vérifier les conflits' })); await form.findByText('Autre réservation')
+    expect(form.getByRole('button', { name: 'Enregistrer l’activité' })).toBeDisabled()
+    await user.type(form.getByLabelText('Motif opérationnel de l’exception'), 'Décision opérationnelle validée')
+    await user.click(form.getByLabelText('Je confirme avoir examiné ces conflits et autorise cette exception'))
+    await user.click(form.getByRole('button', { name: 'Enregistrer l’activité' }))
+    expect(request.mock.calls.some(([, options]) => options?.method === 'PATCH')).toBe(false)
+    await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
+    await waitFor(() => expect(request).toHaveBeenCalledWith(root + '/activities/' + id, expect.objectContaining({ method: 'PATCH', body: expect.objectContaining({
+      conflict_review: 'exception-review', conflict_reason: 'Décision opérationnelle validée', confirm_conflicts: true, version,
+    }) })))
+  })
+  it('efface un contrôle dès que la réservation change et refuse un résultat tronqué', async () => {
+    const user = userEvent.setup(); show(); await open(user); await user.click(screen.getByRole('button', { name: 'Modifier l’activité' }))
+    const form = within(screen.getByRole('form', { name: 'Enregistrer l’activité' }))
+    await user.type(form.getByLabelText('Titre de l’activité'), ' modifiée'); await user.click(form.getByRole('button', { name: 'Vérifier les conflits' }))
+    await form.findByText('Aucun conflit détecté dans le périmètre contrôlé.')
+    await user.type(form.getByLabelText('Titre de l’activité'), ' encore')
+    expect(form.queryByText('Aucun conflit détecté dans le périmètre contrôlé.')).not.toBeInTheDocument()
+    const handler = request.getMockImplementation()!
+    request.mockImplementation((path, options) => path.endsWith('/activity-conflicts') ? Promise.resolve({ data: { conflicts: [], truncated: true, availability_checked: false, can_override: true, review_token: 'limit', expires_in: 300 } }) : handler(path, options))
+    await user.click(form.getByRole('button', { name: 'Vérifier les conflits' }))
+    await form.findByText(/Plus de 100 conflits/)
+    expect(form.getByRole('button', { name: 'Enregistrer l’activité' })).toBeDisabled()
+  })
+  it('sélectionne une ressource par référence et annule une lecture de contrôle au démontage', async () => {
+    const handler = request.getMockImplementation()!
+    request.mockImplementation((path, options) => path.includes('/resources?') ? Promise.resolve(page([{ id: team, label: 'Salle A', kind: 'room', status: 'active', key: 'salle-a', version }])) : handler(path, options))
+    const user = userEvent.setup(); const { unmount } = show(); await open(user); await user.click(screen.getByRole('button', { name: 'Modifier l’activité' }))
+    const form = within(screen.getByRole('form', { name: 'Enregistrer l’activité' }))
+    await user.click(await form.findByLabelText('Salle A')); await user.click(form.getByRole('button', { name: 'Vérifier les conflits' }))
+    await form.findByText('Aucun conflit détecté dans le périmètre contrôlé.')
+    const call = request.mock.calls.find(([path]) => path.endsWith('/activity-conflicts'))!
+    expect(call[1].body.resource_ids).toEqual([team]); const signal = call[1].signal as AbortSignal
+    unmount(); expect(signal.aborted).toBe(true)
+  })
+  it('permet la création du référentiel uniquement avec le droit distinct puis confirme la mutation', async () => {
+    const user = userEvent.setup(); show({ ...active, context: { ...active.context!, permissions: [...active.context!.permissions, 'calendar.resources.manage'] } }); await open(user)
+    await user.click(screen.getByRole('button', { name: 'Ouvrir les ressources réservables' }))
+    await user.click(await screen.findByRole('button', { name: 'Nouvelle ressource' }))
+    const form = within(screen.getByRole('form', { name: 'Enregistrer la ressource' }))
+    await user.type(form.getByLabelText('Référence de la ressource'), 'salle-a'); await user.type(form.getByLabelText('Nom de la ressource'), 'Salle A')
+    await user.click(form.getByRole('button', { name: 'Enregistrer la ressource' })); await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
+    await waitFor(() => expect(request).toHaveBeenCalledWith(root + '/resources', expect.objectContaining({ method: 'POST', body: { key: 'salle-a', label: 'Salle A', kind: 'room' } })))
+  })
+  it('conserve le brouillon après refus de contrôle sans proposer de mutation', async () => {
+    const handler = request.getMockImplementation()!
+    request.mockImplementation((path, options) => path.endsWith('/activity-conflicts') ? Promise.reject(new ApiClientError('Horaire invalide', { status: 422, fieldErrors: { title: ['Titre requis'] } })) : handler(path, options))
+    const user = userEvent.setup(); show(); await open(user); await user.click(screen.getByRole('button', { name: 'Modifier l’activité' }))
+    const form = within(screen.getByRole('form', { name: 'Enregistrer l’activité' }))
+    await user.type(form.getByLabelText('Titre de l’activité'), ' conservée'); await user.click(form.getByRole('button', { name: 'Vérifier les conflits' }))
+    await form.findByText('Horaire invalide'); expect(form.getByLabelText('Titre de l’activité')).toHaveValue('Activité pilote conservée')
+    expect(form.getByText('Titre requis')).toBeInTheDocument(); expect(screen.queryByRole('button', { name: 'Confirmer et continuer' })).not.toBeInTheDocument()
   })
 })

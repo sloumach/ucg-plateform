@@ -4,13 +4,17 @@ namespace App\Modules\Scheduling\Application\Services;
 
 use App\Exceptions\DomainConflictException;
 use App\Modules\People\Application\Contracts\CalendarPeopleDirectory;
+use App\Modules\Scheduling\Application\Data\CalendarConflictReport;
 use App\Modules\Scheduling\Application\Data\CalendarPage;
 use App\Modules\Scheduling\Application\Validation\CalendarInput;
 use App\Modules\Scheduling\Domain\CalendarAudience;
 use App\Modules\Scheduling\Domain\CalendarLink;
 use App\Modules\Scheduling\Domain\CalendarTime;
+use App\Modules\Scheduling\Domain\Contracts\CalendarConflictRepository;
 use App\Modules\Scheduling\Domain\Contracts\CalendarRepository;
+use App\Modules\Scheduling\Domain\Contracts\CalendarResourceRepository;
 use App\Modules\Scheduling\Domain\Models\CalendarActivity;
+use App\Modules\Scheduling\Domain\Models\CalendarConflictOverride;
 use App\Modules\Teams\Application\Contracts\CalendarTeamsDirectory;
 use App\Modules\Tenancy\Application\Contracts\TenantAuditJournal;
 use App\Modules\Tenancy\Application\Contracts\TenantAuthorization;
@@ -31,7 +35,40 @@ final readonly class CalendarService
 {
     public function __construct(private CalendarRepository $records, private CalendarPeopleDirectory $people, private CalendarTeamsDirectory $teams,
         private TenantAuthorization $authorization, private TenantBusinessGuard $guard, private TenantAuditJournal $audit,
-        private Factory $validator, private ConnectionInterface $database) {}
+        private Factory $validator, private ConnectionInterface $database, private CalendarResourceRepository $resources,
+        private CalendarConflictRepository $conflictRecords, private CalendarConflictService $conflicts) {}
+
+    /** @param array<string,mixed> $input */
+    public function preview(TenantContext $context, array $input): CalendarConflictReport
+    {
+        $this->write($context);
+        $input = CalendarInput::validate($this->validator, $input, 'conflicts');
+        $id = $input['activity_id'] ?? null;
+        unset($input['activity_id']);
+        $values = $this->validated($context, $input, $id === null ? 'store' : 'update');
+
+        return $this->database->transaction(function () use ($context, $values, $id): CalendarConflictReport {
+            $this->guard->lock($context);
+            $this->write($context);
+            $record = $this->editable($context, $id, $values);
+            [$attributes, $personIds, $resourceIds] = $this->booking($context, $values, $record);
+
+            return $this->conflicts->inspect($context, $record, $attributes, $personIds, $resourceIds);
+        });
+    }
+
+    /** @param array<string,mixed> $input
+     * @return LengthAwarePaginator<int,CalendarConflictOverride>
+     */
+    public function conflictOverrides(TenantContext $context, string $id, array $input): LengthAwarePaginator
+    {
+        $this->write($context);
+        $this->authorization->authorize($context, 'availability.read');
+        $values = $this->validated($context, $input, 'conflictOverrides');
+        $record = $this->records->find($context->organizationId, $id, new CalendarAudience($context->actorUserId, null, []), true);
+
+        return $this->conflictRecords->history($context->organizationId, $record->id, (int) ($values['page'] ?? 1), (int) ($values['per_page'] ?? 10));
+    }
 
     /** @param array<string,mixed> $input */
     public function paginate(TenantContext $context, array $input): CalendarPage
@@ -88,39 +125,74 @@ final readonly class CalendarService
         $saved = $this->database->transaction(function () use ($context, $values, $id, $ip): CalendarActivity {
             $this->guard->lock($context);
             $this->write($context);
-            $record = $id === null ? null : $this->records->find($context->organizationId, $id, new CalendarAudience($context->actorUserId, null, []), true, true);
-            if ($record !== null && $record->version !== strtolower($values['version'])) {
-                throw new DomainConflictException(__('calendar.stale'), 'CALENDAR_VERSION_STALE');
-            }
-            if ($record?->archived_at !== null) {
-                throw new DomainConflictException(__('calendar.archived'), 'CALENDAR_ARCHIVED');
-            }
+            $record = $this->editable($context, $id, $values);
+            $report = null;
             if (isset($values['archive'])) {
                 if ($record === null || array_diff(array_keys($values), ['version', 'archive']) !== []) {
                     throw ValidationException::withMessages(['archive' => __('calendar.archive_only')]);
                 }
                 $attributes = ['archived_at' => now()];
                 $personIds = null;
+                $resourceIds = null;
             } else {
-                if (array_diff(array_keys($values), ['version', 'confirm_sharing']) === []) {
+                if (array_diff(array_keys($values), ['version', 'confirm_sharing', 'conflict_review', 'conflict_reason', 'confirm_conflicts']) === []) {
                     throw ValidationException::withMessages(['record' => __('calendar.empty')]);
                 }
-                $attributes = $this->attributes($context, $values, $record);
-                $personIds = isset($values['participant_ids']) ? array_values(array_map(strtolower(...), $values['participant_ids'])) : ($record === null ? [] : null);
-                if ($personIds !== null) {
-                    $this->people->assertAssignable($context, $personIds);
-                }
+                [$attributes, $effectivePeople, $effectiveResources] = $this->booking($context, $values, $record);
+                $report = $this->conflicts->inspect($context, $record, $attributes, $effectivePeople, $effectiveResources);
+                $this->conflicts->enforce($context, $report, $values);
+                $personIds = isset($values['participant_ids']) || $record === null ? $effectivePeople : null;
+                $resourceIds = isset($values['resource_ids']) || $record === null ? $effectiveResources : null;
             }
-            $saved = $this->records->save($record, [...$attributes, 'version' => (string) Str::uuid()], $personIds);
+            $saved = $this->records->save($record, [...$attributes, 'version' => (string) Str::uuid()], $personIds, $resourceIds);
+            if ($report !== null) {
+                $this->conflicts->retain($saved, $report, $values, $context->actorUserId);
+            }
             $this->audit->record($context->organizationId, new AuditWriteData($context->actorUserId, AuditAction::DomainChanged, AuditTarget::Organization,
                 $context->organizationId, AuditReason::Domain, $context->requestId, $ip, [], ['calendar_activity_id' => $saved->id,
-                    'calendar_action' => isset($values['archive']) ? 'archived' : ($id === null ? 'created' : 'updated')]));
+                    'calendar_action' => isset($values['archive']) ? 'archived' : ($id === null ? 'created' : 'updated'),
+                    'calendar_conflict_count' => $report === null ? 0 : count($report->conflicts)]));
 
             return $saved;
         });
         $this->label($context, [$saved]);
 
         return $saved;
+    }
+
+    /** @param array<string,mixed> $values */
+    private function editable(TenantContext $context, ?string $id, array $values): ?CalendarActivity
+    {
+        if ($id === null) {
+            return null;
+        }
+        $record = $this->records->find($context->organizationId, $id, new CalendarAudience($context->actorUserId, null, []), true, true);
+        if ($record->version !== strtolower($values['version'])) {
+            throw new DomainConflictException(__('calendar.stale'), 'CALENDAR_VERSION_STALE');
+        }
+        if ($record->archived_at !== null) {
+            throw new DomainConflictException(__('calendar.archived'), 'CALENDAR_ARCHIVED');
+        }
+
+        return $record;
+    }
+
+    /** @param array<string,mixed> $values
+     * @return array{array<string,mixed>,list<string>,list<string>}
+     */
+    private function booking(TenantContext $context, array $values, ?CalendarActivity $record): array
+    {
+        $attributes = $this->attributes($context, $values, $record);
+        $people = isset($values['participant_ids']) ? array_values(array_map(strtolower(...), $values['participant_ids'])) : ($record === null ? [] : array_values($record->participants->map(fn ($participant): string => $participant->person_id)->all()));
+        $resources = isset($values['resource_ids']) ? array_values(array_map(strtolower(...), $values['resource_ids'])) : ($record === null ? [] : array_values($record->reservations->map(fn ($reservation): string => $reservation->resource_id)->all()));
+        if (isset($values['participant_ids']) || $record === null) {
+            $this->people->assertAssignable($context, $people);
+        }
+        if (isset($values['resource_ids']) || isset($values['starts_at']) || $record === null) {
+            $this->resources->assertAssignable($context->organizationId, $resources);
+        }
+
+        return [$attributes, $people, $resources];
     }
 
     /** @param array<string,mixed> $values

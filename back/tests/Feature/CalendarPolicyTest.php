@@ -48,6 +48,31 @@ class CalendarPolicyTest extends TestCase
         $this->assertFalse(Gate::forUser($user)->allows('viewAny', [CalendarActivity::class, $this->personContext($org, $user)]));
     }
 
+    /** @return array<string,array{list<string>,bool,bool}> */
+    public static function bookingGrants(): array
+    {
+        return ['writer' => [['calendar.read', 'calendar.write'], false, false],
+            'resource manager' => [['calendar.read', 'calendar.write', 'calendar.resources.manage'], true, false],
+            'exception manager' => [['calendar.read', 'calendar.write', 'calendar.conflicts.override'], false, true],
+            'missing read' => [['calendar.write', 'calendar.resources.manage', 'calendar.conflicts.override'], false, false],
+            'permission alone' => [['calendar.resources.manage', 'calendar.conflicts.override'], false, false]];
+    }
+
+    /** @param list<string> $permissions */
+    #[DataProvider('bookingGrants')]
+    public function test_resource_management_and_conflict_exceptions_require_explicit_grants(array $permissions, bool $resources, bool $override): void
+    {
+        $org = Organization::factory()->create();
+        $user = User::factory()->withMfa()->create();
+        $this->grantPeopleAccess($org, $user, $permissions);
+        $context = $this->personContext($org, $user);
+        $this->assertSame($resources, Gate::forUser($user)->allows('manageResources', [CalendarActivity::class, $context]));
+        $this->assertSame($override, Gate::forUser($user)->allows('overrideConflicts', [CalendarActivity::class, $context]));
+        PlatformRole::factory()->superadmin()->create(['user_id' => $user->id]);
+        $this->assertFalse(Gate::forUser($user)->allows('overrideConflicts', [CalendarActivity::class, $context]));
+        $this->assertFalse(Gate::forUser($user)->allows('manageResources', [CalendarActivity::class, $context]));
+    }
+
     public function test_mfa_and_effective_assignment_are_required_for_calendar_reading(): void
     {
         $org = Organization::factory()->create();

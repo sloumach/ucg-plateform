@@ -661,7 +661,7 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 
 ### UCG-CAL-002 — Gérer disponibilités et absences
 
-- **État** : implémenté et testé localement ; push, CI distantes et migration principale à valider par l’utilisateur.
+- **État** : `2c786d2` poussé ; CI et migration validées par l’utilisateur avant CAL-003. Migration vérifiée Ran, batch 32.
 - **Livré** : panneau privé paginé, créneaux available/unavailable/uncertain, commentaire facultatif chiffré (1000), sans motif médical. Saisie personnelle par personne actuelle liée, planning collectif distinct, gestion des personnes habilitée et historique immuable numéroté. Trois permissions availability.self/read/manage, MFA et refus des opérateurs techniques ; le lecteur collectif ne voit pas les commentaires/historiques des autres.
 - **Fiabilité** : UTC/fuseau IANA et choix DST réutilisés de CAL-001 ; durée 31 jours, fenêtre 1–93 dates locales, 100 résultats/page. Refus des chevauchements actifs d’une même personne, adjacence permise. Verrou organisation, relecture des droits, versions UUID, instantané et audit atomiques, FKs tenant et gardes SQL SQLite/PostgreSQL, portabilité, rollback protecteur.
 - **Conservation** : annulation terminale, aucun DELETE ; les anciennes valeurs restent consultables par la personne autorisée ou les gestionnaires. Après départ, plus d’accès personnel ni de réécriture ; annulation et historique restent permis au gestionnaire.
@@ -673,6 +673,13 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Références CDC** : CAL-03, REC-02.
 
 ### UCG-CAL-003 — Détecter les conflits de réservation
+
+- **État** : implémenté et testé localement ; push, CI distante et migration principale restent à valider par l’utilisateur.
+- **Livré** : aperçu avant confirmation, recontrôle transactionnel des participants explicitement inscrits, de l’équipe associée et des ressources communes. Disponibilités indisponibles/incertaines incluses avec availability.read seulement, sans commentaire ; avertissement sinon. Intervalles UTC semi-ouverts, adjacence permise et archives exclues.
+- **Exception** : permission calendar.conflicts.override, aperçu courant valable cinq minutes, motif opérationnel et confirmation explicite. Toute modification du périmètre ou des conflits impose un nouvel examen. Motif/instantané chiffrés et journal append-only avec activité/version/acteur, atomiques avec réservations et audit minimal. Aucun droit permanent hérité d’une ancienne exception.
+- **Ressources** : référentiel minimal d’unités réservables, permission calendar.resources.manage distincte ; référence unique, nom chiffré, version, archivage terminal et réservations conservées. 20 ressources/activité, listes/historiques paginés et 100 conflits maximum ; dépassement bloquant, sans exception.
+- **Isolation/concurrence** : trois tables additives avec FKs tenant et gardes SQLite/PostgreSQL, portabilité et rollback protecteur. Verrou organisation avant lecture/écriture, y compris créations sans ligne préalable ; tests de deux processus indépendants pour personne, équipe et ressource.
+- **Limites** : aucune expansion automatique du roster ; inscrire les personnes réellement mobilisées. Les ressources sont des unités, sans stock, capacité multiple ni logistique CAL-008. Pas de migration corrective automatique des collisions anciennes. Prochain P0 après validation : CAL-004, convocations/réponses/rappels, non démarré.
 
 - **Priorité / taille** : P0 / L
 - **Périmètre** : chevauchements personnes, équipes et ressources ; service de détection transactionnel.

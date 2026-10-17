@@ -37,6 +37,8 @@ enum Permission: string
     case CalendarRead = 'calendar.read';
     case CalendarWrite = 'calendar.write';
     case CalendarPublish = 'calendar.publish';
+    case CalendarResourcesManage = 'calendar.resources.manage';
+    case CalendarConflictsOverride = 'calendar.conflicts.override';
     case AvailabilitySelf = 'availability.self';
     case AvailabilityRead = 'availability.read';
     case AvailabilityManage = 'availability.manage';

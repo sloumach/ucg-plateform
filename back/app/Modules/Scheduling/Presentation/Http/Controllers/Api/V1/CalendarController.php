@@ -7,6 +7,8 @@ use App\Modules\Scheduling\Application\Services\CalendarService;
 use App\Modules\Scheduling\Domain\Models\CalendarActivity;
 use App\Modules\Scheduling\Presentation\Http\Requests\Api\V1\CalendarRequest;
 use App\Modules\Scheduling\Presentation\Http\Resources\Api\V1\CalendarActivityResource;
+use App\Modules\Scheduling\Presentation\Http\Resources\Api\V1\CalendarConflictOverrideResource;
+use App\Modules\Scheduling\Presentation\Http\Resources\Api\V1\CalendarConflictResource;
 use App\Modules\Scheduling\Presentation\Http\Resources\Api\V1\CalendarReferenceResource;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use Illuminate\Contracts\Auth\Access\Gate;
@@ -46,6 +48,22 @@ final class CalendarController extends Controller
 
         return CalendarActivityResource::make($this->service->save($context, $request->validated(), $activity, $request->ip()))
             ->additional($this->notification())->response()->header('Cache-Control', 'private, no-store');
+    }
+
+    public function conflicts(CalendarRequest $request, TenantContext $context): JsonResponse
+    {
+        $this->gate->authorize('manage', [CalendarActivity::class, $context]);
+
+        return CalendarConflictResource::make($this->service->preview($context, $request->validated()))
+            ->response()->header('Cache-Control', 'private, no-store');
+    }
+
+    public function conflictOverrides(CalendarRequest $request, TenantContext $context, string $tenant, string $activity): JsonResponse
+    {
+        $this->gate->authorize('manage', [CalendarActivity::class, $context]);
+
+        return CalendarConflictOverrideResource::collection($this->service->conflictOverrides($context, $activity, $request->validated()))
+            ->response()->header('Cache-Control', 'private, no-store');
     }
 
     public function teams(CalendarRequest $request, TenantContext $context): JsonResponse

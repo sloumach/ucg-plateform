@@ -20,9 +20,10 @@ test('calendrier : fuseaux, heure répétée, participants et archive sur mobile
     if (path === 'active-organization/confirmation') confirmed = true
     if (path === 'active-organization' || path === 'active-organization/confirmation') data = {
       context: { organization_id: org, name: 'Alpha', slug: 'alpha', timezone: 'UTC', language: 'fr', roles: ['member'], permissions: ['organization.view', 'calendar.read', 'calendar.write', 'calendar.publish'], is_owner: false, actor_user_id: 42, membership_id: id }, revision: version, confirmed }
+    if (path === root + '/activity-conflicts') data = { conflicts: [], truncated: false, availability_checked: false, can_override: false, review_token: 'review-token', expires_in: 300 }
     if (path === root + '/teams') data = [{ id: team, label: '<script>Équipe</script>' }]
     if (path === root + '/people') data = [{ id: person, label: '<img>Joueur</img>' }]
-    if (path.startsWith(root) && method !== 'GET') { expect(confirmed).toBe(true); expect(request.headers()['x-tenant-revision']).toBe(version) }
+    if (path.startsWith(root) && method !== 'GET' && path !== root + '/activity-conflicts') { expect(confirmed).toBe(true); expect(request.headers()['x-tenant-revision']).toBe(version) }
     if (path === root + '/activities' && method === 'POST') {
       const body = request.postDataJSON()
       expect(body.visibility).toBe('private'); expect(body.kind).toBe('scrim')
@@ -36,7 +37,7 @@ test('calendrier : fuseaux, heure répétée, participants et archive sur mobile
     if (path === root + '/activities/' + id && method === 'PATCH') {
       const body = request.postDataJSON(); expect(body.version).toBe(version)
       if (body.archive) record = { ...record, archived_at: '2026-10-26T12:00:00+00:00' }
-      else { expect(Object.keys(body).sort()).toEqual(['title', 'version']); record = { ...record, title: body.title } }
+      else { expect(Object.keys(body).sort()).toEqual(['conflict_review', 'title', 'version']); record = { ...record, title: body.title } }
       data = record
     }
     if (path === root + '/activities' && method === 'GET') {
@@ -64,11 +65,13 @@ test('calendrier : fuseaux, heure répétée, participants et archive sur mobile
   await form.getByLabel('Description', { exact: true }).fill('<img src=x onerror=alert(1)> Description privée')
   await form.getByLabel('Début dans le fuseau d’origine').fill('2026-10-25T02:30')
   await form.getByLabel('Fin dans le fuseau d’origine').fill('2026-10-25T03:30')
-  await expect(form.getByRole('button', { name: 'Enregistrer l’activité' })).toBeDisabled()
+  await expect(form.getByRole('button', { name: 'Vérifier les conflits' })).toBeDisabled()
   await form.getByLabel('Occurrence du début').selectOption('2026-10-25T02:30:00+01:00')
   await form.getByLabel('Équipe associée').selectOption(team)
   await form.getByLabel('<img>Joueur</img>', { exact: true }).check()
   await form.getByLabel('Lien HTTPS de l’activité').fill('https://meeting.example.test/room?token=example')
+  await form.getByRole('button', { name: 'Vérifier les conflits' }).click()
+  await expect(form.getByText('Aucun conflit détecté dans le périmètre contrôlé.')).toBeVisible()
   await form.getByRole('button', { name: 'Enregistrer l’activité' }).click()
   await panel.getByRole('button', { name: 'Confirmer et continuer' }).click()
   await expect(panel.getByRole('heading', { name: title, exact: true })).toBeVisible()
@@ -81,6 +84,8 @@ test('calendrier : fuseaux, heure répétée, participants et archive sur mobile
   await panel.getByRole('button', { name: 'Modifier l’activité' }).click()
   form = panel.getByRole('form', { name: 'Enregistrer l’activité' })
   await form.getByLabel('Titre de l’activité').fill('Titre corrigé')
+  await form.getByRole('button', { name: 'Vérifier les conflits' }).click()
+  await expect(form.getByText('Aucun conflit détecté dans le périmètre contrôlé.')).toBeVisible()
   await form.getByRole('button', { name: 'Enregistrer l’activité' }).click()
   await panel.getByRole('button', { name: 'Confirmer et continuer' }).click()
   await expect(panel.getByRole('heading', { name: 'Titre corrigé' })).toBeVisible()

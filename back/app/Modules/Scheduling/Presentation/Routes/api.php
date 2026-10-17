@@ -2,9 +2,16 @@
 
 use App\Modules\Scheduling\Presentation\Http\Controllers\Api\V1\AvailabilityController;
 use App\Modules\Scheduling\Presentation\Http\Controllers\Api\V1\CalendarController;
+use App\Modules\Scheduling\Presentation\Http\Controllers\Api\V1\CalendarResourceController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('tenants/{tenant}/calendar')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
+    $resources = CalendarResourceController::class;
+    Route::get('resources', [$resources, 'index'])->name('calendar.resources.index');
+    Route::post('resources', [$resources, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('calendar.resources.store');
+    Route::patch('resources/{resource}', [$resources, 'update'])->whereUuid('resource')->middleware('tenant.confirmed')->block(10, 10)->name('calendar.resources.update');
+    Route::post('activity-conflicts', [CalendarController::class, 'conflicts'])->name('calendar.conflicts');
+    Route::get('activities/{activity}/conflict-overrides', [CalendarController::class, 'conflictOverrides'])->whereUuid('activity')->name('calendar.conflict-overrides');
     $availability = AvailabilityController::class;
     Route::get('availabilities', [$availability, 'index'])->name('availability.index');
     Route::get('availability-people', [$availability, 'people'])->name('availability.people');
