@@ -1953,3 +1953,66 @@ confirmation, et réutilise le contrôle CAL-003 pour les reports.
 Ces notifications internes ne passent ni par le courrier ni par un connecteur
 externe. Les limites et index bornent le travail par passage ; aucune cadence à
 grande échelle n’est garantie sans mesure. CAL-007/CAL-008 restent hors de ce lot.
+
+## Matchs et machine d’état — UCG-MATCH-001
+
+Competition possède désormais matches, match_participants et match_status_events.
+CompetitionServiceProvider enregistre repository, policy et routes tenant.
+Les appels transverses passent uniquement par MatchReferenceDirectory (Teams)
+et MatchSchedule (Scheduling), plus les contrats Tenancy ; aucune dépendance
+directe Competition → People/Identity ni import de leurs modèles n’est ajouté.
+La policy utilise Authenticatable et l’identité du TenantContext serveur.
+
+MatchService orchestre FormRequest/validation partagée fermée, autorisation,
+garde transactionnelle tenant, verrou du match, version optimiste, sélection
+des références, écriture et audit minimal. Les transitions inscrivent leur
+événement dans le même commit. Les échecs d’audit et de validation annulent
+aussi les participants et l’historique. Deux processus concurrents ne peuvent
+modifier la même version : l’un gagne, l’autre reçoit MATCH_VERSION_STALE.
+
+MatchWorkflow définit les huit états et transitions permises. Le parcours
+opérationnel s’arrête à awaiting_validation ; validated/disputed/forfeited
+restent réservés au workflow de résultats et preuves MATCH-003/004. Aucun accès
+HTTP ne peut les imposer, même avec sports.validate. Les champs/participants
+sont modifiables uniquement en proposed. La réouverture confirmed → proposed
+est explicite et motivée ; cancelled/forfeited sont terminaux. L’historique
+reprend version, auteur interne, date et raison chiffrée, sans exposer l’auteur.
+
+BO1/BO3/BO5 : deux participants ; lobby/free_for_all : 2–100. Le discriminant
+person/team/opponent_snapshot sélectionne une seule FK composite tenant.
+Une équipe appartient au même jeu ; un instantané externe doit correspondre
+au jeu ou ne pas le préciser. Aucun lien vers le roster d’un autre tenant.
+La sélection utilise des noms/version conservés, indépendants des renommages.
+Responsable = personne interne active, sans attribution automatique d’accès.
+Le jeu et l’identité du match sont immuables ; titre et libellés sont chiffrés.
+
+Teams expose un nouveau port MatchReferenceDirectory. Ses sélections paginées
+sont portées par MatchReferenceRepository ; les personnes passent par le port
+public SportingPeopleDirectory étendu, sans inversion du graphe modulaire.
+Les instantanés sont résolus par groupes bornés de chaque nature, pas par une
+lecture par participant. Les insertions sont groupées après chiffrement par
+les modèles. Les lectures chargent les participants en une relation anticipée.
+MatchSchedule réutilise CalendarTime pour normaliser UTC, durée et fuseau ;
+il ne crée pas de réservation et n’exécute pas de contrôle de chevauchement.
+
+Audience SQL avant pagination : créateur, responsable/personne liée, participant
+individuel, équipe actuelle seulement sous visibilité team, ou diffusion
+organisation. Le mode gestion explicite exige sports.write. Même audience
+pour consultation et historique. sports.publish et consentement sont nécessaires
+à l’élargissement du partage. Les Resources n’exposent pas identité du créateur,
+email, contacts adverses, autres rosters, score ou note stratégique.
+
+Migration additive SQLite/PostgreSQL : FK composites, unicités de slot/source,
+périodes bornées, forme des participants, nombre à confirmation, transitions
+et gel SQL du noyau/participants, historique append-only et refus de suppression.
+Down protecteur sur toutes les tables peuplées. Inventaire de portabilité
+exhaustif et round-trips des parents People/Teams/Jeux/Adversaires/Organisations
+actualisés avant suppression des parents. Les anciennes migrations restent
+inchangées. La dépendance calendrier reste une API de normalisation uniquement.
+
+Panneau React chargé à ouverture, sélections paginées, noms échappés, confirmation
+tenant et motif des transitions, partage explicite, états figés et historique.
+Les limites bornent chaque réponse ; mesurer requêtes, taille et contention
+avant de modifier la cadence ou les plafonds. Aucun cache de contenu privé ou
+notification externe n’est introduit. La liaison métier au calendrier, les lineups,
+parties, résultats et rattachements COM/MEDIA restent des lots explicites.

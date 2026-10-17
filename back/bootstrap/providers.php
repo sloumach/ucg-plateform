@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Competition\Providers\CompetitionServiceProvider;
 use App\Modules\Contracts\Providers\ContractsServiceProvider;
 use App\Modules\Identity\Providers\IdentityServiceProvider;
 use App\Modules\Media\Providers\MediaServiceProvider;
@@ -22,4 +23,5 @@ return [
     TenancyServiceProvider::class,
     AppServiceProvider::class,
     HorizonServiceProvider::class,
+    CompetitionServiceProvider::class,
 ];

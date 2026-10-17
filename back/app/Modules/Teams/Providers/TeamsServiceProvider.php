@@ -7,6 +7,7 @@ use App\Modules\Teams\Application\Contracts\CalendarTeamsDirectory;
 use App\Modules\Teams\Application\Contracts\CommunicationTeamsDirectory;
 use App\Modules\Teams\Application\Contracts\ExternalOpponents;
 use App\Modules\Teams\Application\Contracts\HistoricalLineups;
+use App\Modules\Teams\Application\Contracts\MatchReferenceDirectory;
 use App\Modules\Teams\Application\Contracts\MediaTeamsDirectory;
 use App\Modules\Teams\Application\Contracts\OrganizationGameCatalogue;
 use App\Modules\Teams\Application\Contracts\PartnershipTeamsDirectory;
@@ -15,12 +16,14 @@ use App\Modules\Teams\Application\Services\CommunicationTeamsService;
 use App\Modules\Teams\Application\Services\EffectiveGameCatalogue;
 use App\Modules\Teams\Application\Services\ExternalOpponentSnapshotService;
 use App\Modules\Teams\Application\Services\GameProfileCatalogueBridge;
+use App\Modules\Teams\Application\Services\MatchReferenceService;
 use App\Modules\Teams\Application\Services\MediaTeamsService;
 use App\Modules\Teams\Application\Services\PartnershipTeamsService;
 use App\Modules\Teams\Application\Services\TeamDepartureParticipant;
 use App\Modules\Teams\Application\Services\TeamLineupService;
 use App\Modules\Teams\Domain\Contracts\ExternalOpponentRepository;
 use App\Modules\Teams\Domain\Contracts\GameCatalogueRepository;
+use App\Modules\Teams\Domain\Contracts\MatchReferenceRepository;
 use App\Modules\Teams\Domain\Contracts\TeamAudienceRepository;
 use App\Modules\Teams\Domain\Contracts\TeamEligibilityRepository;
 use App\Modules\Teams\Domain\Contracts\TeamLineupRepository;
@@ -34,6 +37,7 @@ use App\Modules\Teams\Domain\Models\TeamLineup;
 use App\Modules\Teams\Domain\Models\TeamMembership;
 use App\Modules\Teams\Infrastructure\Persistence\EloquentExternalOpponentRepository;
 use App\Modules\Teams\Infrastructure\Persistence\EloquentGameCatalogueRepository;
+use App\Modules\Teams\Infrastructure\Persistence\EloquentMatchReferenceRepository;
 use App\Modules\Teams\Infrastructure\Persistence\EloquentTeamAudienceRepository;
 use App\Modules\Teams\Infrastructure\Persistence\EloquentTeamEligibilityRepository;
 use App\Modules\Teams\Infrastructure\Persistence\EloquentTeamLineupRepository;
@@ -54,6 +58,8 @@ final class TeamsServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(MatchReferenceDirectory::class, MatchReferenceService::class);
+        $this->app->bind(MatchReferenceRepository::class, EloquentMatchReferenceRepository::class);
         $this->app->bind(CalendarTeamsDirectory::class, CalendarTeamsService::class);
         $this->app->bind(CommunicationTeamsDirectory::class, CommunicationTeamsService::class);
         $this->app->bind(TeamAudienceRepository::class, EloquentTeamAudienceRepository::class);

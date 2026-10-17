@@ -107,6 +107,8 @@ class OrganizationSchemaTest extends TestCase
         $lineups = require database_path('migrations/2026_10_13_204834_create_team_lineup_tables.php');
         $eligibility = require database_path('migrations/2026_10_13_215251_create_team_eligibility_rules_and_reports.php');
         $opponents = require database_path('migrations/2026_10_14_121838_create_external_opponents_and_snapshots.php');
+        $matches = require database_path('migrations/2026_10_17_225945_create_matches_participants_and_status_events.php');
+        $matches->down();
         $opponents->down();
         $contracts = require database_path('migrations/2026_10_14_184245_create_contract_records_and_lifecycle.php');
         $documents = require database_path('migrations/2026_10_14_193828_create_contract_documents_and_immutable_versions.php');
@@ -206,6 +208,7 @@ class OrganizationSchemaTest extends TestCase
         $this->assertTrue(Schema::hasTable('calendar_change_recipients'));
         $this->assertTrue(Schema::hasColumn('calendar_activities', 'cancelled_at'));
         $feeds->up();
+        $matches->up();
         $this->assertTrue(Schema::hasTable('calendar_feeds'));
         $this->assertTrue(Schema::hasTable('organizations'));
         $this->assertTrue(Schema::hasTable('organization_settings'));

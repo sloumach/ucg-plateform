@@ -7,6 +7,11 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 interface PersonRepository
 {
+    /** @param list<string> $ids
+     * @return array<string,array{label:string,version:string}>
+     */
+    public function sportingSnapshots(string $org, array $ids): array;
+
     /** @return \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, array{id: string, label: string}> */
     public function partnershipPage(string $org, int $page, int $perPage): \Illuminate\Contracts\Pagination\LengthAwarePaginator;
 

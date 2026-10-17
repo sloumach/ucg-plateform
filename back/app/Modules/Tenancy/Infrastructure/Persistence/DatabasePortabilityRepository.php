@@ -18,6 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
+        'match_status_events' => 'id', 'match_participants' => 'id', 'matches' => 'id',
         'calendar_change_recipients' => 'id', 'calendar_changes' => 'id',
         'calendar_feeds' => 'id',
         'calendar_invitations' => 'id', 'calendar_invitation_deliveries' => 'id',
@@ -62,6 +63,9 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'matches' => ['id', 'organization_id', 'game_id', 'game_key', 'game_name', 'title', 'kind', 'format', 'status', 'starts_at', 'ends_at', 'origin_timezone', 'responsible_person_id', 'responsible_label', 'visibility', 'sharing_authorized_by', 'sharing_authorized_at', 'created_by', 'version', 'created_at', 'updated_at'],
+        'match_participants' => ['id', 'organization_id', 'match_id', 'slot', 'kind', 'team_id', 'person_id', 'opponent_snapshot_id', 'reference_version', 'label'],
+        'match_status_events' => ['id', 'organization_id', 'match_id', 'from_status', 'to_status', 'match_version', 'actor_user_id', 'reason', 'created_at'],
         'calendar_changes' => ['id', 'organization_id', 'activity_id', 'previous_version', 'activity_version', 'actor_user_id', 'kind', 'title', 'reason', 'previous_starts_at', 'previous_ends_at', 'previous_timezone', 'starts_at', 'ends_at', 'origin_timezone', 'created_at'],
         'calendar_change_recipients' => ['id', 'organization_id', 'change_id', 'person_id', 'recipient_id', 'created_at', 'checked_at', 'delivered_at', 'run_id', 'blocked_reason'],
         'calendar_feeds' => ['id', 'organization_id', 'user_id', 'token_hash', 'before_days', 'after_days', 'expires_at', 'revoked_at', 'version', 'created_at', 'updated_at'],

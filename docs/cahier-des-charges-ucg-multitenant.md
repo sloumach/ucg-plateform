@@ -346,6 +346,19 @@ Un scrim est une activité d’entraînement privée. Un match officiel peut êt
 
 ### 9.3 Circuit opérationnel
 
+Livraison MATCH-001 : dossier de rencontre tenant avec jeu, format, période UTC et
+fuseau, responsable interne, participants multiples et confidentialité. Une personne,
+une équipe du tenant ou un instantané autorisé d’adversaire peut participer ; le modèle
+n’impose pas deux équipes. BO1/BO3/BO5 gardent deux participants ; lobby/chacun pour
+soi en acceptent de 2 à 100. Les libellés sont conservés et les transitions motivées
+versionnées dans un historique immuable. Les champs et participants sont gelés après
+confirmation, avec réouverture explicite avant correction. La machine prévoit les huit
+états ; les commandes liées à validé/contesté/forfait attendent le workflow de résultats
+et de preuves, pour ne pas produire de validation fictive. Privé par défaut, partage
+interne confirmé et audience courante avant pagination. Aucun accès adverse ou score
+automatique, ni réservation calendrier déduite du seul horaire. Lineups et éligibilité
+restent MATCH-002 ; parties et résultats restent MATCH-003/004.
+
 Le manager confirme la rencontre et les participants. Le coach prépare les objectifs. Les joueurs répondent à la convocation. Un score est saisi ou importé avec sa source. Une personne habilitée le valide. Les agrégats sont recalculés, puis la publication éventuelle intervient séparément. Le coach clôture le débrief et attribue les actions suivantes.
 
 Un lecteur Twitch ou YouTube ne constitue pas une source de score. Le temps réel d’affichage commence à la réception d’une donnée fiable dans la plateforme ; il ne garantit pas l’accès immédiat à la télémétrie du jeu.

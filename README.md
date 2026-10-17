@@ -2695,3 +2695,89 @@ activée ne prouve pas que les workers sont opérationnels.
 Après push/CI et migration, recetter avec deux comptes habilités, une perte
 d’accès, un report et une annulation ; aucune donnée réelle ou permission n’a été
 créée par l’agent. Les récurrences CAL-007 et la logistique CAL-008 restent P1.
+
+## Dossiers Match et statuts — UCG-MATCH-001
+
+« Scrims et matchs » fournit les rencontres de l’organisation, distinctes des
+parties, scores et statistiques. CAL-006 064df63 est poussé, migré et ses CI
+sont confirmées par l’utilisateur avant ce lot ; migration Ran batch 36
+vérifiée en lecture seule. MATCH-001 n’applique aucune migration principale.
+
+Le dossier contient titre, jeu, scrim/match officiel, format, période UTC avec
+fuseau IANA, responsable parmi les personnes actives et participants ordonnés.
+BO1/BO3/BO5 exigent deux participants ; lobby et chacun pour soi en acceptent
+de 2 à 100. Ces formats décrivent le dossier ; aucun score de série n’est calculé.
+Un participant peut être une personne interne, une équipe interne du même jeu,
+ou un instantané d’adversaire déjà autorisé dans ce tenant. Le modèle n’impose
+pas deux équipes. Aucun compte, adhésion ou accès n’est accordé à l’adversaire.
+
+Les noms du jeu, du responsable et des participants sont conservés lors de la
+sélection ; les libellés personnels, le titre et les motifs sont chiffrés.
+Les renommages ultérieurs ne modifient pas ces instantanés. Le jeu reste immuable.
+Les participants externes utilisent uniquement leurs instantanés existants :
+préparer ceux-ci dans « Références d’adversaires » avec les droits correspondants.
+Un nom libre, un identifiant d’un autre tenant ou un score dans le payload est refusé.
+
+Permissions explicites existantes : sports.read pour consulter, sports.read +
+sports.write pour créer/modifier/changer les statuts et sélectionner les références ;
+sports.publish supplémentaire et confirmation pour élargir le partage interne.
+Le propriétaire et les comptes techniques n’ont aucun accès métier implicite.
+Par défaut, un dossier privé est visible au créateur, au responsable actuellement
+lié à son compte et aux personnes explicitement inscrites, avec sports.read.
+La visibilité équipe ajoute les membres actuels des équipes participantes ;
+la visibilité organisation ajoute ses lecteurs sportifs. Le mode gestion est
+un choix explicite de l’éditeur qui inclut les dossiers privés du tenant.
+
+Parcours opérationnel : proposé → confirmé → en cours → terminé à valider.
+Une rencontre confirmée peut revenir à proposé avant correction ; les champs
+et participants ne sont modifiables qu’à l’état proposé. Annulation depuis
+proposé/confirmé/en cours, définitive. Chaque changement de statut exige une
+version courante et un motif de 10 à 1000 caractères, conservé dans l’historique
+paginé. La confirmation et le démarrage recontrôlent jeu, responsable et
+participants actuels sans réécrire les noms conservés. Un retrait de référence
+n’empêche pas une annulation opérationnelle autorisée.
+
+Le modèle prévoit aussi validé, contesté et forfait, avec leurs transitions
+de domaine ; les commandes publiques qui touchent ces états sont bloquées
+jusqu’au workflow des résultats et preuves MATCH-003/004. Aucune validation
+sportive sans résultat n’est fabriquée. Lineups/remplaçants et éligibilité
+relèvent de MATCH-002 ; les notes/VOD/débrief relèvent de MATCH-005.
+Un horaire Match ne crée pas de réservation calendrier et ne prouve pas
+l’absence de conflits. Aucun score, convocation, notification ou publication
+publique n’est produit automatiquement par ce lot.
+
+Exemple SPA après confirmation du tenant, avec références réellement chargées :
+
+```ts
+import { tenancyRequest } from './api/tenancy'
+import type { ApiSuccessResponse } from './api/contracts'
+import type { MatchRecord } from './api/matches'
+
+const path = 'tenants/' + organizationId + '/matches'
+const created = await tenancyRequest<ApiSuccessResponse<MatchRecord>>(path, {
+  method: 'POST', revision,
+  body: { title: 'Préparation', game_id: game.id, kind: 'scrim', format: 'bo1',
+    starts_at: startWithOffset, ends_at: endWithOffset, origin_timezone: 'Europe/Paris',
+    responsible_person_id: responsible.id,
+    participants: [{ kind: 'team', source_id: localTeam.id },
+      { kind: 'opponent_snapshot', source_id: opponentSnapshot.id }] },
+})
+await tenancyRequest(path + '/' + created.data.id + '/transitions', {
+  method: 'POST', revision,
+  body: { version: created.data.version, status: 'confirmed',
+    reason: 'Participants et créneau vérifiés.' },
+})
+```
+
+La SPA utilise les mêmes sélecteurs temporels que le calendrier : heure inexistante
+refusée et choix explicite de l’occurrence répétée. Tout enregistrement/statut
+passe par la confirmation humaine du tenant. Après 409, relire et décider ;
+aucun rejeu automatique. Seuls les champs modifiés sont envoyés à l’édition.
+
+Déploiement : sauvegarder puis appliquer la migration additive
+2026_10_17_225945_create_matches_participants_and_status_events après push/CI.
+Elle crée matches, match_participants et match_status_events, avec FK tenant,
+contrôles SQL, instantanés gelés après confirmation et historique immuable.
+Le rollback refuse des données conservées. Aucun seed, permission ou match
+réel n’est créé par l’agent. Recetter deux comptes habilités, le partage interne,
+la perte d’audience et une demande périmée. Prochain lot P0 : MATCH-002.

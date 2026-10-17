@@ -2924,3 +2924,75 @@ version courante : 409 CALENDAR_ARCHIVED. Activité étrangère/invisible : 404 
 droits insuffisants : 403. Les conflits CAL-003 conservent leurs codes.
 Aucun rejeu automatique du client. Succès PATCH : toast Flasher adapté à
 l’annulation ou à l’enregistrement ; exemples SPA et activation dans README.
+
+## Dossiers Match et changements de statut — UCG-MATCH-001
+
+Session Sanctum, MFA, tenant actif ; sports.read obligatoire. sports.write
+supplémentaire pour gestion et sélection de références. Les mutations exigent
+confirmation du tenant et X-Tenant-Revision, avec les protections CSRF usuelles.
+
+| Méthode | Route sous /api/v1/tenants/{tenant} | Résultat |
+| --- | --- | --- |
+| GET | /matches | liste paginée de dossiers accessibles |
+| GET | /matches/{match} | un dossier sous son audience |
+| POST | /matches | création proposed, 201 et notification Flasher |
+| PATCH | /matches/{match} | modification partielle d’un dossier proposed |
+| POST | /matches/{match}/transitions | transition motivée avec version courante |
+| GET | /matches/{match}/history | historique paginé sous la même audience |
+| GET | /matches/references/{type} | références minimales paginées pour l’éditeur |
+
+Listes : page 1–100000, per_page 1–100, défauts 1/10. GET matches accepte aussi
+game_id UUID, kind scrim/official, status parmi les huit états et management
+booléen. Show/history acceptent management ; true exige sports.write et inclut
+les dossiers privés du tenant. Historique et références acceptent la pagination ;
+références accepte game_id facultatif pour filtrer équipes/instantanés. Types :
+game, person, team, opponent_snapshot. Chaque choix expose id/label seulement.
+
+POST : title non blanc ≤160, game_id actif et disponible, kind scrim/official,
+format bo1/bo3/bo5/lobby/free_for_all, starts_at/ends_at avec secondes et offset,
+origin_timezone IANA, responsible_person_id actif du tenant, participants de
+2 à 100 éléments {kind, source_id}. Kind = person/team/opponent_snapshot, source
+UUID issu de la lecture autorisée ; aucun nom libre, score ou clé additionnelle.
+Doublons de même nature/source refusés. BO1/BO3/BO5 imposent deux participants.
+Début/fin cohérents avec le fuseau, durée positive ≤31 jours. Les heures répétées
+exigent un offset valide ; les heures inexistantes sont rejetées.
+
+visibility est facultative, défaut private ; team ajoute les membres actuels
+des équipes participantes (au moins une équipe interne), organization ajoute
+ses lecteurs sportifs. sports.publish + confirm_sharing:true sont exigés à
+l’élargissement et lors d’un remplacement des participants déjà partagés.
+Les créateurs et personnes inscrites/responsables lisent sous leurs droits
+courants ; les références externes n’acquièrent aucun accès.
+
+PATCH accepte les mêmes champs hors game_id, plus version UUID obligatoire.
+Un seul champ temporel modifié exige la période et le fuseau complets ensemble.
+Les participants sont remplacés ensemble, uniquement en proposed. Le noyau
+d’un confirmed est gelé : réouverture explicite par transition avant correction.
+Un payload vide ou limité à version/consentement est refusé.
+
+Transition POST : {version, status, reason}, motif non blanc 10–1000 caractères.
+Parcours proposé → confirmé → en cours → terminé à valider ; confirmed → proposed
+pour correction, annulation depuis proposed/confirmed/in_progress. Validation
+et démarrage relisent jeu, responsable et participants actuels. Le modèle inclut
+validated/disputed/forfeited mais le workflow de résultats est requis avant
+de les commander ; aucune entrée de score n’est acceptée par ce lot.
+
+MatchResource : id/title/kind/format, game_id/key/name conservés, status/version,
+visibility, starts_at/ends_at UTC et variantes _origin, origin_timezone,
+responsible_person_id/label conservé, participants ordonnés {id,kind,source_id,
+label,reference_version,slot}, editable, available_transitions opérationnelles.
+Aucun created_by, email, score, contact externe ou donnée administrative.
+Historique : id, from_status nullable à création, to_status, match_version,
+reason nullable à création, occurred_at. Événements et motifs conservés.
+
+403 pour droits insuffisants ; 404 pour objet ou référence invisible/étranger ;
+422 pour saisie fermée, période, participant/motif/consentement invalides.
+409 MATCH_VERSION_STALE pour une version périmée, MATCH_NOT_EDITABLE hors
+proposed, MATCH_TRANSITION_INVALID pour un saut interdit ou un terminal,
+MATCH_RESULT_WORKFLOW_REQUIRED pour une transition liée aux résultats.
+Un jeu indisponible conserve GAME_CONTEXT_UNAVAILABLE. Échec transactionnel :
+aucune écriture partielle. Cache-Control private,no-store sur les réponses.
+
+L’horaire est une donnée du dossier, sans réservation calendrier ni garantie
+d’absence de conflit. Lineups, parties, scores, preuves, résultats publiés et
+notifications restent leurs workflows dédiés. Voir README pour exemple SPA.

@@ -2,6 +2,8 @@
 
 namespace App\Modules\Scheduling\Providers;
 
+use App\Modules\Scheduling\Application\Contracts\MatchSchedule;
+use App\Modules\Scheduling\Application\Services\MatchScheduleService;
 use App\Modules\Scheduling\Domain\Contracts\AvailabilityRepository;
 use App\Modules\Scheduling\Domain\Contracts\CalendarChangeRepository;
 use App\Modules\Scheduling\Domain\Contracts\CalendarConflictRepository;
@@ -30,6 +32,7 @@ final class SchedulingServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(MatchSchedule::class, MatchScheduleService::class);
         $this->app->bind(CalendarChangeRepository::class, EloquentCalendarChangeRepository::class);
         $this->app->bind(CalendarFeedRepository::class, EloquentCalendarFeedRepository::class);
         $this->app->bind(CalendarInvitationRepository::class, EloquentCalendarInvitationRepository::class);

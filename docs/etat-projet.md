@@ -5,15 +5,18 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 17 octobre 2026.
+- Dernière mise à jour : 18 octobre 2026.
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-CAL-006` — reports, annulations et historique.
-  Implémentation locale sur staging ; push, CI distantes et migration à effectuer
-  après livraison. Migration additive calendar_changes/calendar_change_recipients
-  et cancelled_at ; aucune migration principale, donnée métier réelle ni
-  attribution de permission par l’agent. Remise interne désactivée par défaut.
+- Dernier ticket traité : `UCG-MATCH-001` — dossier Match et machine d’état.
+  Implémentation locale sur staging ; push, CI distantes et migration additive
+  à effectuer après livraison. Aucun migrate/seed principal, donnée métier réelle
+  ni attribution de permission par l’agent. Prochain P0 : MATCH-002.
+- CAL-006 : `064df63` poussé, CI et migration confirmées par l’utilisateur avant
+  MATCH-001. Migration vérifiée en lecture seule Ran batch 36. Staging propre et
+  synchronisé avec origin/staging au démarrage de MATCH-001. Les traitements
+  calendar-changes demandent une activation et une recette à confirmer avant usage réel.
 - CAL-005 : `fea7094` présent sur staging et origin/staging au début de CAL-006 ;
   migration vérifiée en lecture seule Ran batch 35. CI distantes non confirmées
   dans cette reprise. Branche propre et synchronisée au démarrage de CAL-006.
@@ -119,10 +122,12 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : pousser CAL-006, vérifier les CI puis appliquer sa migration
-  additive. Recetter report/annulation avec deux comptes explicitement habilités
-  avant activation de calendar-changes et supervision scheduler/worker. Les lots
-  CAL-007/CAL-008 restent P1 ; prochain P0 du backlog sportif : MATCH-001.
+- Prochaine action : pousser MATCH-001, vérifier les CI puis appliquer sa migration
+  additive. Recetter création, confidentialité, transitions motivées, audience
+  retirée et version périmée avec deux comptes explicitement habilités. Prochain
+  P0 sportif : MATCH-002 (lineups/remplaçants), puis MATCH-003/004 (résultats).
+  CAL-007/CAL-008 restent P1. Recetter report/annulation avant activation de
+  calendar-changes et supervision scheduler/worker.
   Permissions explicites et activation supervisée de calendar-invitations restent
   à recetter avant usage réel.
   CAL-003 est confirmé poussé, CI vertes et migré. Attribuer calendar.resources.manage et calendar.conflicts.override
@@ -3100,3 +3105,88 @@ ensuite ce fichier pour qu'il reflète la réalité.
   zéro erreur/échec. Rapport local ignoré : back/reports/cal006-ci-sqlite-retry.xml.
   Tous les tests ont donc été revérifiés ensemble après l’échec intermittent.
   Ces validations locales ne remplacent pas les CI distantes à lancer après push.
+
+## Dossier Match et machine d’état — UCG-MATCH-001
+
+- Reprise : CAL-006 064df63 poussé, CI/migration confirmées par l’utilisateur.
+  Migration Ran batch 36 vérifiée en lecture seule. Staging propre et synchronisé
+  avec origin/staging au début ; aucune migration principale par l’agent.
+- Competition reçoit son premier parcours métier complet : création/lecture/
+  modification du dossier, références paginées, transition motivée et historique.
+  Jeu disponible, scrim/officiel, BO1/BO3/BO5 ou lobby/free_for_all, période UTC et
+  fuseau IANA, responsable interne et participants multiples. Pas de contrainte
+  « deux équipes » ; deux participants en BO, 2–100 dans les autres formats.
+- Participants de nature personne/équipe interne ou instantané adverse autorisé.
+  Game/identité immuables, noms et versions conservés à la sélection, titre,
+  responsable, libellés des participants et motifs chiffrés. Aucun roster d’un
+  autre tenant, compte, permission ou accès adverse créé.
+- Huit états dans MatchWorkflow ; parcours proposé → confirmé → en cours →
+  terminé à valider, réouverture confirmed → proposed, annulation terminale depuis
+  proposé/confirmé/en cours. Les états de résultat validated/disputed/forfeited
+  attendent MATCH-003/004 ; commandes correspondantes refusées même avec des
+  droits sportifs, sans validation fictive. Le noyau/participants est modifiable
+  seulement en proposed. Confirmation/démarrage recontrôlent les références
+  actuelles ; une référence retirée n’empêche pas l’annulation opérationnelle.
+- Droits existants sports.read/write, MFA, sports.publish et consentement pour
+  l’élargissement du partage. Privé par défaut ; responsable et personnes liées
+  actuels, visibilité équipe pour les membres actuels des équipes participantes,
+  organisation pour ses lecteurs sportifs. Mode gestion explicite de l’éditeur.
+  Filtrage SQL avant pagination pour liste/détail/historique ; aucun accès métier
+  implicite propriétaire/opérateur technique. Resources sans identité d’acteur,
+  email, contact adverse, score ou note privée complémentaire.
+- MatchService : validation fermée aussi hors HTTP, garde organisation puis
+  verrou du match, contrôle de version, références par ports Teams/Scheduling,
+  écriture/participants/événement/audit dans le même commit. Échec d’audit sans
+  résidu ; 409 sur version périmée et aucun rejeu automatique. Lecture du jeu et
+  snapshots groupés, insertion groupée après chiffrement, participants anticipés.
+  Test dédié au nombre de lectures des personnes et à l’absence de N+1 de liste.
+- Migration additive 2026_10_17_225945_create_matches_participants_and_status_events :
+  matches, match_participants, match_status_events. FKs composites tenant,
+  unicités de slots/sources/version d’événement, périodes/cardinalité/forme,
+  transitions et gel SQL, événement append-only et rétention. Rollback protecteur
+  si données présentes. Portabilité exhaustive et cinq tests de migrations
+  parents actualisés (People, Teams, Jeux, Adversaires, Organisations), sans
+  modifier les anciennes migrations déployées.
+- Ponts : MatchReferenceDirectory dans Teams et MatchSchedule dans Scheduling ;
+  SportingPeopleDirectory étendu pour sélections/snapshots bornés. Le graphe
+  modulaire reste inchangé. Un import Identity initial dans la policy a été
+  relevé par le test d’architecture puis remplacé par Authenticatable, comme
+  les autres modules consommateurs. Aucune dépendance inversée ou directe vers
+  les modèles People/Identity depuis Competition.
+- Limites explicites : horaire du dossier sans réservation/calendrier automatique,
+  sans garantie d’absence de conflit. Aucun lineup/éligibilité, partie, score,
+  preuve de résultat, publication publique, convocation ou notification dans
+  MATCH-001. Ces opérations restent MATCH-002/003/004 et lots suivants.
+- Panneau React chargé à ouverture, formulaire de sélection paginé, période et
+  fuseau avec choix des heures répétées, privé par défaut, partage confirmé,
+  modification partielle, choix de transition autorisée, motif, confirmation
+  nommant le statut et historique échappé. Ancien compte sans sports.read ne voit
+  pas ce panneau ; aucune attribution réelle de permission par l’agent.
+- Tests ciblés PostgreSQL : 92 réussis, 345 assertions, dont deux courses réelles
+  à deux processus indépendants (confirmations/annulation et édition/confirmation).
+  Une seule écriture gagne et une seule version/trace correspondante est produite.
+- Suite backend SQLite complète : 1955 tests, 1940 réussis, 15 exclusions attendues,
+  9359 assertions, zéro erreur/échec. Sélection CI PostgreSQL intégrale extraite du
+  workflow actualisé : 1758 tests, 1756 réussis, deux exclusions Redis attendues,
+  8525 assertions, zéro erreur/échec. Rapports locaux ignorés sous back/reports/.
+- Vérification finale ciblée après les derniers ajustements : 43 tests réussis,
+  249 assertions ; PHPStan niveau 8 sans erreur, Pint dirty, format:check complet
+  et Composer validate --strict réussis. Aucun ignore/baseline d’analyse ajouté.
+- Frontend : 291 tests sur 42 fichiers, build et lint réussis. Les sept nouveaux
+  tests ont été relancés après correction de leur réponse simulée de création
+  (identifiants/slots des participants), sans avertissement React de clé manquante.
+  TypeScript strict des tests unitaires/navigateur ajouté réussi.
+- Playwright : quatre scénarios Match, calendrier CAL-001/CAL-006 et équipes
+  réussis ensemble. Nouveau parcours mobile avec deux équipes et un instantané
+  adverse, confirmation, historique puis annulation. Captures 320/375 px inspectées,
+  pas de débordement ni HTML exécuté. Le premier essai avait omis games:[] dans
+  le catalogue simulé nécessaire au panneau Personnes ; fixture complétée, sans
+  modification du comportement de production.
+- Bases temporaires PostgreSQL MATCH-001 supprimées, absence confirmée via
+  pg_database ; main CAL-006 Ran batch 36 et MATCH-001 non appliquée, contrôle en
+  lecture seule. Serveur Vite de test démarré puis arrêté par l’agent, aucun serveur
+  utilisateur arrêté. Aucun migrate/seed principal, match réel, notification,
+  permission ou push par l’agent. Code/tests/docs dans un unique commit local.
+- Suite : push et CI distantes, sauvegarde puis migration additive et recette à
+  deux comptes habilités. Prochain P0 : MATCH-002 (lineups et remplaçants) ;
+  MATCH-003/004 porteront scores et validations. CAL-007/CAL-008 restent P1.

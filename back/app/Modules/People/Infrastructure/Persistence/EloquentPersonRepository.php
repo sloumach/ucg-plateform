@@ -12,6 +12,23 @@ use Illuminate\Support\Str;
 
 final class EloquentPersonRepository implements PersonRepository
 {
+    public function sportingSnapshots(string $org, array $ids): array
+    {
+        $records = Person::query()->forOrganization($org)->whereIn('id', $ids)->whereIn('status', ['active', 'substitute'])
+            ->whereNotExists(fn (Builder $q) => $q->selectRaw('1')->from('person_departures')
+                ->whereColumn('person_departures.organization_id', 'people.organization_id')->whereColumn('person_departures.person_id', 'people.id'))
+            ->orderBy('id')->lockForUpdate()->get(['id', 'pseudonym', 'version']);
+        $result = [];
+        foreach ($records as $record) {
+            $result[$record->id] = ['label' => $record->pseudonym, 'version' => $record->version];
+        }
+        if (count($result) !== count($ids)) {
+            throw (new ModelNotFoundException)->setModel(Person::class);
+        }
+
+        return $result;
+    }
+
     public function partnershipPage(string $org, int $page, int $perPage): \Illuminate\Contracts\Pagination\LengthAwarePaginator
     {
         return Person::query()->where('organization_id', $org)->whereIn('status', ['active', 'substitute'])->whereNotExists(function (Builder $query): void {
