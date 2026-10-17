@@ -10,8 +10,11 @@
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
 - Dernier ticket traité : `UCG-CAL-004` — convocations, réponses et rappels.
-  Implémentation locale testée ; push utilisateur, CI distantes et migration
-  principale à effectuer. CAL-005 non démarré. Voir le détail en fin de document.
+  Commit `661b438` poussé et migration confirmée par l’utilisateur, vérifiée Ran
+  batch 34. CI backend échouée sur le round-trip PostgreSQL OrganizationSchemaTest :
+  descendant CAL-004 oublié dans l’ordre de retrait/remontage. Correctif local
+  testé sur la sélection CI PostgreSQL intégrale : 1654 réussis, 2 exclusions
+  attendues. Push du correctif et CI distantes à confirmer. CAL-005 non démarré.
 - CAL-003 (`dea7936`) : push, CI et migration confirmés par l’utilisateur avant
   CAL-004. Migration vérifiée en lecture seule : Ran, batch 33. Branche staging
   propre et synchronisée avec origin/staging au démarrage de CAL-004.
@@ -112,9 +115,10 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : push/CI utilisateur et sauvegarde avant la nouvelle migration
-  CAL-004 `2026_10_17_153712_create_calendar_invitations_and_deliveries`, puis
-  permissions explicites et activation supervisée de la tâche calendar-invitations.
+- Prochaine action : push du correctif CI CAL-004 et confirmation
+  des CI. Aucune nouvelle migration : CAL-004 est déjà appliqué, Ran batch 34.
+  Permissions explicites et activation supervisée de calendar-invitations restent
+  à recetter avant usage réel.
   CAL-003 est confirmé poussé, CI vertes et migré. Attribuer calendar.resources.manage et calendar.conflicts.override
   seulement aux personnes habilitées via IAM-003 ; availability.read active le
   contrôle des disponibilités et la consultation des exceptions. Recetter deux
@@ -2914,3 +2918,44 @@ ensuite ce fichier pour qu'il reflète la réalité.
   scheduler/worker default. Flag false par défaut ; configuration du registre
   distincte de la santé réelle des processus. Recetter deux comptes et les
   révocations avant utilisation réelle. Prochain P0 : CAL-005, non démarré.
+
+## Correctif CI CAL-004 — round-trip du schéma des organisations
+
+- CAL-004 `661b438` poussé et migration appliquée par l’utilisateur ; état
+  principal vérifié en lecture seule : Ran, batch 34. Staging propre et
+  synchronisé avec origin/staging au démarrage du correctif.
+- Échec backend transmis par l’utilisateur : 1653 tests réussis, deux exclusions
+  et une erreur PostgreSQL dans OrganizationSchemaTest, ligne 127. Le retrait de
+  calendar_activities rencontrait la FK calendar_invitation_activity.
+- Reproduction exacte avant correction dans une base PostgreSQL temporaire :
+  le test test_migrations_can_be_reversed_and_reapplied_in_the_test_database
+  échoue avec SQLSTATE[2BP01]. La base de reproduction a été supprimée.
+- Le round-trip global avait oublié les deux tables enfants CAL-004, alors que
+  les tests de calendrier, personnes, équipes et catalogue avaient été adaptés.
+  La sélection PostgreSQL locale de 158 tests de la livraison initiale
+  n’incluait pas OrganizationSchemaTest ; elle ne prouvait pas la sélection CI complète.
+- Correctif ciblé : retrait de la migration CAL-004 avant calendrier/organisation,
+  puis recréation après ses parents. Assertions de disparition et de recréation
+  de calendar_invitations et calendar_invitation_deliveries ajoutées, pour
+  détecter aussi cette omission sous SQLite. Aucun DROP CASCADE et aucune
+  modification de migration déployée, de contrainte ou de code métier.
+- Tous les autres round-trips référençant la migration calendrier ont été
+  revérifiés ; le seul oubli restant était le test global des organisations.
+- Vérifications initiales : OrganizationSchemaTest sous SQLite, huit tests
+  réussis et 31 assertions ; Pint dirty et composer format:check complet
+  réussis ; PHPStan niveau 8 sans erreur.
+- Validation PostgreSQL : sélection intégrale extraite de l’étape existante
+  « Verify organization constraints on PostgreSQL » du workflow backend, sur une
+  base dédiée éphémère. Rapport local ignoré :
+  back/reports/cal004-ci-postgresql.xml. Résultat final consigné ci-dessous.
+- Base principale et données métier inchangées par l’agent ; aucune nouvelle
+  migration à appliquer pour ce correctif. Test, documentation de reprise et
+  statut backlog restent regroupés dans un seul commit local de correctif.
+- Validation finale : OrganizationSchemaTest sous PostgreSQL, huit tests réussis,
+  31 assertions. Sélection CI PostgreSQL intégrale : 1656 tests, 1654 réussis,
+  deux exclusions Redis attendues, 7882 assertions. Base dédiée supprimée après
+  exécution ; base de reproduction et base de vérification ciblée également
+  supprimées. Ces résultats locaux ne remplacent pas la CI distante du correctif.
+- Aucune modification frontend ; ses contrôles ne sont pas relancés pour ce
+  correctif de test uniquement. Aucun push par l’agent ; prochaine action :
+  pousser le commit de correctif et vérifier les CI, sans nouvelle migration.

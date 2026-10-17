@@ -123,6 +123,8 @@ class OrganizationSchemaTest extends TestCase
         $availability = require database_path('migrations/2026_10_17_105547_create_availabilities_and_immutable_revisions.php');
         $availability->down();
         $bookings = require database_path('migrations/2026_10_17_112802_create_calendar_resources_reservations_and_conflict_overrides.php');
+        $invitations = require database_path('migrations/2026_10_17_153712_create_calendar_invitations_and_deliveries.php');
+        $invitations->down();
         $bookings->down();
         $calendar->down();
         $communication->down();
@@ -155,6 +157,8 @@ class OrganizationSchemaTest extends TestCase
         $auditMigration->down();
         $organizationMigration->down();
         $this->assertFalse(Schema::hasTable('organizations'));
+        $this->assertFalse(Schema::hasTable('calendar_invitations'));
+        $this->assertFalse(Schema::hasTable('calendar_invitation_deliveries'));
         $organizationMigration->up();
         $auditMigration->up();
         $accessMigration->up();
@@ -188,6 +192,7 @@ class OrganizationSchemaTest extends TestCase
         $calendar->up();
         $bookings->up();
         $availability->up();
+        $invitations->up();
         $this->assertTrue(Schema::hasTable('organizations'));
         $this->assertTrue(Schema::hasTable('organization_settings'));
         $this->assertTrue(Schema::hasTable('organization_lifecycle_events'));
@@ -203,6 +208,8 @@ class OrganizationSchemaTest extends TestCase
         $this->assertTrue(Schema::hasTable('platform_role_events'));
         $this->assertTrue(Schema::hasTable('organization_support_accesses'));
         $this->assertTrue(Schema::hasTable('organization_support_events'));
+        $this->assertTrue(Schema::hasTable('calendar_invitations'));
+        $this->assertTrue(Schema::hasTable('calendar_invitation_deliveries'));
     }
 
     public function test_settings_cannot_reference_a_nonexistent_organization(): void
