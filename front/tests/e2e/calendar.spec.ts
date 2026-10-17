@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-test('calendrier : fuseaux, heure répétée, participants et archive sur mobile', async ({ page }) => {
+test('calendrier : fuseaux, heure répétée, participants et annulation sur mobile', async ({ page }) => {
   const org = '11111111-1111-4111-8111-111111111111', id = '22222222-2222-4222-8222-222222222222', version = '33333333-3333-4333-8333-333333333333'
   const person = '44444444-4444-4444-8444-444444444444', team = '55555555-5555-4555-8555-555555555555'
   const root = 'tenants/' + org + '/calendar', title = '<script>CAL001</script> ' + 'ActivitéÉquipeLongue'.repeat(4)
@@ -36,7 +36,7 @@ test('calendrier : fuseaux, heure répétée, participants et archive sur mobile
     }
     if (path === root + '/activities/' + id && method === 'PATCH') {
       const body = request.postDataJSON(); expect(body.version).toBe(version)
-      if (body.archive) record = { ...record, archived_at: '2026-10-26T12:00:00+00:00' }
+      if (body.archive) record = { ...record, archived_at: '2026-10-26T12:00:00+00:00', cancelled_at: '2026-10-26T12:00:00+00:00' }
       else { expect(Object.keys(body).sort()).toEqual(['conflict_review', 'title', 'version']); record = { ...record, title: body.title } }
       data = record
     }
@@ -89,12 +89,15 @@ test('calendrier : fuseaux, heure répétée, participants et archive sur mobile
   await form.getByRole('button', { name: 'Enregistrer l’activité' }).click()
   await panel.getByRole('button', { name: 'Confirmer et continuer' }).click()
   await expect(panel.getByRole('heading', { name: 'Titre corrigé' })).toBeVisible()
-  await panel.getByRole('button', { name: 'Archiver l’activité', exact: true }).click()
+  await panel.getByRole('button', { name: 'Annuler l’activité', exact: true }).click()
+  const cancellation = panel.getByRole('form', { name: 'Annulation de l’activité' })
+  await cancellation.getByLabel('Motif opérationnel du changement').fill('Annulation opérationnelle du créneau.')
+  await cancellation.getByRole('button', { name: 'Annuler l’activité', exact: true }).click()
   await panel.getByRole('button', { name: 'Confirmer et continuer' }).click()
   await expect(panel.getByText('Aucune activité accessible dans cette période.')).toBeVisible()
   await filters.getByLabel('Périmètre de consultation').selectOption('1'); await filters.getByLabel('Afficher les archives en mode gestion').check()
   await filters.getByRole('button', { name: 'Afficher la période' }).click()
-  await expect(panel.getByText('Activité archivée', { exact: true })).toBeVisible()
+  await expect(panel.getByText('Activité annulée', { exact: true })).toBeVisible()
   await expect(panel.getByRole('button', { name: 'Modifier l’activité' })).toHaveCount(0)
   expect(errors).toEqual([]); expect(external).toEqual([])
 })

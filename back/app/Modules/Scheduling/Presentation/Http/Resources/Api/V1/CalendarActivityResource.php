@@ -22,6 +22,6 @@ final class CalendarActivityResource extends ApiResource
             'visibility' => $item->visibility, 'participants' => $item->participants->map(fn ($participant): array => ['id' => $participant->person_id, 'label' => $labels[$participant->person_id] ?? null])->all(),
             'resources' => $item->reservations->map(fn ($reservation): array => ['id' => $reservation->resource_id,
                 'label' => $reservation->resource->label, 'archived' => $reservation->resource->status === 'archived'])->all(),
-            'archived_at' => $item->archived_at?->toIso8601String(), 'version' => $item->version];
+            'archived_at' => $item->archived_at?->toIso8601String(), 'cancelled_at' => $item->cancelled_at?->toIso8601String(), 'version' => $item->version];
     }
 }

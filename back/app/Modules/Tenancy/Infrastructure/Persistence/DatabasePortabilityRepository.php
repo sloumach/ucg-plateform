@@ -18,6 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
+        'calendar_change_recipients' => 'id', 'calendar_changes' => 'id',
         'calendar_feeds' => 'id',
         'calendar_invitations' => 'id', 'calendar_invitation_deliveries' => 'id',
         'calendar_resources' => 'id', 'calendar_reservations' => 'id', 'calendar_conflict_overrides' => 'id',
@@ -61,6 +62,8 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'calendar_changes' => ['id', 'organization_id', 'activity_id', 'previous_version', 'activity_version', 'actor_user_id', 'kind', 'title', 'reason', 'previous_starts_at', 'previous_ends_at', 'previous_timezone', 'starts_at', 'ends_at', 'origin_timezone', 'created_at'],
+        'calendar_change_recipients' => ['id', 'organization_id', 'change_id', 'person_id', 'recipient_id', 'created_at', 'checked_at', 'delivered_at', 'run_id', 'blocked_reason'],
         'calendar_feeds' => ['id', 'organization_id', 'user_id', 'token_hash', 'before_days', 'after_days', 'expires_at', 'revoked_at', 'version', 'created_at', 'updated_at'],
         'calendar_invitations' => ['id', 'organization_id', 'activity_id', 'activity_version', 'person_id', 'recipient_id', 'issued_by', 'response_deadline', 'reminder_offsets', 'response', 'responded_at', 'sent_at', 'checked_at', 'blocked_reason', 'version', 'created_at', 'updated_at'],
         'calendar_invitation_deliveries' => ['id', 'organization_id', 'invitation_id', 'kind', 'offset_minutes', 'run_id', 'created_at'],
@@ -69,7 +72,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
         'calendar_conflict_overrides' => ['id', 'organization_id', 'activity_id', 'activity_version', 'actor_user_id', 'reason', 'snapshot', 'conflict_count', 'created_at'],
         'availabilities' => ['id', 'organization_id', 'person_id', 'status', 'comment', 'starts_at', 'ends_at', 'origin_timezone', 'cancelled_at', 'created_by', 'version', 'number', 'created_at', 'updated_at'],
         'availability_revisions' => ['id', 'organization_id', 'availability_id', 'person_id', 'action', 'status', 'comment', 'starts_at', 'ends_at', 'origin_timezone', 'cancelled_at', 'version', 'number', 'actor_user_id', 'created_at'],
-        'calendar_activities' => ['id', 'organization_id', 'title', 'description', 'kind', 'starts_at', 'ends_at', 'origin_timezone', 'team_id', 'location', 'url', 'visibility', 'sharing_authorized_by', 'sharing_authorized_at', 'created_by', 'archived_at', 'version', 'created_at', 'updated_at'],
+        'calendar_activities' => ['id', 'organization_id', 'title', 'description', 'kind', 'starts_at', 'ends_at', 'origin_timezone', 'team_id', 'location', 'url', 'visibility', 'sharing_authorized_by', 'sharing_authorized_at', 'created_by', 'archived_at', 'cancelled_at', 'version', 'created_at', 'updated_at'],
         'calendar_participants' => ['id', 'organization_id', 'activity_id', 'person_id', 'created_at'],
         'announcements' => ['id', 'organization_id', 'title', 'body', 'target_type', 'team_id', 'game_id', 'role_id', 'status', 'comments_enabled', 'created_by', 'published_by', 'published_at', 'expires_at', 'withdrawn_at', 'version', 'created_at', 'updated_at'],
         'announcement_comments' => ['id', 'organization_id', 'announcement_id', 'body', 'created_by', 'created_at'],

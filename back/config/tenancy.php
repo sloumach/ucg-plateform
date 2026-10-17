@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Contracts\Application\Services\ProcessContractReminders;
+use App\Modules\Scheduling\Application\Services\ProcessCalendarChanges;
 use App\Modules\Scheduling\Application\Services\ProcessCalendarInvitations;
 
 return [
@@ -19,6 +20,7 @@ return [
     'scheduled_tasks' => [
         ...(env('CONTRACT_REMINDERS_ENABLED', false) ? ['contract-reminders' => ProcessContractReminders::class] : []),
         ...(env('CALENDAR_INVITATIONS_ENABLED', false) ? ['calendar-invitations' => ProcessCalendarInvitations::class] : []),
+        ...(env('CALENDAR_CHANGES_ENABLED', false) ? ['calendar-changes' => ProcessCalendarChanges::class] : []),
     ],
     'schedule_connection' => env('TENANCY_SCHEDULE_CONNECTION'),
     'cache_store' => env('TENANCY_CACHE_STORE', env('CACHE_STORE', 'database')),

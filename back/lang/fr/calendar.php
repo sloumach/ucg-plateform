@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'cancelled' => 'L’activité a été annulée. Les notifications ont été préparées.',
+    'change_reason' => 'Indiquez un motif opérationnel de 10 à 1000 caractères pour ce report ou cette annulation.',
     'feed_limit' => 'Le flux dépasse 500 activités ou 512 Kio. Réduisez sa fenêtre.',
     'feed_window' => 'La fenêtre cumulée ne peut pas dépasser 93 jours.',
     'feed_bounds' => 'Choisissez 0 à 30 jours passés, 1 à 90 jours futurs et 1 à 90 jours de validité.',
@@ -29,7 +31,7 @@ return [
     'participants' => 'Choisissez au maximum 50 personnes distinctes.', 'distinct' => 'Une personne ne peut être inscrite qu’une seule fois.',
     'management_required' => 'Les archives nécessitent le mode gestion.', 'window' => 'Choisissez une période de 1 à 93 jours avec des dates locales valides ; la fin est exclue.',
     'saved' => 'L’activité du calendrier a été enregistrée.', 'stale' => 'Cette activité a changé. Rechargez-la avant de réessayer.',
-    'archived' => 'Cette activité est archivée et ne peut plus être modifiée.', 'archive_only' => 'L’archivage ne peut pas être combiné avec une modification.',
+    'archived' => 'Cette activité est archivée ou annulée et ne peut plus être modifiée.', 'archive_only' => 'L’annulation ne peut pas être combinée avec une modification.',
     'empty' => 'Renseignez au moins une modification.', 'team_required' => 'Choisissez une équipe active pour le partage à une équipe.',
     'period_required' => 'Transmettez ensemble le début, la fin et le fuseau d’origine.',
     'offset' => 'L’heure et son décalage UTC doivent correspondre au fuseau d’origine. Vérifiez notamment le changement d’heure.',

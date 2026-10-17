@@ -3,6 +3,7 @@
 namespace App\Modules\Scheduling\Providers;
 
 use App\Modules\Scheduling\Domain\Contracts\AvailabilityRepository;
+use App\Modules\Scheduling\Domain\Contracts\CalendarChangeRepository;
 use App\Modules\Scheduling\Domain\Contracts\CalendarConflictRepository;
 use App\Modules\Scheduling\Domain\Contracts\CalendarFeedRepository;
 use App\Modules\Scheduling\Domain\Contracts\CalendarInvitationRepository;
@@ -11,6 +12,7 @@ use App\Modules\Scheduling\Domain\Contracts\CalendarResourceRepository;
 use App\Modules\Scheduling\Domain\Models\Availability;
 use App\Modules\Scheduling\Domain\Models\CalendarActivity;
 use App\Modules\Scheduling\Infrastructure\Persistence\EloquentAvailabilityRepository;
+use App\Modules\Scheduling\Infrastructure\Persistence\EloquentCalendarChangeRepository;
 use App\Modules\Scheduling\Infrastructure\Persistence\EloquentCalendarConflictRepository;
 use App\Modules\Scheduling\Infrastructure\Persistence\EloquentCalendarFeedRepository;
 use App\Modules\Scheduling\Infrastructure\Persistence\EloquentCalendarInvitationRepository;
@@ -28,6 +30,7 @@ final class SchedulingServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(CalendarChangeRepository::class, EloquentCalendarChangeRepository::class);
         $this->app->bind(CalendarFeedRepository::class, EloquentCalendarFeedRepository::class);
         $this->app->bind(CalendarInvitationRepository::class, EloquentCalendarInvitationRepository::class);
         $this->app->bind(CalendarResourceRepository::class, EloquentCalendarResourceRepository::class);

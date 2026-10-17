@@ -127,6 +127,8 @@ class PersonSchemaTest extends TestCase
         $availability->down();
         $bookings = require database_path('migrations/2026_10_17_112802_create_calendar_resources_reservations_and_conflict_overrides.php');
         $invitations = require database_path('migrations/2026_10_17_153712_create_calendar_invitations_and_deliveries.php');
+        $changes = require database_path('migrations/2026_10_17_220751_create_calendar_changes_and_recipients.php');
+        $changes->down();
         $invitations->down();
         $bookings->down();
         $calendar->down();
@@ -162,6 +164,7 @@ class PersonSchemaTest extends TestCase
         $calendar->up();
         $bookings->up();
         $invitations->up();
+        $changes->up();
         $availability->up();
 
         $this->assertTrue(Schema::hasTable('people'));

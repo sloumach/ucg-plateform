@@ -5,6 +5,7 @@ import type { ActiveOrganization } from '../../api/tenancy'
 import { t } from '../../i18n/fr'
 import { Button } from '../Button'
 import { FormField } from '../FormField'
+import { changeText } from '../../api/calendarChanges'
 import { SelectField } from '../people/peopleForms'
 import { CalendarParticipantPicker, CalendarTeamSelect } from './CalendarReferences'
 import { CalendarTimeChoice } from './CalendarTimeChoice'
@@ -40,6 +41,7 @@ export function CalendarForm({ active, root, item, disabled, onInvalid, errors, 
       const datesChanged = startInstant !== item.starts_at_origin || endInstant !== item.ends_at_origin || timezone !== item.origin_timezone
       for (const key of ['title','kind','description','location','url','team_id','visibility'] as const) if (values[key] === item[key]) delete values[key]
       if (!datesChanged) { delete values.starts_at; delete values.ends_at; delete values.origin_timezone }
+      else values.change_reason = String(data.get('change_reason') ?? '').trim()
       if (JSON.stringify(values.participant_ids) === JSON.stringify(item.participants.map((person) => person.id).sort())) delete values.participant_ids
       if (JSON.stringify(values.resource_ids) === JSON.stringify((item.resources ?? []).map((resource) => resource.id).sort())) delete values.resource_ids
     }
@@ -71,6 +73,10 @@ export function CalendarForm({ active, root, item, disabled, onInvalid, errors, 
     <FormField name="ends_at" label={text('endsLocal')} value={end} onChange={(event) => { setEnd(event.target.value); setEndChoice('') }} type="datetime-local" step="1" required disabled={disabled} error={fieldErrors.ends_at?.[0]} />
     {end && <CalendarTimeChoice options={endOptions} value={endInstant} onChange={setEndChoice} disabled={disabled} label={text('endOccurrence')} />}
     <p className="text-sm text-slate-400">{text('timeHint')}</p>
+    {item && (startInstant !== item.starts_at_origin || endInstant !== item.ends_at_origin || timezone !== item.origin_timezone) && <>
+      <FormField name="change_reason" label={changeText('reasonLabel')} required minLength={10} maxLength={1000} disabled={disabled} error={fieldErrors.change_reason?.[0]} />
+      <p className="text-sm text-slate-400">{changeText('reasonHint')}</p>
+    </>}
     <CalendarTeamSelect {...{ active, root, disabled, onInvalid }} value={team} onChange={(next) => { setTeam(next); invalidate() }} currentLabel={item?.team_label ?? null} error={fieldErrors.team_id?.[0]} />
     <CalendarParticipantPicker {...{ active, root, disabled, onInvalid }} selected={participants} onChange={(next) => { setParticipants(next); invalidate() }} error={fieldErrors.participant_ids?.[0] ?? Object.entries(fieldErrors).find(([key]) => key.startsWith('participant_ids.'))?.[1][0]} />
     <CalendarResourcePicker {...{ active, root, disabled, onInvalid }} selected={resources} onChange={(next) => { setResources(next); invalidate() }} error={fieldErrors.resource_ids?.[0] ?? Object.entries(fieldErrors).find(([key]) => key.startsWith('resource_ids.'))?.[1][0]} />

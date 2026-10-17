@@ -8,7 +8,7 @@ export type CalendarActivity = {
   id: string; title: string; description: string | null; kind: typeof calendarKinds[number]
   starts_at: string; ends_at: string; origin_timezone: string; starts_at_origin: string; ends_at_origin: string
   team_id: string | null; team_label: string | null; location: string | null; url: string | null
-  visibility: typeof calendarVisibilities[number]; participants: CalendarReference[]; archived_at: string | null; version: string
+  visibility: typeof calendarVisibilities[number]; participants: CalendarReference[]; archived_at: string | null; cancelled_at?: string | null; version: string
   resources?: CalendarBookingResource[]
 }
 export type CalendarPage = Page<CalendarActivity> & { calendar: { viewer_timezone: string; display_timezone: string; from_utc: string; to_utc: string } }

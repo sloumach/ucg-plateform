@@ -124,6 +124,11 @@ class OrganizationSchemaTest extends TestCase
         $availability->down();
         $bookings = require database_path('migrations/2026_10_17_112802_create_calendar_resources_reservations_and_conflict_overrides.php');
         $invitations = require database_path('migrations/2026_10_17_153712_create_calendar_invitations_and_deliveries.php');
+        $changes = require database_path('migrations/2026_10_17_220751_create_calendar_changes_and_recipients.php');
+        $changes->down();
+        $this->assertFalse(Schema::hasTable('calendar_changes'));
+        $this->assertFalse(Schema::hasTable('calendar_change_recipients'));
+        $this->assertFalse(Schema::hasColumn('calendar_activities', 'cancelled_at'));
         $invitations->down();
         $feeds = require database_path('migrations/2026_10_17_164002_create_calendar_feeds_table.php');
         $feeds->down();
@@ -196,6 +201,10 @@ class OrganizationSchemaTest extends TestCase
         $bookings->up();
         $availability->up();
         $invitations->up();
+        $changes->up();
+        $this->assertTrue(Schema::hasTable('calendar_changes'));
+        $this->assertTrue(Schema::hasTable('calendar_change_recipients'));
+        $this->assertTrue(Schema::hasColumn('calendar_activities', 'cancelled_at'));
         $feeds->up();
         $this->assertTrue(Schema::hasTable('calendar_feeds'));
         $this->assertTrue(Schema::hasTable('organizations'));

@@ -151,7 +151,7 @@ class CalendarConflictControllerTest extends TestCase
         $resource = CalendarResource::factory()->create(['organization_id' => $org->id]);
         $data = $this->postJson($this->root($org).'/activities', [...$this->input(), 'resource_ids' => [$resource->id]])->assertCreated()->assertJsonPath('data.resources.0.label', 'Salle de travail')->json('data');
         $this->postJson($this->root($org).'/activity-conflicts', ['activity_id' => strtoupper($data['id']), 'version' => $data['version'], 'title' => 'Renommée'])->assertOk()->assertJsonCount(0, 'data.conflicts');
-        $this->patchJson($this->root($org).'/activities/'.$data['id'], ['version' => $data['version'], 'archive' => true])->assertOk();
+        $this->patchJson($this->root($org).'/activities/'.$data['id'], ['version' => $data['version'], 'archive' => true, 'change_reason' => 'Annulation opérationnelle confirmée.'])->assertOk();
         $this->assertDatabaseCount('calendar_reservations', 1);
         $this->postJson($this->root($org).'/activities', [...$this->input(), 'resource_ids' => [$resource->id]])->assertCreated();
     }

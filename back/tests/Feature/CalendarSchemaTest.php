@@ -88,6 +88,8 @@ class CalendarSchemaTest extends TestCase
         $migration = require database_path('migrations/2026_10_17_094942_create_calendar_activities_and_participants.php');
         $bookings = require database_path('migrations/2026_10_17_112802_create_calendar_resources_reservations_and_conflict_overrides.php');
         $invitations = require database_path('migrations/2026_10_17_153712_create_calendar_invitations_and_deliveries.php');
+        $changes = require database_path('migrations/2026_10_17_220751_create_calendar_changes_and_recipients.php');
+        $changes->down();
         $invitations->down();
         $bookings->down();
         $migration->down();
@@ -95,10 +97,13 @@ class CalendarSchemaTest extends TestCase
         $migration->up();
         $bookings->up();
         $invitations->up();
+        $changes->up();
         CalendarActivity::factory()->create();
         try {
             $bookings = require database_path('migrations/2026_10_17_112802_create_calendar_resources_reservations_and_conflict_overrides.php');
             $invitations = require database_path('migrations/2026_10_17_153712_create_calendar_invitations_and_deliveries.php');
+            $changes = require database_path('migrations/2026_10_17_220751_create_calendar_changes_and_recipients.php');
+            $changes->down();
             $invitations->down();
             $bookings->down();
             $migration->down();

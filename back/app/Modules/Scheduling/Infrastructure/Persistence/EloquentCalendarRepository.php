@@ -9,11 +9,17 @@ use App\Modules\Scheduling\Domain\Models\CalendarActivity;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Query\Builder as Query;
 use Illuminate\Support\Str;
 
 final readonly class EloquentCalendarRepository implements CalendarRepository
 {
+    public function __construct(private EloquentCalendarVisibility $visibility) {}
+
+    public function visibleForChange(string $org, string $id, CalendarAudience $audience): bool
+    {
+        return $this->visibility->query($org, $audience, includeCancelled: true)->whereKey($id)->exists();
+    }
+
     public function feed(string $org, CalendarAudience $audience, CarbonImmutable $from, CarbonImmutable $to): array
     {
         return array_values($this->visible($org, $audience, false)->where('starts_at', '<', $to)->where('ends_at', '>', $from)
@@ -70,15 +76,6 @@ final readonly class EloquentCalendarRepository implements CalendarRepository
     /** @return Builder<CalendarActivity> */
     private function visible(string $org, CalendarAudience $audience, bool $management): Builder
     {
-        $query = CalendarActivity::query()->where('organization_id', $org);
-        if ($management) {
-            return $query;
-        }
-
-        return $query->whereNull('archived_at')->where(fn (Builder $q) => $q->where('created_by', $audience->userId)->orWhere('visibility', 'organization')
-            ->orWhere(fn (Builder $team) => $team->where('visibility', 'team')->whereIn('team_id', $audience->teamIds))
-            ->orWhereExists(fn (Query $participant) => $participant->selectRaw('1')->from('calendar_participants as participant')
-                ->where('participant.organization_id', $org)->where('participant.person_id', $audience->personId)
-                ->whereColumn('participant.activity_id', 'calendar_activities.id')));
+        return $this->visibility->query($org, $audience, $management);
     }
 }

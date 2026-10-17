@@ -9,6 +9,8 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface CalendarRepository
 {
+    public function visibleForChange(string $org, string $id, CalendarAudience $audience): bool;
+
     /** @return list<array{id:string,title:string,starts_at:CarbonImmutable,ends_at:CarbonImmutable,updated_at:CarbonImmutable}> */
     public function feed(string $org, CalendarAudience $audience, CarbonImmutable $from, CarbonImmutable $to): array;
 

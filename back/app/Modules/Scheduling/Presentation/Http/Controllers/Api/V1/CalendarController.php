@@ -46,8 +46,10 @@ final class CalendarController extends Controller
     {
         $this->gate->authorize('manage', [CalendarActivity::class, $context]);
 
-        return CalendarActivityResource::make($this->service->save($context, $request->validated(), $activity, $request->ip()))
-            ->additional($this->notification())->response()->header('Cache-Control', 'private, no-store');
+        $saved = $this->service->save($context, $request->validated(), $activity, $request->ip());
+
+        return CalendarActivityResource::make($saved)
+            ->additional($this->notification($saved->cancelled_at !== null))->response()->header('Cache-Control', 'private, no-store');
     }
 
     public function conflicts(CalendarRequest $request, TenantContext $context): JsonResponse
@@ -81,8 +83,8 @@ final class CalendarController extends Controller
     }
 
     /** @return array{notification:array{type:string,message:string}} */
-    private function notification(): array
+    private function notification(bool $cancelled = false): array
     {
-        return ['notification' => ['type' => 'success', 'message' => __('calendar.saved')]];
+        return ['notification' => ['type' => 'success', 'message' => __($cancelled ? 'calendar.cancelled' : 'calendar.saved')]];
     }
 }

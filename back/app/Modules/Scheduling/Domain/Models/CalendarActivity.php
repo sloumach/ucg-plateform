@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $created_by
  * @property string $version
  * @property CarbonImmutable|null $archived_at
+ * @property CarbonImmutable|null $cancelled_at
  * @property-read Collection<int,CalendarParticipant> $participants
  * @property-read Collection<int,CalendarReservation> $reservations
  */
@@ -58,6 +59,6 @@ final class CalendarActivity extends Model
     protected function casts(): array
     {
         return ['title' => 'encrypted', 'description' => 'encrypted', 'location' => 'encrypted', 'url' => 'encrypted',
-            'starts_at' => 'immutable_datetime', 'ends_at' => 'immutable_datetime', 'archived_at' => 'immutable_datetime', 'created_by' => 'integer'];
+            'starts_at' => 'immutable_datetime', 'ends_at' => 'immutable_datetime', 'archived_at' => 'immutable_datetime', 'cancelled_at' => 'immutable_datetime', 'created_by' => 'integer'];
     }
 }

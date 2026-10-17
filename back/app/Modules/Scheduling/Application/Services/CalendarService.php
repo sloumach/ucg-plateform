@@ -36,7 +36,7 @@ final readonly class CalendarService
     public function __construct(private CalendarRepository $records, private CalendarPeopleDirectory $people, private CalendarTeamsDirectory $teams,
         private TenantAuthorization $authorization, private TenantBusinessGuard $guard, private TenantAuditJournal $audit,
         private Factory $validator, private ConnectionInterface $database, private CalendarResourceRepository $resources,
-        private CalendarConflictRepository $conflictRecords, private CalendarConflictService $conflicts) {}
+        private CalendarConflictRepository $conflictRecords, private CalendarConflictService $conflicts, private CalendarChangeService $changes) {}
 
     /** @param array<string,mixed> $input */
     public function preview(TenantContext $context, array $input): CalendarConflictReport
@@ -52,6 +52,7 @@ final readonly class CalendarService
             $this->write($context);
             $record = $this->editable($context, $id, $values);
             [$attributes, $personIds, $resourceIds] = $this->booking($context, $values, $record);
+            $this->changes->plan($record, $attributes, $values);
 
             return $this->conflicts->inspect($context, $record, $attributes, $personIds, $resourceIds);
         });
@@ -128,14 +129,15 @@ final readonly class CalendarService
             $record = $this->editable($context, $id, $values);
             $report = null;
             if (isset($values['archive'])) {
-                if ($record === null || array_diff(array_keys($values), ['version', 'archive']) !== []) {
+                if ($record === null || array_diff(array_keys($values), ['version', 'archive', 'change_reason']) !== []) {
                     throw ValidationException::withMessages(['archive' => __('calendar.archive_only')]);
                 }
-                $attributes = ['archived_at' => now()];
+                $cancelledAt = now();
+                $attributes = ['archived_at' => $cancelledAt, 'cancelled_at' => $cancelledAt];
                 $personIds = null;
                 $resourceIds = null;
             } else {
-                if (array_diff(array_keys($values), ['version', 'confirm_sharing', 'conflict_review', 'conflict_reason', 'confirm_conflicts']) === []) {
+                if (array_diff(array_keys($values), ['version', 'confirm_sharing', 'conflict_review', 'conflict_reason', 'confirm_conflicts', 'change_reason']) === []) {
                     throw ValidationException::withMessages(['record' => __('calendar.empty')]);
                 }
                 [$attributes, $effectivePeople, $effectiveResources] = $this->booking($context, $values, $record);
@@ -144,13 +146,15 @@ final readonly class CalendarService
                 $personIds = isset($values['participant_ids']) || $record === null ? $effectivePeople : null;
                 $resourceIds = isset($values['resource_ids']) || $record === null ? $effectiveResources : null;
             }
+            $change = $this->changes->plan($record, $attributes, $values);
             $saved = $this->records->save($record, [...$attributes, 'version' => (string) Str::uuid()], $personIds, $resourceIds);
             if ($report !== null) {
                 $this->conflicts->retain($saved, $report, $values, $context->actorUserId);
             }
+            $this->changes->retain($context, $change, $saved, $values);
             $this->audit->record($context->organizationId, new AuditWriteData($context->actorUserId, AuditAction::DomainChanged, AuditTarget::Organization,
                 $context->organizationId, AuditReason::Domain, $context->requestId, $ip, [], ['calendar_activity_id' => $saved->id,
-                    'calendar_action' => isset($values['archive']) ? 'archived' : ($id === null ? 'created' : 'updated'),
+                    'calendar_action' => $change['kind'] ?? ($id === null ? 'created' : 'updated'),
                     'calendar_conflict_count' => $report === null ? 0 : count($report->conflicts)]));
 
             return $saved;

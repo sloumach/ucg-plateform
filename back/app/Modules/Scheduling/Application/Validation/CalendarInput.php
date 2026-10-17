@@ -34,7 +34,8 @@ final class CalendarInput
     {
         $required = $creating ? 'required' : 'sometimes';
 
-        return [...($creating ? [] : ['version' => ['required', 'uuid'], 'archive' => ['sometimes', 'accepted']]),
+        return [...($creating ? [] : ['version' => ['required', 'uuid'], 'archive' => ['sometimes', 'accepted'],
+            'change_reason' => ['sometimes', 'required', 'string', 'min:10', 'max:1000', 'regex:/\\S/u']]),
             'title' => [$required, 'required', 'string', 'max:160', 'regex:/\\S/u'], 'kind' => [$required, 'required', Rule::in(self::KINDS)],
             'description' => ['sometimes', 'nullable', 'string', 'max:4000'], 'location' => ['sometimes', 'nullable', 'string', 'max:200'],
             'url' => ['sometimes', 'nullable', 'string', 'max:2000'], 'team_id' => ['sometimes', 'nullable', 'uuid'],

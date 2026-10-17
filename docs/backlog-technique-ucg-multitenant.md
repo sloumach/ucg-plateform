@@ -700,7 +700,7 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 
 ### UCG-CAL-005 — Exporter un calendrier ICS privé
 
-- **État** : implémenté localement sur staging ; push, CI distantes et migration à confirmer après livraison. Aucune donnée métier réelle ou permission créée par l’agent.
+- **État** : commit `fea7094` présent sur staging et origin/staging au démarrage de CAL-006 ; migration Ran batch 35 vérifiée en lecture seule. CI distantes non confirmées dans cette reprise. Aucune donnée métier réelle ou permission créée par l’agent.
 - **Validation locale** : SQLite complet 1870 réussis/10 exclusions ; sélection CI PostgreSQL intégrale 1690 réussis/2 exclusions Redis ; PHPStan 8, Pint, 278 tests frontend et 30 scénarios navigateur réussis.
 - **Livraison** : lien personnel 256 bits, hash SHA-256 seulement, création/rotation/révocation optimistes et auditées ; secret affiché une seule fois, expiration 1–90 jours. Permission explicite calendar.export + calendar.read, compte vérifié/MFA, tenant et droits courants à chaque lecture sans session.
 - **Confidentialité** : audience personnelle même pour un gestionnaire ; titres et horaires UTC seulement, UID opaque stable. Pas de descriptions, lieux, liens, participants, ressources, absences ou contrats. Fenêtre UTC 93 jours au plus, 500 activités/512 Kio et quota technique tenant ; refus entier si débordement. Aucun cache partagé/ETag/304, erreurs privées, limitation des téléchargements.
@@ -713,6 +713,12 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 
 ### UCG-CAL-006 — Gérer reports, annulations et historique
 
+- **État** : implémenté localement sur staging ; push, CI distantes, migration et activation opérationnelle à effectuer après livraison. Aucun migrate/seed principal ni permission réelle par l’agent.
+- **Validation locale** : SQLite complet 1901 réussis/13 exclusions, sélection CI PostgreSQL intégrale 1724 réussis/2 exclusions Redis, PHPStan 8/Pint/Composer validés, 284 tests frontend, build/lint/TypeScript strict et cinq scénarios navigateur calendrier réussis. Deux erreurs intermittentes de la fixture antivirus au premier passage SQLite ont disparu à la relance ciblée puis globale, sans modifier le scanner.
+- **Livraison** : report d’horaires/fuseau avec motif 10–1000 caractères, annulation terminale via archive:true + change_reason, anciennes/nouvelles périodes et titre/motif chiffrés conservés. Historique paginé de gestion sous calendar.read/write et boîte personnelle sous calendar.read. Conflits CAL-003 recontrôlés ; ancienne version rejetée ; annulation libère le créneau, conserve les participants et invalide les convocations.
+- **Notification** : participants explicitement inscrits avant/après, union bornée à 100, compte figé à l’émission sans création d’accès. Outbox et audit atomiques avec le changement ; tâche tenant calendar-changes, flag CALENDAR_CHANGES_ENABLED=false par défaut, queue default, 25 messages par passage. Reprise sans doublon sous verrous organisation/activité/remise, compte/MFA/droits/lien/audience relus. Message historique signalé si l’activité a encore changé. Aucun e-mail ou connecteur externe.
+- **Conservation et accès** : historique et identités de livraison immuables en SQL, FK composites tenant, unicité par version/personne/compte, remise acquise figée. Filtrage personnel avant pagination, y compris annulation, sans fuite de cibles ni compteurs ; compteurs agrégés pour les gestionnaires seulement. Anciennes archives distinctes. Nouvelles tables inventoriées et round-trips des migrations parents actualisés ; down protecteur si historique/annulation conservés.
+- **Recette** : deux comptes habilités et worker/scheduler supervisés avant activation ; le flag actif seul ne prouve pas la remise. Le flux ICS reflète le planning à sa prochaine synchronisation, dont le rythme dépend du lecteur externe. CAL-007 et CAL-008 restent P1 ; MATCH-001 est le prochain P0 sportif du backlog.
 - **Priorité / taille** : P0 / M
 - **Périmètre** : changement d’horaire, raison opérationnelle, notifications et audit.
 - **Acceptation** : personnes affectées notifiées ; aucune double notification ; ancienne valeur consultable.

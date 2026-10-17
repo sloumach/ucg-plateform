@@ -21,7 +21,7 @@ final class AuditState
                 'calendar_conflict_count' => is_int($value) && $value >= 0 && $value <= 100,
                 'calendar_reference_id' => is_string($value) && Str::isUuid($value),
                 'calendar_activity_id' => is_string($value) && Str::isUuid($value),
-                'calendar_action' => is_string($value) && in_array($value, ['created', 'updated', 'archived', 'invitations_issued', 'invitation_responded', 'feed_created', 'feed_rotated', 'feed_revoked'], true),
+                'calendar_action' => is_string($value) && in_array($value, ['created', 'updated', 'archived', 'invitations_issued', 'invitation_responded', 'feed_created', 'feed_rotated', 'feed_revoked', 'rescheduled', 'cancelled'], true),
                 'communication_id' => $value === null || (is_string($value) && Str::isUuid($value)),
                 'communication_action' => is_string($value) && in_array($value, ['created', 'updated', 'publish', 'withdraw', 'comments', 'comment', 'preferences'], true),
                 'sponsorship_campaign_id' => is_string($value) && Str::isUuid($value),

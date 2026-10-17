@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Scheduling\Presentation\Http\Controllers\Api\V1\AvailabilityController;
+use App\Modules\Scheduling\Presentation\Http\Controllers\Api\V1\CalendarChangeController;
 use App\Modules\Scheduling\Presentation\Http\Controllers\Api\V1\CalendarController;
 use App\Modules\Scheduling\Presentation\Http\Controllers\Api\V1\CalendarFeedController;
 use App\Modules\Scheduling\Presentation\Http\Controllers\Api\V1\CalendarInvitationController;
@@ -8,6 +9,8 @@ use App\Modules\Scheduling\Presentation\Http\Controllers\Api\V1\CalendarResource
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('tenants/{tenant}/calendar')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
+    Route::get('changes', [CalendarChangeController::class, 'index'])->name('calendar.changes.index');
+    Route::get('activities/{activity}/changes', [CalendarChangeController::class, 'history'])->whereUuid('activity')->name('calendar.changes.history');
     Route::get('feed', [CalendarFeedController::class, 'show'])->name('calendar.feed.show');
     Route::post('feed', [CalendarFeedController::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('calendar.feed.store');
     Route::patch('feed', [CalendarFeedController::class, 'revoke'])->middleware('tenant.confirmed')->block(10, 10)->name('calendar.feed.revoke');

@@ -2874,3 +2874,53 @@ sur le téléchargement. Masquer token dans les logs du proxy/APM et ne pas mett
 le flux en cache partagé. La révocation bloque les synchronisations suivantes ;
 les données déjà copiées restent sous contrôle du lecteur externe. Voir README
 pour exemple SPA, activation et limites opérationnelles.
+## Reports, annulations et historique — UCG-CAL-006
+
+Sous session Sanctum, MFA et contexte tenant habituel :
+
+| Méthode | Route sous /api/v1 | Droits et résultat |
+| --- | --- | --- |
+| GET | /tenants/{tenant}/calendar/changes | calendar.read ; ses messages remis et encore accessibles |
+| GET | /tenants/{tenant}/calendar/activities/{activity}/changes | calendar.read + calendar.write ; historique de gestion, y compris annulation |
+| PATCH | /tenants/{tenant}/calendar/activities/{activity} | calendar.read + calendar.write ; report ou annulation via le contrat existant |
+
+Les GET n’acceptent que page entier 1–100000 et per_page entier 1–100
+(défauts 1/10). Les paramètres inconnus sont rejetés. Pagination standard,
+calendar_changes.delivery_enabled indique la configuration de remise, sans
+garantir la disponibilité du scheduler. Réponses private, no-store.
+
+Tout changement effectif de starts_at, ends_at ou origin_timezone d’une activité
+existante exige change_reason : chaîne non blanche, 10–1000 caractères après
+nettoyage utile. La période complète et le fuseau restent obligatoires ensemble.
+Le contrôle POST activity-conflicts reçoit aussi change_reason ; les règles de
+conflit/review_token/exception CAL-003 s’appliquent. Pas d’événement pour un simple
+renommage ou les mêmes instants et fuseau. Les créations n’acceptent pas ce motif.
+
+L’annulation utilise exclusivement :
+```json
+{"version":"UUID_COURANT","archive":true,"change_reason":"Annulation opérationnelle du créneau."}
+```
+Aucun autre changement dans cette requête. Confirmation tenant et
+X-Tenant-Revision restent obligatoires. archived_at et cancelled_at sont fixés
+au même instant, les relations sont conservées et l’activité devient terminale.
+Le JSON CalendarActivity ajoute cancelled_at nullable ; null pour les anciennes
+archives. Les prochaines lectures ICS ne contiennent plus l’activité annulée.
+
+Historique : id, activity_id, activity_version, kind rescheduled/cancelled,
+title, reason, before/after {starts_at, ends_at, origin_timezone}, occurred_at,
+recipients_count, delivered_count et blocked_count. UTC explicite pour les
+instants ; fuseaux IANA conservés. Le titre est celui du changement enregistré.
+
+Boîte personnelle : id de remise, change (mêmes champs de snapshot sans les
+compteurs), delivered_at, current. current compare la version du changement à
+celle de l’activité actuelle ; false signale un changement historique. Filtrage
+compte/personne et audience actuelle avant pagination, même pour une annulation.
+Aucun email, acteur, compte cible, autre destinataire, description, lieu ou lien
+de réunion n’est exposé. Aucun marquage de lecture dans ce lot.
+
+Motif manquant/invalide ou mélange annulation/autres attributs : 422 localisé.
+Version obsolète : 409 CALENDAR_VERSION_STALE. Activité déjà terminale avec sa
+version courante : 409 CALENDAR_ARCHIVED. Activité étrangère/invisible : 404 ;
+droits insuffisants : 403. Les conflits CAL-003 conservent leurs codes.
+Aucun rejeu automatique du client. Succès PATCH : toast Flasher adapté à
+l’annulation ou à l’enregistrement ; exemples SPA et activation dans README.

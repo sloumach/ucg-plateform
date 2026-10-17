@@ -9,10 +9,14 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-CAL-005` — calendrier ICS privé personnel.
-  Implémentation locale sur staging ; push, CI distantes et migration à confirmer
-  après livraison. Une migration additive calendar_feeds ; aucune migration
-  principale, donnée métier réelle ni attribution de permission par l’agent.
+- Dernier ticket traité : `UCG-CAL-006` — reports, annulations et historique.
+  Implémentation locale sur staging ; push, CI distantes et migration à effectuer
+  après livraison. Migration additive calendar_changes/calendar_change_recipients
+  et cancelled_at ; aucune migration principale, donnée métier réelle ni
+  attribution de permission par l’agent. Remise interne désactivée par défaut.
+- CAL-005 : `fea7094` présent sur staging et origin/staging au début de CAL-006 ;
+  migration vérifiée en lecture seule Ran batch 35. CI distantes non confirmées
+  dans cette reprise. Branche propre et synchronisée au démarrage de CAL-006.
 - CAL-004 : `661b438` et correctif `defc140` poussés ; CI validées par
   l’utilisateur avant CAL-005. Migration confirmée Ran, batch 34.
 - CAL-003 (`dea7936`) : push, CI et migration confirmés par l’utilisateur avant
@@ -115,9 +119,10 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : pousser CAL-005, vérifier les CI puis appliquer sa migration
-  additive. Attribuer calendar.export aux comptes habilités et recetter le flux
-  avec deux comptes, révocation et calendrier externe. Prochain lot P0 : CAL-006.
+- Prochaine action : pousser CAL-006, vérifier les CI puis appliquer sa migration
+  additive. Recetter report/annulation avec deux comptes explicitement habilités
+  avant activation de calendar-changes et supervision scheduler/worker. Les lots
+  CAL-007/CAL-008 restent P1 ; prochain P0 du backlog sportif : MATCH-001.
   Permissions explicites et activation supervisée de calendar-invitations restent
   à recetter avant usage réel.
   CAL-003 est confirmé poussé, CI vertes et migré. Attribuer calendar.resources.manage et calendar.conflicts.override
@@ -3023,3 +3028,75 @@ ensuite ce fichier pour qu'il reflète la réalité.
   pg_database. Base principale : CAL-004 Ran batch 34, CAL-005 Pending ; contrôle
   final en lecture seule. Aucun push par l’agent ; code, tests et docs regroupés
   dans le commit local du lot sur staging.
+
+## Reports, annulations et historique — UCG-CAL-006
+
+- Reprise : staging propre et synchronisé avec origin/staging, CAL-005 fea7094 ;
+  migration calendar_feeds vérifiée Ran batch 35 en lecture seule. La CI distante
+  CAL-005 n’a pas été confirmée dans cette reprise.
+- Report d’horaires ou de fuseau avec motif obligatoire 10–1000 caractères,
+  recontrôle CAL-003 et version optimiste. Simple renommage ou période inchangée
+  sans événement parasite. Annulation terminale via archive:true + change_reason,
+  cancelled_at égal archived_at, participants/réservations conservés, créneau
+  libéré, convocations obsolètes et activité retirée des prochaines lectures ICS.
+- Historique immuable calendar_changes avec titre/motif chiffrés, versions,
+  périodes avant/après et fuseaux. Union des participants explicites avant/après
+  bornée à 100 ; identité personne/compte figée dans calendar_change_recipients.
+  Aucun développement automatique d’équipe, compte ou permission.
+- Modification, contrôle des conflits, version, historique, cibles et audit dans
+  la même transaction. Rollback d’audit ou de conflit sans résidu. FKs composites
+  tenant, contraintes d’unicité version/personne/compte, livraison acquise immuable
+  et down protecteur. Les cinq tests de migrations parents retirent/remontent les
+  enfants dans le bon ordre, notamment OrganizationSchemaTest qui vérifie aussi
+  l’absence puis le retour des nouvelles tables et de cancelled_at.
+- Remise interne asynchrone via tâche TEN-006 calendar-changes, queue default.
+  CALENDAR_CHANGES_ENABLED=false par défaut ; .env réel inchangé. Lot de 25 par
+  organisation, non contrôlés d’abord puis contrôles anciens ; transaction et
+  verrous organisation → activité → message, relecture responsable/destinataire,
+  droits, MFA, vérification email, rattachement et audience. Reprises sans double
+  remise ; erreur transitoire sans checked_at partiellement commité.
+- Boîte personnelle filtrée avant pagination par compte/personne/audience actuelle,
+  annulations incluses pour l’historique. Messages historiques signalés selon la
+  version actuelle. Historique de gestion sous calendar.read/write, compteurs
+  agrégés seulement ; ni email ni liste de cibles dans les Resources. Prédicat SQL
+  EloquentCalendarVisibility partagé entre calendrier, ICS et messages.
+- Deux nouveaux GET fermés, pagination bornée, réponses privées sans cache.
+  Panneaux React chargés à ouverture, motif et confirmation humaine, textes
+  échappés et aucun rejeu automatique après 409. Anciennes archives distinctes
+  des nouvelles annulations. Inventaire de portabilité mis à jour.
+- Validation ciblée PostgreSQL : 91 tests réussis, 362 assertions, dont trois
+  scénarios à deux processus indépendants (report, annulation et remise) et les
+  migrations parents. Validation frontend : 284 tests/41 fichiers, build et lint
+  réussis ; TypeScript strict des tests modifiés et nouveau scénario réussi.
+  Cinq scénarios navigateur calendrier réussis (quatre régressions, nouveau
+  parcours report → historique → annulation → boîte personnelle). Captures 320 et
+  375 px inspectées sans débordement ni HTML exécuté.
+- Premier essai du nouveau scénario navigateur : confirmation finale d’annulation
+  oubliée dans le test ; scénario corrigé et réussi, comportement applicatif inchangé.
+  Une demande facultative de couverture Vitest a signalé l’absence du package
+  coverage-v8 ; aucune dépendance ajoutée, suite test:ci du projet exécutée avec succès.
+- Pint dirty, format:check complet et PHPStan niveau 8 sans erreur. Contrôle
+  git diff --check réussi. Code, tests et documentation livrés ensemble dans un
+  seul commit local ; aucune donnée métier réelle, migration principale, permission,
+  notification réelle ou push par l’agent.
+- À faire après livraison : push/CI, migration additive, recette deux comptes et
+  révocation d’accès, puis activation explicite et supervision scheduler/worker.
+  Le flag activé seul ne prouve pas la disponibilité des traitements. Les tâches
+  CAL-007/CAL-008 restent P1 ; prochain P0 sportif du backlog : MATCH-001.
+- Sélection CI PostgreSQL intégrale extraite du workflow actualisé : 1726 tests,
+  1724 réussis, deux exclusions Redis attendues, 8334 assertions, zéro erreur/échec.
+  Rapport local ignoré : back/reports/cal006-ci-postgresql.xml. Bases temporaires
+  CAL-006 supprimées ; absence confirmée via pg_database. Base principale inchangée :
+  CAL-005 Ran batch 35, CAL-006 non appliquée (contrôle en lecture seule).
+- Première suite SQLite complète : 1914 tests, 1899 réussis, 13 exclusions,
+  deux erreurs JSON intermittentes du simulateur fake-clamd dans les tests existants
+  ClamAvDocumentScannerTest (réponses ambiguë/trop longue). Relance ciblée :
+  10 tests, 68 assertions, zéro échec/erreur, sans modification du scanner ou de
+  sa fixture. Relance globale nécessaire pour confirmer l’ensemble.
+- Serveur Vite de test démarré par l’agent puis arrêté ; aucun serveur utilisateur
+  arrêté ou remplacé. Composer validate --strict et format:check final réussis.
+- Relance SQLite complète réussie : 1914 tests, 1901 réussis, 13 exclusions
+  attendues (Redis, ClamAV réel et concurrence PostgreSQL), 9155 assertions,
+  zéro erreur/échec. Rapport local ignoré : back/reports/cal006-ci-sqlite-retry.xml.
+  Tous les tests ont donc été revérifiés ensemble après l’échec intermittent.
+  Ces validations locales ne remplacent pas les CI distantes à lancer après push.

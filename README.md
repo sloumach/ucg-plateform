@@ -2279,7 +2279,7 @@ UUID issus des lectures autorisées. Les droits read restent nécessaires aux
 participants ; un lien de réunion peut contenir un jeton, donc choisir sa
 confidentialité avant tout partage.
 
-CAL-002 livre les disponibilités dans un panneau dédié. CAL-003 à CAL-006 couvriront conflits, convocations, ICS,
+CAL-002 livre les disponibilités dans un panneau dédié. CAL-003 à CAL-006 couvrent conflits, convocations, ICS,
 reports/annulations et leurs notifications/historiques. Récurrences : CAL-007 P1.
 Cette activité de planning ne crée pas une fiche Match/Académie/accord sponsor.
 Les UUID de ces futurs dossiers sont refusés ; aucun score ni notification n’est
@@ -2619,4 +2619,79 @@ CDN, APM, analytics ou support. L’application retire le jeton de l’URL de re
 avant le traitement interne ; l’infrastructure doit aussi le masquer à l’entrée.
 Aucun cache partagé du flux, aucun connecteur externe ni tâche planifiée requis.
 Après restauration d’une sauvegarde, révoquer les liens restaurés avant ouverture.
-Les prochains reports/annulations et leurs notifications restent CAL-006.
+Les reports/annulations et leurs notifications sont livrés par CAL-006 ci-dessous.
+
+## Reports, annulations et messages internes — UCG-CAL-006
+
+Modifier les horaires ou le fuseau d’origine d’une activité existante exige un
+motif de 10 à 1000 caractères, dès le contrôle des conflits. Les mêmes contrôles
+de réservation CAL-003 s’appliquent au nouveau créneau. Une modification du titre
+seul ou la réaffirmation des mêmes horaires ne produit pas de message de report.
+
+« Annuler l’activité » demande un motif puis la confirmation de l’organisation.
+L’annulation est définitive : le créneau est libéré, les participants et
+réservations sont conservés pour l’historique, les convocations précédentes
+deviennent obsolètes et l’activité sort du calendrier courant et du flux ICS.
+Les anciens clients PATCH doivent fournir change_reason avec archive:true ;
+ce champ historique de transport désigne désormais une annulation explicite.
+Les archives antérieures à CAL-006 restent distinguées des annulations.
+
+Les gestionnaires calendar.read + calendar.write consultent l’historique paginé :
+anciens/nouveaux horaires, fuseaux, motif, titre au changement et nombres de
+destinataires, remises et blocages. « Mes notifications de planning » expose
+uniquement ses propres messages remis, sous calendar.read et les accès actuels.
+Un message ancien est signalé ; le calendrier courant reste la référence.
+Aucune identité de compte ni liste de destinataires n’est rendue dans ces messages.
+
+Les personnes concernées sont les participants explicitement inscrits avant ou
+après le changement (100 au plus). L’équipe entière n’est pas développée en
+destinataires. L’identité personne/compte est figée à l’émission ; un compte absent
+n’est pas créé ou réaffecté automatiquement. Les droits du responsable et du
+destinataire, leur compte vérifié/MFA, le rattachement et l’audience courants sont
+relus à la remise. Perte d’accès = remise bloquée, sans création de permission.
+Les messages déjà remis sont également filtrés par les accès actuels à la lecture.
+
+Exemple avec les objets chargés, après confirmation du tenant :
+
+```ts
+import { tenancyRequest } from './api/tenancy'
+import type { ApiSuccessResponse } from './api/contracts'
+import type { CalendarActivity } from './api/calendar'
+import type { CalendarChangePage } from './api/calendarChanges'
+
+const path = 'tenants/' + organizationId + '/calendar/activities/' + activity.id
+// Utiliser les dates réelles et le review_token du contrôle CAL-003 correspondant.
+const moved = await tenancyRequest<ApiSuccessResponse<CalendarActivity>>(path, {
+  method: 'PATCH', revision,
+  body: { version: activity.version, starts_at: newStart, ends_at: newEnd,
+    origin_timezone: activity.origin_timezone, change_reason: reason,
+    conflict_review: reviewToken },
+})
+await tenancyRequest<CalendarChangePage>(path + '/changes?page=1&per_page=10', { revision })
+await tenancyRequest(path, {
+  method: 'PATCH', revision,
+  body: { version: moved.data.version, archive: true, change_reason: cancellationReason },
+})
+```
+
+Appliquer la migration additive
+2026_10_17_220751_create_calendar_changes_and_recipients avant déploiement.
+Elle conserve un historique immuable et chiffré ainsi que les destinataires ;
+un rollback refuse de détruire ces données. Le traitement asynchrone utilise le
+scheduler TEN-006 et la queue default, avec une nouvelle tâche calendar-changes :
+
+```dotenv
+CALENDAR_CHANGES_ENABLED=true
+```
+
+Le flag est false par défaut et le fichier .env réel n’est pas modifié.
+Le scheduler et le worker partagés décrits pour CAL-004 doivent fonctionner ;
+ce flag est indépendant de CALENDAR_INVITATIONS_ENABLED. La remise reste interne
+à l’application, sans e-mail ni connecteur externe. Le lot traite 25 messages par
+organisation et par passage, sous verrous et avec remise atomique sans doublon.
+Mesurer retard et contention avant augmentation de charge ; la configuration
+activée ne prouve pas que les workers sont opérationnels.
+
+Après push/CI et migration, recetter avec deux comptes habilités, une perte
+d’accès, un report et une annulation ; aucune donnée réelle ou permission n’a été
+créée par l’agent. Les récurrences CAL-007 et la logistique CAL-008 restent P1.

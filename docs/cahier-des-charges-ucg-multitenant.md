@@ -268,7 +268,7 @@ participants bornés, privé par défaut y compris pour les scrims, partage inte
 confirmé sous permission. Les gestionnaires habilités disposent d’un mode
 explicite de consultation globale. Contrôles d’audience avant pagination,
 versions, audit minimal et archive conservant les participants.
-CAL-004 complète les convocations/réponses ; les notifications de report restent CAL-006 ;
+CAL-004 complète les convocations/réponses ; CAL-006 ajoute les notifications de report ;
 récurrence P1. Une activité de type match/académie/sponsor est une entrée de
 planning, sans création automatique du dossier métier correspondant.
 
@@ -995,4 +995,18 @@ adaptés à un lecteur externe. Fenêtre glissante bornée en UTC, 500 activité
 512 Kio maximum, sans export partiel silencieux. Secret affiché une seule fois,
 empreinte uniquement en base, cache privé sans conservation. Révocation immédiate
 pour les prochains téléchargements ; copies déjà importées et rythme de
-synchronisation dépendent du logiciel externe. CAL-006 reste distinct.
+synchronisation dépendent du logiciel externe. CAL-006 est décrit ci-dessous.
+
+Livraison CAL-006 (CAL-08) : un changement effectif d’horaire ou de fuseau d’origine
+exige un motif opérationnel ; les anciens et nouveaux créneaux sont conservés
+avec leur titre et motif chiffrés. L’annulation explicite est définitive, libère
+le créneau et conserve participants et historique. Les gestionnaires habilités
+consultent l’historique paginé ; les participants explicites avant/après disposent
+de notifications internes, sous leurs accès actuels. Les identités sont figées
+à l’émission, les comptes sans accès restent bloqués, sans droit créé. La remise
+asynchrone est atomique et dédupliquée, avec relecture des droits/MFA/rattachements.
+Les messages anciens sont distingués du planning actuel. Aucun email ni service
+externe n’est activé ; scheduler/worker et recette à deux comptes sont requis
+avant activation de CALENDAR_CHANGES_ENABLED, false par défaut. Les équipes
+entières ne sont pas ajoutées automatiquement aux destinataires. Les récurrences
+et la logistique avancée restent CAL-007/CAL-008, P1.

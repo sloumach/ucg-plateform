@@ -122,7 +122,7 @@ class CalendarControllerTest extends TestCase
         $this->patchJson($url, ['version' => (string) Str::uuid(), 'title' => 'Stale'])->assertConflict()->assertJsonPath('code', 'CALENDAR_VERSION_STALE');
         $this->patchJson($url, ['version' => $record['version']])->assertUnprocessable();
         $this->patchJson($url, ['version' => $record['version'], 'archive' => true, 'title' => 'Mix'])->assertUnprocessable();
-        $archived = $this->patchJson($url, ['version' => $record['version'], 'archive' => true])->assertOk()->json('data');
+        $archived = $this->patchJson($url, ['version' => $record['version'], 'archive' => true, 'change_reason' => 'Annulation opérationnelle confirmée.'])->assertOk()->json('data');
         $this->patchJson($url, ['version' => $archived['version'], 'title' => 'No'])->assertConflict()->assertJsonPath('code', 'CALENDAR_ARCHIVED');
         $this->getJson($this->path($org).$this->window())->assertJsonPath('meta.total', 0);
         $this->getJson($this->path($org).$this->window().'&management=1&archived=1')->assertJsonPath('meta.total', 1);

@@ -1906,3 +1906,50 @@ portabilité enregistre explicitement les colonnes, dont l’empreinte seulement
 Après restauration, révoquer les liens restaurés avant de réouvrir le service.
 Panneau React chargé à l’ouverture, secret en état mémoire éphémère, confirmations,
 états expiré/révoqué et conflits sans rejeu automatique.
+## Historique des changements et outbox interne — UCG-CAL-006
+
+CalendarChangeService prépare le changement avant mutation puis persiste le
+snapshot après sauvegarde, dans la transaction de CalendarService. Le verrou
+tenant puis activité, la version optimiste, les contrôles CAL-003, la nouvelle
+version, l’historique, les destinataires et l’audit partagent le même commit.
+Un échec d’audit ou de conflit ne laisse ni changement ni notification à traiter.
+
+calendar_changes porte UUID tenant/activité, versions avant/après, acteur,
+nature rescheduled/cancelled, titre et motif chiffrés, deux périodes UTC avec
+leurs fuseaux et date d’émission. calendar_change_recipients fige personne,
+compte résolu ou null et date ; les seuls états évolutifs sont contrôle,
+blocage et remise. Unicités par version d’activité, personne et compte ;
+FKs composites tenant/parent, historique append-only et identité de livraison
+immuable dans SQLite/PostgreSQL. Une remise acquise ne peut être remplacée.
+cancelled_at distingue l’annulation des anciennes archives et doit coïncider
+avec archived_at. Le rollback refuse un historique ou une annulation conservés.
+
+Les destinataires sont l’union bornée des participants explicites avant/après,
+sans expansion d’équipe. Résolution des comptes par le port People, tranches
+de 50, insertion groupée ; aucun lien futur ne remplace l’identité d’émission.
+Les nouvelles tables et cancelled_at sont inventoriés pour la portabilité.
+Les round-trips des parents retirent les enfants avant calendar_activities.
+
+ProcessCalendarChanges implémente TenantScheduledTask ; activation conditionnelle
+calendar-changes via CALENDAR_CHANGES_ENABLED=false par défaut. TEN-006 transporte
+le contexte tenant et la queue default. Chaque passage parcourt 25 messages non
+remis, priorité aux non contrôlés puis aux contrôles anciens. Chaque message
+prend les verrous tenant → activité → destinataire et recontrôle le responsable,
+le destinataire, les droits, la personne et l’audience actuelle. checked_at,
+blocked_reason ou delivered_at/run_id sont transactionnels. Une reprise retrouve
+une remise acquise sans la dupliquer ; une erreur transitoire annule le contrôle.
+Un report antérieur peut être remis plus tard, avec indication historique.
+
+EloquentCalendarVisibility partage le prédicat d’audience entre calendrier,
+ICS et messages. La boîte personnelle inclut les activités annulées uniquement
+pour leur historique accessible, filtre par compte/personne/audience avant la
+pagination et charge les snapshots/versions en lots. Les listes actives et ICS
+continuent d’exclure les archives. Le gestionnaire dispose d’une route séparée
+pour l’historique tenant, sous calendar.read/write. Les Resources n’exposent
+ni email ni identité des cibles ; les compteurs sont réservés à la gestion.
+La SPA charge les panneaux à ouverture, échappe les textes, exige motif et
+confirmation, et réutilise le contrôle CAL-003 pour les reports.
+
+Ces notifications internes ne passent ni par le courrier ni par un connecteur
+externe. Les limites et index bornent le travail par passage ; aucune cadence à
+grande échelle n’est garantie sans mesure. CAL-007/CAL-008 restent hors de ce lot.
