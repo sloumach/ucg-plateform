@@ -6,6 +6,11 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface CalendarPeopleRepository
 {
+    /** @param list<string> $ids
+     * @return array<string,int>
+     */
+    public function accounts(string $org, array $ids): array;
+
     /** @return array{person_id: string|null, timezone: string|null} */
     public function viewer(string $org, int $userId): array;
 

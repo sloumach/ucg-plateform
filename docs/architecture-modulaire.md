@@ -1799,3 +1799,60 @@ Les erreurs 422 gardent la saisie et les champs concernés ; les 409 nécessiten
 une nouvelle décision. Les textes des activités, ressources et motifs restent
 échappés. Les processus de tests PostgreSQL utilisent des bases temporaires et
 une barrière commune, sans écriture dans la base principale.
+
+## Convocations versionnées et remise asynchrone — UCG-CAL-004
+
+Scheduling possède calendar_invitations et calendar_invitation_deliveries.
+CalendarInvitationService orchestre validation partagée/Form Request,
+CalendarPolicy, contexte tenant, Repository et audit. Les contrôleurs restent
+HTTP ; les Resources exposent une liste fermée de champs. Les permissions
+calendar.invitations.manage et calendar.invitations.respond sont inscrites
+au catalogue IAM et à la projection d’audit. Aucun rôle réel n’est attribué.
+
+CalendarPeopleDirectory ajoute la résolution groupée des comptes des personnes
+actuelles, bornée à 50 et réservée à une transaction autorisée. People conserve
+sa règle de départ formel ; Scheduling ne lit pas ses modèles internes.
+Labels groupés et relations activity.participants eager-loaded, comptage des
+remises via withCount. Autorisations courantes non mises en cache.
+
+Une convocation appartient à une personne et à une version d’activité, avec
+échéance et seuils figés. Compte destinataire enregistré à l’émission, puis
+comparé au lien actuel avant remise et réponse : une réaffectation ne transfère
+pas silencieusement une convocation. Une activité modifiée rend ses anciennes
+convocations obsolètes. Le suivi conserve références, réponse courante et audit ;
+le titre exposé reste celui de l’activité actuelle, sans snapshot de son contenu.
+
+ProcessCalendarInvitations implémente TenantScheduledTask et est enregistré
+explicitement, sous flag serveur désactivé par défaut, dans le registre TEN-006.
+Le dispatcher et RunTenantScheduledTask transportent UUID tenant et corrélation,
+sans usurper le propriétaire. Pour chaque convocation, verrou organisation
+via TenantBusinessGuard, puis activité et convocation ; contexte du responsable
+utilisé uniquement avec autorisations relues. Le refus attendu d’un responsable
+révoqué devient issuer_unavailable. Le lien personne/compte, les accès vérifiés
+et le MFA du destinataire sont contrôlés avant toute remise.
+
+Le scheduler est déclenché chaque minute avec les gardes distribuées TEN-006.
+25 convocations pending, courantes et non expirées sont sélectionnées par tenant,
+avec checked_at pour rotation équitable. La queue default est durable en
+exploitation. Les requêtes HTTP ne remettent aucune notification ; le worker
+insère la notification interne persistante et son état dans la même transaction.
+Unicités (tenant, activité, version, personne) et (tenant, convocation, type, seuil)
+assurent la déduplication après crash/retry indépendamment du cache du runner.
+Une première remise tardive remplace les anciens seuils ; ensuite un seul seuil
+le plus urgent est rattrapé. Réponse ou échéance ferme les rappels.
+
+Les FKs composites protègent tenant/activité/personne/convocation.
+Identité/paramètres des convocations et historique des remises sont protégés
+en SQLite et PostgreSQL. Les deux tables/colonnes sont enregistrées dans la
+portabilité ; rollback refusé si données présentes. Les round-trips des schémas
+parents retirent les enfants CAL-004 avant le calendrier sans modifier les
+anciennes migrations déployées. Les tests de concurrence créent leurs propres
+bases PostgreSQL éphémères, avec deux processus et une barrière, puis les détruisent.
+
+À forte charge, profiler les requêtes tenant, les anciennes versions retenues,
+la contention du verrou organisation et le retard de sweep avant de relever
+les bornes ou de répartir davantage les jobs. Aucun appel réseau n’est effectué
+sous ce verrou. Les logs tenant.schedule.* et failed_jobs exposent les incidents.
+Le flag d’activation indique une configuration, pas une vérification de santé
+opérationnelle. Canal interne seulement ; ICS CAL-005 et notifications de report
+CAL-006 ne sont pas implémentés dans cette étape.

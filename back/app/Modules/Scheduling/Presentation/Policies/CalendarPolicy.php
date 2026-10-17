@@ -25,6 +25,16 @@ final readonly class CalendarPolicy
         return $this->manage($user, $context) && $this->authorization->allows($context, 'calendar.resources.manage');
     }
 
+    public function manageInvitations(Authenticatable $user, TenantContext $context): bool
+    {
+        return $this->manage($user, $context) && $this->authorization->allows($context, 'calendar.invitations.manage');
+    }
+
+    public function respondInvitations(Authenticatable $user, TenantContext $context): bool
+    {
+        return $this->viewAny($user, $context) && $this->authorization->allows($context, 'calendar.invitations.respond');
+    }
+
     public function overrideConflicts(Authenticatable $user, TenantContext $context): bool
     {
         return $this->manage($user, $context) && $this->authorization->allows($context, 'calendar.conflicts.override');

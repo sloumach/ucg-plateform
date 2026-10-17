@@ -7,6 +7,11 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface CalendarPeopleDirectory
 {
+    /** @param list<string> $ids
+     * @return array<string,int>
+     */
+    public function accounts(TenantContext $context, array $ids): array;
+
     /** @return array{person_id: string|null, timezone: string} */
     public function viewer(TenantContext $context): array;
 

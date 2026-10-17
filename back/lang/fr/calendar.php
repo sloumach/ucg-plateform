@@ -1,6 +1,17 @@
 <?php
 
 return [
+    'invitation_confirm' => 'Confirmez explicitement l’envoi des convocations aux participants inscrits.',
+    'invitation_offsets' => 'Indiquez au maximum trois délais de rappel distincts, en minutes avant l’échéance de réponse.',
+    'invitation_bounds' => 'Utilisez une valeur entière dans les limites autorisées (rappel : 1 à 10080 minutes).',
+    'invitation_deadline' => 'L’échéance de réponse doit être future et ne pas dépasser le début de l’activité.',
+    'invitation_people' => 'Inscrivez au moins un participant actuel avant de préparer les convocations.',
+    'invitation_duplicate' => 'Des convocations existent déjà pour cette version de l’activité. Rechargez leur suivi.',
+    'invitation_obsolete' => 'L’activité ou ses participants ont changé. Cette convocation n’est plus valable.',
+    'invitation_expired' => 'L’échéance de réponse est dépassée. Cette convocation ne peut plus être modifiée.',
+    'invitation_stale' => 'Votre réponse a changé sur une autre session. Rechargez la convocation avant de décider à nouveau.',
+    'invitation_issued' => 'Les convocations ont été préparées pour une remise asynchrone dans l’application.',
+    'invitation_responded' => 'Votre réponse à la convocation a été enregistrée.',
     'closed' => 'Ce champ n’est pas accepté pour cette opération.',
     'required' => 'Ce champ est obligatoire.', 'string' => 'Saisissez du texte.', 'max' => 'La taille maximale autorisée est dépassée.',
     'choice' => 'Choisissez une valeur proposée.', 'uuid' => 'Choisissez une référence valide.', 'format' => 'Saisissez une valeur non vide.',

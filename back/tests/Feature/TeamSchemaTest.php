@@ -90,6 +90,8 @@ class TeamSchemaTest extends TestCase
         $communication = require database_path('migrations/2026_10_16_210818_create_communication_tables.php');
         $calendar = require database_path('migrations/2026_10_17_094942_create_calendar_activities_and_participants.php');
         $bookings = require database_path('migrations/2026_10_17_112802_create_calendar_resources_reservations_and_conflict_overrides.php');
+        $invitations = require database_path('migrations/2026_10_17_153712_create_calendar_invitations_and_deliveries.php');
+        $invitations->down();
         $bookings->down();
         $calendar->down();
         $communication->down();
@@ -110,6 +112,7 @@ class TeamSchemaTest extends TestCase
         $communication->up();
         $calendar->up();
         $bookings->up();
+        $invitations->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         $this->assertDatabaseCount('teams', 0);
     }

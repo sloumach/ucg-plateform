@@ -268,7 +268,7 @@ participants bornés, privé par défaut y compris pour les scrims, partage inte
 confirmé sous permission. Les gestionnaires habilités disposent d’un mode
 explicite de consultation globale. Contrôles d’audience avant pagination,
 versions, audit minimal et archive conservant les participants.
-La convocation/réponse et les notifications de report restent CAL-004/CAL-006 ;
+CAL-004 complète les convocations/réponses ; les notifications de report restent CAL-006 ;
 récurrence P1. Une activité de type match/académie/sponsor est une entrée de
 planning, sans création automatique du dossier métier correspondant.
 
@@ -305,6 +305,22 @@ Les collisions anciennes ne sont pas corrigées automatiquement. Convocations,
 rappels, ICS, reports et récurrences restent des lots dédiés.
 
 Règle de date : les instants sont stockés en UTC. Les événements récurrents conservent aussi le fuseau IANA et l’heure locale de référence pour traiter correctement les changements d’heure. Un flux ICS est une première étape ; une synchronisation bidirectionnelle Google ou Microsoft est un lot distinct avec règles de conflit.
+
+Livraison CAL-004 : convocations internes préparées explicitement pour tous les
+participants inscrits d’une version de l’activité. Échéance de réponse future,
+au plus tard au début ; zéro à trois délais de rappel configurables, en minutes
+avant cette échéance. Réponses personnelles présent/absent/en attente,
+modifiables avec version jusqu’à l’échéance, sans réponse par procuration.
+La remise et les rappels passent par une tâche asynchrone tenant, avec contrôles
+actuels des accès et du lien au compte, historique de remise et déduplication
+durable. Un compte sans accès reste bloqué ; aucune invitation d’adhésion ou
+permission n’est créée. Toute modification de l’activité rend ses anciennes
+convocations obsolètes et exige une nouvelle préparation. Paramètres d’émission
+figés ; une autre configuration exige une nouvelle version de l’activité.
+Les rappels visent uniquement les réponses en attente avant l’échéance ; une
+reprise tardive retient le seuil le plus urgent, sans rafale. Ce lot livre le
+canal interne ; les e-mails, Discord et notifications automatiques de report
+restent distincts. Activation opérationnelle et recette à effectuer après livraison.
 
 ## 9 Scrims matchs parties et scores
 

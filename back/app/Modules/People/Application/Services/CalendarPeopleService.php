@@ -22,6 +22,16 @@ final readonly class CalendarPeopleService implements CalendarPeopleDirectory
         return ['person_id' => $viewer['person_id'], 'timezone' => $viewer['timezone'] ?? $context->timezone];
     }
 
+    public function accounts(TenantContext $context, array $ids): array
+    {
+        $this->authorizeWrite($context);
+        if ($this->database->transactionLevel() < 1 || count($ids) > 50) {
+            throw new LogicException('Calendar recipient resolution requires a bounded tenant transaction.');
+        }
+
+        return $this->records->accounts($context->organizationId, $ids);
+    }
+
     public function choices(TenantContext $context, int $page, int $perPage): LengthAwarePaginator
     {
         $this->authorizeWrite($context);

@@ -11,6 +11,16 @@ use Illuminate\Database\Query\Builder as Query;
 
 final readonly class EloquentCalendarPeopleRepository implements CalendarPeopleRepository
 {
+    public function accounts(string $org, array $ids): array
+    {
+        $result = [];
+        foreach ($this->active($org)->whereIn('id', $ids)->whereNotNull('user_id')->get(['id', 'user_id']) as $person) {
+            $result[$person->id] = (int) $person->user_id;
+        }
+
+        return $result;
+    }
+
     public function viewer(string $org, int $userId): array
     {
         $person = $this->active($org)->where('user_id', $userId)->first(['id', 'timezone']);

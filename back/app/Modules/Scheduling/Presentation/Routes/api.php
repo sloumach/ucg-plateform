@@ -2,10 +2,17 @@
 
 use App\Modules\Scheduling\Presentation\Http\Controllers\Api\V1\AvailabilityController;
 use App\Modules\Scheduling\Presentation\Http\Controllers\Api\V1\CalendarController;
+use App\Modules\Scheduling\Presentation\Http\Controllers\Api\V1\CalendarInvitationController;
 use App\Modules\Scheduling\Presentation\Http\Controllers\Api\V1\CalendarResourceController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('tenants/{tenant}/calendar')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
+    $invitations = CalendarInvitationController::class;
+    Route::get('invitations', [$invitations, 'index'])->name('calendar.invitations.index');
+    Route::get('activities/{activity}/invitations', [$invitations, 'activityIndex'])->whereUuid('activity')->name('calendar.invitations.activity');
+    Route::post('activities/{activity}/invitations', [$invitations, 'issue'])->whereUuid('activity')->middleware('tenant.confirmed')->block(10, 10)->name('calendar.invitations.issue');
+    Route::patch('invitations/{invitation}', [$invitations, 'respond'])->whereUuid('invitation')->middleware('tenant.confirmed')->block(10, 10)->name('calendar.invitations.respond');
+    Route::get('invitations/{invitation}/deliveries', [$invitations, 'history'])->whereUuid('invitation')->name('calendar.invitations.history');
     $resources = CalendarResourceController::class;
     Route::get('resources', [$resources, 'index'])->name('calendar.resources.index');
     Route::post('resources', [$resources, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('calendar.resources.store');

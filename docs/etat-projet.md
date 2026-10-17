@@ -9,9 +9,12 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-CAL-003` — conflits de réservation.
+- Dernier ticket traité : `UCG-CAL-004` — convocations, réponses et rappels.
   Implémentation locale testée ; push utilisateur, CI distantes et migration
-  principale à effectuer. CAL-004 non démarré.
+  principale à effectuer. CAL-005 non démarré. Voir le détail en fin de document.
+- CAL-003 (`dea7936`) : push, CI et migration confirmés par l’utilisateur avant
+  CAL-004. Migration vérifiée en lecture seule : Ran, batch 33. Branche staging
+  propre et synchronisée avec origin/staging au démarrage de CAL-004.
 - Socle CAL-002 (`2c786d2`) poussé ; CI et migration confirmées par l’utilisateur
   avant CAL-003. Migration vérifiée en lecture seule : Ran, batch 32. Staging
   propre et synchronisé avec origin/staging au démarrage de CAL-003.
@@ -109,13 +112,15 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : revue/push du commit CAL-003, CI vertes, sauvegarde puis
-  migration `2026_10_17_112802_create_calendar_resources_reservations_and_conflict_overrides`
-  depuis back/. Attribuer calendar.resources.manage et calendar.conflicts.override
+- Prochaine action : push/CI utilisateur et sauvegarde avant la nouvelle migration
+  CAL-004 `2026_10_17_153712_create_calendar_invitations_and_deliveries`, puis
+  permissions explicites et activation supervisée de la tâche calendar-invitations.
+  CAL-003 est confirmé poussé, CI vertes et migré. Attribuer calendar.resources.manage et calendar.conflicts.override
   seulement aux personnes habilitées via IAM-003 ; availability.read active le
   contrôle des disponibilités et la consultation des exceptions. Recetter deux
   comptes et les révocations. Aucune attribution réelle par l’agent ; migration
-  CAL-003 principale non appliquée. CAL-002 est validé par l’utilisateur.
+  CAL-003 principale appliquée par l’utilisateur, vérifiée Ran batch 33.
+  CAL-002 est validé par l’utilisateur.
   Mise en service des rappels CTR-005 à confirmer : configurer le scheduler,
   le cache partagé et le worker default ; activer
   CONTRACT_REMINDERS_ENABLED puis, quand le SMTP est prêt,
@@ -2816,3 +2821,96 @@ ensuite ce fichier pour qu'il reflète la réalité.
   depuis back/. Accorder les nouveaux droits explicitement via IAM-003 et recetter
   deux comptes avant utilisation réelle. Prochain P0 recommandé après validation :
   CAL-004, convocations/réponses/rappels, non démarré.
+
+## Convocations, réponses et rappels — UCG-CAL-004
+
+### Reprise et livraison
+
+- Départ sur staging propre, HEAD/origin/staging dea7936. Push, CI et migration
+  CAL-003 confirmés par l’utilisateur ; migrate:status confirme Ran batch 33.
+- Deux tables additives : calendar_invitations et calendar_invitation_deliveries,
+  migration 2026_10_17_153712_create_calendar_invitations_and_deliveries.
+  Composite FKs tenant/activité/personne/convocation, unicités par version/personne
+  et par type/seuil de remise, index de boîte et de sweep, gardes SQL SQLite/PG.
+  Identité et paramètres figés ; remises append-only. Rollback refusé si données.
+- Cinq endpoints privés ajoutés : boîte personnelle, suivi par activité,
+  préparation des convocations, réponse personnelle et historique des remises.
+  Form Request/validation partagée, Policy, Service/Repository/Resources, MFA,
+  CSRF, confirmation tenant, révision et verrou de session en mutation.
+- calendar.invitations.manage exige calendar.read/write ; respond exige read.
+  Permissions et labels IAM ajoutés, audit minimal en liste fermée ; aucun droit
+  implicite propriétaire ou opérateur technique. Pas de rôle réel attribué.
+- Émission pour les participants explicitement inscrits (1–50), échéance future
+  au plus tard au début, zéro à trois seuils distincts (1–10080 minutes).
+  Compte destinataire figé à l’émission et comparé au lien actuel ; aucune
+  réaffectation automatique. People résout les comptes en bloc via son port public,
+  avec la même exclusion des personnes parties. Relations et labels groupés ;
+  test du chargement des labels sans N+1.
+- Boîte filtrée avant pagination : compte/personne actuels, remise effectuée,
+  activité non archivée, version courante et participant toujours inscrit.
+  pending/present/absent modifiables personnellement avant échéance, avec version
+  UUID ; aucun manager ne répond pour autrui. Toute modification de l’activité
+  invalide les convocations antérieures, conservées en suivi de gestion.
+  Une configuration différente exige une nouvelle version de l’activité.
+- ProcessCalendarInvitations réutilise TEN-006 : registre fermé, contexte tenant
+  frais, queue default, scheduler chaque minute et verrou distribué du runner.
+  Chaque remise revérifie aussi émetteur, destinataire, MFA, droits, personne,
+  compte lié, activité/version, participation et échéance sous verrous
+  organisation → activité → convocation. Les cas non habilités restent bloqués.
+- Notification interne durable et état dans la même transaction. Clé d’occurrence
+  indépendante du cache de fin de job ; reprise/concurrence sans doublon.
+  Rattrapage du seul seuil le plus urgent, pas de rappel redondant pour les seuils
+  déjà dépassés lors de la première remise ; aucune relance après réponse ou
+  échéance. Sweep borné à 25 convocations par organisation et par passage.
+- Interface : suivi de gestion dans chaque activité, boîte personnelle,
+  confirmation des destinataires, échéance saisie en UTC et affichage dans le
+  fuseau de l’organisation, rappels facultatifs, réponse et historique paginé.
+  Textes échappés, erreurs 409 sans rejeu automatique, état de remise désactivée.
+- Canal interne uniquement. Pas d’e-mail, webhook, Discord, ICS (CAL-005),
+  notification automatique de report/annulation (CAL-006), ni récurrence.
+  Le titre exposé est celui de l’activité actuelle, pas un snapshot historique.
+  Aucun objectif de débit non mesuré : profiler retards de sweep, anciennes
+  versions retenues et contention avant montée en charge.
+
+### Vérifications et exploitation
+
+- Suite complète SQLite : 1842 tests, 1832 réussis, 10 exclusions attendues,
+  8647 assertions. Les exclusions comprennent les trois nouveaux cas de
+  concurrence PostgreSQL, exécutés réellement ci-dessous.
+- Sélection PostgreSQL finale : 158 tests réussis, 953 assertions, aucun ignoré,
+  dans une base temporaire dédiée supprimée après validation. Inclut CAL-004,
+  calendrier, conflits, disponibilités, communication, architecture et round-trips
+  des parents Personnes/Teams/Catalogue.
+- Trois scénarios CAL-004 utilisent chacun deux processus indépendants et une
+  base PostgreSQL éphémère : deux émissions → une seule convocation/émission
+  auditée et un 409 ; deux remises → une seule notification ; deux réponses
+  différentes sur la même version → une seule écriture et un 409.
+  Bases et barrières nettoyées en finally, sans toucher à la base principale.
+- Défauts de validation locale corrigés : nouvelles catégories d’audit ajoutées
+  au catalogue fermé ; ordre de retrait/remontage des tables enfants ajouté aux
+  tests de schéma parents (aucune ancienne migration modifiée).
+- Frontend : 274 tests dans 39 fichiers réussis, dont six nouveaux tests de
+  convocations. Build, lint et vérification TypeScript stricte des nouveaux
+  parcours unitaires/navigateur réussis.
+- Chrome : 29 parcours réussis en CI/UTC, sans retry, API métier simulées ;
+  cas CAL-004 contrôlé à 375 et 320 px, pas de débordement horizontal.
+  Captures reports/cal004-issue-mobile.png et cal004-inbox-mobile.png inspectées.
+- Particularité locale Windows : le lancement groupé des serveurs par Playwright
+  terminait le scénario et le navigateur mais bloquait leur arrêt. Validation
+  complète avec configuration temporaire ignorée sous reports/, mêmes tests,
+  serveurs de test démarrés dans des sessions dédiées puis arrêtés explicitement.
+  Aucun changement au produit ou à la configuration CI pour contourner cela.
+- PHPStan niveau 8 sans erreur, sans suppression ni baseline ; Pint dirty et
+  composer format:check complet réussis. composer validate --strict valide ;
+  22 routes calendrier vérifiées. Tests PostgreSQL CAL-004 inscrits dans la CI.
+- Dernier contrôle principal en lecture seule : CAL-003 Ran batch 33 ;
+  CAL-004 Pending. Aucune migration/seed principale exécutée par l’agent.
+  Aucun compte, personne, activité, rôle, convocation ou rappel réel créé ;
+  aucun message/e-mail réel envoyé. Fichier .env actuel inchangé.
+- Code, migration, tests, CI et les six documents existants regroupés dans un
+  seul commit local de tâche. Aucun push par l’agent. Après push et CI vertes :
+  sauvegarde, php artisan migrate depuis back/, permissions explicites via
+  IAM-003, puis activation CALENDAR_INVITATIONS_ENABLED et supervision du
+  scheduler/worker default. Flag false par défaut ; configuration du registre
+  distincte de la santé réelle des processus. Recetter deux comptes et les
+  révocations avant utilisation réelle. Prochain P0 : CAL-005, non démarré.

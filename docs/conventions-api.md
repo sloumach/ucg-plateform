@@ -2751,3 +2751,77 @@ d’archive CAL-001 restent valables. Relire et confirmer à nouveau sans rejeu.
 Exemple : voir le client SPA et le déroulement aperçu/décision/confirmation dans
 README. Ajouter activity_id/version seulement pour l’aperçu d’une édition ;
 l’URL cible et version identifient ensuite le PATCH.
+
+## Convocations et rappels internes — UCG-CAL-004
+
+Préfixe privé `/api/v1/tenants/{tenant}/calendar`, session SPA/MFA, tenant actif,
+CSRF et autorisations explicites. Confirmation tenant, révision et verrou de
+session pour POST/PATCH. Réponses `Cache-Control: private,no-store`.
+
+| Méthode | Suffixe | Autorisation |
+| --- | --- | --- |
+| GET | /invitations | calendar.read ; boîte personnelle filtrée avant pagination |
+| GET | /activities/{activity}/invitations | read + write + invitations.manage |
+| POST | /activities/{activity}/invitations | read + write + invitations.manage |
+| PATCH | /invitations/{invitation} | read + invitations.respond ; destinataire actuel uniquement |
+| GET | /invitations/{invitation}/deliveries | read ; destinataire actuel ou gestionnaire habilité |
+
+Les permissions courtes du tableau ont le préfixe `calendar.`.
+Les listes/historiques acceptent uniquement page (1–100000) et per_page
+(1–100, défaut 10), avec tri stable. Aucun filtre libre par compte/personne
+ou organisation. Boîte : personne actuelle liée, recipient_id du compte courant,
+convocation remise, activité non archivée et version courante, participant
+encore inscrit. Ces conditions précèdent le comptage et la pagination.
+Le gestionnaire consulte aussi les anciennes versions ; leur état current=false
+ne permet aucune nouvelle réponse.
+
+POST : activity_version UUID, response_deadline ISO `Y-m-dTH:i:sP` (secondes
+et offset numérique requis), reminder_offsets liste présente de 0 à 3 entiers
+stricts distincts entre 1 et 10080, confirm_invitations accepté.
+Échéance future et <= début de l’activité. Cibles = tous les participants
+actuels explicitement inscrits (1 à 50), jamais un roster développé ni des
+adresses libres. Paramètres et identité figés après émission. Une seule émission
+par version d’activité ; une configuration différente exige une nouvelle version.
+Réponse 201 : collection paginée de suivi, avec toast succès standard.
+
+PATCH : version UUID de la convocation et response pending/present/absent.
+Aucune identité/cible ou réponse d’un autre participant acceptée. Contrôle du
+lien actuel, remise effectuée, activité/version/participant et échéance en
+transaction. La même réponse avec version courante est idempotente ; sinon
+nouvelle version et audit minimal atomique. Aucun effet sur la disponibilité RH.
+
+Resource convocation : id, activity_id, activity_version, title (titre actuel
+de l’activité), starts_at UTC, origin_timezone, person_id, person_label nullable,
+response, response_deadline UTC, reminder_offsets, responded_at, sent_at,
+current, expired, blocked_reason nullable, delivery_count, can_respond, version.
+blocked_reason : issuer_unavailable/recipient_unavailable. Pas de compte global,
+tenant, e-mail, description, URL privée, acteur ou donnée RH. Anciennes activités :
+titre actuel et référence de version, pas de copie documentaire historique.
+Les collections de convocations ajoutent
+calendar_invitations.delivery_enabled : tâche configurée, sans promesse de santé
+du worker/scheduler. Ce statut ne change pas les autorisations.
+
+Resource remise : id, kind invitation/reminder, offset_minutes (0 pour la
+convocation), created_at UTC. Historique append-only sans run_id, acteur,
+destinataire global ou corps de message. Ces lignes constituent les notifications
+internes ; aucune copie par e-mail, Discord ou webhook.
+
+La remise et les rappels sont asynchrones via la tâche tenant calendar-invitations,
+désactivée par défaut (activation serveur CALENDAR_INVITATIONS_ENABLED).
+Seules les réponses pending avant échéance sont traitées, en lots de 25.
+Droits émetteur/destinataire, MFA, personne et lien actuels revalidés à chaque
+passage. Une absence de compte ou de droit bloque sans créer d’accès.
+Unicité SQL et transaction commune remise/état empêchent les doubles remises,
+y compris lors d’une nouvelle tentative. Rattrapage du seul seuil le plus urgent ;
+aucun seuil déjà dépassé lors de la première remise n’est rattrapé ensuite.
+
+404 : objet étranger/hors destinataire ou personne non liée en réponse ordinaire.
+403 : droit absent. 422 : payload non fermé, échéance, seuils ou confirmation
+invalides, aucun participant actuel.
+409 : CALENDAR_VERSION_STALE, CALENDAR_ARCHIVED,
+CALENDAR_INVITATIONS_ALREADY_ISSUED, CALENDAR_INVITATION_STALE,
+CALENDAR_INVITATION_OBSOLETE, CALENDAR_INVITATION_EXPIRED.
+Relire puis décider, sans réessai automatique. Toute modification de l’activité
+rend les convocations précédentes obsolètes ; notification automatique de
+report/annulation CAL-006 et ICS CAL-005 restent distincts.
+Exemples SPA et activation opérationnelle : README, section CAL-004.

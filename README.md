@@ -2463,3 +2463,91 @@ le contrôle applicatif des chevauchements ni l’autorisation d’une exception
 Les collisions existantes ne sont pas corrigées automatiquement par migration.
 Aucune convocation, notification, réservation récurrente, stock, transport ou
 hébergement ajouté : CAL-004 à CAL-008 restent des lots distincts.
+
+## Convocations, réponses et rappels — UCG-CAL-004
+
+Depuis le calendrier, le panneau « Convocations de l’activité » permet aux
+gestionnaires habilités de préparer une convocation pour chaque participant
+explicitement inscrit. Le formulaire confirme les destinataires, une échéance
+future (au plus tard au début) et zéro à trois rappels de 1 à 10080 minutes
+avant l’échéance. L’échéance du formulaire est saisie en UTC ; les cartes
+l’affichent dans le fuseau de l’organisation, avec son décalage visible.
+
+Les permissions organisationnelles sont explicites :
+`calendar.read` + `calendar.write` + `calendar.invitations.manage` pour émettre
+et suivre les réponses ; `calendar.read` + `calendar.invitations.respond`
+pour répondre à sa propre convocation. MFA requis ; aucun droit implicite
+de propriétaire ou de compte technique. Une convocation ne crée ni compte,
+ni adhésion, ni permission. Un destinataire sans compte lié ou accès actuel
+reste bloqué et figure dans le suivi du gestionnaire.
+
+« Mes convocations » contient les convocations réellement remises à la personne
+actuellement liée au compte. Présent, absent et en attente restent modifiables
+jusqu’à l’échéance, avec version UUID. Aucune réponse par procuration. Une
+modification de l’activité, même de son titre, invalide ses anciennes convocations :
+les gestionnaires conservent leur historique et doivent préparer explicitement
+celles de la nouvelle version. Échéance et rappels d’une émission sont figés ;
+changer leur configuration exige une nouvelle version de l’activité.
+
+La remise est une notification **interne à l’application**. Son historique
+persistant contient convocation/rappel, date et seuil. La tâche système tenant
+`calendar-invitations` passe par le scheduler TEN-006 et la queue `default`.
+Aucun e-mail, webhook ou message Discord n’est envoyé par ce lot.
+
+Après sauvegarde et application de la migration additive
+`2026_10_17_153712_create_calendar_invitations_and_deliveries`, configurer :
+
+```dotenv
+CALENDAR_INVITATIONS_ENABLED=true
+TENANCY_CACHE_STORE=database
+TENANCY_SCHEDULE_CONNECTION=database
+```
+
+Le flag est **false par défaut** dans l’exemple ; le fichier `.env` actuel
+n’est pas modifié par la livraison. En environnement distribué, utiliser Redis
+ou une base partagée pour le cache/verrou, et une queue durable commune.
+Démarrer/superviser le scheduler (`php artisan schedule:work` en local,
+cron `schedule:run` en production) et le worker `default` ; le script
+`composer queue:work:local` traite déjà cette queue. Recharger la configuration
+et redémarrer les workers après déploiement selon les procédures habituelles.
+Ne pas exécuter `schedule:run` uniquement pour tester : il déclenche les tâches réelles.
+
+L’interface indique quand la tâche n’est pas activée ; ce statut de configuration
+ne prouve pas que le scheduler et le worker fonctionnent. Recetter deux comptes,
+une échéance future, un rappel, une révocation et un changement d’activité avant
+usage réel. Surveiller `failed_jobs` et les logs structurés `tenant.schedule.*`.
+
+Les droits du responsable et du destinataire, le lien au compte, la personne
+non partie, les participants, la version et l’échéance sont relus en transaction.
+Les remises et leurs états sont atomiques, avec unicité durable par occurrence,
+indépendamment du cache de fin de job. Une reprise choisit le seuil atteint
+le plus urgent ; aucun rappel n’est envoyé après réponse ou échéance, et les
+seuils déjà dépassés à la première remise ne déclenchent pas de rappel redondant.
+Le traitement est borné à 25 convocations par organisation et par passage ;
+mesurer les retards et la contention avant augmentation de charge. Aucun
+objectif de cadence à grande échelle n’est revendiqué sans mesure.
+
+Exemple avec le transport SPA existant et les objets réellement chargés :
+
+```ts
+await tenancyRequest('tenants/' + organizationId + '/calendar/activities/' + activity.id + '/invitations', {
+  method: 'POST', revision,
+  body: {
+    activity_version: activity.version,
+    response_deadline: '2026-10-18T07:00:00+00:00',
+    reminder_offsets: [60, 120],
+    confirm_invitations: true,
+  },
+})
+// Après remise et relecture de la convocation courante :
+await tenancyRequest('tenants/' + organizationId + '/calendar/invitations/' + invitation.id, {
+  method: 'PATCH', revision,
+  body: { version: invitation.version, response: 'present' },
+})
+```
+
+Adapter la date d’exemple à une échéance future cohérente. Le client applique
+CSRF et la confirmation tenant avant écriture. Après 409, relire et décider
+explicitement ; aucun rejeu automatique. Les nouvelles tables sont inventoriées
+pour la portabilité et les remises sont immuables. Un rollback refuse de
+supprimer un historique existant : préférer une correction en avant.

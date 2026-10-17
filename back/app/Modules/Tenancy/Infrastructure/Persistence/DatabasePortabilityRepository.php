@@ -18,6 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
+        'calendar_invitations' => 'id', 'calendar_invitation_deliveries' => 'id',
         'calendar_resources' => 'id', 'calendar_reservations' => 'id', 'calendar_conflict_overrides' => 'id',
         'availabilities' => 'id', 'availability_revisions' => 'id',
         'calendar_activities' => 'id',
@@ -59,6 +60,8 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'calendar_invitations' => ['id', 'organization_id', 'activity_id', 'activity_version', 'person_id', 'recipient_id', 'issued_by', 'response_deadline', 'reminder_offsets', 'response', 'responded_at', 'sent_at', 'checked_at', 'blocked_reason', 'version', 'created_at', 'updated_at'],
+        'calendar_invitation_deliveries' => ['id', 'organization_id', 'invitation_id', 'kind', 'offset_minutes', 'run_id', 'created_at'],
         'calendar_resources' => ['id', 'organization_id', 'key', 'label', 'kind', 'status', 'version', 'created_by', 'created_at', 'updated_at'],
         'calendar_reservations' => ['id', 'organization_id', 'activity_id', 'resource_id', 'created_at'],
         'calendar_conflict_overrides' => ['id', 'organization_id', 'activity_id', 'activity_version', 'actor_user_id', 'reason', 'snapshot', 'conflict_count', 'created_at'],

@@ -14,6 +14,7 @@ import { CalendarForm } from './CalendarForm'
 import { CalendarResourcesPanel } from './CalendarResourcesPanel'
 import { bookingText } from '../../api/calendarConflicts'
 import { CalendarConflictHistory } from './CalendarConflictHistory'
+import { CalendarInvitationsPanel } from './CalendarInvitationsPanel'
 type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
 export function CalendarPanel({ active, disabled, onInvalid }: Props) {
   const [open, setOpen] = useState(false), [page, setPage] = useState(1), [refresh, setRefresh] = useState(0)
@@ -34,6 +35,7 @@ export function CalendarPanel({ active, disabled, onInvalid }: Props) {
     <Button disabled={blocked} onClick={() => { setOpen(!open); setEditor(null); setHistory(null) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>
       {mutation.feedback}
+      <CalendarInvitationsPanel {...{ active, root, onInvalid }} disabled={blocked} />
       {canWrite && <CalendarResourcesPanel {...{ active, root, onInvalid }} disabled={blocked} />}
       <form aria-label={text('filter')} className="grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
         event.preventDefault(); const values = new FormData(event.currentTarget)
@@ -69,6 +71,7 @@ export function CalendarPanel({ active, disabled, onInvalid }: Props) {
         {item.participants.length > 0 && <ul className="flex min-w-0 flex-wrap gap-2">{item.participants.map((person) => <li key={person.id} className="rounded-lg bg-slate-800 px-2 py-1 text-sm [overflow-wrap:anywhere]">{person.label ?? text('unavailablePerson')}</li>)}</ul>}
         {(item.resources ?? []).length > 0 && <p className="[overflow-wrap:anywhere]">{bookingText('resources')} : {item.resources!.map((resource) => resource.label ?? bookingText('unknownResource')).join(', ')}</p>}
         {item.archived_at && <p>{text('archived')}</p>}
+        {canWrite && permissions.includes('calendar.invitations.manage') && <CalendarInvitationsPanel key={item.id + item.version} {...{ active, root, onInvalid }} activity={item} disabled={blocked} />}
         {canWrite && permissions.includes('availability.read') && <Button disabled={blocked} onClick={() => setHistory(item.id)}>{bookingText('history')}</Button>}
         {canWrite && !item.archived_at && <div className="flex flex-wrap gap-3"><Button disabled={blocked} onClick={() => setEditor(item)}>{text('edit')}</Button>
           <form onSubmit={(event) => mutation.propose(event, text('archive'), root + '/activities/' + item.id, { version: item.version, archive: true }, true)}><Button type="submit" disabled={blocked}>{text('archive')}</Button></form>
