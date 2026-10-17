@@ -9,9 +9,12 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-CAL-001` — activités ponctuelles du calendrier.
-  Implémentation locale testée ; revue/push utilisateur, CI distantes et migration
-  principale à effectuer. Aucun autre ticket démarré.
+- Dernier ticket traité : `UCG-CAL-002` — disponibilités et absences.
+  Implémentation locale testée ; push utilisateur, CI distantes et migration
+  principale à effectuer. CAL-003 non démarré.
+- Socle CAL-001 (`3051aa8`) poussé ; CI et migration confirmées par l’utilisateur
+  avant CAL-002. Migration vérifiée en lecture seule : Ran, batch 31. Staging
+  propre et synchronisé avec origin/staging au démarrage de CAL-002.
 - Socle COM-001 (`8d48651`) poussé ; CI et migration confirmées par l’utilisateur
   avant CAL-001. Migration vérifiée en lecture seule : Ran, batch 30. Branche
   staging propre et synchronisée avec origin/staging au démarrage de CAL-001.
@@ -103,11 +106,12 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : revue/push du commit CAL-001, CI vertes, sauvegarde puis
-  migration `2026_10_17_094942_create_calendar_activities_and_participants` depuis back/.
-  Attribuer calendar.read/write/publish explicitement au niveau organisation via
-  IAM-003, puis recetter fuseaux, partage, participants et révocation avec deux comptes.
-  Aucune attribution réelle par l’agent ; migration CAL-001 principale non appliquée.
+- Prochaine action : revue/push du commit CAL-002, CI vertes, sauvegarde puis
+  migration `2026_10_17_105547_create_availabilities_and_immutable_revisions` depuis back/.
+  Attribuer availability.self/read/manage explicitement au niveau organisation
+  via IAM-003, puis recetter deux comptes, commentaires privés, historique et
+  révocation. Aucune attribution réelle par l’agent ; migration CAL-002 principale
+  non appliquée. CAL-001 est désormais validé par l’utilisateur.
   Mise en service des rappels CTR-005 à confirmer : configurer le scheduler,
   le cache partagé et le worker default ; activer
   CONTRACT_REMINDERS_ENABLED puis, quand le SMTP est prêt,
@@ -2594,3 +2598,105 @@ ensuite ce fichier pour qu'il reflète la réalité.
   `php artisan migrate` depuis back/. Accorder les permissions calendrier
   via IAM-003 et recetter partage, participants et révocation avec deux comptes.
   Prochain ticket recommandé après validation : CAL-002 ; non démarré.
+
+## Disponibilités et absences — UCG-CAL-002
+
+### Reprise et périmètre livré
+
+- Démarrage sur staging propre, synchronisé avec origin/staging, HEAD 3051aa8.
+  L’utilisateur a validé la CI et la migration CAL-001 ; vérification en lecture
+  seule Ran, batch 31. Aucun migrate principal par l’agent.
+- Nouveau panneau tenant « Disponibilités et absences », chargé à l’ouverture,
+  indépendant des permissions des activités. Statuts available/unavailable/uncertain,
+  commentaire facultatif de 1000 caractères, sans motif médical exigé. Une absence
+  de déclaration ne signifie pas disponibilité.
+- Trois permissions métier organisationnelles explicites, toutes avec MFA :
+  availability.self pour sa personne actuelle liée ; availability.read pour le
+  planning collectif ; read+manage pour gérer les autres personnes. Aucun droit
+  implicite propriétaire/administrateur ; opérateurs techniques refusés.
+- La consultation collective retourne les créneaux et statuts sans commentaires
+  ni historique des autres personnes. Les commentaires sont chiffrés dans l’état
+  courant et les instantanés. La personne avec self et les gestionnaires peuvent
+  les consulter ainsi que l’historique paginé.
+- People expose AvailabilityPeopleDirectory, avec identité actuelle, préférence
+  de fuseau, choix paginés et labels par lot ; repository de références partagé
+  en interne avec CAL-001. Aucun import de modèle intermodule. Les personnes
+  parties ne sont plus assignables ; aucun compte ou droit créé par ce choix.
+- Sans personne liée actuelle : consultation personnelle vide, saisie personnelle
+  expliquée et bloquée. L’accès personnel suit la liaison actuelle du compte,
+  pas le créateur du créneau. Les gestionnaires peuvent gérer une personne sans
+  compte ; après départ, ils peuvent consulter l’historique ou annuler un ancien
+  créneau, sans en réécrire les valeurs.
+
+### Dates, conservation et sécurité
+
+- UTC et fuseau IANA d’origine réutilisent CalendarTime ; horaires d’origine et
+  de consultation visibles. Fuseau de la personne puis du tenant, surcharge
+  possible pour la vue. Heures inexistantes et offsets incohérents refusés ;
+  choix explicite pour l’heure répétée. CalendarTimeChoice extrait pour les deux
+  formulaires sans changement de comportement CAL-001.
+- Durée positive jusqu’à 31 jours réels, fenêtre 1–93 dates locales avec fin
+  exclue, chevauchement [début,fin[, 100 éléments/page. Filtres personne en mode
+  collectif seulement, statut et annulé. Périmètre appliqué avant les compteurs
+  et la pagination ; tri starts_at/id.
+- Les créneaux actifs de la même personne ne peuvent pas se chevaucher, même
+  s’ils portent le même statut ; adjacence et autres personnes autorisées.
+  Verrou organisation puis créneau, identité/droits recontrôlés, version UUID.
+  La création sans ligne préexistante est sérialisée par ce verrou organisation.
+  Ce protocole concerne les écritures applicatives ; un accès SQL externe doit
+  aussi le respecter.
+- Identité personne fixe. Modifier un horaire exige début/fin/fuseau ensemble ;
+  l’UI omet les champs inchangés. Une annulation terminale conserve les données
+  et libère la période ; aucun DELETE ni réactivation. Un 409 ne rejoue rien.
+- Deux tables tenant availabilities/availability_revisions, instantanés numérotés
+  append-only copiés avec le texte chiffré conservé. FKs composites et garde de
+  période/identité/version/rétention SQLite/PostgreSQL ; rollback refusé si données.
+  État courant, instantané et audit minimal disponibilité/action atomiques.
+- Contrôleur mince, Service/Repository, Form Request fermé, Policy sur chaque
+  action, Resources explicites, CSRF/session/MFA/tenant, confirmation et blocage
+  de session. Aucun champ médical ou serveur accepté, clés avec point refusées.
+  L’export opérateur conserve seulement les lignes du tenant et leur texte chiffré.
+- Pas de cache durable des droits. Labels groupés, pagination des listes,
+  références et historiques. Deux index de fenêtre personnelle/collective.
+  Profiler requêtes, pages profondes et contention avant d’affiner les index
+  ou de changer la granularité des verrous.
+
+### Vérifications et livraison
+
+- 55 nouveaux tests backend : contrôleur 15, Policy 9, schéma 10,
+  validation 21. Suite ciblée finale : 55 réussis, 281 assertions.
+  Couverture : scope personnel/collectif, commentaires masqués, absence de compte
+  lié, personnes étrangères/parties, révocation, historique, annulation, versions,
+  chevauchement/adjacence, UTC/DST, rollback d’audit, portabilité et requêtes par lot.
+- Suite backend SQLite complète : 1773 tests, 1769 réussis, 4 ignorés attendus,
+  8264 assertions. Base en mémoire ; faux ClamAV des tests existants uniquement.
+- PostgreSQL ciblé : 192 tests réussis, 854 assertions, aucun ignoré ; quatre
+  nouveaux fichiers, CAL-001, round-trips Person/Team/Catalogue/Organization,
+  COM et architecture/isolation. Nouvelle base temporaire dédiée, supprimée
+  en finally. Ceci ne remplace pas la CI PostgreSQL complète.
+- Frontend : 262 tests dans 38 fichiers, dont 9 nouveaux tests du panneau.
+  Lint, build et vérification TypeScript stricte du nouveau parcours E2E réussis.
+  27 parcours Chrome réussis en mode CI/UTC, sans reprise de serveurs existants
+  et sans retry. API métier simulées ; contrôle visuel du screenshot mobile
+  reports/cal002-mobile.png, textes échappés et absence de débordement.
+- Incident local de vérification : identifiants d’historique dupliqués dans le
+  fixture navigateur corrigés. Le bac à sable Windows empêchait le nettoyage des
+  serveurs Playwright ; seuls les processus de test identifiés ont été arrêtés,
+  puis la suite a été exécutée avec l’autorisation nécessaire. Aucun changement
+  de configuration applicative pour contourner ce problème.
+- PHPStan niveau 8 sans erreur ni suppression/baseline ; Pint dirty et contrôle
+  complet, composer validate --strict. CI PostgreSQL enrichie des quatre fichiers
+  Availability ; découverte automatique des tests frontend/E2E.
+- Six documents existants mis à jour avec code, tests et CI dans le même commit
+  local. Aucun push, migration/seed principal, rôle, personne, créneau métier,
+  e-mail/message ou notification réelle créé par l’agent. Aucune dépendance ajoutée.
+- Migration principale CAL-002 vérifiée **Pending** en lecture seule après les
+  tests ; CAL-001 demeure Ran, batch 31.
+- Prochaine action utilisateur : push, CI vertes, sauvegarde puis
+  php artisan migrate depuis back/. Accorder les permissions via IAM-003 et
+  recetter deux comptes avant utilisation réelle. Prochain P0 recommandé après
+  validation : CAL-003, conflits personnes/équipes/ressources, non démarré.
+- Les créneaux ne synchronisent pas les états/périodes HUM-003, ne convoquent
+  personne et ne déclenchent aucun rappel. Conflits d’activités CAL-003,
+  convocations/rappels CAL-004, ICS CAL-005, reports CAL-006, récurrences P1
+  CAL-007 restent des lots distincts.

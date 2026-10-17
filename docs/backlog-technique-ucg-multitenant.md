@@ -648,7 +648,7 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 
 ### UCG-CAL-001 — Modéliser les activités du calendrier
 
-- **État** : implémenté et testé localement ; revue/push utilisateur, CI distantes et migration principale restent à valider.
+- **État** : CAL-001 `3051aa8` poussé ; CI et migration validées par l’utilisateur avant CAL-002. Migration vérifiée Ran, batch 31.
 - **Livré** : agenda privé paginé, huit types d’activité, UTC + fuseau IANA d’origine, affichage selon la personne liée puis le tenant, choix d’un autre fuseau pour la vue, résolution explicite des heures répétées et refus des heures inexistantes. Participants issus des personnes non parties du tenant (50 maximum), équipe active facultative, lieu/lien HTTPS, privé par défaut et partage interne confirmé. Trois permissions calendar.read/write/publish explicites, MFA, versions UUID, transactions/verrous, audit minimal, archivage définitif et export opérateur.
 - **Isolation** : deux tables tenant, FKs composites activité/personne/équipe, périodes et partage contrôlés en SQLite/PostgreSQL ; audiences réévaluées avant comptage/pagination. Choix/labels groupés par contrats publics People/Teams. Les règles d’effectif Teams partagées avec COM-001 conservent son comportement.
 - **Bornes** : durée 31 jours, consultation 1–93 dates locales avec fin exclue, 100 activités/page. Pas de cache durable des droits ; scrims privés par défaut.
@@ -660,6 +660,12 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Références CDC** : CAL-01, CAL-02.
 
 ### UCG-CAL-002 — Gérer disponibilités et absences
+
+- **État** : implémenté et testé localement ; push, CI distantes et migration principale à valider par l’utilisateur.
+- **Livré** : panneau privé paginé, créneaux available/unavailable/uncertain, commentaire facultatif chiffré (1000), sans motif médical. Saisie personnelle par personne actuelle liée, planning collectif distinct, gestion des personnes habilitée et historique immuable numéroté. Trois permissions availability.self/read/manage, MFA et refus des opérateurs techniques ; le lecteur collectif ne voit pas les commentaires/historiques des autres.
+- **Fiabilité** : UTC/fuseau IANA et choix DST réutilisés de CAL-001 ; durée 31 jours, fenêtre 1–93 dates locales, 100 résultats/page. Refus des chevauchements actifs d’une même personne, adjacence permise. Verrou organisation, relecture des droits, versions UUID, instantané et audit atomiques, FKs tenant et gardes SQL SQLite/PostgreSQL, portabilité, rollback protecteur.
+- **Conservation** : annulation terminale, aucun DELETE ; les anciennes valeurs restent consultables par la personne autorisée ou les gestionnaires. Après départ, plus d’accès personnel ni de réécriture ; annulation et historique restent permis au gestionnaire.
+- **Limites** : absence de déclaration ≠ disponible ; aucune synchronisation implicite des états/périodes RH. Pas de conflit d’activité/équipe/ressource, convocation, notification ou récurrence. Prochain P0 après validation : CAL-003, non démarré.
 
 - **Priorité / taille** : P0 / M
 - **Périmètre** : créneaux disponibles, indisponibles ou incertains, commentaire facultatif sans motif médical exigé.

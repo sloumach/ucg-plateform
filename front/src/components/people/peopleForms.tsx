@@ -2,15 +2,15 @@ import { useId, type ReactNode } from 'react'
 import { FormField } from '../FormField'
 import { label, personStatuses } from './peopleFormValues'
 
-export function SelectField({ name, title, children, error, disabled, value, onChange, defaultValue }: {
+export function SelectField({ name, title, children, error, disabled, value, onChange, defaultValue, required }: {
   name: string; title: string; children: ReactNode; error?: string; disabled?: boolean
-  value?: string; defaultValue?: string; onChange?: (value: string) => void
+  value?: string; defaultValue?: string; onChange?: (value: string) => void; required?: boolean
 }) {
   const id = useId()
   return <div className="grid min-w-0 grid-cols-1 gap-2">
     <label className="[overflow-wrap:anywhere]" htmlFor={id}>{title}</label>
     <select id={id} name={name} value={value} defaultValue={defaultValue} onChange={onChange ? (event) => onChange(event.target.value) : undefined}
-      disabled={disabled} aria-invalid={error ? true : undefined} aria-describedby={error ? id + '-error' : undefined}
+      disabled={disabled} required={required} aria-invalid={error ? true : undefined} aria-describedby={error ? id + '-error' : undefined}
       className="min-w-0 w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-3 text-slate-100">
       {children}
     </select>

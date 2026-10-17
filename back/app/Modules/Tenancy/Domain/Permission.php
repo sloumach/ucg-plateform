@@ -37,6 +37,9 @@ enum Permission: string
     case CalendarRead = 'calendar.read';
     case CalendarWrite = 'calendar.write';
     case CalendarPublish = 'calendar.publish';
+    case AvailabilitySelf = 'availability.self';
+    case AvailabilityRead = 'availability.read';
+    case AvailabilityManage = 'availability.manage';
 
     public function privileged(): bool
     {

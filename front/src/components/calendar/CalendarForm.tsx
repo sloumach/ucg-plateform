@@ -7,6 +7,7 @@ import { Button } from '../Button'
 import { FormField } from '../FormField'
 import { SelectField } from '../people/peopleForms'
 import { CalendarParticipantPicker, CalendarTeamSelect } from './CalendarReferences'
+import { CalendarTimeChoice } from './CalendarTimeChoice'
 type Props = { active: ActiveOrganization; root: string; item: CalendarActivity | null; disabled: boolean; onInvalid: () => void; errors: Record<string, string[]>;
   onSubmit: (event: FormEvent<HTMLFormElement>, values: Record<string, unknown>) => void; onCancel: () => void; defaultTimezone: string }
 export function CalendarForm({ active, root, item, disabled, onInvalid, errors, onSubmit, onCancel, defaultTimezone }: Props) {
@@ -47,9 +48,9 @@ export function CalendarForm({ active, root, item, disabled, onInvalid, errors, 
     </div>
     <FormField name="origin_timezone" label={text('originTimezone')} value={timezone} disabled={disabled} required error={errors.origin_timezone?.[0]} onChange={(event) => { setTimezone(event.target.value); setStartChoice(''); setEndChoice('') }} />
     <FormField name="starts_at" label={text('startsLocal')} value={start} onChange={(event) => { setStart(event.target.value); setStartChoice('') }} type="datetime-local" step="1" required disabled={disabled} error={errors.starts_at?.[0]} />
-    {start && <TimeChoice options={startOptions} value={startInstant} onChange={setStartChoice} disabled={disabled} label={text('startOccurrence')} />}
+    {start && <CalendarTimeChoice options={startOptions} value={startInstant} onChange={setStartChoice} disabled={disabled} label={text('startOccurrence')} />}
     <FormField name="ends_at" label={text('endsLocal')} value={end} onChange={(event) => { setEnd(event.target.value); setEndChoice('') }} type="datetime-local" step="1" required disabled={disabled} error={errors.ends_at?.[0]} />
-    {end && <TimeChoice options={endOptions} value={endInstant} onChange={setEndChoice} disabled={disabled} label={text('endOccurrence')} />}
+    {end && <CalendarTimeChoice options={endOptions} value={endInstant} onChange={setEndChoice} disabled={disabled} label={text('endOccurrence')} />}
     <p className="text-sm text-slate-400">{text('timeHint')}</p>
     <CalendarTeamSelect {...{ active, root, disabled, onInvalid }} value={team} onChange={setTeam} currentLabel={item?.team_label ?? null} error={errors.team_id?.[0]} />
     <CalendarParticipantPicker {...{ active, root, disabled, onInvalid }} selected={participants} onChange={setParticipants} error={errors.participant_ids?.[0] ?? Object.entries(errors).find(([key]) => key.startsWith('participant_ids.'))?.[1][0]} />
@@ -62,13 +63,4 @@ export function CalendarForm({ active, root, item, disabled, onInvalid, errors, 
     {visibility !== 'private' && <FormField name="confirm_sharing" label={text('confirmSharing')} type="checkbox" disabled={disabled || !canPublish} error={errors.confirm_sharing?.[0]} />}
     <div className="flex flex-wrap gap-3"><Button type="submit" disabled={blocked}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{t('tenant.cancel')}</Button></div>
   </form>
-}
-function TimeChoice({ options, value, onChange, disabled, label }: { options: string[]; value: string; onChange: (value: string) => void; disabled: boolean; label: string }) {
-  if (!options.length) return <p role="alert" className="text-sm text-rose-200">{text('invalidLocal')}</p>
-  if (options.length === 1) return <p className="text-sm text-slate-400">{text('offset')} : UTC{options[0].slice(-6)}</p>
-  return <div className="grid min-w-0 gap-2"><p className="text-sm text-amber-200">{text('ambiguousLocal')}</p>
-    <SelectField name={label} title={label} value={value} onChange={onChange} disabled={disabled}><option value="">{text('chooseOccurrence')}</option>
-      {options.map((option, index) => <option key={option} value={option}>{text(index === 0 ? 'firstOccurrence' : 'secondOccurrence')} · UTC{option.slice(-6)}</option>)}
-    </SelectField>
-  </div>
 }

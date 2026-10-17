@@ -1686,3 +1686,57 @@ paginé montre fuseau de consultation et fuseau d’origine. Les écritures en e
 409 ne sont pas rejouées. Pas de convocation ou notification de report, ni lien
 polymorphe vers un objet encore absent. Les futurs raccordements COM/MEDIA
 nécessiteront un contrat public et une décision explicite sur les dépendances.
+
+## Disponibilités personnelles et collectives — UCG-CAL-002
+
+Scheduling ajoute AvailabilityRequest/Policy, AvailabilityService,
+AvailabilityRepository et son adaptateur Eloquent, AvailabilityPage et deux
+Resources explicites. Six routes privées sous calendar ; mêmes middlewares
+session/MFA/audit/tenant, confirmation et blocage de session pour les mutations.
+Le graphe modulaire reste inchangé.
+
+Le contrat public People AvailabilityPeopleDirectory fournit l’identité actuelle
+liée au compte, sa préférence de fuseau, les choix paginés et les labels groupés.
+Son service réutilise le repository interne de références déjà employé par
+CalendarPeopleService ; aucune lecture de modèle People depuis Scheduling.
+Les personnes former ou ayant une trace de départ sont exclues des choix et
+des écritures ordinaires. Un gestionnaire peut annuler un ancien créneau après
+départ et lire son historique ; son label courant est alors nullable.
+
+Trois droits métier organisationnels distincts : availability.self pour l’identité
+personnelle actuelle ; availability.read pour les états collectifs ; read+manage
+pour les autres personnes, commentaires et historiques. Tous exigent MFA et
+excluent les opérateurs techniques. La lecture collective ne donne ni édition
+ni lecture des commentaires/historiques. Les autorisations et l’identité sont
+réévaluées, sans cache durable ; filtre personnel avant comptage et pagination.
+
+CalendarTime et la résolution frontend existante sont réutilisés. Les deux
+formulaires partagent CalendarTimeChoice ; l’extraction préserve le comportement
+CAL-001. Instants UTC, fuseau d’origine et casts immuables. Commentaires chiffrés,
+sorties texte échappées, aucun champ médical. Les créneaux sont des déclarations
+ponctuelles, pas une synchronisation des états/périodes RH.
+
+Écriture : verrou organisation via TenantBusinessGuard, relecture des droits et
+de l’identité actuelle, verrou du créneau si existant, contrôle UUID/version,
+validation de la personne, recherche des chevauchements actifs [début,fin[,
+puis état courant + instantané numéroté + audit atomiques. Le verrou organisation
+sérialise les créations concurrentes qui passent par le service, y compris quand
+aucun créneau n’existe encore. Une écriture SQL externe doit respecter ce
+protocole ; les triggers protègent identité, période/version et rétention, sans
+se substituer à l’autorisation et au protocole applicatif de chevauchement.
+
+availabilities porte l’état actuel ; availability_revisions est append-only,
+avec copie du texte chiffré conservé, acteur et instant. Annulation terminale,
+aucune suppression métier, aucune notification. FKs composites tenant/personne
+et tenant/parent/personne, numéro unique par créneau, deux index de fenêtre
+personnelle/collective. Down refuse les données ; portabilité et round-trips
+Person/Organization adaptés. Les requêtes et références sont paginées, les
+labels chargés par lot ; le nombre de requêtes reste constant avec la taille
+de la page. Profiler avant toute optimisation des index ou des verrous.
+
+Le panneau React est chargé à la demande et remonté sur changement
+tenant/révision/permissions. Lectures annulables, confirmation humaine, erreurs
+localisées/toasts, aucun rejeu sur 409. L’historique est lui-même paginé. Les
+capacités renvoyées par le serveur guident les commandes de chaque ligne, sans
+remplacer les contrôles serveur. CAL-003 traitera les conflits avec les activités
+et ressources ; aucun raccordement implicite COM/MEDIA ou rappel ajouté ici.

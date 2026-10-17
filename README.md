@@ -2279,9 +2279,85 @@ UUID issus des lectures autorisées. Les droits read restent nécessaires aux
 participants ; un lien de réunion peut contenir un jeton, donc choisir sa
 confidentialité avant tout partage.
 
-CAL-002 à CAL-006 couvriront disponibilités, conflits, convocations, ICS,
+CAL-002 livre les disponibilités dans un panneau dédié. CAL-003 à CAL-006 couvriront conflits, convocations, ICS,
 reports/annulations et leurs notifications/historiques. Récurrences : CAL-007 P1.
 Cette activité de planning ne crée pas une fiche Match/Académie/accord sponsor.
 Les UUID de ces futurs dossiers sont refusés ; aucun score ni notification n’est
 inventé. Les rattachements COM-001 et MEDIA-001 restent un travail distinct via
 des contrats publics ; aucune dépendance circulaire ajoutée.
+
+## Disponibilités et absences — UCG-CAL-002
+
+CAL-001 (`3051aa8`) est poussé ; CI et migration validées par l’utilisateur.
+Migration précédente vérifiée Ran, batch 31. CAL-002 ajoute le panneau
+« Disponibilités et absences » dans l’espace tenant, chargé à l’ouverture.
+
+Après push et CI vertes, sauvegarder puis lancer `php artisan migrate` depuis
+`back/`. La migration additive
+`2026_10_17_105547_create_availabilities_and_immutable_revisions` crée deux tables
+vides ; aucun rôle, compte ou créneau n’est créé. Son rollback refuse les données.
+
+Permissions à attribuer explicitement au niveau organisation via IAM-003 :
+
+- `availability.self` : lire/modifier ses propres créneaux et leur historique,
+  pour la personne actuelle liée au compte dans cette organisation.
+- `availability.read` : consulter le planning collectif et les références
+  id/pseudonyme, sans les commentaires ni l’historique des autres personnes.
+- `availability.read` + `availability.manage` : gérer les créneaux des personnes
+  actuelles du tenant, même sans compte, et consulter leurs commentaires/historique.
+
+MFA requis pour les trois permissions ; aucun droit implicite propriétaire,
+administrateur ou opérateur plateforme. Les permissions calendar ne donnent pas
+de droit sur les disponibilités. Un compte sans personne actuelle liée ne peut
+pas faire de déclaration personnelle ; l’interface l’explique. Une liaison
+réattribuée change l’accès personnel selon l’identité actuelle, pas selon le
+créateur du créneau. Les gestionnaires conservent les historiques des personnes
+parties et peuvent annuler leurs créneaux, sans en réécrire les valeurs.
+
+Statuts disponibles, indisponibles ou incertains. Commentaire facultatif (1000),
+sans motif médical demandé, chiffré dans le créneau et ses versions, visible
+uniquement par la personne habilitée ou les gestionnaires. Une absence de
+déclaration n’est jamais interprétée comme une disponibilité.
+
+Même contrat horaire que CAL-001 : instants UTC, fuseau IANA d’origine conservé,
+offset vérifié, heures inexistantes refusées et choix explicite des heures
+répétées. Durée positive jusqu’à 31 jours réels ; consultation de 1–93 dates
+locales, fin exclue, 100 résultats/page. Vue personnelle par défaut ; lecture
+collective explicite avec filtres personne/statut/annulé. Fuseau préféré de la
+personne, sinon tenant ; autre fuseau possible pour la vue.
+
+Un chevauchement de créneaux actifs de la même personne est refusé, quel que
+soit le statut ; les créneaux adjacents sont autorisés. Modifier ou annuler le
+créneau précédent pour corriger la déclaration. Version UUID requise au PATCH,
+identité de la personne fixe. L’annulation est définitive, conserve l’historique
+et libère la période ; aucun DELETE. Tout 409 impose une relecture sans rejeu.
+
+Chaque création/modification/annulation produit un instantané immuable numéroté,
+dans la même transaction que l’état courant et l’audit minimal. FKs composites
+tenant/personne/parent, gardes SQL SQLite/PostgreSQL et inventaire de portabilité
+avec contenu chiffré. Requêtes bornées, labels par lot, aucun cache durable des
+droits. À grande échelle, mesurer les plans des chevauchements, les pages
+profondes et la contention du verrou organisation avant d’affiner les index ou
+de passer à une pagination par curseur.
+
+Exemple SPA, après sélection et confirmation du tenant :
+
+```ts
+await tenancyRequest('tenants/' + organizationId + '/calendar/availabilities', {
+  method: 'POST', revision,
+  body: {
+    status: 'unavailable',
+    starts_at: '2026-10-25T02:30:00+01:00',
+    ends_at: '2026-10-25T03:30:00+01:00',
+    origin_timezone: 'Europe/Paris',
+  },
+})
+```
+
+Le serveur déduit la personne du compte ; les gestionnaires peuvent transmettre
+person_id issu du référentiel autorisé. Les types Availability/AvailabilityPage
+sont dans api/availability. Voir les conventions API pour les six routes.
+
+Les créneaux ne changent pas le statut RH ni les périodes HUM-003 et ne créent
+ni convocation, notification ni récurrence. Les conflits avec activités, équipes
+et ressources restent CAL-003, non démarré ; CAL-004 à CAL-007 restent distincts.

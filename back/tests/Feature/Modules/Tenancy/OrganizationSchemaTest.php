@@ -120,6 +120,8 @@ class OrganizationSchemaTest extends TestCase
         $media = require database_path('migrations/2026_10_16_192806_create_media_items_table.php');
         $communication = require database_path('migrations/2026_10_16_210818_create_communication_tables.php');
         $calendar = require database_path('migrations/2026_10_17_094942_create_calendar_activities_and_participants.php');
+        $availability = require database_path('migrations/2026_10_17_105547_create_availabilities_and_immutable_revisions.php');
+        $availability->down();
         $calendar->down();
         $communication->down();
         $media->down();
@@ -182,6 +184,7 @@ class OrganizationSchemaTest extends TestCase
         $media->up();
         $communication->up();
         $calendar->up();
+        $availability->up();
         $this->assertTrue(Schema::hasTable('organizations'));
         $this->assertTrue(Schema::hasTable('organization_settings'));
         $this->assertTrue(Schema::hasTable('organization_lifecycle_events'));

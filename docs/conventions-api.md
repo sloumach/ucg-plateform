@@ -2586,3 +2586,90 @@ await tenancyRequest<CalendarPage>(
 
 Le type CalendarPage vient de api/calendar. Réutiliser le transport SPA pour
 CSRF, authentification, confirmation et révision ; ne pas fabriquer les UUID.
+
+## Disponibilités et absences — UCG-CAL-002
+
+Préfixe authentifié `/api/v1/tenants/{tenant}/calendar`, UUID tenant et objets,
+session SPA/MFA, contrôle tenant, confirmation et X-Tenant-Revision en écriture.
+Toutes les réponses sont private,no-store.
+
+| Méthode | Suffixe | Usage |
+| --- | --- | --- |
+| GET | /availabilities | Vue personnelle ou collective, paginée |
+| POST | /availabilities | Déclarer un créneau |
+| GET | /availabilities/{id} | État courant accessible |
+| PATCH | /availabilities/{id} | Modifier ou annuler avec version |
+| GET | /availabilities/{id}/history | Instantanés paginés, auteur concerné ou gestionnaire |
+| GET | /availability-people | Personnes actuelles id/label, read requis |
+
+Droits organisationnels explicites : availability.self permet sa propre personne
+actuelle liée ; availability.read permet le collectif ; read+manage permettent
+la gestion des autres personnes. Ni calendar.read/write, ni le rôle propriétaire
+ou technique ne remplacent ces droits. MFA requis. L’historique et le commentaire
+exigent self pour sa personne ou read+manage pour les autres. Un lecteur collectif
+sans ces droits reçoit les autres champs, sans clé comment et sans historique.
+
+GET liste : from_date/to_date obligatoires Y-m-d, fin exclue, 1–93 dates locales.
+timezone IANA facultatif, défaut personne liée puis tenant. collective booléen,
+défaut false (self requis) ; true exige read. person_id UUID uniquement en mode
+collectif. status available/unavailable/uncertain facultatif ; cancelled booléen,
+défaut false, true sélectionne les annulés. page 1–100000, per_page 1–100,
+défaut 10. Tri starts_at/id, chevauchement starts_at < fin ET ends_at > début.
+Le scope personnel est appliqué avant comptage/pagination ; sans personne liée,
+la liste personnelle est vide. Aucun créneau ne signifie pas « disponible ».
+
+POST : status, starts_at, ends_at, origin_timezone obligatoires. Instants ISO
+Y-m-dTH:i:sP, secondes et offset numérique exigés ; heure/offset cohérents avec
+le fuseau d’origine, stockage UTC. Heure inexistante refusée ; heure répétée
+acceptée avec un offset valide explicite. Fin strictement supérieure au début,
+31 jours réels maximum. comment nullable facultatif, 1000 caractères, pas de
+motif médical requis. person_id UUID facultatif à la création, déduit de la
+personne actuelle liée sinon ; choisir un autre id exige read+manage. Références
+actuelles du même tenant seulement ; aucun nouvel accès/compte créé.
+
+PATCH : version UUID courant obligatoire ; status/comment modifiables, absence
+de champ = conservation, comment:null = effacement. Tout changement horaire
+exige ensemble starts_at,ends_at,origin_timezone. person_id reste immuable.
+Annulation : seulement version + cancel accepté ; terminale et sans DELETE.
+Un chevauchement avec un autre créneau actif de la même personne est refusé,
+quel que soit le statut ; l’adjacence et les autres personnes restent permises.
+
+Resource Availability : id,person_id,person_label nullable,status,
+comment seulement si autorisé, starts_at/ends_at UTC, origin_timezone,
+starts_at_origin/ends_at_origin, cancelled_at, version, number,
+can_edit,can_cancel,can_history. Aucun identifiant de compte/organisation,
+donnée RH ou acteur global. Enveloppe AvailabilityPage avec availability :
+viewer_person_id nullable, viewer_timezone, display_timezone, from_utc,to_utc,
+can_self,can_manage. Une personne partie conserve ses anciennes références
+avec label nullable ; aucun accès personnel après départ.
+
+Historique : page/per_page seulement, défaut 20, maximum 100 ; tri number
+décroissant. Chaque élément : id,number,action created/updated/cancelled,status,
+comment,starts_at,ends_at,origin_timezone,cancelled_at,version,created_at.
+Les états précédents restent immuables. Pas d’acteur global dans la réponse.
+Détail : aucun filtre. Références : page/per_page seulement.
+
+404 pour objet hors tenant/hors scope personnel, personne étrangère/partie en
+écriture ordinaire ; 403 pour droit manquant ; 422 pour payload fermé, dates,
+offsets, période, commentaire ou absence de personne liée. Les clés serveur,
+les clés littérales avec point et tout champ médical inconnu sont refusés.
+409 AVAILABILITY_VERSION_STALE, AVAILABILITY_CANCELLED ou AVAILABILITY_OVERLAP :
+relire puis décider explicitement, sans rejeu automatique.
+
+Exemple de lecture personnelle avec le client SPA existant :
+
+```ts
+await tenancyRequest<AvailabilityPage>(
+  'tenants/' + organizationId + '/calendar/availabilities?' +
+  new URLSearchParams({
+    from_date: '2026-10-25', to_date: '2026-10-26',
+    timezone: 'Europe/Paris', per_page: '10',
+  }),
+  { revision },
+)
+```
+
+AvailabilityPage vient de api/availability. Utiliser le transport existant pour
+CSRF/session/révision. Une annulation après départ reste permise au gestionnaire ;
+la réécriture du créneau d’une personne partie est refusée. Aucun changement RH,
+envoi de message, convocation, conflit d’activité ou récurrence dans ce ticket.

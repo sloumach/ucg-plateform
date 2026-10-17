@@ -283,6 +283,17 @@ planning, sans création automatique du dossier métier correspondant.
 - CAL-09 : en P1, suivre salles, matériel, hébergement, transport et tâches de déplacement.
 - CAL-10 : rattacher activités, disponibilités, ressources, convocations et flux ICS au tenant propriétaire ; un jeton ICS ne donne aucun accès à une autre organisation.
 
+Livraison CAL-002 : créneaux ponctuels disponibles, indisponibles ou incertains,
+avec commentaire facultatif chiffré, sans motif médical exigé. Saisie personnelle
+limitée à la personne actuelle liée au compte ; consultation collective et
+gestion des autres personnes avec droits explicites distincts et MFA. La simple
+lecture collective exclut commentaires et historique. Historique immuable,
+annulation terminale sans suppression, contrôle des versions et chevauchements
+d’une même personne. Fuseaux et changements d’heure réutilisés de CAL-001.
+Une absence de déclaration ne signifie pas disponibilité ; les états/périodes RH restent
+distincts. Conflits d’activités, convocations, ICS, notifications et récurrences
+restent des lots séparés, sans réduction des exigences ci-dessus.
+
 Règle de date : les instants sont stockés en UTC. Les événements récurrents conservent aussi le fuseau IANA et l’heure locale de référence pour traiter correctement les changements d’heure. Un flux ICS est une première étape ; une synchronisation bidirectionnelle Google ou Microsoft est un lot distinct avec règles de conflit.
 
 ## 9 Scrims matchs parties et scores
