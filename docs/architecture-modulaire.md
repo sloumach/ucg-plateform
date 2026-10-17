@@ -1628,3 +1628,61 @@ le hook de mutation existant, erreurs 409 sans rejeu, texte échappé, paginatio
 des annonces/références/réponses/notifications et préférences propres au tenant.
 Les liens vers tâches, matchs, séances et événements restent un reliquat explicite
 de COM-001 : aucun modèle ou identifiant libre simulé dans ces frontières vides.
+
+## Activités du calendrier — UCG-CAL-001
+
+Scheduling possède calendar_activities et calendar_participants. Provider dédié
+enregistré, six routes privées API v1, CalendarRequest fermée, CalendarPolicy,
+CalendarService, CalendarRepository/EloquentCalendarRepository et Resources à
+liste explicite. CalendarAudience est une valeur éphémère (acteur, personne
+courante, équipes effectives). CalendarPage transporte pagination et métadonnées
+de fuseau/période, sans modèle d’un autre module.
+
+CalendarPeopleDirectory expose depuis People uniquement références id/pseudonyme,
+validation groupée des participants sous transaction, labels groupés et fuseau
+de la personne actuellement liée au compte. Personnes parties exclues, y compris
+en présence d’une trace de départ. CalendarTeamsDirectory vérifie les équipes
+actives, fournit choix/labels paginés et effectifs actuels. Le repository interne
+CommunicationTeamsRepository devient TeamAudienceRepository, partagé avec COM-001 ;
+ses règles effectif/jeu restent identiques. Contrats publics communication inchangés.
+
+Le graphe Scheduling → Tenancy/People/Teams reste inchangé. Les modes privé,
+équipe et organisation désignent une audience interne, jamais une route anonyme.
+Privé : créateur ou personne explicitement inscrite ; équipe : aussi effectif
+effectif actuel ; organisation : lecteurs habilités. Toute voie exige read,
+adhésion active et MFA. Mode gestion explicite read + write : lecture de tout
+le calendrier tenant. Les opérateurs techniques n’obtiennent pas cet accès,
+même avec des attributions métier. Partage exige publish et confirmation ;
+les écritures privées, retrait de partage et archivage exigent write.
+
+CalendarTime vérifie les instants ISO avec offset par aller-retour dans le fuseau
+IANA d’origine : une heure inexistante ou un décalage incohérent échoue ; deux
+offsets valides d’une heure répétée désignent deux instants distincts. UTC stocké,
+casts immuables. Les fenêtres sont des dates locales [début, fin[, 1–93 jours,
+converties en minuits locaux puis UTC, donc 23/25 heures selon le changement
+d’heure. Le frontend résout les heures via Intl, vérifie les candidats par
+aller-retour, affiche les décalages et exige un choix pour une heure répétée.
+Aucune dépendance de date ajoutée ; le serveur reste autoritaire.
+
+Mutations : verrou organisation puis activité, droits revérifiés, version UUID,
+participants validés par lot, enregistrement et audit atomiques. Titres,
+descriptions, lieux et URL chiffrés ; audit seulement calendar_activity_id/action.
+Conservation par archive définitive, sans DELETE métier. Les triggers protègent
+identité, période et consentement de partage ; participants archivés immuables.
+FKs composites tenant/équipe/activité/personne, unicité participant par activité.
+Deux tables et leurs colonnes physiques inscrites dans la portabilité. Down
+refusé en présence de données. Round-trips Person/Team/Catalogue/Organization adaptés.
+
+La requête applique audience, période de chevauchement, filtres et archive avant
+comptage/pagination. Relation participants eager-loaded et labels groupés, bornes
+50 participants/activité et 100 activités/page. Pas de cache durable de droits.
+Les index couvrent organisation, période et équipe ; les optimisations futures
+doivent être guidées par les plans et volumes représentatifs.
+
+Panneau React chargé à la demande avec clé tenant/révision/permissions,
+lectures abortables, confirmations et révisions via le hook existant. Rendu
+texte et liens HTTPS protégés, sans accès réseau de vérification. L’agenda
+paginé montre fuseau de consultation et fuseau d’origine. Les écritures en erreur
+409 ne sont pas rejouées. Pas de convocation ou notification de report, ni lien
+polymorphe vers un objet encore absent. Les futurs raccordements COM/MEDIA
+nécessiteront un contrat public et une décision explicite sur les dépendances.

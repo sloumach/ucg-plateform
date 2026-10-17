@@ -3,6 +3,7 @@
 namespace App\Modules\People\Providers;
 
 use App\Modules\People\Application\Contracts\AdministrativePeopleDirectory;
+use App\Modules\People\Application\Contracts\CalendarPeopleDirectory;
 use App\Modules\People\Application\Contracts\EligibilityPeopleDirectory;
 use App\Modules\People\Application\Contracts\LinkedPersonAccountDirectory;
 use App\Modules\People\Application\Contracts\PartnershipPeopleDirectory;
@@ -10,12 +11,14 @@ use App\Modules\People\Application\Contracts\PeopleDirectory;
 use App\Modules\People\Application\Contracts\PersonImportQueue;
 use App\Modules\People\Application\Contracts\SportingPeopleDirectory;
 use App\Modules\People\Application\Services\AdministrativePeopleService;
+use App\Modules\People\Application\Services\CalendarPeopleService;
 use App\Modules\People\Application\Services\EligibilityPeopleService;
 use App\Modules\People\Application\Services\LinkedPersonAccountService;
 use App\Modules\People\Application\Services\PartnershipPeopleService;
 use App\Modules\People\Application\Services\PersonDepartureService;
 use App\Modules\People\Application\Services\PersonService;
 use App\Modules\People\Application\Services\SportingPeopleService;
+use App\Modules\People\Domain\Contracts\CalendarPeopleRepository;
 use App\Modules\People\Domain\Contracts\ExternalGameAccountRepository;
 use App\Modules\People\Domain\Contracts\GameProfileRepository;
 use App\Modules\People\Domain\Contracts\PersonImportRepository;
@@ -28,6 +31,7 @@ use App\Modules\People\Domain\Models\PersonDeparture;
 use App\Modules\People\Domain\Models\PersonDepartureItem;
 use App\Modules\People\Domain\Models\PersonImport;
 use App\Modules\People\Domain\Models\PersonPeriod;
+use App\Modules\People\Infrastructure\Persistence\EloquentCalendarPeopleRepository;
 use App\Modules\People\Infrastructure\Persistence\EloquentExternalGameAccountRepository;
 use App\Modules\People\Infrastructure\Persistence\EloquentGameProfileRepository;
 use App\Modules\People\Infrastructure\Persistence\EloquentPersonImportRepository;
@@ -46,6 +50,8 @@ final class PeopleServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(CalendarPeopleDirectory::class, CalendarPeopleService::class);
+        $this->app->bind(CalendarPeopleRepository::class, EloquentCalendarPeopleRepository::class);
         $this->app->bind(PartnershipPeopleDirectory::class, PartnershipPeopleService::class);
         $this->app->bind(LinkedPersonAccountDirectory::class, LinkedPersonAccountService::class);
         $this->app->bind(AdministrativePeopleDirectory::class, AdministrativePeopleService::class);

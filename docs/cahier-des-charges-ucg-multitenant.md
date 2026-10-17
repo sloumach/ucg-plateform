@@ -260,6 +260,18 @@ Le suivi sportif initial n’inclut pas de dossier médical ou psychologique. Un
 
 ## 8 Calendrier disponibilités et logistique
 
+Livraison CAL-001 : agenda paginé d’activités ponctuelles, horaires UTC et fuseau
+IANA d’origine conservé, affichage dans le fuseau de la personne puis de
+l’organisation avec choix de vue. Heures inexistantes refusées, heures répétées
+désambiguïsées explicitement. Personnes et équipes existantes du tenant,
+participants bornés, privé par défaut y compris pour les scrims, partage interne
+confirmé sous permission. Les gestionnaires habilités disposent d’un mode
+explicite de consultation globale. Contrôles d’audience avant pagination,
+versions, audit minimal et archive conservant les participants.
+La convocation/réponse et les notifications de report restent CAL-004/CAL-006 ;
+récurrence P1. Une activité de type match/académie/sponsor est une entrée de
+planning, sans création automatique du dossier métier correspondant.
+
 - CAL-01 : gérer entraînement, scrim, match officiel, réunion, séance académie, bootcamp, événement sponsor et déplacement.
 - CAL-02 : enregistrer début, fin, fuseau d’origine, participants, équipe, lieu, lien et niveau de confidentialité.
 - CAL-03 : gérer disponibilités et absences sans exiger un motif médical.

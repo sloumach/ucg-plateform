@@ -2,7 +2,7 @@
 
 namespace App\Modules\Teams\Infrastructure\Persistence;
 
-use App\Modules\Teams\Domain\Contracts\CommunicationTeamsRepository;
+use App\Modules\Teams\Domain\Contracts\TeamAudienceRepository;
 use App\Modules\Teams\Domain\Models\GameCatalogueEntry;
 use App\Modules\Teams\Domain\Models\Team;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as Query;
 use Illuminate\Validation\ValidationException;
 
-final readonly class EloquentCommunicationTeamsRepository implements CommunicationTeamsRepository
+final readonly class EloquentTeamAudienceRepository implements TeamAudienceRepository
 {
     public function current(string $org, ?string $personId): array
     {

@@ -2499,3 +2499,90 @@ await tenancyRequest('tenants/' + organizationId + '/communication/announcements
 
 Utiliser le client SPA existant avec CSRF et confirmation tenant. Après 409,
 recharger les données et refaire une décision humaine, sans réessayer en boucle.
+
+## Activités du calendrier — UCG-CAL-001
+
+Préfixe authentifié : /api/v1/tenants/{tenant}/calendar. Session, MFA et tenant
+actifs ; mutations confirmées avec révision tenant et verrou de session.
+Permissions au niveau organisation : calendar.read ; read + write pour mutations
+et références ; publish supplémentaire pour tout maintien/création d’un partage.
+
+| Méthode | Suffixe | Objet |
+| --- | --- | --- |
+| GET | /activities | Agenda filtré avant pagination |
+| GET | /activities/{id} | Détail visible ; management=1 pour gestionnaire |
+| POST | /activities | Création privée par défaut |
+| PATCH | /activities/{id} | Modification versionnée ou archive |
+| GET | /teams | Équipes actives id/label paginées, write requis |
+| GET | /people | Personnes non parties id/label paginées, write requis |
+
+GET agenda : from_date et to_date obligatoires (Y-m-d, fin exclue), période
+de 1 à 93 dates locales valides. timezone IANA facultatif, défaut personne liée
+au compte puis organisation. Filtres kind, team_id UUID, management booléen
+et archived booléen ; archives seulement en mode gestion. page 1–100000 et
+per_page 1–100, défaut 10. Tri starts_at/id ; chevauchement starts_at < borne
+haute ET ends_at > borne basse. La pagination compte uniquement les activités
+autorisées. Références : page/per_page seulement. Détail : management seulement.
+Toutes les réponses portent Cache-Control private,no-store.
+
+POST : title (160), kind training/scrim/match/meeting/academy/bootcamp/sponsor/travel,
+starts_at, ends_at, origin_timezone obligatoires. Instants au format
+Y-m-dTH:i:sP (secondes et offset numérique obligatoires) ; offset et heure
+locale doivent correspondre au fuseau IANA d’origine. Exemple à Paris :
+2026-10-25T02:30:00+02:00 et 2026-10-25T02:30:00+01:00 sont deux occurrences
+distinctes autorisées. 2026-03-29T02:30:00+01:00 est refusé. Stockage UTC.
+Fin > début, durée réelle maximale 31 jours. Au PATCH, transmettre ensemble les
+deux instants et le fuseau dès qu’un des trois change.
+
+Facultatifs : description nullable (4000), location nullable (200), url nullable
+(2000), team_id UUID nullable, participant_ids liste de 0–50 UUID distincts,
+visibility private/team/organization. Personnes du même tenant, non parties ;
+équipe active dans un jeu activé. Un partage team exige team_id. Tout partage
+non privé, même lors d’une autre modification, exige calendar.publish et
+confirm_sharing accepté. Retirer le partage efface l’acteur/date d’autorisation.
+URL HTTPS, sans identifiants, port explicite ou contrôles ; paramètres
+d’invitation conservés, aucun accès réseau.
+
+PATCH exige version courante. Champs absents conservés, null explicite pour
+vider une valeur nullable. Liste participants transmise = remplacement complet,
+liste absente = conservation ; aucune convocation ni permission créée.
+Archive : seulement version + archive accepté. Terminale, pas de DELETE.
+Un 409 impose une relecture et une nouvelle décision humaine.
+
+Resource : id, title, description, kind, starts_at/ends_at UTC, origin_timezone,
+starts_at_origin/ends_at_origin (offset d’origine), team_id/team_label nullable,
+location/url nullable, visibility, participants [{id: person_id, label nullable}],
+archived_at, version. Aucun organization_id, compte global, champ RH ou état
+d’invitation. Une ancienne personne/équipe indisponible garde son identifiant
+historique avec label nullable. L’enveloppe paginée ajoute calendar :
+viewer_timezone, display_timezone, from_utc, to_utc.
+
+Visibilité : read requis pour toutes les voies. Privé = créateur ou participant
+actuellement lié à une personne non partie ; équipe ajoute effectif actuel ;
+organisation ajoute tous les lecteurs tenant habilités. management=1 requiert
+write et inclut les activités privées/archives. Une inscription directe est
+distincte d’une appartenance à l’équipe, et peut conserver l’accès après fin
+d’effectif si la personne et les permissions restent actives.
+
+404 pour objet hors tenant/hors audience ou référence étrangère/inactive ;
+403 pour permission manquante ; 409 CALENDAR_VERSION_STALE ou CALENDAR_ARCHIVED ;
+422 pour période, offset, partage ou payload invalide. Liste fermée, y compris
+refus des clés littérales contenant un point : match_id/event_id/cohort_id,
+recurrence, organization_id et champs serveur non acceptés. Aucune liaison
+fictive à un futur dossier métier ; aucun endpoint anonyme, ICS ou notification.
+
+Exemple de lecture avec le client SPA existant :
+
+```ts
+await tenancyRequest<CalendarPage>(
+  'tenants/' + organizationId + '/calendar/activities?' +
+  new URLSearchParams({
+    from_date: '2026-10-25', to_date: '2026-10-26',
+    timezone: 'Europe/Paris', per_page: '10',
+  }),
+  { revision },
+)
+```
+
+Le type CalendarPage vient de api/calendar. Réutiliser le transport SPA pour
+CSRF, authentification, confirmation et révision ; ne pas fabriquer les UUID.

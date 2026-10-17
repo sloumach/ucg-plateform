@@ -122,6 +122,8 @@ class PersonSchemaTest extends TestCase
         $reminders = require database_path('migrations/2026_10_15_184218_create_contract_reminders.php');
         $agreements = require database_path('migrations/2026_10_16_000918_create_sponsorship_agreements_and_exposures.php');
         $campaigns = require database_path('migrations/2026_10_16_013526_create_sponsorship_campaigns_and_deliverables.php');
+        $calendar = require database_path('migrations/2026_10_17_094942_create_calendar_activities_and_participants.php');
+        $calendar->down();
         $campaigns->down();
         $agreements->down();
         $reminders->down();
@@ -151,6 +153,7 @@ class PersonSchemaTest extends TestCase
         $reminders->up();
         $agreements->up();
         $campaigns->up();
+        $calendar->up();
 
         $this->assertTrue(Schema::hasTable('people'));
         $this->assertDatabaseCount('people', 0);

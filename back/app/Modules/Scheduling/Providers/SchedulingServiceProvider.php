@@ -1,0 +1,25 @@
+<?php
+
+namespace App\Modules\Scheduling\Providers;
+
+use App\Modules\Scheduling\Domain\Contracts\CalendarRepository;
+use App\Modules\Scheduling\Domain\Models\CalendarActivity;
+use App\Modules\Scheduling\Infrastructure\Persistence\EloquentCalendarRepository;
+use App\Modules\Scheduling\Presentation\Policies\CalendarPolicy;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\ServiceProvider;
+
+final class SchedulingServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        $this->app->bind(CalendarRepository::class, EloquentCalendarRepository::class);
+    }
+
+    public function boot(): void
+    {
+        Gate::policy(CalendarActivity::class, CalendarPolicy::class);
+        Route::middleware(['api', 'auth:sanctum', 'identity.session', 'audit.failures', 'mfa'])->prefix('api/v1')->name('api.v1.')->group(__DIR__.'/../Presentation/Routes/api.php');
+    }
+}

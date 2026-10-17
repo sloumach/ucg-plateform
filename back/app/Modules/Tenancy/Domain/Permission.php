@@ -34,6 +34,9 @@ enum Permission: string
     case CommunicationWrite = 'communication.write';
     case CommunicationPublish = 'communication.publish';
     case CommunicationComment = 'communication.comment';
+    case CalendarRead = 'calendar.read';
+    case CalendarWrite = 'calendar.write';
+    case CalendarPublish = 'calendar.publish';
 
     public function privileged(): bool
     {

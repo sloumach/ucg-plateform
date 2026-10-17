@@ -126,6 +126,8 @@ class GameCatalogueSchemaTest extends TestCase
         $campaigns = require database_path('migrations/2026_10_16_013526_create_sponsorship_campaigns_and_deliverables.php');
         $media = require database_path('migrations/2026_10_16_192806_create_media_items_table.php');
         $communication = require database_path('migrations/2026_10_16_210818_create_communication_tables.php');
+        $calendar = require database_path('migrations/2026_10_17_094942_create_calendar_activities_and_participants.php');
+        $calendar->down();
         $communication->down();
         $media->down();
         $campaigns->down();
@@ -146,6 +148,7 @@ class GameCatalogueSchemaTest extends TestCase
         $campaigns->up();
         $media->up();
         $communication->up();
+        $calendar->up();
         $this->assertDatabaseCount('game_catalogue_entries', 18);
         $this->assertDatabaseCount('organization_games', 0);
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
@@ -181,6 +184,8 @@ class GameCatalogueSchemaTest extends TestCase
         $campaigns = require database_path('migrations/2026_10_16_013526_create_sponsorship_campaigns_and_deliverables.php');
         $media = require database_path('migrations/2026_10_16_192806_create_media_items_table.php');
         $communication = require database_path('migrations/2026_10_16_210818_create_communication_tables.php');
+        $calendar = require database_path('migrations/2026_10_17_094942_create_calendar_activities_and_participants.php');
+        $calendar->down();
         $communication->down();
         $media->down();
         $campaigns->down();
@@ -209,6 +214,7 @@ class GameCatalogueSchemaTest extends TestCase
         $campaigns->up();
         $media->up();
         $communication->up();
+        $calendar->up();
         $this->assertDatabaseCount('organization_games', 4);
         $this->assertSame(1, OrganizationGame::query()->where('organization_id', $org->id)->where('enabled', true)->count());
     }

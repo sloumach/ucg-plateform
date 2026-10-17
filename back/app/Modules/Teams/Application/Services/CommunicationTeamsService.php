@@ -4,7 +4,7 @@ namespace App\Modules\Teams\Application\Services;
 
 use App\Modules\People\Application\Contracts\SportingPeopleDirectory;
 use App\Modules\Teams\Application\Contracts\CommunicationTeamsDirectory;
-use App\Modules\Teams\Domain\Contracts\CommunicationTeamsRepository;
+use App\Modules\Teams\Domain\Contracts\TeamAudienceRepository;
 use App\Modules\Tenancy\Application\Contracts\TenantAuthorization;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -12,7 +12,7 @@ use InvalidArgumentException;
 
 final readonly class CommunicationTeamsService implements CommunicationTeamsDirectory
 {
-    public function __construct(private CommunicationTeamsRepository $records, private SportingPeopleDirectory $people,
+    public function __construct(private TeamAudienceRepository $records, private SportingPeopleDirectory $people,
         private TenantAuthorization $authorization) {}
 
     public function current(TenantContext $context): array

@@ -5,13 +5,17 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 16 octobre 2026.
+- Dernière mise à jour : 17 octobre 2026.
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : socle `UCG-COM-001` — annonces et discussions ciblées.
+- Dernier ticket traité : `UCG-CAL-001` — activités ponctuelles du calendrier.
   Implémentation locale testée ; revue/push utilisateur, CI distantes et migration
-  principale à effectuer. Reliquat : événement/tâche/match/séance avec leurs référentiels.
+  principale à effectuer. Aucun autre ticket démarré.
+- Socle COM-001 (`8d48651`) poussé ; CI et migration confirmées par l’utilisateur
+  avant CAL-001. Migration vérifiée en lecture seule : Ran, batch 30. Branche
+  staging propre et synchronisée avec origin/staging au démarrage de CAL-001.
+  Reliquat COM : rattachements événement/tâche/match/séance via leurs référentiels.
 - MEDIA-001 (`1f7cc8c`) poussé ; CI et migration confirmées par l’utilisateur
   avant COM-001. Vérification en lecture seule : Ran, batch 29. Staging propre
   et synchronisé avec origin/staging au démarrage. Aucun migrate principal par l’agent.
@@ -99,11 +103,11 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : revue/push du commit COM-001, CI vertes, sauvegarde puis
-  migration `2026_10_16_210818_create_communication_tables` depuis back/.
-  Attribuer explicitement communication.read/write/publish/comment au niveau
-  organisation via IAM-003, puis recetter les audiences et révocations avec deux comptes.
-  Aucune attribution réelle par l’agent ; migration principale vérifiée Pending.
+- Prochaine action : revue/push du commit CAL-001, CI vertes, sauvegarde puis
+  migration `2026_10_17_094942_create_calendar_activities_and_participants` depuis back/.
+  Attribuer calendar.read/write/publish explicitement au niveau organisation via
+  IAM-003, puis recetter fuseaux, partage, participants et révocation avec deux comptes.
+  Aucune attribution réelle par l’agent ; migration CAL-001 principale non appliquée.
   Mise en service des rappels CTR-005 à confirmer : configurer le scheduler,
   le cache partagé et le worker default ; activer
   CONTRACT_REMINDERS_ENABLED puis, quand le SMTP est prêt,
@@ -2501,3 +2505,92 @@ ensuite ce fichier pour qu'il reflète la réalité.
 - Prochaine action utilisateur : revue/push, CI vertes, sauvegarde puis
   `php artisan migrate` depuis back/. Attribuer les droits via IAM-003 et recetter
   deux comptes (audience autorisée puis révocation) avant utilisation réelle.
+
+## Activités ponctuelles du calendrier — UCG-CAL-001
+
+### Reprise et livraison
+
+- Démarrage sur staging propre, synchronisé avec origin/staging, HEAD
+  `8d48651`. Socle COM-001 poussé, CI et migration validées par l’utilisateur ;
+  migration vérifiée en lecture seule Ran, batch 30. Ses rattachements contextuels
+  restent ouverts ; CAL-001 ne les raccorde pas automatiquement.
+- Six routes privées dans Scheduling : liste/détail/création/modification
+  d’activités, choix d’équipes et de personnes paginés. Nouvelle paire de tables
+  calendar_activities/calendar_participants, sans données ni permissions créées.
+- Huit types ponctuels : entraînement, scrim, match, réunion, académie, bootcamp,
+  sponsor, déplacement. Début/fin UTC, fuseau IANA d’origine conservé, durée
+  positive de 31 jours maximum. Ce sont des activités de planning, sans création
+  implicite d’un dossier Match/Académie/accord.
+- CalendarTime fait un aller-retour de l’heure et de l’offset dans le fuseau :
+  heures inexistantes refusées, heure répétée avec choix explicite de son offset.
+  Le frontend propose les occurrences valides via Intl puis le serveur revalide.
+  Fenêtre de 1 à 93 dates locales [début, fin[, minuits convertis en UTC ;
+  bornes de 23/25 heures testées, journée locale entièrement sautée refusée.
+- Affichage selon la personne actuellement liée au compte, sinon le tenant ;
+  choix de fuseau pour la vue, fuseau et heures d’origine toujours affichés.
+  Agenda chronologique paginé, sans grille mensuelle ou bibliothèque supplémentaire.
+- Privé par défaut, y compris scrim : créateur et participants explicites.
+  Partage équipe ajoute l’effectif effectif actuel d’une équipe active dans un jeu
+  activé ; partage organisation ajoute les lecteurs habilités. Une inscription
+  directe et une appartenance d’équipe sont deux voies d’accès distinctes.
+  Départ personne/révocation de droits ou adhésion coupent leur voie d’accès.
+- calendar.read/write/publish explicites au niveau organisation, MFA. Mode
+  gestion explicite read + write pour toutes les activités du tenant. Aucun
+  droit métier implicite propriétaire/administrateur/technicien. Partage interne
+  soumis à publish et confirmation à chaque modification restant partagée.
+- Participants : personnes non parties du même tenant, maximum 50, sans donnée
+  RH ou identité globale dans les Resources. Références via contrats publics
+  People/Teams ; validation et labels par lot. Repository interne Teams renommé
+  TeamAudienceRepository pour partager les mêmes règles avec COM-001, sans
+  modifier ses contrats publics ni le graphe des modules.
+- Titres/descriptions/lieux/URL chiffrés ; rendu texte simple et liens HTTPS
+  volontaires sans référent. Pas de vérification réseau ni d’envoi externe.
+- Mutations sous transaction avec verrou organisation puis activité et droits
+  recontrôlés, version UUID, audit minimal identifiant/action. Archive définitive
+  conservant les participants ; aucun DELETE API ni réouverture.
+- FKs composites tenant/activité/personne/équipe, uniques tenant, contraintes
+  période et partage, protections d’identité et de conservation dans SQLite et
+  PostgreSQL. Catalogue de portabilité étendu aux deux tables et à toutes les
+  colonnes physiques ; rollback refusé si données présentes.
+  Round-trips Organization/Team/Catalogue/Person adaptés à l’ordre de dépendances.
+- Limites conservées : disponibilités CAL-002, conflits CAL-003, convocations et
+  rappels CAL-004, ICS CAL-005, reports/annulations et notifications/historique
+  CAL-006, récurrences CAL-007 P1. Pas de faux identifiants métier, score ou
+  notification ; les raccordements COM/MEDIA exigeront un contrat public.
+- Six documents existants actualisés avec les confirmations COM et CAL-001 :
+  README, architecture, conventions API, backlog, CDC et état-projet.
+
+### Vérifications et exploitation
+
+- Backend SQLite complet : **1 718 tests**, **1 714 réussis**, **4 ignorés
+  attendus**, **7 980 assertions**. 49 nouveaux cas CAL (API, policy, base,
+  temps/liens), plus tests existants. Après durcissement du rejet des clés
+  littérales à point, 31 cas CalendarController/Time relancés, 147 assertions.
+- Sélection SQLite étendue aux parents, COM et architecture : 116 cas,
+  115 réussis et un ignoré attendu. Contrôles de schéma/portabilité et comptage
+  constant de requêtes avec relation participants eager-loaded.
+- PostgreSQL dans une base temporaire dédiée, supprimée ensuite : **137 tests
+  réussis**, **573 assertions**, aucun ignoré. Quatre fichiers CAL, round-trips
+  Organization/Person/Team/Catalogue, trois fichiers COM et architecture.
+  Cette sélection locale ne remplace pas la suite PostgreSQL complète de CI.
+- Pint dirty puis correction explicite des fichiers nouveaux omis par la
+  sélection dirty, format:check complet, PHPStan niveau 8 et composer
+  validate --strict réussis. Aucun ignore/baseline ajouté ni dépendance changée.
+- Frontend : **253 tests dans 37 fichiers** réussis, lint sans avertissement,
+  build de production et typage strict du parcours E2E réussis. Les tests de
+  date couvrent Paris, Kolkata, Lord Howe, Kiritimati et la journée sautée d’Apia.
+- Chrome local : **26 parcours E2E réussis**, API métier simulées, sans nouvelle
+  installation. CAL sur mobile 390 px : vue Tokyo/origine Paris, seconde occurrence
+  de 02 h 30, scrim privé, personne/équipe, lien protégé, renommage n’envoyant que
+  le titre/version, archive. Pas de script exécuté, requête externe ou débordement.
+  Capture inspectée : front/reports/cal001-mobile.png.
+- CI PostgreSQL étendue aux quatre fichiers CAL ; tests frontend/E2E découverts
+  automatiquement. CI distantes CAL-001 à valider après push utilisateur.
+- Migration principale CAL-001 vérifiée **Pending**. Aucun migrate/seed principal,
+  rôle ou donnée métier réelle créé, aucun e-mail/message/notification envoyé.
+  Aucun push ni changement d’environnement. Un seul commit local de tâche
+  regroupe code, migration, tests, CI et les six documents.
+- Prochaine action utilisateur : revue/push, CI vertes, sauvegarde, puis
+  `php artisan migrate` depuis back/. Accorder les permissions calendrier
+  via IAM-003 et recetter partage, participants et révocation avec deux comptes.
+  Prochain ticket recommandé après validation : CAL-002 ; non démarré.

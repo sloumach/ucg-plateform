@@ -18,6 +18,8 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
+        'calendar_activities' => 'id',
+        'calendar_participants' => 'id',
         'announcements' => 'id',
         'announcement_comments' => 'id',
         'communication_events' => 'id',
@@ -55,6 +57,8 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'calendar_activities' => ['id', 'organization_id', 'title', 'description', 'kind', 'starts_at', 'ends_at', 'origin_timezone', 'team_id', 'location', 'url', 'visibility', 'sharing_authorized_by', 'sharing_authorized_at', 'created_by', 'archived_at', 'version', 'created_at', 'updated_at'],
+        'calendar_participants' => ['id', 'organization_id', 'activity_id', 'person_id', 'created_at'],
         'announcements' => ['id', 'organization_id', 'title', 'body', 'target_type', 'team_id', 'game_id', 'role_id', 'status', 'comments_enabled', 'created_by', 'published_by', 'published_at', 'expires_at', 'withdrawn_at', 'version', 'created_at', 'updated_at'],
         'announcement_comments' => ['id', 'organization_id', 'announcement_id', 'body', 'created_by', 'created_at'],
         'communication_events' => ['id', 'organization_id', 'announcement_id', 'comment_id', 'kind', 'actor_user_id', 'created_at'],

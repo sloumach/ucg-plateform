@@ -2208,3 +2208,80 @@ await tenancyRequest('tenants/' + organizationId + '/communication/announcements
 Les types proviennent des clients `api/contracts` et `api/communication`.
 Les UUID viennent des lectures autorisées. Toute réponse 409 impose une relecture,
 sans rejeu automatique. COM-002 Discord et MOD-001 modération restent distincts.
+
+## Calendrier des activités — UCG-CAL-001
+
+COM-001 (`8d48651`) est poussé, CI et migration confirmées par l’utilisateur ;
+migration vérifiée Ran, batch 30. CAL-001 ajoute un agenda chronologique privé
+dans l’espace tenant, avec filtres de période, fuseau, type et mode gestion.
+La migration additive `2026_10_17_094942_create_calendar_activities_and_participants`
+crée deux tables sans rôle ni donnée métier. Après push et CI vertes, sauvegarder
+puis exécuter `php artisan migrate` depuis `back/`. Le rollback refuse les données existantes.
+
+Accorder explicitement au niveau organisation via IAM-003 :
+
+- `calendar.read` : consulter les activités accessibles.
+- Ajouter `calendar.write` : créer/modifier, gérer les participants et archiver ;
+  le mode gestion explicite permet de lire toutes les activités, y compris privées.
+- Ajouter `calendar.publish` : autoriser le partage interne, avec confirmation
+  à chaque mutation d’une activité qui reste partagée.
+
+MFA requis ; aucun droit calendrier implicite propriétaire ou opérateur plateforme.
+Privé par défaut, scrim inclus : créateur et participants explicitement inscrits.
+Le partage équipe ajoute les comptes liés à un effectif actuellement effectif,
+dans une équipe active et un jeu activé ; le partage organisation ajoute les
+lecteurs calendrier habilités. Un départ d’effectif retire cette voie d’accès ;
+une inscription explicite reste une voie distincte. Le départ de la personne ou
+la révocation des droits/adhésion coupe l’accès correspondant. Les choix de
+participants proviennent de personnes non parties du tenant, 50 maximum ; une
+inscription ne vaut pas convocation et n’accorde pas elle-même la permission read.
+
+Types : entraînement, scrim, match officiel, réunion, séance académie, bootcamp,
+événement sponsor, déplacement. Début/fin en UTC, fuseau IANA d’origine conservé.
+L’interface interprète les heures locales dans ce fuseau, rejette les heures
+inexistantes et exige un choix en cas d’heure répétée. Le serveur vérifie la
+cohérence heure/décalage/fuseau avant normalisation UTC. Durée strictement positive,
+31 jours maximum. Affichage dans le fuseau de la personne liée au compte, sinon
+celui de l’organisation ; le lecteur peut choisir un autre fuseau pour sa vue.
+Le fuseau et les heures d’origine restent visibles.
+
+La consultation exige une période de 1 à 93 dates locales, fin exclue. Elle inclut
+les activités qui chevauchent cette période, et applique les droits avant comptage
+et pagination (100 maximum). L’agenda est présenté en liste paginée, pas en grille
+mensuelle. Index tenant/période/équipe, participants chargés par lot, pas de cache
+durable des autorisations. À fort volume, mesurer les plans des chevauchements,
+les pages profondes et la contention organisation avant d’adapter les index ou
+d’introduire une pagination par curseur.
+
+Titres, descriptions, lieux et liens chiffrés, rendu texte échappé, audit minimal
+atomique identifiant/action. Liens HTTPS ouverts volontairement, sans référent ;
+aucune requête ne vérifie leur contenu. Conserver une version courante pour tout
+PATCH ; un 409 impose une relecture sans rejeu. Une archive est définitive,
+conserve les participants et ne déclenche pas de notification.
+
+Exemple SPA, après sélection et confirmation du tenant :
+
+```ts
+await tenancyRequest('tenants/' + organizationId + '/calendar/activities', {
+  method: 'POST', revision,
+  body: {
+    title: 'Entraînement équipe', kind: 'training',
+    starts_at: '2026-10-25T02:30:00+01:00',
+    ends_at: '2026-10-25T03:30:00+01:00',
+    origin_timezone: 'Europe/Paris',
+    team_id: selectedTeamId, participant_ids: selectedPersonIds,
+  },
+})
+```
+
+Cet exemple choisit la seconde occurrence de 02 h 30 lors du changement d’heure.
+UUID issus des lectures autorisées. Les droits read restent nécessaires aux
+participants ; un lien de réunion peut contenir un jeton, donc choisir sa
+confidentialité avant tout partage.
+
+CAL-002 à CAL-006 couvriront disponibilités, conflits, convocations, ICS,
+reports/annulations et leurs notifications/historiques. Récurrences : CAL-007 P1.
+Cette activité de planning ne crée pas une fiche Match/Académie/accord sponsor.
+Les UUID de ces futurs dossiers sont refusés ; aucun score ni notification n’est
+inventé. Les rattachements COM-001 et MEDIA-001 restent un travail distinct via
+des contrats publics ; aucune dépendance circulaire ajoutée.

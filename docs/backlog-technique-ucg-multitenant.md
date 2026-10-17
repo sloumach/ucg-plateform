@@ -648,6 +648,12 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 
 ### UCG-CAL-001 — Modéliser les activités du calendrier
 
+- **État** : implémenté et testé localement ; revue/push utilisateur, CI distantes et migration principale restent à valider.
+- **Livré** : agenda privé paginé, huit types d’activité, UTC + fuseau IANA d’origine, affichage selon la personne liée puis le tenant, choix d’un autre fuseau pour la vue, résolution explicite des heures répétées et refus des heures inexistantes. Participants issus des personnes non parties du tenant (50 maximum), équipe active facultative, lieu/lien HTTPS, privé par défaut et partage interne confirmé. Trois permissions calendar.read/write/publish explicites, MFA, versions UUID, transactions/verrous, audit minimal, archivage définitif et export opérateur.
+- **Isolation** : deux tables tenant, FKs composites activité/personne/équipe, périodes et partage contrôlés en SQLite/PostgreSQL ; audiences réévaluées avant comptage/pagination. Choix/labels groupés par contrats publics People/Teams. Les règles d’effectif Teams partagées avec COM-001 conservent son comportement.
+- **Bornes** : durée 31 jours, consultation 1–93 dates locales avec fin exclue, 100 activités/page. Pas de cache durable des droits ; scrims privés par défaut.
+- **Limites de ticket** : activités ponctuelles, sans disponibilité/conflit/convocation/ICS/report/notification/récurrence ; lots CAL-002 à CAL-007 dédiés. Pas de création ou rattachement fictif à un futur Match/Académie/accord, ni de raccordement automatique COM/MEDIA.
+
 - **Priorité / taille** : P0 / L
 - **Périmètre** : entraînement, scrim, match, réunion, académie, bootcamp, sponsor, déplacement ; UTC, fuseau IANA, lieu, lien et confidentialité.
 - **Acceptation** : affichage dans le fuseau utilisateur avec fuseau d’origine visible ; relations limitées au tenant.
@@ -1028,7 +1034,7 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 
 ### UCG-COM-001 — Publier annonces et commentaires ciblés
 
-- **État** : socle implémenté localement ; revue/push, CI distantes et migration COM-001 restent à valider. Le ticket demeure partiel pour les rattachements contextuels ci-dessous.
+- **État** : socle livré (`8d48651` poussé), CI et migration validées par l’utilisateur avant CAL-001. Migration vérifiée Ran, batch 30. Le ticket demeure partiel pour ses rattachements contextuels.
 - **Livré** : annonces tenant/équipe/jeu/rôle, brouillons versionnés, publication confirmée, contenu publié figé, retrait définitif, discussions sous les annonces, ouverture des commentaires, boîte interne et préférences par compte/tenant. Permissions communication.read/write/publish/comment explicites, MFA, audience courante filtrée avant comptage/pagination ; notifications remises seulement si les droits sont toujours effectifs. Pas d’envoi externe ni de liste figée de destinataires.
 - **Sécurité** : cinq tables tenant, FKs composites, textes chiffrés, historique append-only, audit atomique minimal, rollback sans perte de données, portabilité exhaustive ; références et listes paginées. API fermée, contrôles sous verrou organisation et absence de participation hors audience même en mode gestion.
 - **Reliquat explicite** : ciblage événement et commentaires sur tâches/matchs/séances, dépendants de leurs futurs référentiels. Aucun UUID libre accepté pour ces contextes. COM-002 Discord et MOD-001 restent P1.

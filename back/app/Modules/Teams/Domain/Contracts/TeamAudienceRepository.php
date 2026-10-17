@@ -4,7 +4,7 @@ namespace App\Modules\Teams\Domain\Contracts;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
-interface CommunicationTeamsRepository
+interface TeamAudienceRepository
 {
     /** @return array{teams: list<string>, games: list<string>} */
     public function current(string $org, ?string $personId): array;
