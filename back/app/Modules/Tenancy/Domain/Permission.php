@@ -35,6 +35,7 @@ enum Permission: string
     case CommunicationPublish = 'communication.publish';
     case CommunicationComment = 'communication.comment';
     case CalendarRead = 'calendar.read';
+    case CalendarExport = 'calendar.export';
     case CalendarWrite = 'calendar.write';
     case CalendarPublish = 'calendar.publish';
     case CalendarResourcesManage = 'calendar.resources.manage';

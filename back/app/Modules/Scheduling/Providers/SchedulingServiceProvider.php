@@ -4,6 +4,7 @@ namespace App\Modules\Scheduling\Providers;
 
 use App\Modules\Scheduling\Domain\Contracts\AvailabilityRepository;
 use App\Modules\Scheduling\Domain\Contracts\CalendarConflictRepository;
+use App\Modules\Scheduling\Domain\Contracts\CalendarFeedRepository;
 use App\Modules\Scheduling\Domain\Contracts\CalendarInvitationRepository;
 use App\Modules\Scheduling\Domain\Contracts\CalendarRepository;
 use App\Modules\Scheduling\Domain\Contracts\CalendarResourceRepository;
@@ -11,9 +12,12 @@ use App\Modules\Scheduling\Domain\Models\Availability;
 use App\Modules\Scheduling\Domain\Models\CalendarActivity;
 use App\Modules\Scheduling\Infrastructure\Persistence\EloquentAvailabilityRepository;
 use App\Modules\Scheduling\Infrastructure\Persistence\EloquentCalendarConflictRepository;
+use App\Modules\Scheduling\Infrastructure\Persistence\EloquentCalendarFeedRepository;
 use App\Modules\Scheduling\Infrastructure\Persistence\EloquentCalendarInvitationRepository;
 use App\Modules\Scheduling\Infrastructure\Persistence\EloquentCalendarRepository;
 use App\Modules\Scheduling\Infrastructure\Persistence\EloquentCalendarResourceRepository;
+use App\Modules\Scheduling\Presentation\Http\Controllers\Api\V1\CalendarFeedController;
+use App\Modules\Scheduling\Presentation\Http\Middleware\ProtectCalendarSubscription;
 use App\Modules\Scheduling\Presentation\Policies\AvailabilityPolicy;
 use App\Modules\Scheduling\Presentation\Policies\CalendarPolicy;
 use Illuminate\Support\Facades\Gate;
@@ -24,6 +28,7 @@ final class SchedulingServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(CalendarFeedRepository::class, EloquentCalendarFeedRepository::class);
         $this->app->bind(CalendarInvitationRepository::class, EloquentCalendarInvitationRepository::class);
         $this->app->bind(CalendarResourceRepository::class, EloquentCalendarResourceRepository::class);
         $this->app->bind(CalendarConflictRepository::class, EloquentCalendarConflictRepository::class);
@@ -35,6 +40,8 @@ final class SchedulingServiceProvider extends ServiceProvider
     {
         Gate::policy(Availability::class, AvailabilityPolicy::class);
         Gate::policy(CalendarActivity::class, CalendarPolicy::class);
+        Route::get('api/v1/calendar-subscriptions/{tenant}/{feed}.ics', [CalendarFeedController::class, 'subscription'])
+            ->whereUuid(['tenant', 'feed'])->middleware([ProtectCalendarSubscription::class, 'api'])->name('api.v1.calendar.subscription');
         Route::middleware(['api', 'auth:sanctum', 'identity.session', 'audit.failures', 'mfa'])->prefix('api/v1')->name('api.v1.')->group(__DIR__.'/../Presentation/Routes/api.php');
     }
 }

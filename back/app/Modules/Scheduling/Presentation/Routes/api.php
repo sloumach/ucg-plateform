@@ -2,11 +2,15 @@
 
 use App\Modules\Scheduling\Presentation\Http\Controllers\Api\V1\AvailabilityController;
 use App\Modules\Scheduling\Presentation\Http\Controllers\Api\V1\CalendarController;
+use App\Modules\Scheduling\Presentation\Http\Controllers\Api\V1\CalendarFeedController;
 use App\Modules\Scheduling\Presentation\Http\Controllers\Api\V1\CalendarInvitationController;
 use App\Modules\Scheduling\Presentation\Http\Controllers\Api\V1\CalendarResourceController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('tenants/{tenant}/calendar')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
+    Route::get('feed', [CalendarFeedController::class, 'show'])->name('calendar.feed.show');
+    Route::post('feed', [CalendarFeedController::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('calendar.feed.store');
+    Route::patch('feed', [CalendarFeedController::class, 'revoke'])->middleware('tenant.confirmed')->block(10, 10)->name('calendar.feed.revoke');
     $invitations = CalendarInvitationController::class;
     Route::get('invitations', [$invitations, 'index'])->name('calendar.invitations.index');
     Route::get('activities/{activity}/invitations', [$invitations, 'activityIndex'])->whereUuid('activity')->name('calendar.invitations.activity');

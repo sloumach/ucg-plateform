@@ -15,6 +15,7 @@ import { CalendarResourcesPanel } from './CalendarResourcesPanel'
 import { bookingText } from '../../api/calendarConflicts'
 import { CalendarConflictHistory } from './CalendarConflictHistory'
 import { CalendarInvitationsPanel } from './CalendarInvitationsPanel'
+import { CalendarFeedPanel } from './CalendarFeedPanel'
 type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
 export function CalendarPanel({ active, disabled, onInvalid }: Props) {
   const [open, setOpen] = useState(false), [page, setPage] = useState(1), [refresh, setRefresh] = useState(0)
@@ -35,6 +36,7 @@ export function CalendarPanel({ active, disabled, onInvalid }: Props) {
     <Button disabled={blocked} onClick={() => { setOpen(!open); setEditor(null); setHistory(null) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>
       {mutation.feedback}
+      <CalendarFeedPanel {...{ active, root, onInvalid }} disabled={blocked} />
       <CalendarInvitationsPanel {...{ active, root, onInvalid }} disabled={blocked} />
       {canWrite && <CalendarResourcesPanel {...{ active, root, onInvalid }} disabled={blocked} />}
       <form aria-label={text('filter')} className="grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {

@@ -679,7 +679,7 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Exception** : permission calendar.conflicts.override, aperçu courant valable cinq minutes, motif opérationnel et confirmation explicite. Toute modification du périmètre ou des conflits impose un nouvel examen. Motif/instantané chiffrés et journal append-only avec activité/version/acteur, atomiques avec réservations et audit minimal. Aucun droit permanent hérité d’une ancienne exception.
 - **Ressources** : référentiel minimal d’unités réservables, permission calendar.resources.manage distincte ; référence unique, nom chiffré, version, archivage terminal et réservations conservées. 20 ressources/activité, listes/historiques paginés et 100 conflits maximum ; dépassement bloquant, sans exception.
 - **Isolation/concurrence** : trois tables additives avec FKs tenant et gardes SQLite/PostgreSQL, portabilité et rollback protecteur. Verrou organisation avant lecture/écriture, y compris créations sans ligne préalable ; tests de deux processus indépendants pour personne, équipe et ressource.
-- **Limites** : aucune expansion automatique du roster ; inscrire les personnes réellement mobilisées. Les ressources sont des unités, sans stock, capacité multiple ni logistique CAL-008. Pas de migration corrective automatique des collisions anciennes. CAL-004 complète les convocations/réponses/rappels internes ; prochaine étape après validation : CAL-005.
+- **Limites** : aucune expansion automatique du roster ; inscrire les personnes réellement mobilisées. Les ressources sont des unités, sans stock, capacité multiple ni logistique CAL-008. Pas de migration corrective automatique des collisions anciennes. CAL-004 et CAL-005 ci-dessous couvrent les convocations/réponses/rappels internes et le flux ICS privé ; prochain P0 : CAL-006.
 
 - **Priorité / taille** : P0 / L
 - **Périmètre** : chevauchements personnes, équipes et ressources ; service de détection transactionnel.
@@ -688,17 +688,23 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 
 ### UCG-CAL-004 — Gérer convocations, réponses et rappels
 
-- **État** : `661b438` poussé et migration confirmée par l’utilisateur, vérifiée Ran batch 34. Échec CI OrganizationSchemaTest corrigé localement (ordre des tables enfants CAL-004) ; sélection CI PostgreSQL intégrale validée : 1654 tests réussis, 2 exclusions Redis attendues, 7882 assertions. Correctif à pousser et CI distantes à confirmer ; aucune nouvelle migration. Activation opérationnelle à recetter.
+- **État** : `661b438` et correctif `defc140` poussés ; migration CAL-004 Ran batch 34 et CI confirmées par l’utilisateur avant CAL-005. Activation opérationnelle à recetter.
 - **Livré** : émission explicite aux participants inscrits d’une version de l’activité, échéance UTC future au plus tard au début, zéro à trois rappels configurables (1–10080 minutes avant l’échéance), réponse personnelle pending/present/absent versionnée et historique paginé des remises. Permissions organisationnelles calendar.invitations.manage (avec read/write) et calendar.invitations.respond (avec read), MFA et refus des comptes techniques.
 - **Remise** : notification interne persistante, produite en queue par la tâche tenant calendar-invitations ; activation serveur CALENDAR_INVITATIONS_ENABLED, désactivée par défaut. Droits, lien personne/compte, participants, version et échéance recontrôlés à chaque traitement. Compte sans accès = blocage explicite, aucun accès créé. Pas d’e-mail, webhook ou Discord dans ce lot.
 - **Fiabilité** : verrou organisation puis activité puis convocation, unicité SQL par version/personne et par occurrence de remise. Remise et état commités ensemble ; reprise sans doublon, rattrapage du seul seuil le plus urgent, aucun rappel immédiat redondant après une première remise tardive. Réponse non pending ou échéance atteinte = aucun rappel. Toute modification de l’activité invalide les anciennes convocations ; nouvelle préparation explicite nécessaire, sans notification automatique de report (CAL-006).
-- **Conservation** : paramètres et identité figés après émission ; pas de réaffectation automatique à un autre compte ni de suppression. Une configuration différente exige une nouvelle version de l’activité. Historique de remise append-only, audit minimal des émissions/réponses, inventaire de portabilité et rollback protecteur. Prochain P0 après validation : CAL-005 (ICS privé), non démarré.
+- **Conservation** : paramètres et identité figés après émission ; pas de réaffectation automatique à un autre compte ni de suppression. Une configuration différente exige une nouvelle version de l’activité. Historique de remise append-only, audit minimal des émissions/réponses, inventaire de portabilité et rollback protecteur. CAL-005 ajoute le flux ICS privé ci-dessous ; prochain P0 après validation : CAL-006.
 - **Priorité / taille** : P0 / L
 - **Périmètre** : présent, absent, en attente, échéance, rappels et déduplication.
 - **Acceptation** : rappel asynchrone incluant le contexte tenant, traçable et non envoyé deux fois après une nouvelle tentative.
 - **Références CDC** : CAL-05.
 
 ### UCG-CAL-005 — Exporter un calendrier ICS privé
+
+- **État** : implémenté localement sur staging ; push, CI distantes et migration à confirmer après livraison. Aucune donnée métier réelle ou permission créée par l’agent.
+- **Validation locale** : SQLite complet 1870 réussis/10 exclusions ; sélection CI PostgreSQL intégrale 1690 réussis/2 exclusions Redis ; PHPStan 8, Pint, 278 tests frontend et 30 scénarios navigateur réussis.
+- **Livraison** : lien personnel 256 bits, hash SHA-256 seulement, création/rotation/révocation optimistes et auditées ; secret affiché une seule fois, expiration 1–90 jours. Permission explicite calendar.export + calendar.read, compte vérifié/MFA, tenant et droits courants à chaque lecture sans session.
+- **Confidentialité** : audience personnelle même pour un gestionnaire ; titres et horaires UTC seulement, UID opaque stable. Pas de descriptions, lieux, liens, participants, ressources, absences ou contrats. Fenêtre UTC 93 jours au plus, 500 activités/512 Kio et quota technique tenant ; refus entier si débordement. Aucun cache partagé/ETag/304, erreurs privées, limitation des téléchargements.
+- **Opérations** : nouvelle migration calendar_feeds, rollback protecteur, inventaire de portabilité et round-trip OrganizationSchemaTest actualisés. Configurer APP_URL HTTPS et masquer token dans les logs d’entrée ; attribuer la permission via IAM-003 et recetter une révocation. Les copies externes déjà importées restent hors du contrôle de l’application. Prochain P0 : CAL-006.
 
 - **Priorité / taille** : P0 / M
 - **Périmètre** : jeton révocable, projection minimale, bornes temporelles et cache privé.

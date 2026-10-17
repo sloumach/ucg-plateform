@@ -984,3 +984,15 @@ Références consultées le 3 octobre 2026. Les modalités des fournisseurs peuv
 - CNIL sauvegardes : https://cnil.fr/fr/securite-sauvegarder
 
 Les priorités, la stack, l’architecture multi-tenant, les cibles de performance et les estimations de charge sont des recommandations de conception pour la plateforme et son tenant pilote UCG. Elles ne sont pas présentées comme des prescriptions des sources citées.
+
+Livraison CAL-005 : abonnement ICS privé personnel à jeton expirant, renouvelable
+et révocable, sous permission `calendar.export` + lecture calendrier. Confirmation
+explicite des titres et horaires exportés ; un gestionnaire conserve son audience
+personnelle dans le flux. Les droits, équipes et rattachements sont réévalués à
+chaque synchronisation. Aucun contrat, note interne, description, lieu, lien de
+réunion, participant ou absence n’est exporté. Les titres doivent eux-mêmes être
+adaptés à un lecteur externe. Fenêtre glissante bornée en UTC, 500 activités et
+512 Kio maximum, sans export partiel silencieux. Secret affiché une seule fois,
+empreinte uniquement en base, cache privé sans conservation. Révocation immédiate
+pour les prochains téléchargements ; copies déjà importées et rythme de
+synchronisation dépendent du logiciel externe. CAL-006 reste distinct.

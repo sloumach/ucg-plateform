@@ -1,6 +1,14 @@
 <?php
 
 return [
+    'feed_limit' => 'Le flux dépasse 500 activités ou 512 Kio. Réduisez sa fenêtre.',
+    'feed_window' => 'La fenêtre cumulée ne peut pas dépasser 93 jours.',
+    'feed_bounds' => 'Choisissez 0 à 30 jours passés, 1 à 90 jours futurs et 1 à 90 jours de validité.',
+    'feed_confirm' => 'Confirmez explicitement l’export ou la révocation.',
+    'feed_stale' => 'Le lien a changé. Rechargez avant de recommencer.',
+    'feed_issued' => 'Lien privé créé. Copiez-le maintenant : il ne sera plus affiché.',
+    'feed_revoked' => 'Le lien privé a été révoqué.',
+    'feed_unavailable' => 'Le calendrier est temporairement indisponible.',
     'invitation_confirm' => 'Confirmez explicitement l’envoi des convocations aux participants inscrits.',
     'invitation_offsets' => 'Indiquez au maximum trois délais de rappel distincts, en minutes avant l’échéance de réponse.',
     'invitation_bounds' => 'Utilisez une valeur entière dans les limites autorisées (rappel : 1 à 10080 minutes).',

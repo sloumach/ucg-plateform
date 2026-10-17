@@ -15,6 +15,17 @@ final readonly class CalendarPolicy
         return (int) $user->getAuthIdentifier() === $context->actorUserId && $this->authorization->allows($context, 'calendar.read');
     }
 
+    public function export(Authenticatable $user, TenantContext $context): bool
+    {
+        return $this->viewAny($user, $context) && $this->authorization->allows($context, 'calendar.export');
+    }
+
+    /** Guest access is bound to the capability's actor, never to an interactive session. */
+    public function subscription(?Authenticatable $user, TenantContext $context): bool
+    {
+        return $this->authorization->allows($context, 'calendar.read') && $this->authorization->allows($context, 'calendar.export');
+    }
+
     public function manage(Authenticatable $user, TenantContext $context): bool
     {
         return $this->viewAny($user, $context) && $this->authorization->allows($context, 'calendar.write');

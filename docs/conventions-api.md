@@ -2825,3 +2825,52 @@ Relire puis décider, sans réessai automatique. Toute modification de l’activ
 rend les convocations précédentes obsolètes ; notification automatique de
 report/annulation CAL-006 et ICS CAL-005 restent distincts.
 Exemples SPA et activation opérationnelle : README, section CAL-004.
+## Calendrier ICS privé — UCG-CAL-005
+
+Gestion personnelle, sous le contexte tenant habituel, MFA et `calendar.read` +
+`calendar.export` explicites :
+
+| Méthode | Route sous `/api/v1` | Résultat |
+| --- | --- | --- |
+| GET | `/tenants/{tenant}/calendar/feed` | `data: null` ou métadonnées du lien du compte courant |
+| POST | `/tenants/{tenant}/calendar/feed` | 201, `data: {feed, url}` ; secret à usage d’affichage unique |
+| PATCH | `/tenants/{tenant}/calendar/feed` | métadonnées du lien révoqué |
+| GET | `/calendar-subscriptions/{tenant}/{feed}.ics?token=…` | capacité sans session, `text/calendar; charset=UTF-8` |
+
+POST exige confirmation du tenant, `X-Tenant-Revision` et JSON fermé :
+
+```json
+{"expected_version":null,"before_days":7,"after_days":60,"expires_in_days":30,"confirm_export":true}
+```
+
+`expected_version` présent/null pour la première création, sinon version UUID
+courante pour renouveler. Bornes entières strictes : before_days 0–30,
+after_days 1–90, cumul ≤ 93 ; expires_in_days 1–90. PATCH exige la même confirmation
+et `{ "version": "UUID_COURANT", "confirm_revocation": true }`. Une version
+obsolète retourne 409 `CALENDAR_FEED_STALE`, sans rejeu. Une seconde révocation
+avec la version déjà révoquée est idempotente. GET ne restitue jamais le secret
+ni son hash. Métadonnées : id, before_days, after_days, expires_at, revoked_at,
+status active/expired/revoked, version. Notifications succès du client existant.
+
+Téléchargement : UUID tenant/lien et seul query parameter `token`, 64 caractères
+hexadécimaux minuscules. Ni session ni sélection tenant interactive requise ;
+le secret résout son propre acteur. Compte vérifié, MFA, organisation et adhésion
+actives, rôles et audience courants sont vérifiés à chaque lecture. Un token ne
+peut servir un autre tenant/lien. Jeton invalide, expiré, révoqué ou droits perdus :
+404 générique. Les erreurs inattendues donnent une réponse indisponible sans
+corps ICS partiel. Limite de 12/min par empreinte et 120/min par IP ; 429 avec
+Retry-After. Dépassement 500 activités/512 Kio : 409
+`CALENDAR_FEED_LIMIT_EXCEEDED` ; quota tenant d’export : 429.
+
+Projection UTC minimale : titre SUMMARY échappé, UID opaque, DTSTAMP,
+DTSTART/DTEND, CLASS PRIVATE et TRANSP OPAQUE. Lignes RFC 5545/UTF-8 repliées,
+CRLF et pas d’injection de propriétés via les titres. Fenêtre glissante en jours
+UTC, intersection `[from,to[` avec les activités non archivées accessibles en
+mode personnel. Aucun champ privé additionnel ou relation dans le flux.
+
+Cache-Control `private, no-store` ; pas d’ETag ni de 304, y compris requête
+conditionnelle après révocation. Referrer-Policy no-referrer, nosniff et noindex
+sur le téléchargement. Masquer token dans les logs du proxy/APM et ne pas mettre
+le flux en cache partagé. La révocation bloque les synchronisations suivantes ;
+les données déjà copiées restent sous contrôle du lecteur externe. Voir README
+pour exemple SPA, activation et limites opérationnelles.

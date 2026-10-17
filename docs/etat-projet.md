@@ -9,12 +9,12 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-CAL-004` — convocations, réponses et rappels.
-  Commit `661b438` poussé et migration confirmée par l’utilisateur, vérifiée Ran
-  batch 34. CI backend échouée sur le round-trip PostgreSQL OrganizationSchemaTest :
-  descendant CAL-004 oublié dans l’ordre de retrait/remontage. Correctif local
-  testé sur la sélection CI PostgreSQL intégrale : 1654 réussis, 2 exclusions
-  attendues. Push du correctif et CI distantes à confirmer. CAL-005 non démarré.
+- Dernier ticket traité : `UCG-CAL-005` — calendrier ICS privé personnel.
+  Implémentation locale sur staging ; push, CI distantes et migration à confirmer
+  après livraison. Une migration additive calendar_feeds ; aucune migration
+  principale, donnée métier réelle ni attribution de permission par l’agent.
+- CAL-004 : `661b438` et correctif `defc140` poussés ; CI validées par
+  l’utilisateur avant CAL-005. Migration confirmée Ran, batch 34.
 - CAL-003 (`dea7936`) : push, CI et migration confirmés par l’utilisateur avant
   CAL-004. Migration vérifiée en lecture seule : Ran, batch 33. Branche staging
   propre et synchronisée avec origin/staging au démarrage de CAL-004.
@@ -115,8 +115,9 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : push du correctif CI CAL-004 et confirmation
-  des CI. Aucune nouvelle migration : CAL-004 est déjà appliqué, Ran batch 34.
+- Prochaine action : pousser CAL-005, vérifier les CI puis appliquer sa migration
+  additive. Attribuer calendar.export aux comptes habilités et recetter le flux
+  avec deux comptes, révocation et calendrier externe. Prochain lot P0 : CAL-006.
   Permissions explicites et activation supervisée de calendar-invitations restent
   à recetter avant usage réel.
   CAL-003 est confirmé poussé, CI vertes et migré. Attribuer calendar.resources.manage et calendar.conflicts.override
@@ -2959,3 +2960,66 @@ ensuite ce fichier pour qu'il reflète la réalité.
 - Aucune modification frontend ; ses contrôles ne sont pas relancés pour ce
   correctif de test uniquement. Aucun push par l’agent ; prochaine action :
   pousser le commit de correctif et vérifier les CI, sans nouvelle migration.
+
+## Calendrier ICS privé — UCG-CAL-005
+
+- CAL-004 et correctif defc140 : push et CI confirmés par l’utilisateur avant
+  ce lot. Migration précédente vérifiée Ran batch 34.
+- Livré : gestion de son lien personnel par GET/POST/PATCH calendar/feed et
+  téléchargement ICS sans session par capacité. calendar.read + calendar.export
+  explicites ; compte vérifié, MFA, organisation/adhésion/rôles actuels exigés.
+  Aucun accès métier implicite pour owner ou compte technique. Les contrats
+  publics existants People, Teams et Tenancy servent à recomposer l’audience.
+- Secret aléatoire 256 bits, seul SHA-256 stocké, révélation unique dans le JSON
+  de création/rotation et l’état React. Pas de stockage navigateur, audit ou job
+  du secret. URL basée sur APP_URL de confiance, HTTPS hors local/tests.
+  Renouvellement et révocation optimistes, garde compte → organisation → lien,
+  unicité tenant/compte, audit transactionnel. Révocation efface le hash.
+- Flux personnel même pour un gestionnaire : titres et horaires UTC uniquement,
+  UID opaque stable, DTSTAMP et propriétés ICS minimales. Aucun descriptif,
+  lieu, lien de réunion, participant, ressource, absence ou contrat. Audience
+  personnelle SQL réévaluée à chaque lecture et activités archivées exclues.
+- Fenêtre glissante UTC : 0–30 jours passés, 1–90 futurs, cumul ≤93. Secret valide
+  1–90 jours ; défauts SPA 7/60 jours et validité 30 jours. Requête SQL bornée à
+  501 lignes, 500 activités/512 Kio maximum et quota d’export tenant ; refus entier
+  si dépassement. Pas de chargement de relations par activité. RFC 5545 : CRLF,
+  échappement des textes et repli à 75 octets sans découper UTF-8.
+- Cache-Control private/no-store, aucune réponse 304/ETag, en-têtes de confidentialité
+  sur les erreurs aussi. Jeton retiré de l’URL interne avant traitement ; logs
+  proxy/CDN/APM à masquer séparément. Limites 12/min par empreinte et 120/min/IP.
+  Mauvais jeton, expiration, révocation et perte de droits donnent un 404 générique.
+- Panneau avec confirmations tenant/export/révocation, version courante, expiration
+  UTC, renouvellement et secret effacé à fermeture/révocation. Copies externes
+  déjà importées non supprimables ; cadence de synchronisation dépend du lecteur.
+- Migration additive 2026_10_17_164002_create_calendar_feeds_table, FK restrictives,
+  contraintes de forme/identité et down protecteur. Inventaire de portabilité et
+  round-trip OrganizationSchemaTest actualisés. Migration principale vérifiée
+  Pending en lecture seule ; aucun migrate/seed ni habilitation réelle par l’agent.
+- Vérification initiale globale : import d’une exception interne Tenancy relevé
+  par le test d’architecture puis remplacé par l’exception domaine partagée.
+  Première exécution simultanée SQLite/PostgreSQL invalidée par interférence de
+  Storage::fake sur le dossier de fichiers simulés. Relances avec TEST_TOKEN
+  distincts pour isoler ces dossiers, sans modifier les tests métier existants.
+- Frontend : 278 tests sur 40 fichiers, build et lint réussis ; TypeScript strict
+  des nouveaux tests unitaires/navigateur réussi. Playwright complet : 30 scénarios
+  réussis, incluant création/secret éphémère/révocation sur mobile ; captures 375 et
+  320 px inspectées, sans débordement. Serveurs locaux de test arrêtés après contrôle.
+- PHPStan niveau 8 sans erreur ; Pint dirty et composer format:check complet réussis.
+- Prochaines étapes après commit : push, CI distantes, migration et recette de
+  calendar.export avec deux comptes. APP_URL HTTPS, masque des jetons dans les logs
+  d’entrée et aucun cache partagé du flux. Recetter un lecteur externe ; aucun
+  connecteur tiers n’a été activé. Révoquer les liens restaurés après sauvegarde.
+  Prochain P0 : CAL-006, reports/annulations et historique.
+- Suite backend SQLite complète après isolation : 1880 tests, 1870 réussis,
+  10 exclusions attendues, 8960 assertions, zéro échec/erreur.
+- Sélection CI PostgreSQL intégrale extraite du workflow actualisé : 1692 tests,
+  1690 réussis, 2 exclusions Redis attendues, 8109 assertions, zéro échec/erreur.
+  Rapport local ignoré : back/reports/cal005-ci-postgresql-isolated.xml. Les
+  résultats remplacent la première exécution perturbée par les fichiers simulés.
+- Paramètres contenant le secret marqués SensitiveParameter pour la résolution
+  et la génération d’URL ; les traces PHP ne doivent pas révéler cet argument.
+  Revalidation ciblée finale : 38 tests, 307 assertions ; PHPStan niveau 8 réussi.
+- Bases PostgreSQL temporaires CAL-005 supprimées, absence confirmée via
+  pg_database. Base principale : CAL-004 Ran batch 34, CAL-005 Pending ; contrôle
+  final en lecture seule. Aucun push par l’agent ; code, tests et docs regroupés
+  dans le commit local du lot sur staging.

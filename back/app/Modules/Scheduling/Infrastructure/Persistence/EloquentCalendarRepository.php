@@ -3,6 +3,7 @@
 namespace App\Modules\Scheduling\Infrastructure\Persistence;
 
 use App\Modules\Scheduling\Domain\CalendarAudience;
+use App\Modules\Scheduling\Domain\CalendarIcs;
 use App\Modules\Scheduling\Domain\Contracts\CalendarRepository;
 use App\Modules\Scheduling\Domain\Models\CalendarActivity;
 use Carbon\CarbonImmutable;
@@ -13,6 +14,15 @@ use Illuminate\Support\Str;
 
 final readonly class EloquentCalendarRepository implements CalendarRepository
 {
+    public function feed(string $org, CalendarAudience $audience, CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        return array_values($this->visible($org, $audience, false)->where('starts_at', '<', $to)->where('ends_at', '>', $from)
+            ->orderBy('starts_at')->orderBy('id')->limit(CalendarIcs::MAX_EVENTS + 1)
+            ->get(['id', 'title', 'starts_at', 'ends_at', 'updated_at'])
+            ->map(fn (CalendarActivity $event): array => ['id' => $event->id, 'title' => $event->title,
+                'starts_at' => $event->starts_at, 'ends_at' => $event->ends_at, 'updated_at' => CarbonImmutable::instance($event->updated_at ?? $event->starts_at)])->all());
+    }
+
     public function paginate(string $org, CalendarAudience $audience, CarbonImmutable $from, CarbonImmutable $to, array $filters, bool $management): LengthAwarePaginator
     {
         $query = $this->visible($org, $audience, $management)->where('starts_at', '<', $to)->where('ends_at', '>', $from);

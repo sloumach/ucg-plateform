@@ -2551,3 +2551,72 @@ CSRF et la confirmation tenant avant écriture. Après 409, relire et décider
 explicitement ; aucun rejeu automatique. Les nouvelles tables sont inventoriées
 pour la portabilité et les remises sont immuables. Un rollback refuse de
 supprimer un historique existant : préférer une correction en avant.
+## Calendrier ICS privé — UCG-CAL-005
+
+CAL-004 et son correctif `defc140` sont poussés ; CI confirmées vertes par
+l’utilisateur avant ce lot. CAL-005 ajoute un abonnement personnel ICS révocable.
+Dans le calendrier, « Gérer mon lien ICS » exige `calendar.read` et la nouvelle
+permission explicite `calendar.export`, un compte vérifié et la MFA. L’owner et
+les comptes techniques ne disposent d’aucun accès métier implicite.
+
+Le panneau permet de créer, renouveler et révoquer son propre lien, après
+confirmation du tenant et de l’export. Copier le secret immédiatement : le serveur
+ne conserve que SHA-256 du jeton aléatoire de 256 bits. Le lien disparaît à la
+fermeture du panneau et n’est jamais enregistré dans localStorage/sessionStorage.
+Un renouvellement invalide l’ancien lien ; le nouvel abonnement remplace l’URL
+à configurer dans l’application de calendrier externe.
+
+Chaque téléchargement sans session vérifie à nouveau l’organisation, le compte,
+la MFA, les droits, la personne et ses équipes actuelles. Il utilise l’audience
+personnelle même pour un gestionnaire. Seuls titres, horaires UTC et identifiants
+ICS opaques sont exportés : ni description, lieu, lien de réunion, participant,
+ressource, absence, note interne ou contrat. Les titres eux-mêmes sont exportés :
+les relire avant de confier le lien à un service tiers.
+
+Fenêtre glissante UTC `[minuit − before_days, minuit + after_days[` : 0–30 jours
+passés, 1–90 jours futurs, cumul ≤ 93. Validité du secret : 1–90 jours. Défauts SPA :
+7/60 jours et validité 30 jours. Au-delà de 500 activités ou 512 Kio, le flux refuse
+l’export entier ; réduire la fenêtre. Pas de troncature silencieuse. Le quota
+technique d’export du tenant reste applicable. Limites de téléchargement :
+12/minute par empreinte du lien et 120/minute par IP, avec `Retry-After`.
+
+Réponses `private, no-store`, sans ETag ni 304. Révoquer bloque les prochaines
+synchronisations ; une réponse déjà en cours et les copies déjà importées ne
+peuvent pas être rappelées. La fréquence de rafraîchissement et la suppression
+des événements retirés dépendent du calendrier externe. Un lien expiré/révoqué,
+un jeton erroné et une perte d’habilitation donnent le même 404.
+
+Exemple SPA (client existant avec session/CSRF, sans jeton réel dans le code) :
+
+```ts
+import { tenancyRequest } from './api/tenancy'
+import type { ApiSuccessResponse } from './api/contracts'
+import type { CalendarFeed, CalendarFeedSecret } from './api/calendarFeed'
+
+const path = `tenants/${organizationId}/calendar/feed`
+const previous = await tenancyRequest<ApiSuccessResponse<CalendarFeed | null>>(path, { revision })
+// Après confirmation humaine de l’organisation :
+await tenancyRequest('active-organization/confirmation', {
+  method: 'POST', body: { organization_id: organizationId, revision, confirm: true },
+})
+const issued = await tenancyRequest<ApiSuccessResponse<CalendarFeedSecret>>(path, {
+  method: 'POST', revision,
+  body: { expected_version: previous.data?.version ?? null, before_days: 7,
+    after_days: 60, expires_in_days: 30, confirm_export: true },
+}) // data = { feed, url }, url révélée une seule fois
+await tenancyRequest(path, {
+  method: 'PATCH', revision,
+  body: { version: issued.data.feed.version, confirm_revocation: true },
+})
+```
+
+Avant usage réel : appliquer la migration additive
+`2026_10_17_164002_create_calendar_feeds_table` (aucune migration principale par
+l’agent), configurer `APP_URL` HTTPS de confiance en staging/production, attribuer
+explicitement `calendar.export` via IAM-003 puis recetter avec deux comptes et
+une révocation. Ne jamais journaliser la query string `token` dans reverse proxy,
+CDN, APM, analytics ou support. L’application retire le jeton de l’URL de requête
+avant le traitement interne ; l’infrastructure doit aussi le masquer à l’entrée.
+Aucun cache partagé du flux, aucun connecteur externe ni tâche planifiée requis.
+Après restauration d’une sauvegarde, révoquer les liens restaurés avant ouverture.
+Les prochains reports/annulations et leurs notifications restent CAL-006.

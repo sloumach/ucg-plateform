@@ -1856,3 +1856,53 @@ sous ce verrou. Les logs tenant.schedule.* et failed_jobs exposent les incidents
 Le flag d’activation indique une configuration, pas une vérification de santé
 opérationnelle. Canal interne seulement ; ICS CAL-005 et notifications de report
 CAL-006 ne sont pas implémentés dans cette étape.
+## Flux personnel ICS — UCG-CAL-005
+
+`CalendarFeedService` orchestre validation, garde transactionnelle tenant,
+répertoire public d’éligibilité du compte, autorisation fraîche, repository et
+audit minimal. `CalendarFeedRepository` porte un seul lien par organisation/compte.
+Identité UUID/tenant/compte/création immuable, hash du secret caché, expiration,
+fenêtre et révocation explicites. Création/rotation/révocation utilisent la version
+optimiste et le même ordre de verrous compte → organisation → lien ; une première
+création est sérialisée par le verrou organisation et l’unicité tenant/compte.
+Rotation et révocation changent la version ; révocation efface l’empreinte.
+Aucun secret brut n’entre dans la base, l’audit ou un job.
+
+L’API de gestion reste sous Sanctum, session, MFA, contexte tenant et confirmation
+pour les mutations. FormRequest fermé, policy `export`, permission dédiée
+`calendar.export` en plus de `calendar.read`, services revalidant aussi leurs
+entrées et droits hors HTTP. Le lien de téléchargement est une capacité personnelle
+sans session : `CalendarSubscriptionRequest`, résolution hash/tenant/UUID,
+policy compatible invités et second contrôle transactionnel avant génération.
+Une résolution antérieure à une révocation ne peut pas rendre un corps ensuite.
+Le principal éventuel d’une session ne remplace jamais l’acteur du lien.
+
+Les seuls appels transverses passent par les contrats publics People, Teams et
+Tenancy. L’audience SQL personnelle existante s’applique à nouveau à chaque lecture :
+créateur, diffusion organisation, équipe actuelle ou participant encore lié à une
+personne admissible. Pas de mode management. Une requête SQL ordonnée, projection
+fermée et `LIMIT 501`, sans chargement de relations, déchiffre uniquement les titres.
+Le quota technique d’export s’ajoute aux plafonds 500 événements/512 Kio.
+
+`CalendarIcs` produit RFC 5545 : CRLF, lignes ≤ 75 octets repliées sans couper
+UTF-8, échappement TEXT et suppression des contrôles, UID dérivé du lien et de
+l’activité, stable à travers les rotations, DTSTAMP de la modification (horaire
+initial si ancienne ligne sans updated_at), DTSTART/DTEND UTC, CLASS PRIVATE.
+Pas d’alarme, description, lieu, URL, identité, absence ou donnée contractuelle.
+Le jeton est généré par random_bytes(32), stocké SHA-256 et vérifié hash_equals.
+URL construite avec APP_URL de confiance et route nommée, HTTPS hors local/tests.
+
+Middleware dédié : retrait du jeton de l’URL interne, limitation des requêtes par
+empreinte et IP, erreurs fermées, Referrer-Policy no-referrer, nosniff, noindex et
+Cache-Control private/no-store sur succès/erreurs. Aucun ETag/304/cache de corps :
+les droits et la révocation sont réévalués. Les logs d’entrée de l’infrastructure
+restent à configurer pour masquer token. Révoquer n’efface pas les copies tierces
+ou une réponse déjà autorisée en cours d’envoi.
+
+Migration additive SQLite/PostgreSQL, FK restrictives, bornes et cohérence
+hash/révocation imposées en SQL, rollback refusant une table peuplée. Le round-trip
+OrganizationSchemaTest retire/remonte aussi calendar_feeds ; l’inventaire de
+portabilité enregistre explicitement les colonnes, dont l’empreinte seulement.
+Après restauration, révoquer les liens restaurés avant de réouvrir le service.
+Panneau React chargé à l’ouverture, secret en état mémoire éphémère, confirmations,
+états expiré/révoqué et conflits sans rejeu automatique.

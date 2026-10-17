@@ -9,6 +9,9 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface CalendarRepository
 {
+    /** @return list<array{id:string,title:string,starts_at:CarbonImmutable,ends_at:CarbonImmutable,updated_at:CarbonImmutable}> */
+    public function feed(string $org, CalendarAudience $audience, CarbonImmutable $from, CarbonImmutable $to): array;
+
     /** @param array<string,mixed> $filters
      * @return LengthAwarePaginator<int,CalendarActivity>
      */
