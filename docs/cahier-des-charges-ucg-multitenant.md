@@ -357,7 +357,23 @@ confirmation, avec réouverture explicite avant correction. La machine prévoit 
 et de preuves, pour ne pas produire de validation fictive. Privé par défaut, partage
 interne confirmé et audience courante avant pagination. Aucun accès adverse ou score
 automatique, ni réservation calendrier déduite du seul horaire. Lineups et éligibilité
-restent MATCH-002 ; parties et résultats restent MATCH-003/004.
+constituent la livraison MATCH-002 ci-dessous ; parties et résultats restent MATCH-003/004.
+
+Livraison MATCH-002 : chaque équipe interne peut recevoir une composition de match
+finalisée, avec titulaires et remplaçants. L’affectation peut changer avant démarrage ;
+pendant la rencontre, seuls les échanges entre titulaire et remplaçant de la sélection
+retenue sont possibles. Toute opération exige un motif et conserve auteur, moment,
+phase et snapshot chiffré, sans modifier les versions antérieures lors d’un renommage
+ou départ. Les présences au roster et l’éligibilité selon le règlement retenu sont
+recontrôlées à l’affectation, au remplacement et au démarrage. Une évaluation incomplète
+ne vaut pas admissibilité ; sans règlement, cette absence d’évaluation réglementaire
+est affichée. Le démarrage exige une composition pour chaque équipe interne et refuse
+une personne dans plusieurs camps, sans imposer de composition aux rencontres
+individuelles ou aux adversaires externes. Les remplacements sont figés dès la fin ou
+l’annulation. Après une première affectation, les participants du dossier sont conservés.
+L’historique reste sous l’audience courante du match ; un compte sans fiche Personne
+ne bénéficie d’aucun accès personnel implicite aux matchs privés d’équipe. Une nouvelle
+affectation sur match partagé exige publication sportive et consentement explicite.
 
 Le manager confirme la rencontre et les participants. Le coach prépare les objectifs. Les joueurs répondent à la convocation. Un score est saisi ou importé avec sa source. Une personne habilitée le valide. Les agrégats sont recalculés, puis la publication éventuelle intervient séparément. Le coach clôture le débrief et attribue les actions suivantes.
 

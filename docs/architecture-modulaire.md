@@ -2016,3 +2016,56 @@ Les limites bornent chaque réponse ; mesurer requêtes, taille et contention
 avant de modifier la cadence ou les plafonds. Aucun cache de contenu privé ou
 notification externe n’est introduit. La liaison métier au calendrier, les lineups,
 parties, résultats et rattachements COM/MEDIA restent des lots explicites.
+
+## Compositions du match — UCG-MATCH-002
+
+Competition consomme le port public Teams/Application/Contracts/MatchLineups.
+Ce port fournit les choix finalisés paginés, un snapshot sportif et une évaluation
+à la date du match. L’adaptateur Teams réutilise HistoricalLineups, les repositories
+Teams, EligibilityEvaluator et les ports publics People. Competition n’importe
+aucun modèle Teams/People/Identity. Les noms retenus restent ceux de la composition
+finalisée ; la vérification courante du roster ne remplace jamais ces libellés.
+
+MatchLineupService orchestre les mutations sous la garde tenant puis le verrou
+du dossier Match, avant de lire/verrouiller les références Teams/People. La version
+optimiste du dossier est commune aux éditions, transitions, affectations et
+remplacements. Une seule révision et son audit sont écrits dans la transaction ;
+un refus d’éligibilité ou une panne d’audit annule aussi le changement de version.
+Les révisions courantes des participants sont lues ensemble via le repository.
+Les périodes du roster et faits des personnes sont groupés par composition,
+bornée à 50 personnes ; aucune requête par joueur. Les choix et l’historique sont
+paginés, 500 révisions par match au plus. Profiler contention tenant, volumes et
+évaluations avant d’augmenter ces limites ou d’ajouter un cache de données privées.
+
+La sélection d’une composition finalisée est permise en proposed/confirmed ;
+en in_progress, seuls les échanges de rôles starter/substitute du pool retenu
+sont possibles. Chaque équipe interne doit avoir une sélection au démarrage,
+aucune personne ne peut jouer pour deux camps. Aucun roster adverse n’est lu.
+La présence au roster et l’admissibilité courante des personnes restent requises,
+même sans règlement. Avec règlement, toute preuve incomplète/inéligible ou règle
+archivée bloque la commande. La preuve de finalisation avant la date de verrouillage
+reste celle de Teams ; le pool reste fermé lors d’un remplacement après cette date.
+Sans règlement : unassessed explicite, jamais assimilé à eligible.
+
+match_lineup_revisions retient snapshot et évaluation chiffrés, motif chiffré,
+numéro, phase, version du dossier, auteur et date serveur. FK composites tenant
+vers dossier/participant ; SQL vérifie équipe, correspondance du parent et de la
+version, séquence, limites et phase. UPDATE/DELETE interdits. Les participants
+ayant un historique ne sont plus remplaçables ; le down refuse une table peuplée.
+Les migrations antérieures sont inchangées, leurs round-trips de test déposent
+ce nouvel enfant avant ses parents. L’inventaire de portabilité inclut les colonnes
+physiques chiffrées. Les règles d’éligibilité restent contrôlées dans les services.
+
+L’audience du dossier filtre aussi son historique de composition. Contrairement
+au journal de statuts, celui-ci expose la référence interne du compte auteur pour
+tracer chaque opération, sans nom/email/coordonnées du compte. Les contrôleurs et
+Form Requests réutilisent MatchPolicy ; sports.write ne vaut pas teams.manage.
+Une nouvelle composition dans un dossier partagé exige sports.publish et un
+consentement, sans nouvelle attribution d’accès aux joueurs. Le filtre personnel
+refuse explicitement les participants sans person_id quand le lecteur n’a pas de
+fiche Personne, pour empêcher la confusion NULL = audience d’équipe privée.
+
+React charge choix et historique à l’action, masque les mutations des versions
+historiques et des états terminaux, confirme tenant et action avant POST et
+rafraîchit la version du dossier après succès. Le client ne rejoue pas un 409.
+Les parties, scores, preuves de résultat et notifications restent hors de ce lot.

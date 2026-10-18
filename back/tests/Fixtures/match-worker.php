@@ -1,6 +1,7 @@
 <?php
 
 use App\Exceptions\DomainConflictException;
+use App\Modules\Competition\Application\Services\MatchLineupService;
 use App\Modules\Competition\Application\Services\MatchService;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use Carbon\CarbonImmutable;
@@ -34,7 +35,9 @@ while (! is_file($barrier)) {
 }
 try {
     $service = app(MatchService::class);
-    if ($payload['operation'] === 'edit') {
+    if (in_array($payload['operation'], ['assign', 'substitute'], true)) {
+        app(MatchLineupService::class)->change($context, $payload['match'], $payload['participant'], $payload['input'], $payload['operation'] === 'substitute', null);
+    } elseif ($payload['operation'] === 'edit') {
         $service->save($context, $payload['input'], $payload['match']);
     } else {
         $service->transition($context, $payload['match'], $payload['input']);

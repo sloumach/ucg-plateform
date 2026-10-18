@@ -2996,3 +2996,67 @@ aucune écriture partielle. Cache-Control private,no-store sur les réponses.
 L’horaire est une donnée du dossier, sans réservation calendrier ni garantie
 d’absence de conflit. Lineups, parties, scores, preuves, résultats publiés et
 notifications restent leurs workflows dédiés. Voir README pour exemple SPA.
+
+## Compositions et remplacements du match — UCG-MATCH-002
+
+Routes sous `/api/v1/tenants/{tenant}/matches/{match}/participants/{participant}/lineups`.
+Le participant doit être une équipe interne de ce dossier ; autres natures ou
+références étrangères : 404. Session/MFA, audience du match, tenant confirmé et
+révision de session suivent les conventions Match existantes.
+
+| Méthode | Suffixe | Contrat |
+| --- | --- | --- |
+| GET | aucun | historique paginé, sports.read, même audience que le dossier |
+| GET | /choices | compositions finalisées de purpose match de cette équipe, sports.read/write |
+| POST | aucun | affectation d’une composition finalisée, sports.read/write, 201 |
+| POST | /substitutions | échange titulaire/remplaçant du pool retenu, sports.read/write, 201 |
+
+Pagination : page 1–100000, per_page 1–100, défauts 1/10. L’historique accepte
+management booléen ; true exige sports.write et permet les dossiers privés en
+gestion. Les choix exposent uniquement id/label. Cache-Control private,no-store.
+Les corps et paramètres sont fermés ; aucun nom, rôle libre, auteur, date ou
+rapport d’éligibilité ne peut être fourni par le client.
+
+Affectation : `{version, lineup_id, reason}`. version est la version courante du
+dossier Match, pas celle de la composition Teams. Motif non blanc 10–1000 caractères.
+Si le dossier est partagé : sports.publish et `confirm_sharing:true` obligatoires.
+Source finalisée, purpose match, équipe/jeu/tenant correspondants ; affectation
+possible uniquement proposed/confirmed. Une réaffectation identique sans changement
+est refusée. Après la première affectation, PATCH du dossier ne remplace plus ses
+participants ; les autres champs proposed restent éditables selon leur contrat.
+
+Remplacement : `{version, out_person_id, in_person_id, reason}`. Le sortant doit
+être titulaire et l’entrant remplaçant de la dernière version retenue ; personnes
+distinctes, aucune entrée extérieure au pool. Possible proposed/confirmed/in_progress.
+Les rôles sont échangés, la source finalisée Teams reste intacte. Tout changement
+est refusé en awaiting_validation, validated, disputed, cancelled ou forfeited.
+
+Éligibilité : présence au roster, disponibilité des personnes/équipe/jeu et règles
+retenues sont recontrôlées à l’affectation, au remplacement et au démarrage. La date
+contrôlée est starts_at avant le match, puis max(date serveur, starts_at) en cours.
+Un match d’équipes ne démarre pas sans composition par équipe interne ; une personne
+ne participe pas à plusieurs camps. Les individus et instantanés externes ne
+demandent pas de composition. Sans règlement : unassessed et contrôle du roster.
+Avec règlement : eligible requis, aucun défaut de données ou de permission sur
+les faits privés n’est assimilé à une preuve positive. L’admissibilité historique
+de la source ne suffit pas à autoriser une nouvelle opération.
+
+MatchLineupResource : id, participant_id, match_version, number, action assign/substitute,
+phase, reason, actor_user_id (référence interne du compte), occurred_at serveur,
+snapshot sportif conservé et assessment {status, checks, evaluated_at, effective_at}.
+Le snapshot comprend source id/version, équipe/jeu/saison/libellés, finalisation,
+références du règlement et du rapport initial, participants avec pseudonymes,
+références de période du roster, rôles sportifs et positions. Aucun email, contact,
+date de naissance ni valeur privée utilisée pour l’évaluation n’est exposé.
+L’historique est trié par numéro décroissant. Le POST ajoute notification Flasher
+et impose de reprendre match_version comme version du dossier pour la prochaine
+commande. Aucun score, résultat, réservation ou notification externe n’est créé.
+
+409 : MATCH_VERSION_STALE, MATCH_LINEUP_FROZEN, MATCH_LINEUP_REQUIRED,
+MATCH_LINEUP_NOT_ELIGIBLE, MATCH_LINEUP_SOURCE_INVALID, MATCH_LINEUP_UNCHANGED,
+MATCH_LINEUP_PARTICIPANTS_RETAINED, MATCH_LINEUP_DUPLICATE_PERSON, MATCH_LINEUP_LIMIT.
+Une source non finalisée conserve TEAM_LINEUP_NOT_FINALIZED ; un jeu indisponible
+conserve GAME_CONTEXT_UNAVAILABLE. Référence absente/étrangère/invisible : 404 ;
+droits insuffisants : 403 ; saisie invalide/motif/consentement : 422 localisé.
+500 révisions au plus par dossier. Un échec d’audit annule aussi version et révision ;
+les conflits ne sont jamais rejoués automatiquement par le client.

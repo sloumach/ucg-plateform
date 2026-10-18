@@ -76,7 +76,7 @@ final readonly class EloquentMatchRepository implements MatchRepository
             ->orWhere('visibility', 'organization')
             ->orWhereExists(fn (Query $p) => $p->selectRaw('1')->from('match_participants as member')
                 ->where('member.organization_id', $org)->whereColumn('member.match_id', 'matches.id')
-                ->where(fn (Query $scope) => $scope->where('member.person_id', $viewer['person_id'])
+                ->where(fn (Query $scope) => $scope->where(fn (Query $person) => $person->whereNotNull('member.person_id')->where('member.person_id', $viewer['person_id']))
                     ->orWhere(fn (Query $team) => $team->where('matches.visibility', 'team')->whereIn('member.team_id', $viewer['team_ids'])))));
     }
 }

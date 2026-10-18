@@ -28,7 +28,7 @@ final readonly class MatchService
 {
     public function __construct(private MatchRepository $records, private MatchReferenceDirectory $references,
         private MatchSchedule $schedule, private TenantAuthorization $authorization, private TenantBusinessGuard $guard,
-        private TenantAuditJournal $audit, private Factory $validator, private ConnectionInterface $database) {}
+        private TenantAuditJournal $audit, private Factory $validator, private ConnectionInterface $database, private MatchLineupService $lineups) {}
 
     /** @param array<string,mixed> $input
      * @return LengthAwarePaginator<int,MatchRecord>
@@ -87,6 +87,9 @@ final readonly class MatchService
             $record = $id === null ? null : $this->locked($context, $id, $values['version']);
             if ($record !== null && $record->status !== 'proposed') {
                 throw new DomainConflictException(__('matches.frozen'), 'MATCH_NOT_EDITABLE');
+            }
+            if ($record !== null && isset($values['participants'])) {
+                $this->lineups->assertParticipantsEditable($record);
             }
             $game = $this->references->game($context, $record === null ? strtolower($values['game_id']) : $record->game_id);
             $attributes = array_intersect_key($values, array_flip(['title', 'kind', 'format', 'visibility']));
@@ -168,6 +171,9 @@ final readonly class MatchService
                 $this->references->participants($context, $this->currentParticipants($record), $record->game_id);
             }
             $saved = $this->records->save($record, ['status' => $values['status'], 'version' => (string) Str::uuid()], null);
+            if ($values['status'] === 'in_progress') {
+                $this->lineups->assertReady($context, $saved);
+            }
             $this->event($context, $saved, $previous, trim($values['reason']));
             $this->audit($context, $saved, 'transition', $ip);
 

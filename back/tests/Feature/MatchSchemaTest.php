@@ -49,11 +49,14 @@ class MatchSchemaTest extends TestCase
     public function test_schema_round_trip_export_inventory_and_retained_history_rollback_guard(): void
     {
         $migration = require database_path('migrations/2026_10_17_225945_create_matches_participants_and_status_events.php');
+        $lineups = require database_path('migrations/2026_10_18_101019_create_match_lineup_revisions.php');
+        $lineups->down();
         $migration->down();
         $this->assertFalse(Schema::hasTable('matches'));
         $this->assertFalse(Schema::hasTable('match_participants'));
         $this->assertFalse(Schema::hasTable('match_status_events'));
         $migration->up();
+        $lineups->up();
         [$org, , , $person, $other, $game] = $this->matchScenario();
         $this->postJson($this->matchRoot($org), $this->matchPayload($game, $person, $other))->assertCreated();
         $repository = app(PortabilityRepository::class);
@@ -63,6 +66,8 @@ class MatchSchemaTest extends TestCase
         $this->assertCount(1, $matches);
         $this->assertNotSame('Scrim de préparation', $matches[0]['data']['title']);
         $this->expectException(\RuntimeException::class);
+        $lineups = require database_path('migrations/2026_10_18_101019_create_match_lineup_revisions.php');
+        $lineups->down();
         $migration->down();
     }
 

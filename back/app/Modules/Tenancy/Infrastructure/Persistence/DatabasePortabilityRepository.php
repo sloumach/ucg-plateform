@@ -18,7 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
-        'match_status_events' => 'id', 'match_participants' => 'id', 'matches' => 'id',
+        'match_lineup_revisions' => 'id', 'match_status_events' => 'id', 'match_participants' => 'id', 'matches' => 'id',
         'calendar_change_recipients' => 'id', 'calendar_changes' => 'id',
         'calendar_feeds' => 'id',
         'calendar_invitations' => 'id', 'calendar_invitation_deliveries' => 'id',
@@ -63,6 +63,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'match_lineup_revisions' => ['id', 'organization_id', 'match_id', 'participant_id', 'match_version', 'number', 'action', 'phase', 'snapshot', 'assessment', 'reason', 'actor_user_id', 'created_at'],
         'matches' => ['id', 'organization_id', 'game_id', 'game_key', 'game_name', 'title', 'kind', 'format', 'status', 'starts_at', 'ends_at', 'origin_timezone', 'responsible_person_id', 'responsible_label', 'visibility', 'sharing_authorized_by', 'sharing_authorized_at', 'created_by', 'version', 'created_at', 'updated_at'],
         'match_participants' => ['id', 'organization_id', 'match_id', 'slot', 'kind', 'team_id', 'person_id', 'opponent_snapshot_id', 'reference_version', 'label'],
         'match_status_events' => ['id', 'organization_id', 'match_id', 'from_status', 'to_status', 'match_version', 'actor_user_id', 'reason', 'created_at'],

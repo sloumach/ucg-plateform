@@ -131,6 +131,8 @@ class GameCatalogueSchemaTest extends TestCase
         $invitations = require database_path('migrations/2026_10_17_153712_create_calendar_invitations_and_deliveries.php');
         $changes = require database_path('migrations/2026_10_17_220751_create_calendar_changes_and_recipients.php');
         $matches = require database_path('migrations/2026_10_17_225945_create_matches_participants_and_status_events.php');
+        $matchLineups = require database_path('migrations/2026_10_18_101019_create_match_lineup_revisions.php');
+        $matchLineups->down();
         $matches->down();
         $changes->down();
         $invitations->down();
@@ -161,6 +163,7 @@ class GameCatalogueSchemaTest extends TestCase
         $invitations->up();
         $changes->up();
         $matches->up();
+        $matchLineups->up();
         $this->assertDatabaseCount('game_catalogue_entries', 18);
         $this->assertDatabaseCount('organization_games', 0);
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
@@ -201,6 +204,8 @@ class GameCatalogueSchemaTest extends TestCase
         $invitations = require database_path('migrations/2026_10_17_153712_create_calendar_invitations_and_deliveries.php');
         $changes = require database_path('migrations/2026_10_17_220751_create_calendar_changes_and_recipients.php');
         $matches = require database_path('migrations/2026_10_17_225945_create_matches_participants_and_status_events.php');
+        $matchLineups = require database_path('migrations/2026_10_18_101019_create_match_lineup_revisions.php');
+        $matchLineups->down();
         $matches->down();
         $changes->down();
         $invitations->down();
@@ -239,6 +244,7 @@ class GameCatalogueSchemaTest extends TestCase
         $invitations->up();
         $changes->up();
         $matches->up();
+        $matchLineups->up();
         $this->assertDatabaseCount('organization_games', 4);
         $this->assertSame(1, OrganizationGame::query()->where('organization_id', $org->id)->where('enabled', true)->count());
     }

@@ -9,10 +9,13 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-MATCH-001` — dossier Match et machine d’état.
+- Dernier ticket traité : `UCG-MATCH-002` — compositions et remplaçants du match.
   Implémentation locale sur staging ; push, CI distantes et migration additive
   à effectuer après livraison. Aucun migrate/seed principal, donnée métier réelle
-  ni attribution de permission par l’agent. Prochain P0 : MATCH-002.
+  ni attribution de permission par l’agent. Prochain P0 : MATCH-003.
+- MATCH-001 : `6589368` poussé ; CI et migration confirmées par l’utilisateur
+  avant MATCH-002. Migration vérifiée en lecture seule Ran batch 37. Staging
+  propre et synchronisé avec origin/staging au démarrage de MATCH-002.
 - CAL-006 : `064df63` poussé, CI et migration confirmées par l’utilisateur avant
   MATCH-001. Migration vérifiée en lecture seule Ran batch 36. Staging propre et
   synchronisé avec origin/staging au démarrage de MATCH-001. Les traitements
@@ -122,10 +125,10 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : pousser MATCH-001, vérifier les CI puis appliquer sa migration
-  additive. Recetter création, confidentialité, transitions motivées, audience
-  retirée et version périmée avec deux comptes explicitement habilités. Prochain
-  P0 sportif : MATCH-002 (lineups/remplaçants), puis MATCH-003/004 (résultats).
+- Prochaine action : pousser MATCH-002, vérifier les CI puis appliquer sa migration
+  additive. Recetter affectation, remplacement, éligibilité, historique et version
+  périmée avec deux comptes explicitement habilités. Prochain P0 sportif :
+  MATCH-003 (parties et scores), puis MATCH-004 (validation des résultats).
   CAL-007/CAL-008 restent P1. Recetter report/annulation avant activation de
   calendar-changes et supervision scheduler/worker.
   Permissions explicites et activation supervisée de calendar-invitations restent
@@ -3190,3 +3193,79 @@ ensuite ce fichier pour qu'il reflète la réalité.
 - Suite : push et CI distantes, sauvegarde puis migration additive et recette à
   deux comptes habilités. Prochain P0 : MATCH-002 (lineups et remplaçants) ;
   MATCH-003/004 porteront scores et validations. CAL-007/CAL-008 restent P1.
+
+## 18 octobre 2026 — UCG-MATCH-002 : compositions et remplaçants
+
+- Autorisation utilisateur : commencer MATCH-002 avec prudence, après confirmation
+  des CI et de la migration MATCH-001. Départ sur staging propre, synchronisé avec
+  origin/staging ; MATCH-001 Ran batch 37 vérifié en lecture seule. Aucun changement
+  de périmètre vers les scores, résultats, preuves ou notifications externes.
+- Nouveau port public Teams MatchLineups pour sélectionner les compositions de
+  match finalisées, conserver leur projection historique et réévaluer l’éligibilité
+  au moment du match. Réutilisation du journal Teams et d’EligibilityEvaluator ;
+  aucun accès direct Competition aux modèles d’un autre module.
+- Service/repository/Form Request/Resource/policy/routes et panneau React complets.
+  Affectation ou réaffectation avant démarrage ; échange titulaire/remplaçant du pool
+  retenu avant/pendant le match ; aucune réécriture de la source Teams. Motif requis,
+  date serveur, compte auteur interne, phase, numéro et noms conservés à chaque étape.
+  Une équipe doit avoir sa composition pour démarrer ; aucun doublon de personne
+  entre camps. Les individus et instantanés externes restent sans lineup imposée.
+- Réévaluation du roster, des personnes et du jeu, puis du règlement retenu s’il
+  existe : archived/ineligible/incomplete refusés. Absence de permission sur un fait
+  privé nécessaire : aucune preuve positive inventée. Sans règlement, unassessed
+  explicite et présence au roster vérifiée. Les lectures historiques n’exigent pas
+  que l’ancien roster soit encore actif et ne recalculent pas ses noms.
+- Verrou tenant puis dossier, version optimiste commune à toutes les commandes,
+  journal et audit atomiques ; panne d’audit entièrement annulée. Les participants
+  du dossier sont retenus après première affectation. Publication sportive et
+  consentement requis à une nouvelle affectation sur match partagé ; aucun droit
+  implicite propriétaire, rôle technique ou adversaire.
+- Correction d’un défaut d’audience MATCH-001 révélé par les nouveaux tests : un
+  compte sans fiche Personne rencontrait un filtre IS NULL sur les participants
+  d’équipe privés. Le filtre personnel exige désormais person_id non nul. La liste,
+  le dossier, l’historique de statuts et celui des compositions refusent ce cas,
+  sans retirer le mode gestion explicite aux comptes habilités.
+- Migration additive 2026_10_18_101019_create_match_lineup_revisions : snapshot,
+  évaluation et motif chiffrés, FK composites tenant, séquence/phase/version/capacité
+  contrôlées en SQL, journal append-only et down refusant toute table peuplée.
+  Inventaire de portabilité exhaustif ; round-trips des migrations parents déposent
+  cet enfant avant les parents. Anciennes migrations inchangées.
+- Choix/historique paginés ; 500 révisions par match, compositions Teams à 50
+  personnes au plus. Dernières révisions des participants lues ensemble ; contrôle
+  des périodes et faits sportifs groupé par composition, sans requête par joueur.
+  Les hausses de limites et caches privés demandent un profilage représentatif.
+- Vérifications locales : suite SQLite complète 1971 tests, 1954 réussis et 17
+  exclusions attendues, 9494 assertions ; ciblage final après les derniers ajustements
+  57 tests réussis et 385 assertions ; contrôle supplémentaire de l’instant réel
+  pendant le match : 12 tests API réussis, 125 assertions. Premier contrôle PostgreSQL ciblé : 84 tests
+  réussis, 379 assertions, dont quatre courses à deux processus indépendants
+  (transitions, édition/confirmation, deux affectations, deux remplacements) et les
+  round-trips des parents. PHPStan niveau 8 sans erreur, Pint, format:check et
+  Composer validate --strict réussis.
+- Frontend : 296 tests sur 43 fichiers ; build, lint et TypeScript strict des nouveaux
+  tests unitaires/navigateur réussis. Quatre parcours Playwright simulés Match,
+  Compositions, Calendrier et Équipes passés ensemble ; parcours Compositions rejoué
+  après précision du libellé de motif, et 12 tests unitaires Match/Compositions
+  repassés. Captures 320/375 px inspectées : absence de débordement et de HTML exécuté.
+- Le premier lanceur PostgreSQL local héritait APP_ENV=local, provoquant des refus
+  CSRF et des erreurs d’environnement de test. APP_ENV=testing imposé dans le lanceur
+  isolé, sans désactiver de protection de l’application ; son ciblage a ensuite passé.
+  Une seconde exécution complète a isolé un seul échec Contrats (queued au lieu de
+  failed) dû à QUEUE_CONNECTION=database hérité du même parent, au lieu de sync dans
+  phpunit.xml. Le lanceur reprend désormais toutes les variables de phpunit.xml,
+  puis substitue seulement la base temporaire et TEST_TOKEN. Contrats/Documents/
+  Scans/Compositions repassés : 46 tests et 322 assertions. Aucun code ni test
+  Contrats modifié pour contourner ces erreurs. Utiliser des TEST_TOKEN distincts
+  pour les Storage::fake des suites SQLite/PostgreSQL. Lanceur et rapports restent
+  ignorés et ne font pas partie de la livraison.
+- Sélection PostgreSQL complète identique à la CI, avec environnement de tests
+  isolé : 1774 tests, 1772 réussis, deux exclusions Redis attendues, 8691 assertions.
+  Les quatre courses à deux processus et les migrations parents passent aussi dans
+  cette exécution complète. Toutes les bases temporaires créées ont été supprimées ;
+  absence vérifiée en lecture seule. Base principale : MATCH-001 Ran batch 37,
+  nouvelle migration MATCH-002 non appliquée par l’agent.
+- Aucun migrate/seed principal, compte/droit/match réel, message ou notification
+  externe ni push exécuté par l’agent. Le serveur Vite de recette simulée appartient
+  à l’agent et a été arrêté. Code, tests et six documents existants dans un seul
+  commit local ; push/CI distantes, sauvegarde, migration additive puis recette
+  supervisée par l’utilisateur. Suite P0 : MATCH-003, puis MATCH-004.

@@ -128,10 +128,13 @@ class ExternalOpponentSchemaTest extends TestCase
         $this->assertDatabaseCount('external_opponents', 0);
         $migration = require database_path('migrations/2026_10_14_121838_create_external_opponents_and_snapshots.php');
         $matches = require database_path('migrations/2026_10_17_225945_create_matches_participants_and_status_events.php');
+        $matchLineups = require database_path('migrations/2026_10_18_101019_create_match_lineup_revisions.php');
+        $matchLineups->down();
         $matches->down();
         $migration->down();
         $migration->up();
         $matches->up();
+        $matchLineups->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         $opponent = ExternalOpponent::factory()->create();
         $this->reject(fn () => DB::table('external_opponents')->where('id', $opponent->id)->delete());

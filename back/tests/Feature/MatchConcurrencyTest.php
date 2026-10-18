@@ -8,22 +8,22 @@ use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Process\Process;
 use Tests\Fixtures\AuthenticatesWithMfa;
-use Tests\Fixtures\ProvidesMatches;
+use Tests\Fixtures\ProvidesMatchLineups;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
 
 class MatchConcurrencyTest extends TestCase
 {
-    use AuthenticatesWithMfa, ProvidesMatches, ProvidesPeopleAccess;
+    use AuthenticatesWithMfa, ProvidesMatchLineups, ProvidesPeopleAccess;
 
-    /** @return array<string,array{bool}> */
+    /** @return array<string,array{string}> */
     public static function races(): array
     {
-        return ['two transitions' => [false], 'edit versus confirmation' => [true]];
+        return ['two transitions' => ['transition'], 'edit versus confirmation' => ['edit'], 'two assignments' => ['assign'], 'two substitutions' => ['substitute']];
     }
 
     #[DataProvider('races')]
-    public function test_independent_processes_cannot_overwrite_one_version(bool $edit): void
+    public function test_independent_processes_cannot_overwrite_one_version(string $operation): void
     {
         if (DB::getDriverName() !== 'pgsql') {
             $this->markTestSkipped('Real match concurrency runs in the PostgreSQL CI selection.');
@@ -39,8 +39,21 @@ class MatchConcurrencyTest extends TestCase
             config(['database.connections.match001_race' => [...$config, 'url' => null, 'database' => $database]]);
             DB::setDefaultConnection('match001_race');
             $this->assertSame(0, Artisan::call('migrate', ['--force' => true, '--no-interaction' => true]));
-            [$org, $writer, , $person, $other, $game] = $this->matchScenario();
-            $data = $this->postJson($this->matchRoot($org), $this->matchPayload($game, $person, $other))->assertCreated()->json('data');
+            $lineupRace = in_array($operation, ['assign', 'substitute'], true);
+            $edit = $operation === 'edit';
+            if ($lineupRace) {
+                $scenario = $this->matchLineupScenario();
+                $org = $scenario['org'];
+                $writer = $scenario['writer'];
+                if ($operation === 'substitute') {
+                    $this->postJson($scenario['path'], ['version' => $scenario['match']->version, 'lineup_id' => $scenario['lineup']->id, 'reason' => 'Sélection retenue avant la rencontre.'])->assertCreated();
+                }
+                $scenario['match']->refresh()->load('participants');
+                $data = ['id' => $scenario['match']->id, 'version' => $scenario['match']->version];
+            } else {
+                [$org, $writer, , $person, $other, $game] = $this->matchScenario();
+                $data = $this->postJson($this->matchRoot($org), $this->matchPayload($game, $person, $other))->assertCreated()->json('data');
+            }
             $environment = ['APP_ENV' => 'testing', 'APP_KEY' => config('app.key'), 'DB_CONNECTION' => 'pgsql', 'DB_DATABASE' => $database, 'DB_URL' => '',
                 'DB_HOST' => $config['host'], 'DB_PORT' => (string) $config['port'], 'DB_USERNAME' => $config['username'], 'DB_PASSWORD' => $config['password'],
                 'CACHE_STORE' => 'array', 'SESSION_DRIVER' => 'array', 'QUEUE_CONNECTION' => 'sync', 'MAIL_MAILER' => 'array'];
@@ -48,6 +61,12 @@ class MatchConcurrencyTest extends TestCase
                 $payload = ['operation' => $edit && $i === 1 ? 'edit' : 'transition', 'org' => $org->id, 'actor' => $writer->id, 'match' => $data['id'],
                     'now' => CarbonImmutable::now()->toIso8601String(), 'input' => $edit && $i === 1 ? ['version' => $data['version'], 'title' => 'Correction concurrente']
                         : ['version' => $data['version'], 'status' => $i === 0 ? 'confirmed' : 'cancelled', 'reason' => 'Décision concurrente explicitement motivée.']];
+                if ($lineupRace) {
+                    $payload['operation'] = $operation;
+                    $payload['participant'] = $scenario['match']->participants->firstOrFail()->id;
+                    $payload['input'] = ['version' => $data['version'], 'reason' => 'Décision de composition concurrente motivée.',
+                        ...($operation === 'assign' ? ['lineup_id' => $scenario['lineup']->id] : ['out_person_id' => $scenario['starter']->id, 'in_person_id' => $scenario['sub']->id])];
+                }
                 $worker = new Process([PHP_BINARY, base_path('tests/Fixtures/match-worker.php'), json_encode($payload, JSON_THROW_ON_ERROR), $barrier], base_path(), $environment, null, 60);
                 $worker->start();
                 $workers[] = $worker;
@@ -87,10 +106,11 @@ class MatchConcurrencyTest extends TestCase
             $this->assertSame('MATCH_VERSION_STALE', $conflict[0]['code']);
             $this->assertDatabaseCount('matches', 1);
             $this->assertDatabaseCount('match_participants', 2);
-            $this->assertDatabaseCount('organization_audit_events', 2);
+            $this->assertDatabaseCount('organization_audit_events', $operation === 'substitute' ? 3 : 2);
             $status = DB::table('matches')->value('status');
-            $this->assertContains($status, $edit ? ['proposed', 'confirmed'] : ['confirmed', 'cancelled']);
+            $this->assertContains($status, $lineupRace ? ['proposed'] : ($edit ? ['proposed', 'confirmed'] : ['confirmed', 'cancelled']));
             $this->assertDatabaseCount('match_status_events', $status === 'proposed' ? 1 : 2);
+            $this->assertDatabaseCount('match_lineup_revisions', $lineupRace ? ($operation === 'substitute' ? 2 : 1) : 0);
         } finally {
             foreach ($workers as $worker) {
                 if ($worker->isRunning()) {

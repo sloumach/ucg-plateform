@@ -13,4 +13,9 @@ export type MatchRecord = { id: string; title: string; kind: 'scrim' | 'official
 export type MatchChoice = { id: string; label: string }
 export type MatchStatusEvent = { id: string; from_status: MatchStatus | null; to_status: MatchStatus; reason: string | null; match_version: string; occurred_at: string }
 export type MatchPage = Page<MatchRecord>
+export type MatchLineupEntry = { person_id: string; pseudonym: string; slot_key: 'starter' | 'substitute'; position: number }
+export type MatchLineupRevision = { id: string; participant_id: string; match_version: string; number: number; action: 'assign' | 'substitute'; phase: MatchStatus;
+  reason: string; actor_user_id: number; occurred_at: string;
+  snapshot: { id: string; label: string; team_name: string; ruleset_id: string | null; ruleset_version: string | null; eligibility_report_id: string | null; participants: MatchLineupEntry[] };
+  assessment: { status: 'eligible' | 'unassessed'; effective_at: string; evaluated_at: string } }
 export function matchText(key: string) { return t(('matches.' + key) as TranslationKey) }

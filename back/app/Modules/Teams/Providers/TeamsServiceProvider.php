@@ -7,6 +7,7 @@ use App\Modules\Teams\Application\Contracts\CalendarTeamsDirectory;
 use App\Modules\Teams\Application\Contracts\CommunicationTeamsDirectory;
 use App\Modules\Teams\Application\Contracts\ExternalOpponents;
 use App\Modules\Teams\Application\Contracts\HistoricalLineups;
+use App\Modules\Teams\Application\Contracts\MatchLineups;
 use App\Modules\Teams\Application\Contracts\MatchReferenceDirectory;
 use App\Modules\Teams\Application\Contracts\MediaTeamsDirectory;
 use App\Modules\Teams\Application\Contracts\OrganizationGameCatalogue;
@@ -16,6 +17,7 @@ use App\Modules\Teams\Application\Services\CommunicationTeamsService;
 use App\Modules\Teams\Application\Services\EffectiveGameCatalogue;
 use App\Modules\Teams\Application\Services\ExternalOpponentSnapshotService;
 use App\Modules\Teams\Application\Services\GameProfileCatalogueBridge;
+use App\Modules\Teams\Application\Services\MatchLineupDirectoryService;
 use App\Modules\Teams\Application\Services\MatchReferenceService;
 use App\Modules\Teams\Application\Services\MediaTeamsService;
 use App\Modules\Teams\Application\Services\PartnershipTeamsService;
@@ -58,6 +60,7 @@ final class TeamsServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(MatchLineups::class, MatchLineupDirectoryService::class);
         $this->app->bind(MatchReferenceDirectory::class, MatchReferenceService::class);
         $this->app->bind(MatchReferenceRepository::class, EloquentMatchReferenceRepository::class);
         $this->app->bind(CalendarTeamsDirectory::class, CalendarTeamsService::class);

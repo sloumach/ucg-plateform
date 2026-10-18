@@ -2780,4 +2780,66 @@ Elle crée matches, match_participants et match_status_events, avec FK tenant,
 contrôles SQL, instantanés gelés après confirmation et historique immuable.
 Le rollback refuse des données conservées. Aucun seed, permission ou match
 réel n’est créé par l’agent. Recetter deux comptes habilités, le partage interne,
-la perte d’audience et une demande périmée. Prochain lot P0 : MATCH-002.
+la perte d’audience et une demande périmée. Le lot suivant, MATCH-002, est décrit ci-dessous.
+
+## Compositions et remplaçants du match — UCG-MATCH-002
+
+MATCH-001 (`6589368`) : push, CI et migration confirmés par l’utilisateur ;
+migration vérifiée en lecture seule au batch 37 avant ce lot. MATCH-002 est
+livré localement, sans migration principale ni création de données réelles.
+
+Dans **Scrims et matchs**, ouvrir **Composition et remplaçants** sous une équipe
+interne participante. Préparer d’abord une composition de purpose match dans
+**Équipes**, puis la finaliser. Un compte avec sports.read/write peut l’affecter
+au dossier avant démarrage. Sur un match partagé, sports.publish et confirmation
+du partage sont nécessaires. Ces droits doivent déjà être attribués explicitement ;
+aucune permission métier n’est ajoutée automatiquement au propriétaire.
+
+Le démarrage exige une composition par équipe interne et refuse une personne
+dans plusieurs camps. Les matchs individuels restent possibles sans composition
+d’équipe imposée ; aucun roster adverse n’est consulté. Un remplacement échange
+un titulaire et un remplaçant de la sélection retenue, avant ou pendant le match,
+avec motif et confirmation. L’historique conserve le compte auteur, la date,
+la phase, le motif et les noms retenus, même après modification du roster.
+Les participants du dossier sont conservés dès la première affectation.
+Après fin ou annulation, les compositions restent consultables et figées.
+
+L’éligibilité est recontrôlée à chaque affectation/remplacement et au démarrage,
+au moment sportif du dossier. Un règlement archivé, une preuve incomplète ou une
+personne devenue inadmissible bloque la nouvelle opération sans réécrire le passé.
+Sans règlement associé, l’écran affiche explicitement **éligibilité réglementaire
+non évaluée** ; la présence au roster reste contrôlée. Les contrôles d’âge demandant
+des faits privés restent soumis aux permissions administratives nécessaires.
+
+Exemple depuis la SPA authentifiée et un tenant déjà confirmé (version et IDs
+issus des lectures autorisées ; conserver la confirmation humaine du parcours) :
+
+```ts
+const path = `tenants/${organizationId}/matches/${matchId}/participants/${participantId}/lineups`
+const assigned = await tenancyRequest<{ data: { match_version: string } }>(path, {
+  method: 'POST', revision: active.revision,
+  body: { version: match.version, lineup_id: finalizedLineupId,
+    reason: 'Sélection vérifiée avant la rencontre.' },
+})
+await tenancyRequest(path + '/substitutions', {
+  method: 'POST', revision: active.revision,
+  body: { version: assigned.data.match_version, out_person_id: starterId,
+    in_person_id: substituteId, reason: 'Remplacement demandé par le capitaine.' },
+})
+```
+
+Ajouter confirm_sharing:true à l’affectation sur un dossier partagé après
+consentement explicite. Recharger le dossier après un 409 ; ne pas rejouer la
+commande. Choix et historique paginés, 500 changements au plus par dossier,
+révisions courantes et faits sportifs groupés ; mesurer volumes/contention avant
+d’augmenter ces limites. Réponses sans cache privé partagé ni données administratives.
+
+Après push et CI : sauvegarder puis appliquer la migration additive
+`2026_10_18_101019_create_match_lineup_revisions`. Elle crée le journal chiffré,
+les FK tenant et les protections SQL append-only ; son rollback refuse une table
+peuplée. Les migrations antérieures ne changent pas. Recetter avec deux comptes
+habilités : affectation, remplacement en cours, fin figée, perte de permission,
+renommage, roster devenu invalide et version périmée. Aucun seed, match réel,
+notification externe ni attribution de droit n’est créé par l’agent.
+Prochain P0 : **MATCH-003 — parties, cartes et score de série**, puis MATCH-004
+pour les preuves et l’approbation des résultats.
