@@ -135,6 +135,8 @@ class GameCatalogueSchemaTest extends TestCase
         $matchScores = require database_path('migrations/2026_10_18_135008_create_match_score_rules_and_game_instances.php');
         $matchResults = require database_path('migrations/2026_10_18_144624_create_match_result_events_and_guards.php');
         $notebook = require database_path('migrations/2026_10_18_155140_create_match_notebook_revisions.php');
+        $competitions = require database_path('migrations/2026_10_18_210127_create_external_competitions_and_private_documents.php');
+        $competitions->down();
         $notebook->down();
         $corrections = require database_path('migrations/2026_10_18_184341_create_match_score_corrections_and_recalculations.php');
         $corrections->down();
@@ -176,6 +178,7 @@ class GameCatalogueSchemaTest extends TestCase
         $matchResults->up();
         $corrections->up();
         $notebook->up();
+        $competitions->up();
         $this->assertDatabaseCount('game_catalogue_entries', 18);
         $this->assertDatabaseCount('organization_games', 0);
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
@@ -220,6 +223,8 @@ class GameCatalogueSchemaTest extends TestCase
         $matchScores = require database_path('migrations/2026_10_18_135008_create_match_score_rules_and_game_instances.php');
         $matchResults = require database_path('migrations/2026_10_18_144624_create_match_result_events_and_guards.php');
         $notebook = require database_path('migrations/2026_10_18_155140_create_match_notebook_revisions.php');
+        $competitions = require database_path('migrations/2026_10_18_210127_create_external_competitions_and_private_documents.php');
+        $competitions->down();
         $notebook->down();
         $corrections = require database_path('migrations/2026_10_18_184341_create_match_score_corrections_and_recalculations.php');
         $corrections->down();
@@ -269,6 +274,7 @@ class GameCatalogueSchemaTest extends TestCase
         $matchResults->up();
         $corrections->up();
         $notebook->up();
+        $competitions->up();
         $this->assertDatabaseCount('organization_games', 4);
         $this->assertSame(1, OrganizationGame::query()->where('organization_id', $org->id)->where('enabled', true)->count());
     }

@@ -3165,3 +3165,41 @@ Serveurs temporaires arrêtés. La recette Reverb réelle + worker broadcasts re
 à effectuer en environnement isolé avant activation supervisée ; aucun worker ou
 service temps réel principal n’a été démarré. Le WebSocket navigateur est simulé,
 la signature réelle et la mise en file sont vérifiées par les tests backend.
+
+
+## 18 octobre 2026 — UCG-COMP-001 : suivi privé des compétitions externes
+
+MATCH-007 (`2c5d622`) poussé et CI confirmées par l’utilisateur avant ce lot.
+Sa recette réelle Reverb/worker broadcasts reste à faire avant activation supervisée.
+COMP-001 suit des compétitions organisées ailleurs, au sein du module Competition.
+
+- Dossier interne : référence et jeu immuables, organisateur, région/saison,
+  URL HTTPS et dix contacts structurés. Édition motivée, historique chiffré et
+  archivage conservant la lecture, sans suppression ni réouverture.
+- Documents privés : un règlement logique et des notes, texte chiffré, versions
+  immuables et téléchargement authentifié `.txt`, y compris des anciennes versions.
+  Aucun upload binaire ; pièces et échéances d’inscription réservées à COMP-002.
+- Lecture : sports.read + sports.competitions.read, MFA. Écriture : droit
+  sports.competitions.write supplémentaire, CSRF et contexte tenant confirmé.
+  Aucun droit attribué automatiquement aux rôles existants.
+- Verrous organisation puis dossier, versions attendues, audit atomique et
+  gardes SQL. Un conflit 409 impose une relecture et une nouvelle confirmation ;
+  aucune nouvelle tentative automatique. Réponses privées sans cache.
+- Nouvelle migration additive `2026_10_18_210127`, en attente sur la base principale.
+  Aucun migrate/seed principal, donnée métier réelle ou worker activé par l’agent.
+  Après revue/push et CI vertes : sauvegarder, migrer depuis back/, déléguer les
+  droits via IAM-003 puis recetter deux comptes et révocations. Prochain P0 : COMP-002.
+
+Vérifications COMP-001 : SQLite complet 2191 tests, 2160 réussis et 31 exclusions
+attendues (concurrence PostgreSQL, Redis/scanner réel opt-in) ; 11 179 assertions.
+Frontend complet 349 tests, lint/tsc/build verts ; 8 parcours Chrome à API simulée,
+captures 320/375 px et absence de débordement. PHPStan niveau 8, Pint et
+composer validate strict réussis. PostgreSQL : sélection CI de
+1981 cas exécutée (1976 réussis, 2 exclusions Redis, 3 erreurs de démontage de
+schéma), puis correctif de l’ordre de démontage/recréation validé avec 67 tests
+réussis et 331 assertions, incluant les 42 cas COMP-001 et les trois courses réelles.
+La suite SQLite complète ci-dessus est exécutée après ce correctif. ClamAV simulé
+revalidé (35 cas avec les schémas), puis inclus dans SQLite complet réussi.
+Bases PostgreSQL temporaires supprimées et serveurs navigateur arrêtés.
+Le contrôle de clés JSON à jokers a été reproduit en échec puis corrigé/testé.
+Aucun test du service Reverb réel dans cette tâche.

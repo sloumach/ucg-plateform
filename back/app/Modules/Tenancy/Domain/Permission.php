@@ -13,6 +13,8 @@ enum Permission: string
     case RolesAssign = 'roles.assign';
     case AuditView = 'audit.view';
     case SportsRead = 'sports.read';
+    case SportsCompetitionsRead = 'sports.competitions.read';
+    case SportsCompetitionsWrite = 'sports.competitions.write';
     case GamesManage = 'games.manage';
     case TeamsManage = 'teams.manage';
     case SportsWrite = 'sports.write';

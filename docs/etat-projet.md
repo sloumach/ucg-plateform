@@ -9,13 +9,16 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-MATCH-007` — diffusion privée des scores autorisés.
-  Implémentation locale sur staging ; push et CI distantes à valider après livraison.
-  Aucune nouvelle migration. Aucun migrate/seed principal, donnée métier réelle,
-  attribution de permission ou activation de worker par l’agent.
+- Dernier ticket traité : `UCG-COMP-001` — suivi privé des compétitions externes.
+  Implémentation locale sur staging, push/CI et nouvelle migration à valider.
+  Migration `2026_10_18_210127` en attente sur la base principale ; aucun migrate/seed,
+  dossier réel, droit réel ou worker activé par l’agent. Prochain P0 : COMP-002.
+- MATCH-007 : `2c5d622` poussé ; CI validées par l’utilisateur avant COMP-001.
+  Aucune migration pour ce ticket. Recette réelle Reverb + worker broadcasts
+  toujours à réaliser en environnement isolé avant activation supervisée.
 - MATCH-006 : `22f46fc` poussé ; CI et migration validées par l’utilisateur.
   Migration constatée en lecture seule Ran, batch 42. Départ propre et synchronisé.
-  Prochain P0 après validation : COMP-001 ; MATCH-008 reste P1.
+  MATCH-008 reste P1.
 - MATCH-005 : `f40d2a6` poussé ; CI et migration confirmées par l’utilisateur.
   Migration constatée en lecture seule Ran, batch 41. Départ propre et synchronisé.
 - MATCH-004 : `f25f966` présent sur staging et origin/staging au démarrage ;
@@ -139,12 +142,14 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : pousser MATCH-007 et vérifier les CI. Recetter en environnement
-  isolé Reverb, la file broadcasts et la configuration VITE_REVERB_* avec deux comptes.
-  Aucune migration nouvelle. Vérifier les travaux en attente avant toute activation
-  du worker principal ; ne pas activer le temps réel sans configuration et supervision.
-  Le recalcul MATCH-006 continue de dépendre de sa file persistante default.
-  Après validation : COMP-001 (P0), suivi des compétitions externes ; MATCH-008 (P1).
+- Prochaine action : revue/push de COMP-001, CI vertes, sauvegarde puis
+  `php artisan migrate` depuis back/. Déléguer ensuite explicitement via IAM-003
+  sports.competitions.read/write aux seuls habilités et recetter deux comptes.
+  La lecture exige aussi sports.read et MFA ; aucun rôle existant n’est enrichi.
+  Suite P0 : COMP-002, dossiers d’inscription et échéances externes.
+  Recetter séparément Reverb, la file broadcasts et VITE_REVERB_* avec deux comptes,
+  avant activation supervisée ; vérifier les travaux en attente. Le recalcul
+  MATCH-006 continue de dépendre de sa file persistante default.
   CAL-007/CAL-008 restent P1. Recetter report/annulation avant activation de
   calendar-changes et supervision scheduler/worker.
   Permissions explicites et activation supervisée de calendar-invitations restent
@@ -3640,3 +3645,41 @@ Serveurs temporaires arrêtés. La recette Reverb réelle + worker broadcasts re
 à effectuer en environnement isolé avant activation supervisée ; aucun worker ou
 service temps réel principal n’a été démarré. Le WebSocket navigateur est simulé,
 la signature réelle et la mise en file sont vérifiées par les tests backend.
+
+
+## 18 octobre 2026 — UCG-COMP-001 : suivi privé des compétitions externes
+
+MATCH-007 (`2c5d622`) poussé et CI confirmées par l’utilisateur avant ce lot.
+Sa recette réelle Reverb/worker broadcasts reste à faire avant activation supervisée.
+COMP-001 suit des compétitions organisées ailleurs, au sein du module Competition.
+
+- Dossier interne : référence et jeu immuables, organisateur, région/saison,
+  URL HTTPS et dix contacts structurés. Édition motivée, historique chiffré et
+  archivage conservant la lecture, sans suppression ni réouverture.
+- Documents privés : un règlement logique et des notes, texte chiffré, versions
+  immuables et téléchargement authentifié `.txt`, y compris des anciennes versions.
+  Aucun upload binaire ; pièces et échéances d’inscription réservées à COMP-002.
+- Lecture : sports.read + sports.competitions.read, MFA. Écriture : droit
+  sports.competitions.write supplémentaire, CSRF et contexte tenant confirmé.
+  Aucun droit attribué automatiquement aux rôles existants.
+- Verrous organisation puis dossier, versions attendues, audit atomique et
+  gardes SQL. Un conflit 409 impose une relecture et une nouvelle confirmation ;
+  aucune nouvelle tentative automatique. Réponses privées sans cache.
+- Nouvelle migration additive `2026_10_18_210127`, en attente sur la base principale.
+  Aucun migrate/seed principal, donnée métier réelle ou worker activé par l’agent.
+  Après revue/push et CI vertes : sauvegarder, migrer depuis back/, déléguer les
+  droits via IAM-003 puis recetter deux comptes et révocations. Prochain P0 : COMP-002.
+
+Vérifications COMP-001 : SQLite complet 2191 tests, 2160 réussis et 31 exclusions
+attendues (concurrence PostgreSQL, Redis/scanner réel opt-in) ; 11 179 assertions.
+Frontend complet 349 tests, lint/tsc/build verts ; 8 parcours Chrome à API simulée,
+captures 320/375 px et absence de débordement. PHPStan niveau 8, Pint et
+composer validate strict réussis. PostgreSQL : sélection CI de
+1981 cas exécutée (1976 réussis, 2 exclusions Redis, 3 erreurs de démontage de
+schéma), puis correctif de l’ordre de démontage/recréation validé avec 67 tests
+réussis et 331 assertions, incluant les 42 cas COMP-001 et les trois courses réelles.
+La suite SQLite complète ci-dessus est exécutée après ce correctif. ClamAV simulé
+revalidé (35 cas avec les schémas), puis inclus dans SQLite complet réussi.
+Bases PostgreSQL temporaires supprimées et serveurs navigateur arrêtés.
+Le contrôle de clés JSON à jokers a été reproduit en échec puis corrigé/testé.
+Aucun test du service Reverb réel dans cette tâche.

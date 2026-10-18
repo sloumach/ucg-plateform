@@ -1,6 +1,8 @@
 <?php
 
 use App\Exceptions\DomainConflictException;
+use App\Modules\Competition\Application\Services\ExternalCompetitionDocumentService;
+use App\Modules\Competition\Application\Services\ExternalCompetitionService;
 use App\Modules\Competition\Application\Services\MatchCorrectionService;
 use App\Modules\Competition\Application\Services\MatchLineupService;
 use App\Modules\Competition\Application\Services\MatchNotebookService;
@@ -39,7 +41,11 @@ while (! is_file($barrier)) {
 }
 try {
     $service = app(MatchService::class);
-    if ($payload['operation'] === 'correction') {
+    if ($payload['operation'] === 'external_competition') {
+        app(ExternalCompetitionService::class)->save($context, $payload['input'], $payload['competition'], null);
+    } elseif ($payload['operation'] === 'external_competition_document') {
+        app(ExternalCompetitionDocumentService::class)->save($context, $payload['competition'], $payload['document'], $payload['input'], null);
+    } elseif ($payload['operation'] === 'correction') {
         app(MatchCorrectionService::class)->request($context, $payload['match'], $payload['input'], null);
     } elseif ($payload['operation'] === 'correction_apply') {
         app(MatchCorrectionService::class)->process($context, $payload['match'], $payload['correction']);

@@ -2312,3 +2312,64 @@ Serveurs temporaires arrêtés. La recette Reverb réelle + worker broadcasts re
 à effectuer en environnement isolé avant activation supervisée ; aucun worker ou
 service temps réel principal n’a été démarré. Le WebSocket navigateur est simulé,
 la signature réelle et la mise en file sont vérifiées par les tests backend.
+
+
+## 18 octobre 2026 — UCG-COMP-001 : compétitions externes privées
+
+Le module Competition possède `external_competitions`,
+`external_competition_revisions` et `external_competition_documents`.
+Controller + FormRequest + Policy délèguent aux services de dossiers/documents,
+puis au contrat ExternalCompetitionRepository et à son implémentation Eloquent.
+Le port public Teams ExternalCompetitionGames expose seulement les jeux actifs
+et leurs libellés ; aucune lecture de tables Teams depuis Competition.
+
+Le dossier fixe référence et identité du jeu. Chaque édition ajoute une révision
+chiffrée avant la mise à jour protégée du parent, dans la même transaction que
+l’audit transverse limité aux identifiants. Contacts, noms/organisateur, liens,
+instantanés, motifs et textes documentaires utilisent les casts encrypted.
+Région/saison restent filtrables. Aucun contenu privé dans des événements publics.
+Les trois tables figurent dans l’inventaire de portabilité, avec colonnes explicites
+et export brut préservant le chiffrement. Les clés composites imposent le tenant.
+
+Les services verrouillent l’organisation puis le dossier et revérifient les droits.
+Version du dossier et version documentaire sont indépendantes : une nouvelle
+version texte exige les deux valeurs attendues mais ne modifie pas la version du
+parent. Un règlement logique par dossier, notes complémentaires, séquence stricte,
+identité/type documentaire immuables. Gardes SQL PostgreSQL/SQLite contre les
+réécritures/suppressions ; le down refuse de perdre un historique non vide.
+Archivage du parent ferme toute écriture. Les anciennes versions restent lisibles.
+
+Les droits dédiés sports.competitions.read/write sont privilégiés (MFA),
+la lecture exige aussi sports.read ; aucun grant implicite ni besoin sports.write.
+Le téléchargement reste une route authentifiée vérifiant tenant et droits actuels,
+renvoyant du texte en pièce jointe, private/no-store, nosniff et CSP sandbox.
+URL externe de citation seulement, HTTPS sans credentials ; aucun fetch serveur.
+
+Les requêtes paginent dossiers/jeux jusqu’à 25 éléments et historiques/documents
+jusqu’à 10, sans relations chargées en boucle. Index tenant/statut/date/id et
+parent/document/numéro ; dernier document choisi par anti-jointure indexée.
+Bornes : 10 000 dossiers/tenant, 1000 révisions/dossier, 100 documents/dossier,
+100 versions/document, 20 000 caractères/version et dix contacts. À plus grande
+échelle, profiler les filtres région/saison et la pagination avant tout nouvel
+index ou curseur ; aucun cache partagé de données privées.
+
+Le panneau React est chargé à la demande selon les droits courants, démonté au
+changement de contexte. Confirmation existante réutilisée, 422 conserve les champs,
+409 recharge le contexte sans rejeu ; liens et textes échappés, téléchargement Blob
+annulé au démontage. Les fichiers binaires et l’inscription restent COMP-002.
+Nouvelle migration principale en attente ; aucun worker requis pour COMP-001.
+MATCH-007 poussé/CI confirmé (`2c5d622`), recette Reverb réelle toujours à réaliser.
+
+Vérifications COMP-001 : SQLite complet 2191 tests, 2160 réussis et 31 exclusions
+attendues (concurrence PostgreSQL, Redis/scanner réel opt-in) ; 11 179 assertions.
+Frontend complet 349 tests, lint/tsc/build verts ; 8 parcours Chrome à API simulée,
+captures 320/375 px et absence de débordement. PHPStan niveau 8, Pint et
+composer validate strict réussis. PostgreSQL : sélection CI de
+1981 cas exécutée (1976 réussis, 2 exclusions Redis, 3 erreurs de démontage de
+schéma), puis correctif de l’ordre de démontage/recréation validé avec 67 tests
+réussis et 331 assertions, incluant les 42 cas COMP-001 et les trois courses réelles.
+La suite SQLite complète ci-dessus est exécutée après ce correctif. ClamAV simulé
+revalidé (35 cas avec les schémas), puis inclus dans SQLite complet réussi.
+Bases PostgreSQL temporaires supprimées et serveurs navigateur arrêtés.
+Le contrôle de clés JSON à jokers a été reproduit en échec puis corrigé/testé.
+Aucun test du service Reverb réel dans cette tâche.

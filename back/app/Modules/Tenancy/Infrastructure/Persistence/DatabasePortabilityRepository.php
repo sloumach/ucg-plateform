@@ -18,6 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
+        'external_competition_documents' => 'id', 'external_competition_revisions' => 'id', 'external_competitions' => 'id',
         'match_score_recalculations' => 'id', 'match_score_corrections' => 'id', 'match_notebook_revisions' => 'id', 'match_result_events' => 'id', 'match_game_instances' => 'id', 'match_score_rules' => 'id', 'match_lineup_revisions' => 'id', 'match_status_events' => 'id', 'match_participants' => 'id', 'matches' => 'id',
         'calendar_change_recipients' => 'id', 'calendar_changes' => 'id',
         'calendar_feeds' => 'id',
@@ -63,6 +64,9 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'external_competitions' => ['id', 'organization_id', 'reference', 'game_id', 'game_key', 'game_name', 'name', 'organizer', 'region', 'season', 'website_url', 'contacts', 'status', 'version', 'created_by', 'created_at', 'updated_at'],
+        'external_competition_revisions' => ['id', 'organization_id', 'competition_id', 'number', 'base_version', 'version', 'snapshot', 'changed_fields', 'reason', 'actor_user_id', 'created_at'],
+        'external_competition_documents' => ['id', 'organization_id', 'competition_id', 'document_id', 'number', 'kind', 'title', 'body', 'source_url', 'reason', 'actor_user_id', 'created_at'],
         'match_score_corrections' => ['id', 'organization_id', 'match_id', 'base_match_version', 'match_version', 'base_correction_id', 'idempotency_key', 'fingerprint', 'number', 'before', 'after', 'changed_ids', 'reason', 'actor_user_id', 'created_at'],
         'match_score_recalculations' => ['id', 'organization_id', 'match_id', 'correction_id', 'series', 'actor_user_id', 'created_at'],
         'match_notebook_revisions' => ['id', 'organization_id', 'match_id', 'entry_id', 'number', 'kind', 'audience', 'title', 'body', 'vod_url', 'timestamp_seconds', 'state', 'due_at', 'actor_user_id', 'created_at'],

@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\ExternalCompetitionController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchCorrectionController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchLineupController;
@@ -41,4 +42,21 @@ Route::prefix('tenants/{tenant}/matches')->whereUuid('tenant')->middleware('tena
     Route::get('{match}/history', [MatchController::class, 'history'])->whereUuid('match')->name('matches.history');
     Route::patch('{match}', [MatchController::class, 'update'])->whereUuid('match')->middleware('tenant.confirmed')->block(10, 10)->name('matches.update');
     Route::post('{match}/transitions', [MatchController::class, 'transition'])->whereUuid('match')->middleware('tenant.confirmed')->block(10, 10)->name('matches.transitions');
+});
+
+Route::prefix('tenants/{tenant}/external-competitions')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
+    $controller = ExternalCompetitionController::class;
+    Route::get('', $controller.'@index')->name('external-competitions.index');
+    Route::get('games', $controller.'@games')->name('external-competitions.games');
+    Route::post('', $controller.'@store')->middleware('tenant.confirmed')->block(10, 10)->name('external-competitions.store');
+    Route::prefix('{competition}')->whereUuid('competition')->group(function () use ($controller): void {
+        Route::get('', $controller.'@show')->name('external-competitions.show');
+        Route::patch('', $controller.'@update')->middleware('tenant.confirmed')->block(10, 10)->name('external-competitions.update');
+        Route::get('history', $controller.'@history')->name('external-competitions.history');
+        Route::get('documents', $controller.'@documents')->name('external-competitions.documents');
+        Route::post('documents', $controller.'@documentStore')->middleware('tenant.confirmed')->block(10, 10)->name('external-competitions.documents.store');
+        Route::get('documents/{document}/history', $controller.'@documentHistory')->whereUuid('document')->name('external-competitions.documents.history');
+        Route::patch('documents/{document}', $controller.'@documentUpdate')->whereUuid('document')->middleware('tenant.confirmed')->block(10, 10)->name('external-competitions.documents.update');
+        Route::get('documents/{document}/versions/{version}/download', $controller.'@download')->whereUuid(['document', 'version'])->name('external-competitions.documents.download');
+    });
 });

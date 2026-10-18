@@ -825,12 +825,12 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 
 ### UCG-MATCH-007 — Diffuser les scores autorisés en temps réel
 
-- **Statut** : livré localement sur staging ; push/CI à valider. MATCH-006 (`22f46fc`) poussé, CI/migration validées ; Ran batch 42 vérifié en lecture seule. Aucune migration MATCH-007.
+- **Statut** : commit `2c5d622` poussé, CI validées par l’utilisateur avant COMP-001. MATCH-006 (`22f46fc`) poussé, CI/migration validées ; Ran batch 42 vérifié en lecture seule. Aucune migration MATCH-007.
 - **Vérifications** : SQLite complet 2121 réussis/28 exclus ; PostgreSQL CI complet 1935 réussis/2 exclus Redis puis 20 cas finaux dédiés ; frontend 338 tests, 7 parcours navigateur, captures 320/375 px. PHPStan 8, Pint, composer validate, tsc/build et oxlint verts. Signature réelle testée au backend ; WebSocket simulé au navigateur, recette du service Reverb et worker réel encore requise.
 - **Livraison** : canal privé tenant/match, signature avec MFA/contexte confirmé/audience sportive, invalidations après commit, projection HTTP cohérente sans preuve/stratégie, vue dédiée provisoire/validée, correction en attente masquée, forfait approuvé affiché.
 - **Fiabilité** : broadcasts 3 tentatives/30 s/1–5–15 s, déduplication et regroupement client, relecture au réabonnement/retour en ligne et secours visible 30 s ; panne après commit journalisée sans échec trompeur de l’action sportive. Aucun outbox : rattrapage par relecture.
 - **Confidentialité** : WebSocket limité aux identifiants d’invalidation et horodatage ; chaque lecture contrôle les droits actuels. Aucun canal public ou accès adverse ; publication publique distincte en P1.
-- **Suite** : recette Reverb + file persistante broadcasts en environnement isolé ; aucune activation principale automatique. Après push/CI : COMP-001 (P0), MATCH-008 reste P1.
+- **Suite** : recette Reverb + file persistante broadcasts en environnement isolé ; aucune activation principale automatique. COMP-001 livré dans le lot suivant ; MATCH-008 reste P1.
 
 - **Priorité / taille** : P0 / L
 - **Périmètre** : événements après transaction, canaux publics ou privés incluant le tenant et fraîcheur de la donnée.
@@ -849,6 +849,15 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 Ce module suit les participations de l’organisation à des compétitions gérées ailleurs. Il ne crée ni événement compétitif organisé sur la plateforme, ni inscription publique, ni moteur de tournoi. Le module technique `Competition` reste propriétaire des matchs et de ce suivi interne.
 
 ### UCG-COMP-001 — Suivre les compétitions externes
+
+- **État** : livré localement le 18 octobre 2026 ; push/CI et migration principale à valider. Nouvelle migration additive `2026_10_18_210127`, anciennes migrations intactes.
+- **Validation** : SQLite complet 2160 réussis/31 exclusions attendues ; PostgreSQL 67 cas finaux réussis (42 COMP-001 et démontages de schémas corrigés après trois erreurs dans la sélection globale). Frontend 349 tests, 8 parcours Chrome, captures 320/375 px, PHPStan 8/Pint/Composer et lint/tsc/build verts.
+- **Livré** : dossier par tenant, référence et jeu immuables, organisateur, région/saison, URL HTTPS, dix contacts structurés, modifications motivées, historique chiffré et archivage définitif en lecture seule. API et panneau React paginés.
+- **Documents** : un règlement logique et des notes privées, versions texte chiffrées et immuables, téléchargement authentifié `.txt` des versions anciennes avec contrôle actuel des droits. Aucun upload binaire dans ce lot ; les pièces d’inscription restent COMP-002.
+- **Accès** : sports.read + sports.competitions.read pour consulter, sports.competitions.write en supplément pour modifier ; MFA et confirmation du tenant aux écritures. Aucune permission accordée automatiquement aux rôles existants.
+- **Fiabilité** : verrous organisation/dossier, contrôle optimiste des versions et contraintes SQL PostgreSQL/SQLite ; conflits 409 sans rejeu client, archivage concurrent protégé. Audit transverse limité aux identifiants, export tenant conserve le chiffrement.
+- **Bornes** : 10 000 dossiers/tenant, 1000 révisions/dossier, 100 documents/dossier et 100 versions/document ; pages dossiers/jeux 1–25, historiques/documents 1–10, contenu texte 20 000 caractères. Index tenant et requêtes sans N+1 ; pas de cache partagé de contenu privé.
+- **Suite** : après push/CI, sauvegarde et migration utilisateur, délégation ciblée puis recette de deux comptes/révocations. COMP-002 est le prochain P0. Aucune donnée métier réelle, activation de worker ou inscription auprès d’un organisateur par l’agent.
 
 - **Priorité / taille** : P0 / M
 - **Périmètre** : organisateur, jeu, région, saison, règlement versionné, contacts et URL.

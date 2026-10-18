@@ -513,6 +513,27 @@ FACEIT propose une Data API pour ses informations publiques. Cela ne garantit pa
 - COMP-04 : attribuer les tâches au manager et alerter sur les pièces ou disponibilités manquantes.
 - COMP-05 : conserver les exigences d’âge, résidence, compte ou rang telles que définies par le règlement.
 
+### 11.2 Livraison COMP-001 — dossier privé de participation
+
+L’organisation consigne une compétition organisée ailleurs : référence interne et
+jeu figés à la création, nom, organisateur, région, saison, lien HTTPS et contacts.
+Le dossier reste propre au tenant. Les changements nécessitent un motif et
+conservent un instantané daté et attribué ; l’archivage conserve la lecture et
+interdit toute modification du dossier ou de ses documents.
+
+Un règlement et des notes complémentaires sont conservés sous forme de textes
+privés, chiffrés et versionnés. Une ancienne version peut être téléchargée en
+`.txt` après contrôle actuel des droits. Ce lot n’accepte pas de fichiers binaires.
+Les pièces, paiements renseignés, roster soumis, tâches, échéances et check-in
+externes relèvent de COMP-002 ; liens matchs/résultats/dotation de COMP-003.
+Aucune inscription, organisation de tournoi ou éligibilité automatique n’est créée.
+
+La lecture exige sports.read et sports.competitions.read ; la modification ajoute
+sports.competitions.write, MFA et confirmation explicite de l’organisation active.
+Ces droits sont délégués explicitement. Les propriétaires et administrateurs ne
+reçoivent pas d’accès métier implicite. Conflits de versions et requêtes inter-tenant
+sont refusés ; les historiques restent accessibles uniquement aux habilités actuels.
+
 ### 11.3 Événements hors compétition
 
 Bootcamp, rencontre communautaire, activation sponsor, réunion et lancement peuvent partager le calendrier, les participants, tâches, documents, budget et visibilité. Les règles sportives restent dans les modules de compétition.

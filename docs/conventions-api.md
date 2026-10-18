@@ -3392,3 +3392,83 @@ Le serveur Vite de Playwright reçoit une clé `test-key` locale à la recette,
 sans changement de .env ni secret réel. Les suites existantes sportives restent
 vertes. Une connexion null n’enfile aucun job de broadcast ; une panne de transport
 après commit ne provoque pas de nouvelle écriture sportive ni de réponse trompeuse.
+
+
+### COMP-001 — Dossiers privés de compétitions externes
+
+Préfixe `/api/v1/tenants/{tenant}/external-competitions`, authentification session
+Sanctum, tenant courant et MFA. Lecture : sports.read + sports.competitions.read.
+Écriture et choix des jeux : sports.competitions.write en supplément. Les écritures
+exigent CSRF, `X-Tenant-Revision` et confirmation explicite du tenant courant.
+Aucun grant implicite au propriétaire ou administrateur.
+
+| Méthode | Suffixe | Fonction |
+| --- | --- | --- |
+| GET | vide | Dossiers paginés |
+| GET | `/games` | Jeux disponibles paginés, écriture autorisée |
+| POST | vide | Création motivée |
+| GET | `/{competition}` | Détail privé |
+| PATCH | `/{competition}` | Édition motivée ou archivage seul |
+| GET | `/{competition}/history` | Instantanés et motifs paginés |
+| GET / POST | `/{competition}/documents` | Dernières versions privées / nouveau document |
+| PATCH | `/{competition}/documents/{document}` | Nouvelle version du même document |
+| GET | `/{competition}/documents/{document}/history` | Versions paginées |
+| GET | `/{competition}/documents/{document}/versions/{version}/download` | Version texte authentifiée |
+
+JSON via Resources `{data, meta}` ; création 201, édition/lecture 200, toast de
+succès aux mutations. Réponses `Cache-Control: private, no-store`. Liste : page
+1–100000, per_page 1–25 (défaut 10), status active par défaut ou archived,
+filtres exacts game_id, region, season. Historiques/documents : per_page 1–10.
+Champs inconnus, même ceux ressemblant à des règles à jokers, refusés en 422.
+
+Création : reference majuscule `[A-Z0-9][A-Z0-9_-]+` (2–64), game_id UUID actif,
+name/organizer (1–200), region (1–80), season (1–100), website_url HTTPS facultatif
+ou null, contacts liste facultative de dix éléments, reason (10–1000 après trim).
+Chaque contact accepte exclusivement name (1–160), role (nullable, 120), email
+(nullable, RFC, 254), phone (nullable, 40) ; les quatre clés sont présentes.
+Référence et jeu sont immuables ; les coordonnées et textes privés sont chiffrés.
+Le PATCH exige version UUID et ne contient que les métadonnées modifiées avec reason.
+L’archivage est exclusivement `{version, archive:true, reason}` et reste définitif.
+
+Document : kind rules ou note à la création, titre 1–200, body texte brut 1–20000,
+source_url HTTPS facultatif/null, reason et competition_version UUID du dossier.
+Le PATCH ajoute version UUID documentaire, sans kind ; les champs inchangés peuvent
+être omis. Le parent ne change pas de version lors d’une édition documentaire.
+Un seul règlement logique, au plus 100 documents et 100 versions/document.
+Dossier : au plus 1000 révisions et 10 000 dossiers/tenant. Pas d’upload binaire.
+
+409 : EXTERNAL_COMPETITION_VERSION_STALE, EXTERNAL_COMPETITION_DOCUMENT_STALE,
+EXTERNAL_COMPETITION_REFERENCE_EXISTS, EXTERNAL_COMPETITION_RULES_EXISTS,
+EXTERNAL_COMPETITION_ARCHIVED ou limite de volume ; 422 : validation/absence de
+changement. Relire avant toute nouvelle confirmation, sans retry automatique.
+Ressource ou version hors tenant/parent : 404 ; permission révoquée : 403.
+Téléchargement `text/plain; charset=UTF-8`, attachment au nom fixe contenant l’UUID,
+nosniff et CSP sandbox, aucune URL publique ni accès durable par lien signé.
+Les anciens textes restent lisibles après archivage pour les habilités actuels.
+
+Exemple avec le client Axios de session configuré pour CSRF et cookies Sanctum
+(baseURL `/api/v1`, withCredentials et withXSRFToken), après confirmation du tenant :
+
+```js
+const root = `tenants/${tenantId}/external-competitions`;
+const headers = { 'X-Tenant-Revision': tenantRevision };
+const { data: created } = await api.post(root, {
+  reference: 'CIRCUIT_2026', game_id: gameId,
+  name: 'Circuit externe', organizer: 'Organisateur externe',
+  region: 'Europe', season: '2026', website_url: 'https://organisateur.example/competition',
+  contacts: [{ name: 'Contact sportif', role: 'Accueil', email: null, phone: null }],
+  reason: 'Participation consignée après consultation du règlement.'
+}, { headers });
+const competition = created.data;
+const { data: written } = await api.post(`${root}/${competition.id}/documents`, {
+  competition_version: competition.version, kind: 'rules', title: 'Règlement reçu',
+  body: 'Texte du règlement communiqué par l’organisateur.', source_url: null,
+  reason: 'Conservation de la première version communiquée.'
+}, { headers });
+const doc = written.data;
+const file = await api.get(`${root}/${competition.id}/documents/${doc.document_id}/versions/${doc.version}/download`,
+  { headers, responseType: 'blob' });
+```
+
+L’inscription effective et le check-in restent chez l’organisateur ; suivi des
+pièces, échéances et tâches en COMP-002, rattachements résultats/dotation en COMP-003.

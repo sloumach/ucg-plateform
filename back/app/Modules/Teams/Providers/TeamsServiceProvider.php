@@ -5,6 +5,7 @@ namespace App\Modules\Teams\Providers;
 use App\Modules\People\Application\Contracts\GameProfileCatalogue;
 use App\Modules\Teams\Application\Contracts\CalendarTeamsDirectory;
 use App\Modules\Teams\Application\Contracts\CommunicationTeamsDirectory;
+use App\Modules\Teams\Application\Contracts\ExternalCompetitionGames;
 use App\Modules\Teams\Application\Contracts\ExternalOpponents;
 use App\Modules\Teams\Application\Contracts\HistoricalLineups;
 use App\Modules\Teams\Application\Contracts\MatchLineups;
@@ -15,6 +16,7 @@ use App\Modules\Teams\Application\Contracts\PartnershipTeamsDirectory;
 use App\Modules\Teams\Application\Services\CalendarTeamsService;
 use App\Modules\Teams\Application\Services\CommunicationTeamsService;
 use App\Modules\Teams\Application\Services\EffectiveGameCatalogue;
+use App\Modules\Teams\Application\Services\ExternalCompetitionGameService;
 use App\Modules\Teams\Application\Services\ExternalOpponentSnapshotService;
 use App\Modules\Teams\Application\Services\GameProfileCatalogueBridge;
 use App\Modules\Teams\Application\Services\MatchLineupDirectoryService;
@@ -60,6 +62,7 @@ final class TeamsServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(ExternalCompetitionGames::class, ExternalCompetitionGameService::class);
         $this->app->bind(MatchLineups::class, MatchLineupDirectoryService::class);
         $this->app->bind(MatchReferenceDirectory::class, MatchReferenceService::class);
         $this->app->bind(MatchReferenceRepository::class, EloquentMatchReferenceRepository::class);
