@@ -19,3 +19,10 @@ export type MatchLineupRevision = { id: string; participant_id: string; match_ve
   snapshot: { id: string; label: string; team_name: string; ruleset_id: string | null; ruleset_version: string | null; eligibility_report_id: string | null; participants: MatchLineupEntry[] };
   assessment: { status: 'eligible' | 'unassessed'; effective_at: string; evaluated_at: string } }
 export function matchText(key: string) { return t(('matches.' + key) as TranslationKey) }
+
+export type MatchGameOutcome = 'played' | 'draw' | 'forfeit' | 'abandon' | 'remake'
+export type MatchGame = { id: string; number: number; match_version: string; outcome: MatchGameOutcome; map: string | null; mode: string | null; game_patch: string;
+  reason: string; actor_user_id: number; occurred_at: string; results: { participant_id: string; label: string; score: number | null; lineup_revision_id: string | null }[] }
+export type MatchScorecard = { match_version: string; rules: { format: MatchRecord['format']; game_limit: number; allow_draw: boolean } | null;
+  series: { complete: boolean; played: number; draw: boolean; winner_ids: string[]; standings: { participant_id: string; score: number }[] } | null; game?: MatchGame | null }
+export type MatchGamePage = Page<MatchGame> & { scorecard: MatchScorecard }

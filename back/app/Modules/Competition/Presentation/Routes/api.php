@@ -2,6 +2,7 @@
 
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchLineupController;
+use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchScoreController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('tenants/{tenant}/matches')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
@@ -11,6 +12,9 @@ Route::prefix('tenants/{tenant}/matches')->whereUuid('tenant')->middleware('tena
         Route::post('', [MatchLineupController::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('matches.lineups.store');
         Route::post('substitutions', [MatchLineupController::class, 'substitute'])->middleware('tenant.confirmed')->block(10, 10)->name('matches.lineups.substitute');
     });
+    Route::get('{match}/games', [MatchScoreController::class, 'index'])->whereUuid('match')->name('matches.games.index');
+    Route::post('{match}/games', [MatchScoreController::class, 'store'])->whereUuid('match')->middleware('tenant.confirmed')->block(10, 10)->name('matches.games.store');
+    Route::post('{match}/score-rules', [MatchScoreController::class, 'configure'])->whereUuid('match')->middleware('tenant.confirmed')->block(10, 10)->name('matches.score-rules.configure');
     Route::get('', [MatchController::class, 'index'])->name('matches.index');
     Route::get('references/{type}', [MatchController::class, 'references'])->whereIn('type', ['game', 'person', 'team', 'opponent_snapshot'])->name('matches.references');
     Route::post('', [MatchController::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('matches.store');

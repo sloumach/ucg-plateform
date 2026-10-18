@@ -50,6 +50,8 @@ class MatchSchemaTest extends TestCase
     {
         $migration = require database_path('migrations/2026_10_17_225945_create_matches_participants_and_status_events.php');
         $lineups = require database_path('migrations/2026_10_18_101019_create_match_lineup_revisions.php');
+        $matchScores = require database_path('migrations/2026_10_18_135008_create_match_score_rules_and_game_instances.php');
+        $matchScores->down();
         $lineups->down();
         $migration->down();
         $this->assertFalse(Schema::hasTable('matches'));
@@ -57,6 +59,7 @@ class MatchSchemaTest extends TestCase
         $this->assertFalse(Schema::hasTable('match_status_events'));
         $migration->up();
         $lineups->up();
+        $matchScores->up();
         [$org, , , $person, $other, $game] = $this->matchScenario();
         $this->postJson($this->matchRoot($org), $this->matchPayload($game, $person, $other))->assertCreated();
         $repository = app(PortabilityRepository::class);
@@ -67,6 +70,8 @@ class MatchSchemaTest extends TestCase
         $this->assertNotSame('Scrim de préparation', $matches[0]['data']['title']);
         $this->expectException(\RuntimeException::class);
         $lineups = require database_path('migrations/2026_10_18_101019_create_match_lineup_revisions.php');
+        $matchScores = require database_path('migrations/2026_10_18_135008_create_match_score_rules_and_game_instances.php');
+        $matchScores->down();
         $lineups->down();
         $migration->down();
     }

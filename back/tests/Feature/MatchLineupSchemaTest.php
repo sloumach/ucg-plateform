@@ -21,9 +21,12 @@ class MatchLineupSchemaTest extends TestCase
     public function test_empty_schema_roundtrip_inventory_and_export_are_complete(): void
     {
         $migration = require database_path('migrations/2026_10_18_101019_create_match_lineup_revisions.php');
+        $matchScores = require database_path('migrations/2026_10_18_135008_create_match_score_rules_and_game_instances.php');
+        $matchScores->down();
         $migration->down();
         $this->assertFalse(Schema::hasTable('match_lineup_revisions'));
         $migration->up();
+        $matchScores->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         app(PortabilityRepository::class)->assertCatalog();
     }

@@ -2843,3 +2843,72 @@ renommage, roster devenu invalide et version périmée. Aucun seed, match réel,
 notification externe ni attribution de droit n’est créé par l’agent.
 Prochain P0 : **MATCH-003 — parties, cartes et score de série**, puis MATCH-004
 pour les preuves et l’approbation des résultats.
+
+
+## Parties, cartes et score de série — UCG-MATCH-003
+
+MATCH-002 : push/CI/migration confirmés par l’utilisateur avant ce lot ; migration
+vérifiée en lecture seule **Ran, batch 38**. MATCH-003 est livré localement ; sa
+migration principale reste à appliquer par l’utilisateur après push et CI vertes.
+
+Dans **Scrims et matchs**, ouvrir **Parties et scores**. Le match doit être en
+cours ou terminé en attente de validation. Fixer d’abord les règles (motif,
+nombre prévu et autorisation explicite des égalités), puis confirmer. Ces règles
+et chaque partie sont définitives dans ce lot : vérifier avant de confirmer.
+Il n’existe pas encore de parcours de correction ; celui-ci est prévu en MATCH-006.
+
+BO1/BO3/BO5 comptent les victoires et s’arrêtent à la majorité ou au nombre prévu
+1/3/5. Un nul autorisé consomme une partie sans victoire ; à la limite, le nombre
+de victoires départage la série. Lobby/individuel additionnent les points déclarés
+sur le nombre prévu ; le total le plus élevé gagne. Si les égalités sont interdites,
+ni un nul de partie ni une égalité finale ne sont acceptés. Aucun total de série
+n’est saisi manuellement. Les résultats restent **non approuvés** ; preuves et
+approbation distincte sont réservées à MATCH-004.
+
+Pour une partie : carte ou mode, version du jeu, résultat, score entier de chaque
+participant et motif. Forfait/abandon : indiquer les scores attribués selon votre
+règlement et expliquer la décision ; aucun barème officiel n’est inventé. Un
+remake est une tentative sans score : saisir ensuite la partie rejouée ; il ne
+supprime jamais une partie déjà enregistrée. Limite : 100 tentatives, remakes inclus.
+Les noms et références de compositions retenus sont ceux présents **à la saisie**,
+sans reconstitution automatique d’une composition passée lors d’une saisie tardive.
+
+sports.read permet la lecture selon l’audience du dossier ; sports.write est
+nécessaire à la saisie. Sur un match partagé, sports.publish et confirmation du
+partage sont aussi exigés. MFA, confirmation tenant et versions courantes restent
+obligatoires. Après 409, recharger et décider ; aucun rejeu automatique.
+
+Exemple SPA authentifiée, tenant déjà confirmé et IDs issus de lectures autorisées,
+après confirmation humaine des règles puis de la partie :
+
+```ts
+const path = `tenants/${organizationId}/matches/${matchId}`
+const configured = await tenancyRequest<{ data: { match_version: string } }>(path + '/score-rules', {
+  method: 'POST', revision: active.revision,
+  body: { version: match.version, game_limit: 3, allow_draw: false,
+    reason: 'Règlement BO3 confirmé avant saisie.' },
+})
+const result = await tenancyRequest<{ data: { match_version: string } }>(path + '/games', {
+  method: 'POST', revision: active.revision,
+  body: { version: configured.data.match_version, outcome: 'played', map: 'Carte pilote',
+    game_patch: '1.0', reason: 'Score relevé après la partie jouée.',
+    results: [{ participant_id: firstMatchParticipantId, score: 13 },
+      { participant_id: secondMatchParticipantId, score: 8 }] },
+})
+// La commande suivante utilise result.data.match_version.
+```
+
+Sur un dossier partagé, ajouter confirm_sharing:true après consentement explicite
+aux deux mutations. Historique : GET /games?page=1&per_page=10 ; le score de série
+calculé et la version courante se trouvent dans scorecard. Contrat détaillé dans
+[conventions API](docs/conventions-api.md).
+
+Après push/CI : sauvegarder puis `php artisan migrate` pour appliquer
+`2026_10_18_135008_create_match_score_rules_and_game_instances`. Deux nouvelles
+tables chiffrées/append-only, sans backfill ni modification des anciennes migrations.
+Le rollback refuse tout historique peuplé : privilégier une correction en avant.
+Aucun migrate/seed principal, match réel, attribution de permission ni notification
+externe n’est exécuté par l’agent. Recetter avec deux comptes habilités : BO3 2–0,
+BO3 au meilleur des trois, refus d’une quatrième partie, remake, nul autorisé,
+forfait/abandon, lobby à trois participants, révocation et version périmée.
+Prochain P0 : **MATCH-004 — soumission, preuves et approbation des résultats**.

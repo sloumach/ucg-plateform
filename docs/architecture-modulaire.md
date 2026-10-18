@@ -2069,3 +2069,45 @@ React charge choix et historique à l’action, masque les mutations des version
 historiques et des états terminaux, confirme tenant et action avant POST et
 rafraîchit la version du dossier après succès. Le client ne rejoue pas un 409.
 Les parties, scores, preuves de résultat et notifications restent hors de ce lot.
+
+
+## Parties et scores — UCG-MATCH-003
+
+Competition reste propriétaire du calcul. MatchScoreService orchestre validation
+fermée réutilisable hors HTTP, permissions actuelles, garde tenant, verrou Match,
+version optimiste commune, ajout et audit atomiques. MatchScoreRepository isole
+la persistance ; BestOfScore et PointsScore implémentent ScoreStrategy pour les
+victoires de série et l’addition des points multi-participants. Aucun import privé
+de People, Teams, Identity ou Scheduling. Les compositions courantes sont lues en
+une requête via le repository interne Competition ; seule leur référence immuable
+est conservée à l’instant de saisie, sans reconstituer une chronologie sportive.
+
+match_score_rules et match_game_instances sont additives, tenant-scopées, liées
+par FK composites au dossier et entre elles. Les règles sont fixées une fois,
+après démarrage ; les parties sont des tentatives numérotées append-only. SQL
+vérifie phase, version du parent, format/limite des règles, séquence, capacité,
+autorisation des nuls et nombre de parties comptées. Le calcul chiffré et
+l’appartenance exacte de tous les participants restent des règles de service.
+UPDATE/DELETE interdits ; down refuse toute table peuplée avant de supprimer quoi
+que ce soit. Portabilité opérateur : inventaire fermé des deux tables et de leurs
+colonnes physiques ; anciens fichiers de migration inchangés, tests de round-trip
+des parents actualisés. Noms distincts des FK vers Match et règles pour PostgreSQL.
+
+Résultats et libellés, carte/mode/version du jeu et motifs sont chiffrés. L’API
+expose les références sportives et compte auteur interne aux lecteurs du dossier,
+sans contacts ni données administratives. Aucun résultat validé, faux justificatif,
+notification, événement de diffusion ni donnée publique n’est produit. Les
+mutations partagées demandent sports.publish et un consentement explicite.
+
+Les réponses sont paginées et le recalcul synchrone est borné à 100 tentatives
+par match et 100 participants. Le test de lecture constate trois requêtes sur
+les parties (faits, comptage, page), sans requête par partie ou joueur. Le GET
+verrouille le seul dossier jusqu’à matérialisation de la page/résumé ; les écritures
+prennent la garde tenant avant le dossier comme les autres modules. Profiler
+contention, coûts de chiffrement et taille des réponses avant toute augmentation
+de limites. Les agrégats asynchrones et caches versionnés relèveront de MATCH-006.
+
+React charge la feuille à l’ouverture, utilise sa version fraîche, confirme
+règles/résultats et tenant avant POST, échappe tout texte et ferme/rafraîchit le
+dossier après succès. Les pages historiques, lecteurs et états terminaux sont en
+lecture seule ; un conflit invalide le contexte sans rejeu automatique.

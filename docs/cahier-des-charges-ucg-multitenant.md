@@ -357,7 +357,8 @@ confirmation, avec réouverture explicite avant correction. La machine prévoit 
 et de preuves, pour ne pas produire de validation fictive. Privé par défaut, partage
 interne confirmé et audience courante avant pagination. Aucun accès adverse ou score
 automatique, ni réservation calendrier déduite du seul horaire. Lineups et éligibilité
-constituent la livraison MATCH-002 ci-dessous ; parties et résultats restent MATCH-003/004.
+constituent la livraison MATCH-002 ci-dessous ; les parties et scores sont décrits dans
+MATCH-003, la validation des résultats reste MATCH-004.
 
 Livraison MATCH-002 : chaque équipe interne peut recevoir une composition de match
 finalisée, avec titulaires et remplaçants. L’affectation peut changer avant démarrage ;
@@ -374,6 +375,29 @@ l’annulation. Après une première affectation, les participants du dossier so
 L’historique reste sous l’audience courante du match ; un compte sans fiche Personne
 ne bénéficie d’aucun accès personnel implicite aux matchs privés d’équipe. Une nouvelle
 affectation sur match partagé exige publication sportive et consentement explicite.
+
+Livraison MATCH-003 : feuille privée des parties et score calculé côté serveur.
+Règles explicites et définitives : BO1/BO3/BO5 en nombre de victoires (arrêt à la
+majorité ou à la limite prévue), lobby/individuel en somme des points déclarés
+sur un nombre fixé de parties. Les nuls consomment une partie sans victoire et
+ne sont acceptés, comme les égalités finales, qu’avec autorisation préalable.
+Carte ou mode et version du jeu obligatoires ; score entier de chaque participant
+du dossier, sans ajout ni doublon. Forfait et abandon de partie utilisent les
+scores attribués par le règlement interne, motivés par le responsable ; aucun
+barème officiel n’est déduit. Un remake conserve une tentative sans score et
+sans effet sur la série ; il ne supprime pas un résultat déjà enregistré.
+
+Toute saisie conserve noms, référence de composition en vigueur à l’instant de
+saisie, auteur, date serveur et motif chiffrés. La référence de composition ne
+reconstruit pas l’historique sportif d’une partie saisie tardivement. Les règles
+et tentatives sont immuables dans ce lot, bornées à 100 tentatives par match.
+La version du dossier protège aussi scores et compositions contre les écritures
+concurrentes ; les mutations partagées demandent permission et consentement.
+Un BO3 déjà terminé refuse une partie supplémentaire ; le client ne peut pas
+imposer un total de série. La saisie est possible en cours ou terminé à valider,
+mais ne valide aucun résultat ni statut forfait du dossier. Preuve et approbation
+distincte restent MATCH-004, correction motivée/recalcul MATCH-006 et diffusion
+MATCH-007. Aucun accès adverse, notification ou partage public automatique.
 
 Le manager confirme la rencontre et les participants. Le coach prépare les objectifs. Les joueurs répondent à la convocation. Un score est saisi ou importé avec sa source. Une personne habilitée le valide. Les agrégats sont recalculés, puis la publication éventuelle intervient séparément. Le coach clôture le débrief et attribue les actions suivantes.
 

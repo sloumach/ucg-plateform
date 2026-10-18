@@ -9,10 +9,13 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-MATCH-002` — compositions et remplaçants du match.
+- Dernier ticket traité : `UCG-MATCH-003` — parties, cartes et score de série.
   Implémentation locale sur staging ; push, CI distantes et migration additive
   à effectuer après livraison. Aucun migrate/seed principal, donnée métier réelle
-  ni attribution de permission par l’agent. Prochain P0 : MATCH-003.
+  ni attribution de permission par l’agent. Prochain P0 : MATCH-004.
+- MATCH-002 : `9a1c6e4` présent sur staging et origin/staging au démarrage ;
+  CI et migration confirmées par l’utilisateur avant MATCH-003. Migration vérifiée
+  en lecture seule Ran batch 38. Branche propre et synchronisée au démarrage.
 - MATCH-001 : `6589368` poussé ; CI et migration confirmées par l’utilisateur
   avant MATCH-002. Migration vérifiée en lecture seule Ran batch 37. Staging
   propre et synchronisé avec origin/staging au démarrage de MATCH-002.
@@ -125,10 +128,10 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : pousser MATCH-002, vérifier les CI puis appliquer sa migration
-  additive. Recetter affectation, remplacement, éligibilité, historique et version
-  périmée avec deux comptes explicitement habilités. Prochain P0 sportif :
-  MATCH-003 (parties et scores), puis MATCH-004 (validation des résultats).
+- Prochaine action : pousser MATCH-003, vérifier les CI puis sauvegarder et appliquer
+  sa migration additive. Recetter règles, BO3, remake, nuls, forfait/abandon de
+  partie, lobby et conflit avec deux comptes explicitement habilités.
+  Prochain P0 sportif : MATCH-004 (soumission, preuves et validation des résultats).
   CAL-007/CAL-008 restent P1. Recetter report/annulation avant activation de
   calendar-changes et supervision scheduler/worker.
   Permissions explicites et activation supervisée de calendar-invitations restent
@@ -3269,3 +3272,79 @@ ensuite ce fichier pour qu'il reflète la réalité.
   à l’agent et a été arrêté. Code, tests et six documents existants dans un seul
   commit local ; push/CI distantes, sauvegarde, migration additive puis recette
   supervisée par l’utilisateur. Suite P0 : MATCH-003, puis MATCH-004.
+
+
+## 18 octobre 2026 — UCG-MATCH-003 : parties, cartes et score de série
+
+- Autorisation utilisateur : commencer MATCH-003 avec prudence après confirmation
+  de la CI et de la migration MATCH-002. Départ staging propre, synchronisé avec
+  origin/staging au commit 9a1c6e4 ; migration MATCH-002 Ran batch 38 vérifiée en
+  lecture seule. Aucun migrate/seed ni changement de données principales par l’agent.
+- Livré : deux tables additives match_score_rules et match_game_instances ; règles
+  explicites définitives et historique chiffré/numéroté des tentatives, carte ou
+  mode, version du jeu, scores de tous les participants du dossier, noms conservés,
+  auteur interne, date serveur et motif. La référence de composition conservée est
+  celle en vigueur à la saisie, sans reconstitution d’une partie saisie tardivement.
+- Calculs de domaine par stratégie : BO1/BO3/BO5 comptent les victoires, arrêt à
+  majorité ou 1/3/5 parties prévues ; les nuls autorisés consomment une partie sans
+  victoire, puis le nombre de victoires départage. Lobby/individuel additionnent
+  les points déclarés sur le nombre prévu. Chaque partie compte tous les camps
+  sans imposer deux participants aux lobbies ; trois participants exercés via API.
+- Les nuls et égalités finales requièrent allow_draw explicite avant saisie.
+  Forfait/abandon de partie : scores attribués selon règlement et motif obligatoire,
+  sans inventer un barème officiel ni passer le dossier en forfeited. Remake :
+  tentative sans score et sans effet sur la série ; aucune partie antérieure
+  supprimée. Série complète : ajout suivant refusé, même un remake. Aucun total,
+  vainqueur, auteur, nom ou date issu du client. Les scores restent non approuvés.
+- MatchScoreService/Repository, deux stratégies derrière ScoreStrategy, Form Request,
+  contrôleur mince, Resources explicites et routes API privées. Validation fermée
+  aussi hors HTTP, sports.read/write, MFA, audience Match et mode gestion explicite.
+  Match partagé : sports.publish et consentement sur les règles et chaque résultat.
+  Aucune permission implicite au propriétaire ni au compte technique.
+- Version commune au dossier/compositions/scores, garde tenant puis verrou Match,
+  audit/version/règles/partie dans la même transaction ; panne d’audit ou refus
+  entraîne un rollback complet. Les tests de révocation/MFA et tenant étranger
+  refusent sans écrire. Trois courses réelles à deux processus sur PostgreSQL :
+  deux configurations, deux parties et partie contre annulation ; un succès,
+  un 409 MATCH_VERSION_STALE, sans doublon ni perte silencieuse.
+- SQL SQLite/PostgreSQL : FK tenant, correspondance phase/version/format du parent,
+  limite/séquence/unicité et UPDATE/DELETE interdits. Down refuse toute table
+  peuplée avant suppression. Inventaire opérateur complet des deux tables et
+  colonnes chiffrées ; anciens fichiers de migration inchangés. Round-trips
+  Organisations/People/Teams/Jeux/Adversaires/Match/Compositions actualisés.
+- Premier ciblage PostgreSQL : collision des noms automatiques des FK Match et
+  règles, corrigée par un nom explicite distinct sur la nouvelle migration.
+  Relance sur base neuve : 113 tests réussis, 685 assertions ; inclut concurrence
+  à deux processus et migrations parents. La base temporaire en échec et celle
+  réussie ont été supprimées par les lanceurs isolés.
+- Bornes : 100 tentatives (remakes inclus), 100 participants ; page 1–100000,
+  per_page 1–100. Trois requêtes de parties par GET (faits, compte, page), sans
+  requête par joueur/partie ; compositions courantes lues en bloc. Le GET garde
+  le verrou du dossier jusqu’à matérialisation résumé/page d’une version cohérente.
+  Pas de cache privé partagé ; profiler contention et chiffrement avant extension.
+- Panneau React : feuille chargée à ouverture, version fraîche de la feuille,
+  confirmation des règles/résultats et du tenant, notifications Flasher existantes,
+  erreurs localisées, historique paginé et texte échappé. Lecteurs, anciennes
+  pages et états terminaux sans mutation ; 409 invalide le contexte sans rejeu.
+- Vérification SQLite complète avec cache database : composer test:ci,
+  2007 tests, 1987 réussis, 20 exclusions attendues, 9807 assertions. Ciblage final
+  scores/domaine/schéma : 33 tests réussis, 309 assertions. PHPStan niveau 8 sans
+  erreur, Pint/format:check et Composer validate --strict réussis.
+- Frontend : 304 tests dans 44 fichiers réussis, build, lint et TypeScript strict
+  des nouveaux tests unitaires/navigateur réussis. Cinq parcours Playwright avec
+  API simulée (Scores, Compositions, Matchs, Calendrier, Équipes) passés ensemble
+  dans Chrome installé ; captures 320/375 px inspectées, sans débordement ni HTML
+  exécuté. Le scénario Scores couvre règles, remake, saisie, pagination et conflit.
+- Sélection PostgreSQL complète identique à la CI : 1807 tests, 1805 réussis,
+  deux exclusions Redis attendues, 9036 assertions. Les trois nouvelles courses
+  et les quatre courses Match/Compositions existantes passent dans cette sélection.
+  Base temporaire complète supprimée. Base principale vérifiée en lecture seule :
+  MATCH-002 Ran batch 38, migration MATCH-003 Pending.
+- Livraison : code/tests/six documents existants regroupés dans un seul commit
+  local de tâche ; aucun push, migration principale, donnée métier réelle, compte,
+  attribution de droit, message ou notification externe par l’agent. Après push
+  et CI vertes : sauvegarde, migration additive
+  2026_10_18_135008_create_match_score_rules_and_game_instances puis recette à deux
+  comptes explicitement habilités. Le rollback refuse l’historique ; privilégier
+  une correction en avant. Prochain P0 : MATCH-004, preuves/soumission/approbation ;
+  corrections motivées et recalcul MATCH-006, diffusion MATCH-007 non démarrés.

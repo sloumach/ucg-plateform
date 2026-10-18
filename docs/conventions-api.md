@@ -3060,3 +3060,78 @@ conserve GAME_CONTEXT_UNAVAILABLE. Référence absente/étrangère/invisible : 4
 droits insuffisants : 403 ; saisie invalide/motif/consentement : 422 localisé.
 500 révisions au plus par dossier. Un échec d’audit annule aussi version et révision ;
 les conflits ne sont jamais rejoués automatiquement par le client.
+
+
+## Parties et score de série — UCG-MATCH-003
+
+Routes sous `/api/v1/tenants/{tenant}/matches/{match}` ; session Sanctum, MFA,
+tenant actif et audience Match existants. Les mutations imposent tenant confirmé,
+révision de session et version optimiste **commune** au dossier/compositions/scores.
+
+| Méthode | Suffixe | Contrat |
+| --- | --- | --- |
+| GET | /games | historique paginé, sports.read ; management=1 exige aussi sports.write |
+| POST | /score-rules | règles définitives, sports.read/write, 201 |
+| POST | /games | ajout immuable d’une tentative, sports.read/write, 201 |
+
+Les mutations sont permises en in_progress et awaiting_validation uniquement.
+Sur un dossier partagé : sports.publish et confirm_sharing:true sont requis à
+chaque mutation. Aucun droit propriétaire implicite, élargissement automatique
+d’audience, partage public, notification externe ou approbation de résultat.
+
+Configuration obligatoire avant la première partie : version UUID, reason
+10–1000 caractères non blancs, allow_draw booléen explicite, game_limit entier
+1–100. BO1/BO3/BO5 exigent respectivement 1/3/5. Les règles sont immuables dès
+confirmation, même sans partie. Aucun endpoint de correction n’est fourni ici.
+
+Partie : version UUID, reason 10–1000, outcome played/draw/forfeit/abandon/remake,
+map ou mode non blanc obligatoire (160 caractères chacun, nullable), game_patch
+non blanc obligatoire (80), results liste de 2–100 objets fermés
+{participant_id,score}. Les identifiants sont ceux de MatchResource.participants,
+pas les identifiants source People/Teams ; chaque participant du dossier doit
+figurer une fois, sans intrus ni doublon même avec casse différente. score entier
+0–1000000 pour toute partie comptée ; score:null pour **tous** dans un remake.
+Aucun score agrégé, vainqueur, nom, auteur, date ou composition n’est accepté.
+
+Calculs : BO = nombre de victoires, arrêt à la majorité ou au nombre prévu ;
+un nul autorisé consomme une partie sans victoire, puis le plus de victoires
+à la borne détermine le résultat (égalité possible si autorisée). Lobby/individuel
+= somme des points déclarés sur game_limit parties, total le plus élevé en tête.
+Les remakes sont des tentatives abandonnées **sans résultat**, conservées et non
+comptées ; ils ne permettent pas d’effacer rétroactivement une partie saisie.
+Une série terminée refuse toute tentative supplémentaire, même un remake.
+Les nuls de partie doivent correspondre à une égalité en tête ; les autres
+outcomes exigent un premier unique. Les nuls et égalités finales sont refusés
+si allow_draw=false. Les forfaits/abandons de partie reçoivent des scores explicites
+selon le règlement retenu, expliqués dans reason ; aucun barème de jeu n’est
+inventé par le serveur et le statut du dossier Match n’est pas changé en forfeited.
+
+GET : data tableau de MatchGameResource, links/meta de pagination et scorecard
+{match_version,rules,series}. Pagination page 1–100000, per_page 1–100, défaut 1/10 ;
+ordre number décroissant. rules:null et series:null avant configuration.
+series = {complete,played,winner_ids,standings:[{participant_id,score}],draw}.
+winner_ids reste vide tant que la série est incomplète ; en cas d’égalité finale,
+il contient tous les premiers et draw=true. Ces résultats sont **non approuvés**.
+POST : data {match_version,rules,series,game}, game:null pour la configuration,
+notification Flasher. Reprendre match_version pour toute prochaine commande.
+
+MatchGameResource : id, number, match_version, outcome, map, mode, game_patch,
+reason, actor_user_id interne, occurred_at serveur et results contenant
+participant_id, label conservé, score et lineup_revision_id nullable. La référence
+de composition est celle en vigueur **à la saisie**, sans prétendre reconstruire
+la composition d’une partie antérieure saisie tardivement. Aucune donnée
+administrative ni coordonnées du compte/adversaire n’est exposée.
+
+409 : MATCH_VERSION_STALE, MATCH_SCORE_FROZEN, MATCH_SCORE_RULES_FROZEN,
+MATCH_SCORE_RULES_REQUIRED, MATCH_SERIES_COMPLETE, MATCH_GAME_LIMIT.
+422 : saisie fermée, format incohérent, participants/scores/nul/motif/partage
+invalides. 403 : permission/MFA insuffisants ; 404 : dossier invisible/étranger.
+Cache-Control private,no-store. Échec d’audit : rollback du score et de la version.
+Le client garde la saisie après 422 et ne rejoue jamais un 409.
+
+Limites : 100 tentatives par dossier, remakes inclus ; 100 participants par
+partie, tous issus du dossier. Lectures du score bornées à 100 tentatives ;
+relations et compositions chargées en bloc. Le GET matérialise résumé/page sous
+le verrou du match pour une version cohérente. Pas de cache d’autorisation ou
+de contenu privé partagé. Corrections motivées/recalculs : MATCH-006 ; preuves,
+soumission et approbation distincte : MATCH-004 ; diffusion : MATCH-007.
