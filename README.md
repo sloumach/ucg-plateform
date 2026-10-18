@@ -3039,3 +3039,61 @@ Sept tests frontend du carnet relancés après l’ajustement de son libellé de
 parcours carnet relancé après normalisation des UUIDs simulés. Captures 320/375 px
 inspectées, sans débordement ni exécution HTML. Bases PostgreSQL de test supprimées,
 serveur Vite de recette arrêté ; aucun effet sur les données métier principales.
+
+
+## Corrections de scores et recalcul — UCG-MATCH-006
+
+MATCH-005 (f40d2a6) est poussé ; CI et migration validées par l’utilisateur,
+constatées Ran batch 41 en lecture seule. MATCH-006 est livré localement.
+
+Ouvrir « Corrections des scores » depuis un match : sélectionner les parties,
+proposer leurs scores/résultats et un motif, puis confirmer. Les valeurs avant/après
+sont conservées et chiffrées ; les parties d’origine restent intactes. La permission
+sports.correct est distincte et doit être explicitement déléguée, avec sports.read/write.
+Sur un match partagé, sports.publish et confirmation de partage sont requis.
+
+Une approbation existante est contestée atomiquement. Le total est masqué pendant
+le recalcul ; actualiser l’état ou utiliser « Relancer le recalcul » si nécessaire.
+Après traitement, soumettre une nouvelle preuve avec la révision des scores actuelle,
+puis faire approuver par une autre personne habilitée, distincte aussi des correcteurs.
+La répétition d’une demande ou d’une tâche ne double ni score ni historique.
+
+Configuration d’exploitation : file persistante database/redis/sqs/beanstalkd et
+worker de la queue default. Les connexions sync/null/deferred/background sont
+refusées à la création d’une correction. Aucune configuration .env ou activation
+de worker principal par l’agent. Examiner les travaux en attente avant de démarrer
+un worker ; une panne d’envoi ou un droit révoqué laisse la demande pending et
+permet une reprise explicite par une personne actuellement habilitée.
+
+Limites : parties existantes uniquement, règles/cartes/compositions/remakes fixes,
+série cohérente et résultat complet restant complet. Au plus 100 corrections par
+match, 100 parties/participants et 10 événements par page. Cache privé de série
+isolé par version/correction et invalidé ; aucune diffusion publique automatique.
+Les vues concernées actuellement livrées sont les scores, résultats et corrections
+internes ; les canaux temps réel viendront avec MATCH-007.
+
+Migration à appliquer après sauvegarde et CI :
+`2026_10_18_184341_create_match_score_corrections_and_recalculations`.
+Down refuse un historique peuplé. Aucun migrate/seed principal, droit réel,
+push ou notification externe par l’agent. Prochain P0 : MATCH-007.
+
+
+Vérifications finales MATCH-006 : SQLite complet 2129 tests, 2101 réussis,
+28 exclusions attendues et 10792 assertions ; sélection PostgreSQL complète
+1919 tests, 1917 réussis, deux exclusions Redis et 10139 assertions. Sous-ensemble
+PostgreSQL final : 88 réussis, dont trois courses réelles (deux corrections,
+répétition de la même clé, deux tâches de recalcul). Contrôles finaux SQLite de
+correction/worker/schéma/policy et architecture : 47 réussis, 519 assertions.
+Frontend complet : 327 tests dans 47 fichiers ; six parcours sportifs navigateur
+à API simulée réussis, nouveau parcours correction → attente → reprise → preuve
+et approbation indépendante relancé après correction de la synchronisation du test.
+Captures 320/375 px inspectées, sans débordement ni interprétation du HTML.
+PHPStan niveau 8, Pint, Composer strict, build/lint et TypeScript strict réussis.
+Un test réseau ClamAV existant a échoué transitoirement dans un lancement ; ses
+10 cas isolés puis la suite SQLite complète ont repassé, sans changement ClamAV.
+Le dernier passage PostgreSQL utilise le code figé après correction du contrat de
+file ; les échecs du lancement antérieur chargé avant ce changement sont remplacés
+par ce passage complet réussi. Serveur Vite de recette arrêté ; bases PostgreSQL
+de test supprimées et absence de reliquat contrôlée en lecture seule.
+Migration principale MATCH-006 toujours Pending, aucune attribution réelle,
+activation de worker, modification .env ou notification externe par l’agent.

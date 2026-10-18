@@ -17,7 +17,7 @@ final class MatchResultInput
         }
         $rules = ['version' => ['required', 'uuid'], 'reason' => ['required', 'string', 'min:10', 'max:1000', 'regex:/\S/u'], 'confirm_sharing' => ['sometimes', 'accepted']];
         if ($operation === 'submit') {
-            return [...$rules, 'outcome' => ['required', 'in:played,forfeit,abandon'], 'proof_reference' => ['required', 'string', 'min:10', 'max:2000', 'regex:/\S/u'],
+            return [...$rules, 'score_revision' => ['sometimes', 'nullable', 'uuid'], 'outcome' => ['required', 'in:played,forfeit,abandon'], 'proof_reference' => ['required', 'string', 'min:10', 'max:2000', 'regex:/\S/u'],
                 'confirm_proof' => ['required', 'accepted'], 'winner_participant_id' => ['nullable', 'uuid']];
         }
 

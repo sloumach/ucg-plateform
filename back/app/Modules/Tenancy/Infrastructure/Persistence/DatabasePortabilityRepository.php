@@ -18,7 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
-        'match_notebook_revisions' => 'id', 'match_result_events' => 'id', 'match_game_instances' => 'id', 'match_score_rules' => 'id', 'match_lineup_revisions' => 'id', 'match_status_events' => 'id', 'match_participants' => 'id', 'matches' => 'id',
+        'match_score_recalculations' => 'id', 'match_score_corrections' => 'id', 'match_notebook_revisions' => 'id', 'match_result_events' => 'id', 'match_game_instances' => 'id', 'match_score_rules' => 'id', 'match_lineup_revisions' => 'id', 'match_status_events' => 'id', 'match_participants' => 'id', 'matches' => 'id',
         'calendar_change_recipients' => 'id', 'calendar_changes' => 'id',
         'calendar_feeds' => 'id',
         'calendar_invitations' => 'id', 'calendar_invitation_deliveries' => 'id',
@@ -63,6 +63,8 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'match_score_corrections' => ['id', 'organization_id', 'match_id', 'base_match_version', 'match_version', 'base_correction_id', 'idempotency_key', 'fingerprint', 'number', 'before', 'after', 'changed_ids', 'reason', 'actor_user_id', 'created_at'],
+        'match_score_recalculations' => ['id', 'organization_id', 'match_id', 'correction_id', 'series', 'actor_user_id', 'created_at'],
         'match_notebook_revisions' => ['id', 'organization_id', 'match_id', 'entry_id', 'number', 'kind', 'audience', 'title', 'body', 'vod_url', 'timestamp_seconds', 'state', 'due_at', 'actor_user_id', 'created_at'],
         'match_result_events' => ['id', 'organization_id', 'match_id', 'base_version', 'match_version', 'number', 'action', 'outcome', 'from_status', 'to_status', 'submission_id', 'proof_reference', 'snapshot', 'contributors', 'reason', 'actor_user_id', 'created_at'],
         'match_score_rules' => ['id', 'organization_id', 'match_id', 'match_version', 'reason', 'actor_user_id', 'created_at', 'format', 'game_limit', 'allow_draw'],

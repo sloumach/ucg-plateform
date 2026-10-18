@@ -115,3 +115,10 @@ describe('soumission et validation des résultats', () => {
     expect(request.mock.calls.filter(([target]) => target.endsWith('/approvals'))).toHaveLength(2)
   })
 })
+
+it('bloque les décisions locales quand le recalcul est en attente', async () => {
+  request.mockResolvedValue(page({ ...result, recalculation_pending: true }))
+  show(); await screen.findByRole('region', { name: 'Proposition courante' })
+  expect(screen.queryByRole('form')).toBeNull()
+  expect(screen.getByText(/Recalcul en attente/)).toBeVisible()
+})

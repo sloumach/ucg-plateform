@@ -16,6 +16,7 @@ enum Permission: string
     case GamesManage = 'games.manage';
     case TeamsManage = 'teams.manage';
     case SportsWrite = 'sports.write';
+    case SportsCorrect = 'sports.correct';
     case SportsValidate = 'sports.validate';
     case SportsPublish = 'sports.publish';
     case SportsNotesRead = 'sports.notes.read';

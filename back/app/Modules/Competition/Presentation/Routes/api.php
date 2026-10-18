@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchController;
+use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchCorrectionController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchLineupController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchNotebookController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchResultController;
@@ -20,6 +21,9 @@ Route::prefix('tenants/{tenant}/matches')->whereUuid('tenant')->middleware('tena
         Route::post('', [MatchNotebookController::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('matches.notebook.store');
         Route::patch('{entry}', [MatchNotebookController::class, 'update'])->whereUuid('entry')->middleware('tenant.confirmed')->block(10, 10)->name('matches.notebook.update');
     });
+    Route::get('{match}/corrections', [MatchCorrectionController::class, 'index'])->whereUuid('match')->name('matches.corrections.index');
+    Route::post('{match}/corrections', [MatchCorrectionController::class, 'store'])->whereUuid('match')->middleware('tenant.confirmed')->block(10, 10)->name('matches.corrections.store');
+    Route::post('{match}/corrections/{correction}/retries', [MatchCorrectionController::class, 'retry'])->whereUuid(['match', 'correction'])->middleware('tenant.confirmed')->block(10, 10)->name('matches.corrections.retry');
     Route::get('{match}/results', [MatchResultController::class, 'index'])->whereUuid('match')->name('matches.results.index');
     Route::post('{match}/results', [MatchResultController::class, 'submit'])->whereUuid('match')->middleware('tenant.confirmed')->block(10, 10)->name('matches.results.submit');
     Route::post('{match}/results/approvals', [MatchResultController::class, 'approve'])->whereUuid('match')->middleware('tenant.confirmed')->block(10, 10)->name('matches.results.approve');

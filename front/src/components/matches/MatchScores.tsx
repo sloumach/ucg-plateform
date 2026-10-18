@@ -21,7 +21,7 @@ export function MatchScores({ active, item, root, management, disabled, onInvali
   const blocked = disabled || mutation.blocked, scorecard = list?.scorecard, rules = scorecard?.rules
   const shared = item.visibility !== 'private', permissions = active.context!.permissions
   const writable = permissions.includes('sports.write') && (!shared || permissions.includes('sports.publish')) && ['in_progress', 'awaiting_validation'].includes(item.status)
-  const editable = writable && !scorecard?.result_locked && page === 1 && !loading && !error && !!scorecard
+  const editable = writable && !scorecard?.recalculation_pending && !scorecard?.result_locked && page === 1 && !loading && !error && !!scorecard
   const version = scorecard?.match_version
   const scoreErrors = mutation.errors(path), ruleErrors = mutation.errors(rulesPath)
   return <section aria-label={text('scores.title')} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-3">
@@ -33,6 +33,7 @@ export function MatchScores({ active, item, root, management, disabled, onInvali
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
     {scorecard && !rules && <p>{text('scores.noRules')}</p>}
     {rules && <p>{text('scores.rules')} : {text('format.' + rules.format)} · {rules.game_limit} · {text(rules.allow_draw ? 'scores.drawAllowed' : 'scores.drawDenied')}</p>}
+    {scorecard?.recalculation_pending && <p role="status" className="text-amber-200">{text('corrections.pending')}</p>}
     {scorecard?.series && <div className="grid min-w-0 gap-2" aria-label={text('scores.summary')}>
       <p>{text(scorecard.series.complete ? 'scores.complete' : 'scores.pending')} · {scorecard.series.played} {text('scores.counted')}</p>
       {scorecard.series.draw && <p>{text('scores.seriesDraw')}</p>}
@@ -75,6 +76,7 @@ export function MatchScores({ active, item, root, management, disabled, onInvali
     </form>}
     {list?.data.length === 0 && <p>{text('scores.empty')}</p>}
     <ol className="grid min-w-0 gap-3">{list?.data.map((game) => <li key={game.id} className="grid min-w-0 gap-2 rounded-lg border border-slate-700 p-3">
+      {game.correction_id && <p className="text-cyan-200">{text('corrections.corrected')}</p>}
       <h4 className="font-bold">#{game.number} · {text('scores.outcome.' + game.outcome)}</h4>
       <p className="[overflow-wrap:anywhere]">{game.map} · {game.mode} · {game.game_patch}</p>
       <p className="text-sm">{calendarDate(game.occurred_at, active.context!.timezone)} · {text('actor')} #{game.actor_user_id}</p>

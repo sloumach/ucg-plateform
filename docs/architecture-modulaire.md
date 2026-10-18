@@ -2197,3 +2197,50 @@ droits et du cycle de vie du tenant.
 Migration additive, sans backfill ni modification des triggers des anciens lots.
 Down refuse un journal peuplé ; portabilité explicite conserve les champs
 chiffrés. Aucun droit nouveau n’est automatiquement délégué à un rôle existant.
+
+
+### MATCH-006 — Corrections de scores et agrégats versionnés
+
+MatchCorrectionRequest/Input et Controller délèguent à MatchCorrectionService.
+Les Repositories de corrections et scores encapsulent la persistance tenant.
+MatchCorrectedScores projette les valeurs corrigées sur des copies des modèles,
+sans save des parties sources. Les stratégies de domaine BestOfScore/PointsScore
+recalculent les faits ; une série incohérente ou devenue incomplète est refusée.
+Le passage remake/compté reste fixe pour respecter les contraintes de parties
+existantes. La file passe par le contrat Application MatchRecalculationQueue et
+l’adaptateur Infrastructure LaravelMatchRecalculationQueue ; RecalculateMatchScore
+hérite de TenantJob, transporte seulement contexte/identifiants, après commit.
+
+match_score_corrections conserve tenant/match, version avant/après du dossier,
+révision précédente, numéro, clé d’idempotence/empreinte, auteur et instantanés
+chiffrés. match_score_recalculations conserve un agrégat chiffré unique par
+correction, auteur d’exécution et date. Historique append-only, FK composites,
+séquence et état courant gardés en SQL ; blocage SQL supplémentaire de toute
+mutation du match/règles/parties/résultat pendant pending. Aucun ancien trigger
+modifié. Portabilité exhaustive explicite et down protecteur ; round-trips parents
+suppriment d’abord la nouvelle migration à vide.
+
+Transaction : verrou tenant, droits, match ; idempotence/version/validation ;
+invalidation cache ; dispute si résultat soumis/approuvé, ou nouvelle version du
+match sans résultat ; correction + audit ; mise en file après commit. Un résultat
+déjà disputed garde sa version sportive ; score_revision joue le second verrou
+optimiste pour corrections et soumissions. Une répétition identique ne crée pas
+d’effet secondaire. Une tâche sous droits courants recalcule, invalide le cache,
+ajoute la complétion et l’audit dans une transaction. Doublons sérialisés par le
+match et l’unicité SQL, reprise après panne d’envoi/worker/audit/cache.
+
+MatchScoreService matérialise total et page sous le même verrou, overlay des
+corrections sur la page et les faits. Si pending, série null et écritures refusées.
+Cache seulement des séries après correction, TTL 60 s, namespace TenantCache et
+clé match/version/correction ; accès autorisé avant cache. Un changement de version
+rend les anciennes clés inaccessibles ; invalidation explicite avant demande et
+application. Aucune note/stratégie/proof ni donnée hors audience dans ce cache.
+MatchResultService exige la révision fraîche après correction et ajoute tous les
+correcteurs aux contributeurs ne pouvant approuver. Les anciennes preuves et
+snapshots restent consultables selon leurs droits, sans approbation automatique.
+
+100 corrections et 100 parties/participants par match, requêtes et historiques
+bornés, relation de complétion eager-loaded sans requête par ligne. Profiler la
+contention tenant et la taille des snapshots avant d’augmenter ces bornes. Aucun
+classement de tournoi externe ou cache public introduit ; la publication via les
+canaux sera branchée en MATCH-007 après validation et contrôle d’audience.

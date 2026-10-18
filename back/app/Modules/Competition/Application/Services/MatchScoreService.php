@@ -4,6 +4,7 @@ namespace App\Modules\Competition\Application\Services;
 
 use App\Exceptions\DomainConflictException;
 use App\Modules\Competition\Application\Validation\MatchScoreInput as Input;
+use App\Modules\Competition\Domain\Contracts\MatchCorrectionRepository;
 use App\Modules\Competition\Domain\Contracts\MatchLineupRepository;
 use App\Modules\Competition\Domain\Contracts\MatchRepository;
 use App\Modules\Competition\Domain\Contracts\MatchResultRepository;
@@ -18,6 +19,7 @@ use App\Modules\Teams\Application\Contracts\MatchReferenceDirectory;
 use App\Modules\Tenancy\Application\Contracts\TenantAuditJournal;
 use App\Modules\Tenancy\Application\Contracts\TenantAuthorization;
 use App\Modules\Tenancy\Application\Contracts\TenantBusinessGuard;
+use App\Modules\Tenancy\Application\Contracts\TenantCache;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use App\Support\Audit\AuditAction;
 use App\Support\Audit\AuditReason;
@@ -25,6 +27,8 @@ use App\Support\Audit\AuditTarget;
 use App\Support\Audit\AuditWriteData;
 use Illuminate\Contracts\Validation\Factory;
 use Illuminate\Database\ConnectionInterface;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -33,7 +37,9 @@ final readonly class MatchScoreService
     public function __construct(private MatchRepository $matches, private MatchScoreRepository $scores, private MatchLineupRepository $lineups,
         private MatchReferenceDirectory $references, private TenantAuthorization $authorization, private TenantBusinessGuard $guard,
         private TenantAuditJournal $audit, private Factory $validator, private ConnectionInterface $database,
-        private BestOfScore $bestOf, private PointsScore $points, private MatchResultRepository $results) {}
+        private BestOfScore $bestOf, private PointsScore $points, private MatchResultRepository $results,
+        private MatchCorrectedScores $effective, private MatchCorrectionRepository $corrections,
+        private TenantCache $cache) {}
 
     /** @param array<string,mixed> $input
      * @return array<string,mixed>
@@ -51,11 +57,25 @@ final readonly class MatchScoreService
         return $this->database->transaction(function () use ($context, $match, $management, $values): array {
             $record = $this->matches->find($context->organizationId, $match, $context->actorUserId, $this->references->viewer($context), $management, true);
             $rules = $this->scores->rules($context->organizationId, $record->id);
-            $games = $this->scores->games($context->organizationId, $record->id);
+            $games = $this->effective->apply($context->organizationId, $record->id, $this->scores->games($context->organizationId, $record->id));
 
-            return ['result_locked' => $this->results->latest($context->organizationId, $record->id) !== null, 'match_version' => $record->version, 'rules' => $this->rulesProjection($rules),
-                'series' => $rules === null ? null : $this->calculate($record, $rules, $this->facts($games)),
-                'games' => $this->scores->paginate($context->organizationId, $record->id, (int) ($values['page'] ?? 1), (int) ($values['per_page'] ?? 10))];
+            $latest = $this->corrections->latest($context->organizationId, $record->id);
+            $pending = $latest !== null && $latest->recalculation === null;
+            $key = MatchCorrectionService::cacheKey($record->id, $record->version, $latest?->id);
+            $series = $rules === null || $pending ? null : ($latest === null ? null : $this->cache->get($context, $key));
+            if ($rules !== null && ! $pending && $series === null) {
+                $series = $this->calculate($record, $rules, $this->facts($games));
+                if ($latest !== null) {
+                    $this->cache->put($context, $key, $series, 60);
+                }
+            }
+            $page = $this->scores->paginate($context->organizationId, $record->id, (int) ($values['page'] ?? 1), (int) ($values['per_page'] ?? 10));
+            $page = new LengthAwarePaginator(
+                $this->effective->apply($context->organizationId, $record->id, array_values($page->items())),
+                $page->total(), $page->perPage(), $page->currentPage(), ['path' => Paginator::resolveCurrentPath()]);
+
+            return ['recalculation_pending' => $pending, 'score_revision' => $latest?->id, 'result_locked' => $this->results->latest($context->organizationId, $record->id) !== null, 'match_version' => $record->version, 'rules' => $this->rulesProjection($rules),
+                'series' => $series, 'games' => $page];
         });
     }
 
@@ -71,6 +91,7 @@ final readonly class MatchScoreService
             $this->guard->lock($context);
             $this->write($context);
             $record = $this->matches->find($context->organizationId, $match, $context->actorUserId, ['person_id' => null, 'team_ids' => []], true, true);
+            $this->effective->assertReady($context->organizationId, $record->id);
             if ($record->version !== strtolower($values['version'])) {
                 throw new DomainConflictException(__('matches.stale'), 'MATCH_VERSION_STALE');
             }
@@ -110,7 +131,7 @@ final readonly class MatchScoreService
                 if ($rules === null) {
                     throw new DomainConflictException(__('match_scores.rules_required'), 'MATCH_SCORE_RULES_REQUIRED');
                 }
-                $games = $this->scores->games($context->organizationId, $record->id);
+                $games = $this->effective->apply($context->organizationId, $record->id, $this->scores->games($context->organizationId, $record->id));
                 if (count($games) >= Input::MAX_GAMES) {
                     throw new DomainConflictException(__('match_scores.limit'), 'MATCH_GAME_LIMIT');
                 }
@@ -133,7 +154,7 @@ final readonly class MatchScoreService
             $this->audit->record($context->organizationId, new AuditWriteData($context->actorUserId, AuditAction::DomainChanged, AuditTarget::Organization,
                 $context->organizationId, AuditReason::Domain, $context->requestId, $ip, [], ['match_id' => $record->id, 'match_action' => $configure ? 'score_rules' : 'game', 'match_status' => $record->status, 'version' => $version]));
 
-            return ['match_version' => $version, 'rules' => $this->rulesProjection($rules), 'series' => $series, 'game' => $game];
+            return ['score_revision' => $this->corrections->latest($context->organizationId, $record->id)?->id, 'recalculation_pending' => false, 'match_version' => $version, 'rules' => $this->rulesProjection($rules), 'series' => $series, 'game' => $game];
         });
     }
 

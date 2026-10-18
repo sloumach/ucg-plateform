@@ -9,10 +9,12 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-MATCH-005` — préparation, VOD et débrief.
+- Dernier ticket traité : `UCG-MATCH-006` — corrections des scores et recalcul.
   Implémentation locale sur staging ; push, CI distantes et migration additive
   à effectuer après livraison. Aucun migrate/seed principal, donnée métier réelle
-  ni attribution de permission par l’agent. Prochain P0 : MATCH-006.
+  ni attribution de permission par l’agent. Prochain P0 : MATCH-007.
+- MATCH-005 : `f40d2a6` poussé ; CI et migration confirmées par l’utilisateur.
+  Migration constatée en lecture seule Ran, batch 41. Départ propre et synchronisé.
 - MATCH-004 : `f25f966` présent sur staging et origin/staging au démarrage ;
   CI et migration validées par l’utilisateur. Migration constatée en lecture seule
   Ran, batch 40. Départ propre et synchronisé avant MATCH-005.
@@ -134,11 +136,12 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : pousser MATCH-005, vérifier les CI, sauvegarder puis appliquer
-  la migration additive 2026_10_18_155140_create_match_notebook_revisions.
-  Recetter les espaces avec des comptes de lecteur, rédacteur interne et stratège
-  explicitement habilités, puis vérifier le refus après révocation et le conflit
-  concurrent. Prochain P0 sportif : MATCH-006 (correction et recalcul des scores).
+- Prochaine action : pousser MATCH-006, vérifier les CI, sauvegarder puis appliquer
+  2026_10_18_184341_create_match_score_corrections_and_recalculations.
+  Déléguer sports.correct explicitement aux personnes habilitées ; recetter
+  correction, recalcul, reprise, nouvelle preuve et validation indépendante avec
+  une file persistante et son worker default. Ne pas activer de worker sur la
+  file principale avant examen de ses travaux en attente. Suite : MATCH-007.
   CAL-007/CAL-008 restent P1. Recetter report/annulation avant activation de
   calendar-changes et supervision scheduler/worker.
   Permissions explicites et activation supervisée de calendar-invitations restent
@@ -3495,3 +3498,74 @@ Sept tests frontend du carnet relancés après l’ajustement de son libellé de
 parcours carnet relancé après normalisation des UUIDs simulés. Captures 320/375 px
 inspectées, sans débordement ni exécution HTML. Bases PostgreSQL de test supprimées,
 serveur Vite de recette arrêté ; aucun effet sur les données métier principales.
+
+
+## 18 octobre 2026 — UCG-MATCH-006 : corrections et recalcul asynchrone
+
+- Autorisation : poursuivre prudemment après CI/migration MATCH-005 validées par
+  l’utilisateur. f40d2a6 poussé ; migration Ran batch 41 vérifiée en lecture seule.
+- API et interface : journal avant/après, correction de parties sélectionnées,
+  motif/confirmation, pagination, statut pending/applied et relance explicite.
+  Aucun score agrégé ou vainqueur fourni par le client ne remplace le calcul.
+- Droit sports.correct distinct, ajouté au catalogue sans attribution réelle ;
+  nécessite sports.read/write et MFA. Match partagé : sports.publish et consentement.
+  Écriture sous verrou tenant → match, droits revérifiés ; tâche sous TenantJob
+  avec contexte restauré et autorisation courante. Une révocation bloque la tâche.
+- Corrections et agrégats append-only : données sources et preuves non réécrites,
+  champs avant/après/motif chiffrés, une complétion unique par correction. Audit
+  minimal atomique ; rollback commun à la contestation et à la nouvelle correction.
+- Clé d’idempotence par tenant/match, empreinte de la demande et auteur contrôlés :
+  répétition identique sans deuxième audit/tâche ; contenu différent refusé.
+  Version sportive et score_revision distinctes : un match déjà disputed conserve
+  sa version mais toute nouvelle proposition/correction doit reprendre la révision
+  courante des scores. Une demande pending bloque toute nouvelle opération sportive.
+- Recalcul : file persistante et worker default requis, tentative après commit ;
+  une panne de dispatch laisse la demande durable et relançable. Les doublons
+  de tâches ne créent ni nouveau calcul enregistré ni nouvel audit. Les erreurs
+  de cache/audit laissent pending ; les droits de la personne qui relance sont
+  revérifiés à l’exécution. Aucun modèle ni contenu métier sérialisé dans le job.
+- Cache : seulement les séries après correction, TTL 60 secondes ; clé tenant,
+  match, version sportive et correction, contrôle d’accès avant lecture. Invalidation
+  avant demande et complétion ; pending masque le total même si un cache ancien
+  existe. Les lectures et projections paginées utilisent la même version sous
+  verrou ; aucun cache HTTP partagé (private,no-store).
+- Une approbation existante passe par dispute avant correction ; nouvelle preuve,
+  soumission avec révision fraîche et approbateur indépendant nécessaires. Les
+  auteurs des corrections s’ajoutent aux contributeurs exclus de l’approbation.
+  Aucun broadcast ou republication automatique ; diffusion réservée à MATCH-007.
+- Bornes : 100 corrections/match, 100 parties/participants, pages d’historique de
+  10 maximum. Corrections des scores/résultats des parties existantes uniquement ;
+  cartes, règles, format, composition et exclusion remake fixes. Série cohérente,
+  résultat complet ne devenant pas incomplet ; pas de création/suppression de partie.
+- Migration additive : match_score_corrections et match_score_recalculations,
+  FK tenant/match/correction et gardes d’immutabilité, séquence, complétion unique
+  et gel pending. Les migrations précédentes restent intactes. Portabilité
+  explicite chiffrée intégrée ; down refuse un historique peuplé.
+- Une première suite SQLite a détecté une dépendance Application → Infrastructure :
+  corrigée par MatchRecalculationQueue et son adaptateur Laravel. Aucun test
+  d’architecture désactivé. La première recette navigateur a été corrigée pour
+  attendre la soumission avant le changement de compte.
+- Livraison : un seul commit local code/tests/six docs ; aucun push, migration
+  principale, changement .env, permission réelle ou notification externe par l’agent.
+  Après validation : MATCH-007, diffusion autorisée en temps réel.
+
+
+Vérifications finales MATCH-006 : SQLite complet 2129 tests, 2101 réussis,
+28 exclusions attendues et 10792 assertions ; sélection PostgreSQL complète
+1919 tests, 1917 réussis, deux exclusions Redis et 10139 assertions. Sous-ensemble
+PostgreSQL final : 88 réussis, dont trois courses réelles (deux corrections,
+répétition de la même clé, deux tâches de recalcul). Contrôles finaux SQLite de
+correction/worker/schéma/policy et architecture : 47 réussis, 519 assertions.
+Frontend complet : 327 tests dans 47 fichiers ; six parcours sportifs navigateur
+à API simulée réussis, nouveau parcours correction → attente → reprise → preuve
+et approbation indépendante relancé après correction de la synchronisation du test.
+Captures 320/375 px inspectées, sans débordement ni interprétation du HTML.
+PHPStan niveau 8, Pint, Composer strict, build/lint et TypeScript strict réussis.
+Un test réseau ClamAV existant a échoué transitoirement dans un lancement ; ses
+10 cas isolés puis la suite SQLite complète ont repassé, sans changement ClamAV.
+Le dernier passage PostgreSQL utilise le code figé après correction du contrat de
+file ; les échecs du lancement antérieur chargé avant ce changement sont remplacés
+par ce passage complet réussi. Serveur Vite de recette arrêté ; bases PostgreSQL
+de test supprimées et absence de reliquat contrôlée en lecture seule.
+Migration principale MATCH-006 toujours Pending, aucune attribution réelle,
+activation de worker, modification .env ou notification externe par l’agent.

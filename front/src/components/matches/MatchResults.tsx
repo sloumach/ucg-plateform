@@ -19,7 +19,7 @@ export function MatchResults({ active, item, root, management, disabled, onInval
   const { list, loading, error } = usePartnershipList<MatchResultEvent, MatchResultPage>(path + '?page=' + page + '&per_page=10' + (management ? '&management=1' : ''), active, true, onInvalid)
   const mutation = usePeopleMutation<MatchResult>(active, onSaved, onInvalid)
   const blocked = disabled || mutation.blocked, result = list?.result, shared = item.visibility !== 'private'
-  const actions = page === 1 && !loading && !error ? result?.allowed_actions ?? [] : []
+  const actions = !result?.recalculation_pending && page === 1 && !loading && !error ? result?.allowed_actions ?? [] : []
   const errors = mutation.errors(path)
   function common(values: FormData) {
     return { version: result?.match_version, reason: String(values.get('reason') ?? '').trim(), ...(shared ? { confirm_sharing: values.has('confirm_sharing') } : {}) }
@@ -31,6 +31,7 @@ export function MatchResults({ active, item, root, management, disabled, onInval
     {mutation.feedback}
     {loading && <p role="status">{text('loading')}</p>}
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
+    {result?.recalculation_pending && <p role="status" className="text-amber-200">{text('corrections.pending')}</p>}
     {result && <p>{text('status.' + result.status)}</p>}
     {result?.submission && <section aria-label={text('results.current')} className="grid min-w-0 gap-2 rounded-lg border border-slate-700 p-3">
       <h4 className="font-bold">{text('results.current')} · {text('results.outcome.' + result.submission.outcome)}</h4>
@@ -43,7 +44,7 @@ export function MatchResults({ active, item, root, management, disabled, onInval
     </section>}
     {actions.includes('submit') && <form aria-label={text('results.submit')} className="grid min-w-0 gap-3" onSubmit={(event) => {
       const values = new FormData(event.currentTarget)
-      mutation.propose(event, text('results.submit'), path, { ...common(values), outcome, proof_reference: String(values.get('proof_reference') ?? '').trim(), confirm_proof: values.has('confirm_proof'),
+      mutation.propose(event, text('results.submit'), path, { ...common(values), ...(result?.score_revision ? { score_revision: result.score_revision } : {}), outcome, proof_reference: String(values.get('proof_reference') ?? '').trim(), confirm_proof: values.has('confirm_proof'),
         ...(outcome === 'played' ? {} : { winner_participant_id: String(values.get('winner_participant_id') ?? '') }) })
     }}>
       <SelectField name="outcome" title={text('results.outcome')} value={outcome} onChange={(value) => setOutcome(value as MatchResultOutcome)} required disabled={blocked} error={errors.outcome?.[0]}>

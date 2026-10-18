@@ -339,6 +339,16 @@ Un scrim est une activité d’entraînement privée. Un match officiel peut êt
 - MATCH-05 : gérer forfait, abandon, remake, match nul lorsqu’autorisé et preuve du résultat.
 - MATCH-06 : valider le score par un responsable interne autorisé ; conserver la preuve et traiter les contestations internes sans portail adversaire ni arbitrage de tournoi.
 - MATCH-07 : conserver tout changement de score avec ancienne valeur, nouvelle valeur, motif et auteur.
+  Livraison MATCH-006 : journal chiffré avant/après, correction idempotente des
+  parties existantes et recalcul asynchrone unique. Permission sports.correct
+  explicite en plus de read/write ; publication/consentement sur match partagé.
+  Une ancienne approbation est contestée et les nouvelles valeurs exigent une
+  nouvelle preuve puis une approbation indépendante des correcteurs. Total
+  indisponible pendant le recalcul, invalidation de cache et reprise contrôlée.
+  Cartes/règles/compositions/exclusions remake fixes ; pas d’ajout/suppression de
+  partie ; une série complète doit rester complète et cohérente. Les agrégats
+  concernés ici sont ceux du match et ses vues internes ; diffusion MATCH-007.
+
 - MATCH-08 : ajouter VOD, notes, objectifs et débrief ; appliquer des droits spécifiques aux stratégies.
   Livraison MATCH-005 : cinq types de contenu (objectif, note, VOD annotée,
   débrief, action), révisions chiffrées conservées et actions à échéance UTC avec

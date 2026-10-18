@@ -28,7 +28,7 @@ final readonly class MatchService
 {
     public function __construct(private MatchRepository $records, private MatchReferenceDirectory $references,
         private MatchSchedule $schedule, private TenantAuthorization $authorization, private TenantBusinessGuard $guard,
-        private TenantAuditJournal $audit, private Factory $validator, private ConnectionInterface $database, private MatchLineupService $lineups) {}
+        private TenantAuditJournal $audit, private Factory $validator, private ConnectionInterface $database, private MatchLineupService $lineups, private MatchCorrectedScores $effective) {}
 
     /** @param array<string,mixed> $input
      * @return LengthAwarePaginator<int,MatchRecord>
@@ -184,6 +184,7 @@ final readonly class MatchService
     private function locked(TenantContext $context, string $id, string $version): MatchRecord
     {
         $record = $this->records->find($context->organizationId, $id, $context->actorUserId, ['person_id' => null, 'team_ids' => []], true, true);
+        $this->effective->assertReady($context->organizationId, $record->id);
         if ($record->version !== strtolower($version)) {
             throw new DomainConflictException(__('matches.stale'), 'MATCH_VERSION_STALE');
         }

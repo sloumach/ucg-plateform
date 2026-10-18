@@ -4,6 +4,7 @@ namespace App\Modules\Competition\Application\Services;
 
 use App\Exceptions\DomainConflictException;
 use App\Modules\Competition\Application\Validation\MatchResultInput as Input;
+use App\Modules\Competition\Domain\Contracts\MatchCorrectionRepository;
 use App\Modules\Competition\Domain\Contracts\MatchRepository;
 use App\Modules\Competition\Domain\Contracts\MatchResultRepository;
 use App\Modules\Competition\Domain\Contracts\MatchScoreRepository;
@@ -29,7 +30,8 @@ final readonly class MatchResultService
 {
     public function __construct(private MatchRepository $matches, private MatchResultRepository $results, private MatchScoreRepository $scores,
         private MatchScoreService $scoreService, private MatchReferenceDirectory $references, private TenantAuthorization $authorization,
-        private TenantBusinessGuard $guard, private TenantAuditJournal $audit, private Factory $validator, private ConnectionInterface $database) {}
+        private TenantBusinessGuard $guard, private TenantAuditJournal $audit, private Factory $validator, private ConnectionInterface $database,
+        private MatchCorrectedScores $effective, private MatchCorrectionRepository $corrections) {}
 
     /** @param array<string,mixed> $input
      * @return array<string,mixed> */
@@ -64,6 +66,7 @@ final readonly class MatchResultService
             $this->authorize($context, $action);
             $management = $this->authorization->allows($context, 'sports.write');
             $record = $this->matches->find($context->organizationId, $match, $context->actorUserId, $this->references->viewer($context), $management, true);
+            $this->effective->assertReady($context->organizationId, $record->id);
             if ($record->version !== strtolower($values['version'])) {
                 $this->conflict('matches.stale', 'MATCH_VERSION_STALE');
             }
@@ -82,6 +85,10 @@ final readonly class MatchResultService
             }
             $attributes = ['submission_id' => null, 'proof_reference' => null, 'snapshot' => null, 'contributors' => null];
             if ($action === 'submit') {
+                $correction = $this->corrections->latest($context->organizationId, $record->id);
+                if (($correction?->id) !== (isset($values['score_revision']) ? strtolower($values['score_revision']) : null)) {
+                    $this->conflict('match_corrections.revision', 'MATCH_SCORE_REVISION_STALE');
+                }
                 $target = MatchResultWorkflow::target($action, $record->status, $latest?->action, $values['outcome']);
                 if ($target === null) {
                     $this->conflict('match_results.transition', 'MATCH_RESULT_TRANSITION_INVALID');
@@ -152,13 +159,13 @@ final readonly class MatchResultService
         }
         $games = $this->scores->games($context->organizationId, $record->id);
         $rules = $this->scores->rules($context->organizationId, $record->id);
-        $contributors = [$context->actorUserId, ...array_map(fn ($game): int => $game->actor_user_id, $games)];
+        $contributors = [$context->actorUserId, ...$this->corrections->contributors($context->organizationId, $record->id), ...array_map(fn ($game): int => $game->actor_user_id, $games)];
         if ($rules !== null) {
             $contributors[] = (int) $rules->getAttribute('actor_user_id');
         }
 
         return [['outcome' => $values['outcome'], 'winner_ids' => $winners, 'participants' => $participants, 'series' => $card['series'], 'rules' => $card['rules'],
-            'game_ids' => array_map(fn ($game): string => $game->id, $games)], array_values(array_unique($contributors))];
+            'score_revision' => $this->corrections->latest($context->organizationId, $record->id)?->id, 'game_ids' => array_map(fn ($game): string => $game->id, $games)], array_values(array_unique($contributors))];
     }
 
     /** @return array<string,mixed> */
@@ -182,7 +189,13 @@ final readonly class MatchResultService
             }
         }
 
-        return ['match_version' => $record->version, 'status' => $record->status, 'locked' => $latest !== null,
+        $correction = $this->corrections->latest($context->organizationId, $record->id);
+        $pending = $correction !== null && $correction->recalculation === null;
+        if ($pending) {
+            $actions = [];
+        }
+
+        return ['score_revision' => $correction?->id, 'recalculation_pending' => $pending, 'match_version' => $record->version, 'status' => $record->status, 'locked' => $latest !== null,
             'current' => $latest, 'submission' => $submission, 'allowed_actions' => $actions];
     }
 

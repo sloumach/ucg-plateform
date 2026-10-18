@@ -3274,3 +3274,67 @@ Shared reste dans l’audience authentifiée du match ; aucun endpoint public,
 iframe ou téléchargement. Lien ouvert explicitement avec protection du référent.
 500 contenus/match et 100 révisions/contenu, dont versions historiques conservées.
 La version du contenu ne remplace jamais match_version pour les opérations sportives.
+
+
+### MATCH-006 — Correction idempotente et recalcul
+
+Base : `/api/v1/tenants/{tenant}/matches/{match}/corrections`.
+
+- GET : page (1–100000), per_page (1–10, défaut 10), management facultatif.
+  Réponse : data MatchCorrectionResource[], pagination, corrections
+  {match_version,score_revision,pending,can_correct}.
+- POST : version sportive, score_revision présente et nullable au premier essai,
+  idempotency_key UUID, reason de 10–1000 caractères, confirm_correction accepté,
+  confirm_sharing sur match partagé, games (1–100 entrées distinctes).
+  Chaque entrée : game_id existant, outcome played/draw/forfeit/abandon/remake,
+  results complet {participant_id,score} pour les participants du dossier.
+  Scores entiers 0–1000000, null uniquement pour remake. Le caractère remake reste
+  fixe ; pas de nouveau game_id, carte, règle, composition ou agrégat imposé.
+- POST /{correction}/retries : corps vide, remise en file de la demande inchangée
+  et actuellement pending. Une demande déjà appliquée retourne son état sans effet.
+
+Lecture : sports.read et audience du match ; management exige sports.write.
+Écriture/reprise : sports.read/write/correct, MFA, contexte tenant courant confirmé.
+Demande partagée : sports.publish et confirmation ; traitement/reprise revérifient
+les droits courants. Aucun droit de correction implicite pour un validateur.
+La tâche ne modifie pas le choix déjà confirmé ; une personne habilitée peut
+relancer sans devenir l’auteur du contenu, son exécution étant tracée séparément.
+
+POST retourne 202 et data : id, number, match_version, state pending/applied,
+before/after (parties modifiées : game_id,number,outcome,results avec libellés et
+composition historique), reason, actor_user_id, occurred_at, applied_at nullable,
+notification Flasher. La même clé, le même auteur et le même payload validé
+renvoient la même correction sans tâche/audit supplémentaire. Ne pas générer une
+nouvelle clé pour rejouer une réponse perdue ; un nouveau contenu exige une
+nouvelle clé et une nouvelle lecture des deux versions.
+
+Les /games exposent scorecard.score_revision et recalculation_pending. Pendant
+pending, series=null ; les parties affichées restent celles de la révision
+précédemment appliquée. Une partie projetée porte correction_id, ses métadonnées
+source restant historiques. Après complétion, toutes les pages et le calcul de
+série utilisent la même correction. /results expose aussi score_revision et
+recalculation_pending ; aucune action disponible pendant le traitement.
+Une soumission après correction doit transmettre score_revision courante ; la
+nouvelle preuve et l’approbation indépendante restent celles du workflow MATCH-004.
+
+409 : MATCH_RECALCULATION_PENDING, MATCH_VERSION_STALE,
+MATCH_SCORE_REVISION_STALE, MATCH_CORRECTION_KEY_REUSED, MATCH_CORRECTION_LIMIT,
+MATCH_CORRECTION_PHASE, MATCH_CORRECTION_ASYNC_REQUIRED. 422 : input fermé,
+score/participant/partie/motif/confirmation ou cohérence invalides. 403 : droits ;
+404 : match ou correction hors tenant/audience. Réponses private,no-store.
+
+Exemple pour client authentifié, cookie/CSRF et révision de sélection courants :
+
+```bash
+curl -b cookies.txt -X POST -H "Accept: application/json" \
+  -H "Content-Type: application/json" -H "X-XSRF-TOKEN: {csrf}" \
+  -H "X-Tenant-Revision: {revision-session}" \
+  "{api}/api/v1/tenants/{tenant}/matches/{match}/corrections" \
+  --data '{"version":"{version-match}","score_revision":null,"idempotency_key":"{uuid-demande}","reason":"Correction selon le rapport source vérifié.","confirm_correction":true,"games":[{"game_id":"{partie}","outcome":"played","results":[{"participant_id":"{participant-A}","score":0},{"participant_id":"{participant-B}","score":13}]}]}'
+```
+
+Configurer une file persistante et un worker default avant usage. Les clés de
+cache privé incluent tenant/match/version/correction et sont invalidées avant
+correction et application ; pending SQL masque toute ancienne série. Les preuves
+et scores sources restent immuables. Aucune republication automatique ni événement
+public ; seul un nouveau résultat soumis/approuvé fournit la validation courante.

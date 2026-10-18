@@ -21,9 +21,9 @@ export type MatchLineupRevision = { id: string; participant_id: string; match_ve
 export function matchText(key: string) { return t(('matches.' + key) as TranslationKey) }
 
 export type MatchGameOutcome = 'played' | 'draw' | 'forfeit' | 'abandon' | 'remake'
-export type MatchGame = { id: string; number: number; match_version: string; outcome: MatchGameOutcome; map: string | null; mode: string | null; game_patch: string;
+export type MatchGame = { correction_id?: string | null; id: string; number: number; match_version: string; outcome: MatchGameOutcome; map: string | null; mode: string | null; game_patch: string;
   reason: string; actor_user_id: number; occurred_at: string; results: { participant_id: string; label: string; score: number | null; lineup_revision_id: string | null }[] }
-export type MatchScorecard = { result_locked?: boolean; match_version: string; rules: { format: MatchRecord['format']; game_limit: number; allow_draw: boolean } | null;
+export type MatchScorecard = { score_revision?: string | null; recalculation_pending?: boolean; result_locked?: boolean; match_version: string; rules: { format: MatchRecord['format']; game_limit: number; allow_draw: boolean } | null;
   series: { complete: boolean; played: number; draw: boolean; winner_ids: string[]; standings: { participant_id: string; score: number }[] } | null; game?: MatchGame | null }
 export type MatchGamePage = Page<MatchGame> & { scorecard: MatchScorecard }
 
@@ -32,7 +32,7 @@ export type MatchResultOutcome = 'played' | 'forfeit' | 'abandon'
 export type MatchResultEvent = { id: string; number: number; action: MatchResultAction; outcome: MatchResultOutcome; from_status: MatchStatus; to_status: MatchStatus;
   match_version: string; submission_id: string | null; proof_reference: string | null; reason: string; actor_user_id: number; occurred_at: string;
   snapshot: { outcome: MatchResultOutcome; winner_ids: string[]; participants: { participant_id: string; label: string }[]; series: MatchScorecard['series']; rules: MatchScorecard['rules']; game_ids: string[] } | null }
-export type MatchResult = { match_version: string; status: MatchStatus; locked: boolean; allowed_actions: MatchResultAction[]; current: MatchResultEvent | null; submission: MatchResultEvent | null }
+export type MatchResult = { score_revision?: string | null; recalculation_pending?: boolean; match_version: string; status: MatchStatus; locked: boolean; allowed_actions: MatchResultAction[]; current: MatchResultEvent | null; submission: MatchResultEvent | null }
 export type MatchResultPage = Page<MatchResultEvent> & { result: MatchResult }
 
 export const notebookKinds = ['objective', 'note', 'vod', 'debrief', 'action'] as const
@@ -40,3 +40,8 @@ export type NotebookAudience = 'internal' | 'strategy' | 'shared'
 export type MatchNotebookEntry = { entry_id: string; version: string; number: number; kind: typeof notebookKinds[number]; audience: NotebookAudience;
   title: string; body: string; vod_url: string | null; timestamp_seconds: number | null; state: 'open' | 'done' | null; due_at: string | null; actor_user_id: number; occurred_at: string }
 export type MatchNotebookPage = Page<MatchNotebookEntry> & { writable_audiences: NotebookAudience[] }
+
+export type MatchCorrectionGame = { game_id: string; number: number; outcome: MatchGameOutcome; results: MatchGame['results'] }
+export type MatchCorrection = { id: string; number: number; match_version: string; state: 'pending' | 'applied'; before: MatchCorrectionGame[]; after: MatchCorrectionGame[];
+  reason: string; actor_user_id: number; occurred_at: string; applied_at: string | null }
+export type MatchCorrectionPage = Page<MatchCorrection> & { corrections: { match_version: string; score_revision: string | null; pending: boolean; can_correct: boolean } }
