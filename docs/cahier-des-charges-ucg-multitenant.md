@@ -363,6 +363,15 @@ Un scrim est une activité d’entraînement privée. Un match officiel peut êt
 
 - MATCH-09 : en P1, gérer le veto ou la sélection des cartes lorsque le jeu et le règlement l’exigent.
 - MATCH-10 : diffuser le score autorisé aux abonnés temps réel ; ne jamais diffuser les données privées dans un canal public.
+  Livraison MATCH-007 : canaux privés tenant/match signés après MFA, contexte confirmé
+  et contrôle de l’audience. Événements d’invalidation après commit sans contenu sportif
+  ou privé, puis relecture autorisée des scores/statut effectifs. Vue dédiée séparant
+  provisoire/validé, vainqueur approuvé y compris forfait, recalcul en attente masqué.
+  Délai jusqu’à lecture affiché avec réserve sur les horloges. Déduplication, reprise
+  au réabonnement et secours visible 30 s. Le retrait des droits bloque la relecture.
+  Aucune ouverture publique : publication publique et vitrine restent distinctes en P1.
+  Vérifications : 20 cas dédiés backend, suites SQLite/PostgreSQL et 338 tests front
+  verts ; 7 parcours navigateur. Recette Reverb réelle et supervision avant activation.
 - MATCH-11 : identifier l’organisation propriétaire du match et représenter les adversaires externes par une référence publique ou un instantané autorisé, sans relier leurs données internes ni leur accorder d’accès.
 
 ### 9.3 Circuit opérationnel

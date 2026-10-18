@@ -825,6 +825,13 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 
 ### UCG-MATCH-007 — Diffuser les scores autorisés en temps réel
 
+- **Statut** : livré localement sur staging ; push/CI à valider. MATCH-006 (`22f46fc`) poussé, CI/migration validées ; Ran batch 42 vérifié en lecture seule. Aucune migration MATCH-007.
+- **Vérifications** : SQLite complet 2121 réussis/28 exclus ; PostgreSQL CI complet 1935 réussis/2 exclus Redis puis 20 cas finaux dédiés ; frontend 338 tests, 7 parcours navigateur, captures 320/375 px. PHPStan 8, Pint, composer validate, tsc/build et oxlint verts. Signature réelle testée au backend ; WebSocket simulé au navigateur, recette du service Reverb et worker réel encore requise.
+- **Livraison** : canal privé tenant/match, signature avec MFA/contexte confirmé/audience sportive, invalidations après commit, projection HTTP cohérente sans preuve/stratégie, vue dédiée provisoire/validée, correction en attente masquée, forfait approuvé affiché.
+- **Fiabilité** : broadcasts 3 tentatives/30 s/1–5–15 s, déduplication et regroupement client, relecture au réabonnement/retour en ligne et secours visible 30 s ; panne après commit journalisée sans échec trompeur de l’action sportive. Aucun outbox : rattrapage par relecture.
+- **Confidentialité** : WebSocket limité aux identifiants d’invalidation et horodatage ; chaque lecture contrôle les droits actuels. Aucun canal public ou accès adverse ; publication publique distincte en P1.
+- **Suite** : recette Reverb + file persistante broadcasts en environnement isolé ; aucune activation principale automatique. Après push/CI : COMP-001 (P0), MATCH-008 reste P1.
+
 - **Priorité / taille** : P0 / L
 - **Périmètre** : événements après transaction, canaux publics ou privés incluant le tenant et fraîcheur de la donnée.
 - **Acceptation** : aucune stratégie ou donnée privée sur un canal public ; délai mesurable depuis la validation.

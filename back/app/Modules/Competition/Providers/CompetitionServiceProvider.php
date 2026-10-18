@@ -3,6 +3,7 @@
 namespace App\Modules\Competition\Providers;
 
 use App\Modules\Competition\Application\Contracts\MatchRecalculationQueue;
+use App\Modules\Competition\Application\Contracts\MatchScorePublisher;
 use App\Modules\Competition\Domain\Contracts\MatchCorrectionRepository;
 use App\Modules\Competition\Domain\Contracts\MatchLineupRepository;
 use App\Modules\Competition\Domain\Contracts\MatchNotebookRepository;
@@ -10,6 +11,7 @@ use App\Modules\Competition\Domain\Contracts\MatchRepository;
 use App\Modules\Competition\Domain\Contracts\MatchResultRepository;
 use App\Modules\Competition\Domain\Contracts\MatchScoreRepository;
 use App\Modules\Competition\Domain\Models\MatchRecord;
+use App\Modules\Competition\Infrastructure\Broadcasting\LaravelMatchScorePublisher;
 use App\Modules\Competition\Infrastructure\Persistence\EloquentMatchCorrectionRepository;
 use App\Modules\Competition\Infrastructure\Persistence\EloquentMatchLineupRepository;
 use App\Modules\Competition\Infrastructure\Persistence\EloquentMatchNotebookRepository;
@@ -26,6 +28,7 @@ final class CompetitionServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(MatchScorePublisher::class, LaravelMatchScorePublisher::class);
         $this->app->bind(MatchRecalculationQueue::class, LaravelMatchRecalculationQueue::class);
         $this->app->bind(MatchCorrectionRepository::class, EloquentMatchCorrectionRepository::class);
         $this->app->bind(MatchNotebookRepository::class, EloquentMatchNotebookRepository::class);

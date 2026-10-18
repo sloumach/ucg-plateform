@@ -3,6 +3,7 @@
 namespace App\Modules\Competition\Application\Services;
 
 use App\Exceptions\DomainConflictException;
+use App\Modules\Competition\Application\Contracts\MatchScorePublisher;
 use App\Modules\Competition\Application\Validation\MatchScoreInput as Input;
 use App\Modules\Competition\Domain\Contracts\MatchCorrectionRepository;
 use App\Modules\Competition\Domain\Contracts\MatchLineupRepository;
@@ -39,7 +40,7 @@ final readonly class MatchScoreService
         private TenantAuditJournal $audit, private Factory $validator, private ConnectionInterface $database,
         private BestOfScore $bestOf, private PointsScore $points, private MatchResultRepository $results,
         private MatchCorrectedScores $effective, private MatchCorrectionRepository $corrections,
-        private TenantCache $cache) {}
+        private TenantCache $cache, private MatchScorePublisher $publisher) {}
 
     /** @param array<string,mixed> $input
      * @return array<string,mixed>
@@ -153,6 +154,8 @@ final readonly class MatchScoreService
             }
             $this->audit->record($context->organizationId, new AuditWriteData($context->actorUserId, AuditAction::DomainChanged, AuditTarget::Organization,
                 $context->organizationId, AuditReason::Domain, $context->requestId, $ip, [], ['match_id' => $record->id, 'match_action' => $configure ? 'score_rules' : 'game', 'match_status' => $record->status, 'version' => $version]));
+
+            $this->publisher->changed($context->organizationId, $record->id);
 
             return ['score_revision' => $this->corrections->latest($context->organizationId, $record->id)?->id, 'recalculation_pending' => false, 'match_version' => $version, 'rules' => $this->rulesProjection($rules), 'series' => $series, 'game' => $game];
         });

@@ -3338,3 +3338,57 @@ cache privé incluent tenant/match/version/correction et sont invalidées avant
 correction et application ; pending SQL masque toute ancienne série. Les preuves
 et scores sources restent immuables. Aucune republication automatique ni événement
 public ; seul un nouveau résultat soumis/approuvé fournit la validation courante.
+
+
+### MATCH-007 — Abonnement privé et projection de scores
+
+- `POST /api/v1/tenants/{tenant}/matches/{match}/realtime/auth`
+  Body strict : `{"socket_id":"123.456","channel_name":"private-tenants.{tenant}.matches.{match}"}`.
+  Réponse protocole Pusher/Reverb : `{"auth":"app-key:signature"}`, sans enveloppe Resource.
+  Form Request, policy sports.read, MFA/session courante, contexte confirmé/révision,
+  audience du match ; droits de gestion sports.write identiques aux autres API.
+  Route globale broadcasting/auth interdite pour ce canal. Entrées inconnues : 422 ;
+  mauvaise audience ou match étranger : 404, permission insuffisante : 403,
+  contexte non confirmé/périmé : 409, non authentifié : 401.
+- `GET /api/v1/tenants/{tenant}/matches/{match}/live` sans paramètres.
+  Resource `data` : `match_version`, `score_revision`, `recalculation_pending`,
+  `outcome` (approuvée uniquement), `winner_ids` (approuvés uniquement), `status`,
+  `series` (null si recalcul en attente), `observed_at`. Sans preuve, motif, carnet,
+  acteur ou composition. Les lignes series portent les identifiants des participants.
+  Lecture cohérente sous verrou du match jusqu’à matérialisation des deux projections.
+  Les deux réponses : `Cache-Control: private, no-store`.
+- Événement `.match.score.changed`, canal Echo privé
+  `tenants.{tenant}.matches.{match}` ; clés exactes `event_id` (UUID),
+  `organization_id`, `match_id`, `changed_at` (UTC ISO 8601).
+  Relecture systématique : aucune valeur ni permission transportée par l’événement.
+  Anciens événements/événements réordonnés ne restaurent jamais d’ancien score.
+  Un abonné dont les droits sont retirés peut encore recevoir des invalidations
+  sans contenu tant que le socket est ouvert ; aucune nouvelle lecture autorisée.
+- File broadcasts après commit : 3 tentatives, timeout 30 s, backoff 1/5/15 s.
+  Échec de dispatch après commit journalisé sans rejouer l’action métier.
+  Absence d’outbox, secours par relecture. Ne jamais déduire une validation d’un signal.
+
+Exemple Axios avec session SPA, CSRF initialisé et contexte actif :
+
+```ts
+const response = await axios.get(`/api/v1/tenants/${tenant}/matches/${match}/live`, {
+  withCredentials: true, headers: { 'X-Tenant-Revision': revision },
+});
+const live = response.data.data;
+// Utiliser la signature du endpoint /realtime/auth pour le socket courant.
+echo.private(`tenants.${tenant}.matches.${match}`).listen('.match.score.changed', () => reloadLive());
+// À la fermeture/changement d’organisation : echo.leave(`tenants.${tenant}.matches.${match}`).
+```
+
+Reverb est optionnel pour les lectures ; le client relit au retour en ligne et
+sur page visible toutes les 30 s. Sans confirmation d’organisation, seul ce secours
+HTTP est utilisé. Le délai affiché inclut transport et relecture et dépend des
+horloges des deux systèmes. Aucun nouveau droit ni migration pour MATCH-007.
+
+Vérification des contrats : `back/tests/Feature/MatchRealtimeTest.php` (20 cas,
+SQLite et PostgreSQL), hook/client et vue front, navigateur
+`front/tests/e2e/match-realtime.spec.ts` avec protocole Pusher simulé.
+Le serveur Vite de Playwright reçoit une clé `test-key` locale à la recette,
+sans changement de .env ni secret réel. Les suites existantes sportives restent
+vertes. Une connexion null n’enfile aucun job de broadcast ; une panne de transport
+après commit ne provoque pas de nouvelle écriture sportive ni de réponse trompeuse.

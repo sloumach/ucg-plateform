@@ -4,6 +4,7 @@ use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchController
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchCorrectionController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchLineupController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchNotebookController;
+use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchRealtimeController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchResultController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchScoreController;
 use Illuminate\Support\Facades\Route;
@@ -21,6 +22,8 @@ Route::prefix('tenants/{tenant}/matches')->whereUuid('tenant')->middleware('tena
         Route::post('', [MatchNotebookController::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('matches.notebook.store');
         Route::patch('{entry}', [MatchNotebookController::class, 'update'])->whereUuid('entry')->middleware('tenant.confirmed')->block(10, 10)->name('matches.notebook.update');
     });
+    Route::get('{match}/live', [MatchRealtimeController::class, 'show'])->whereUuid('match')->name('matches.live');
+    Route::post('{match}/realtime/auth', MatchRealtimeController::class)->whereUuid('match')->middleware('tenant.confirmed')->name('matches.realtime.auth');
     Route::get('{match}/corrections', [MatchCorrectionController::class, 'index'])->whereUuid('match')->name('matches.corrections.index');
     Route::post('{match}/corrections', [MatchCorrectionController::class, 'store'])->whereUuid('match')->middleware('tenant.confirmed')->block(10, 10)->name('matches.corrections.store');
     Route::post('{match}/corrections/{correction}/retries', [MatchCorrectionController::class, 'retry'])->whereUuid(['match', 'correction'])->middleware('tenant.confirmed')->block(10, 10)->name('matches.corrections.retry');

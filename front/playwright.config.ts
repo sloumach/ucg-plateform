@@ -45,6 +45,7 @@ export default defineConfig({
     },
     {
       command: 'npm run dev -- --host 127.0.0.1 --port 5173 --strictPort',
+      env: { ...process.env, VITE_REVERB_APP_KEY: 'test-key', VITE_REVERB_HOST: '127.0.0.1', VITE_REVERB_PORT: '8080', VITE_REVERB_SCHEME: 'http' },
       cwd: '.',
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

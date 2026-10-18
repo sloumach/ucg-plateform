@@ -1,4 +1,17 @@
 export const frenchMessages = {
+  'matches.live.title': 'Scores en direct',
+  'matches.live.close': 'Fermer le direct',
+  'matches.live.connected': 'Direct connecté.',
+  'matches.live.fallback': 'Actualisation de secours toutes les 30 secondes.',
+  'matches.live.denied': 'Lecture interrompue : les droits doivent être revérifiés.',
+  'matches.live.validated': 'Résultat validé.',
+  'matches.live.provisional': 'Scores provisoires.',
+  'matches.live.empty': 'Aucun score disponible.',
+  'matches.live.observed': 'Données relues à',
+  'matches.live.latency': 'Délai jusqu’à lecture',
+  'matches.live.clocks': 'horloges client et serveur',
+  'matches.live.participant': 'Participant',
+
   "roles.permission.sports.correct": "Corriger les scores avec audit et recalcul",
   "matches.corrections.title": "Corrections des scores",
   "matches.corrections.hint": "Une correction conserve les parties sources et leurs anciennes valeurs. Elle retire l’approbation du résultat et exige un recalcul, puis une nouvelle preuve et une validation indépendante. Les règles, cartes, compositions historiques et exclusions pour remake restent fixes.",

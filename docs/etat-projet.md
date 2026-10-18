@@ -9,10 +9,13 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-MATCH-006` — corrections des scores et recalcul.
-  Implémentation locale sur staging ; push, CI distantes et migration additive
-  à effectuer après livraison. Aucun migrate/seed principal, donnée métier réelle
-  ni attribution de permission par l’agent. Prochain P0 : MATCH-007.
+- Dernier ticket traité : `UCG-MATCH-007` — diffusion privée des scores autorisés.
+  Implémentation locale sur staging ; push et CI distantes à valider après livraison.
+  Aucune nouvelle migration. Aucun migrate/seed principal, donnée métier réelle,
+  attribution de permission ou activation de worker par l’agent.
+- MATCH-006 : `22f46fc` poussé ; CI et migration validées par l’utilisateur.
+  Migration constatée en lecture seule Ran, batch 42. Départ propre et synchronisé.
+  Prochain P0 après validation : COMP-001 ; MATCH-008 reste P1.
 - MATCH-005 : `f40d2a6` poussé ; CI et migration confirmées par l’utilisateur.
   Migration constatée en lecture seule Ran, batch 41. Départ propre et synchronisé.
 - MATCH-004 : `f25f966` présent sur staging et origin/staging au démarrage ;
@@ -136,12 +139,12 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : pousser MATCH-006, vérifier les CI, sauvegarder puis appliquer
-  2026_10_18_184341_create_match_score_corrections_and_recalculations.
-  Déléguer sports.correct explicitement aux personnes habilitées ; recetter
-  correction, recalcul, reprise, nouvelle preuve et validation indépendante avec
-  une file persistante et son worker default. Ne pas activer de worker sur la
-  file principale avant examen de ses travaux en attente. Suite : MATCH-007.
+- Prochaine action : pousser MATCH-007 et vérifier les CI. Recetter en environnement
+  isolé Reverb, la file broadcasts et la configuration VITE_REVERB_* avec deux comptes.
+  Aucune migration nouvelle. Vérifier les travaux en attente avant toute activation
+  du worker principal ; ne pas activer le temps réel sans configuration et supervision.
+  Le recalcul MATCH-006 continue de dépendre de sa file persistante default.
+  Après validation : COMP-001 (P0), suivi des compétitions externes ; MATCH-008 (P1).
   CAL-007/CAL-008 restent P1. Recetter report/annulation avant activation de
   calendar-changes et supervision scheduler/worker.
   Permissions explicites et activation supervisée de calendar-invitations restent
@@ -3569,3 +3572,71 @@ par ce passage complet réussi. Serveur Vite de recette arrêté ; bases Postgre
 de test supprimées et absence de reliquat contrôlée en lecture seule.
 Migration principale MATCH-006 toujours Pending, aucune attribution réelle,
 activation de worker, modification .env ou notification externe par l’agent.
+
+
+## 18 octobre 2026 — UCG-MATCH-007 : scores autorisés en temps réel
+
+MATCH-006 (`22f46fc`) : push, CI et migration validés par l’utilisateur avant
+MATCH-007 ; migration principale constatée Ran batch 42 en lecture seule.
+Départ propre et synchronisé sur staging/origin/staging. MATCH-007 ne crée
+aucune migration et ne modifie aucune dépendance ni variable .env.
+
+- Vue « Scores en direct » séparée des formulaires : état provisoire/validé,
+  totaux effectifs, vainqueur et issue approuvés (y compris forfait/abandon),
+  horodatage de lecture. Aucun total exposé pendant un recalcul en attente.
+- Canal privé `tenants.{organization_uuid}.matches.{match_uuid}`, événement
+  `match.score.changed` après commit uniquement. Rollback : aucun événement.
+  Changements du match, règles/parties, soumission/approbation/contestation et
+  demande/fin de correction invalident la vue. Une reprise de correction déjà
+  appliquée ou une requête idempotente ne produit pas de nouvel effet.
+- Charge utile limitée à `event_id`, `organization_id`, `match_id`, `changed_at`.
+  Aucun score, preuve, motif, acteur, composition, stratégie ou contenu du carnet
+  dans le WebSocket. Chaque affichage relit une projection HTTP autorisée.
+- Signature sur route tenant protégée : session courante, MFA, organisation active,
+  confirmation/révision de contexte, sports.read et audience actuelle. Gestionnaires
+  sports.write : même accès de gestion que les API sportives existantes. Le canal
+  global /api/broadcasting/auth ne peut signer ces abonnements de match.
+- Transport sur file `broadcasts`, 3 tentatives, timeout 30 s, délais 1/5/15 s.
+  Si la mise en file échoue après commit : journal structuré sans secrets et action
+  sportive conservée comme réussie. Pas d’outbox durable : rattrapage par relecture.
+- Client : signaux regroupés 250 ms, 200 identifiants de déduplication maximum,
+  ancien événement => relecture de l’état actuel, retour en ligne/réabonnement,
+  secours toutes les 30 s lorsque la page est visible. Désabonnement et annulation
+  des lectures à la fermeture/changement de contexte ; retrait des totaux sur erreur
+  d’accès et rechargement du contexte. Échec transitoire : secours maintenu.
+- Fraîcheur : délai `changed_at` → réponse relue affiché, incluant transaction,
+  queue, transport et relecture ; dépend de la synchronisation des horloges client
+  et serveur. Aucune promesse de latence de télémétrie du jeu.
+- Diffusion authentifiée interne uniquement. Aucun canal public ni accès adverse :
+  visibilité métier limitée à private/team/organization ; publication publique
+  distincte de la vitrine P1. Les preuves et stratégies restent dans leurs API privées.
+- Aucun worker principal lancé, notification externe envoyée, attribution réelle,
+  donnée métier réelle créée, migration/seed principal ou push par l’agent.
+
+Recette de déploiement : configurer Reverb côté serveur et VITE_REVERB_* côté
+front puis reconstruire ; utiliser une file persistante et superviser broadcasts
+(et default pour les recalculs). Contrôler d’abord les travaux en attente.
+Les lectures fonctionnent avec le secours si Reverb n’est pas configuré.
+À grande échelle : Reverb et workers séparés, cache/queue Redis partagés ; le
+secours ne s’exécute que sur le match ouvert et la page visible. Les API conservent
+leurs contrôles d’audience/tenant et les bornes existantes (100 parties/participants).
+Après validation du push/CI et recette : prochain P0 COMP-001, suivi des compétitions
+externes ; veto/sélection des cartes MATCH-008 reste P1.
+
+Temps réel désactivé (`BROADCAST_CONNECTION=null`) : aucune tâche BroadcastEvent
+n’est ajoutée à la file ; les scores et leur relecture restent disponibles.
+
+Vérifications MATCH-007 : SQLite complet final 2149 tests, 2121 réussis,
+28 exclusions PostgreSQL/Redis prévues, 10958 assertions ; PostgreSQL sélection CI
+complète 1937 tests, 1935 réussis, 2 exclusions Redis prévues, 10291 assertions,
+puis 20 cas temps réel finaux réussis, 166 assertions, après le garde-fou null/MFA.
+Bases PostgreSQL temporaires supprimées dans finally. Frontend complet : 338 tests,
+49 fichiers ; 7 scénarios navigateur sportifs réussis, dont protocole WebSocket
+Pusher simulé pour le direct, passage pending/corrigé, doublons, tenant étranger,
+révocation et désabonnement. Captures 320/375 px inspectées, sans débordement ni
+interprétation HTML. PHPStan niveau 8, Pint/format:check, composer validate strict,
+tsc/build, typage strict des nouveaux tests et oxlint réussis.
+Serveurs temporaires arrêtés. La recette Reverb réelle + worker broadcasts reste
+à effectuer en environnement isolé avant activation supervisée ; aucun worker ou
+service temps réel principal n’a été démarré. Le WebSocket navigateur est simulé,
+la signature réelle et la mise en file sont vérifiées par les tests backend.

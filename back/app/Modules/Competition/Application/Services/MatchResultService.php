@@ -3,6 +3,7 @@
 namespace App\Modules\Competition\Application\Services;
 
 use App\Exceptions\DomainConflictException;
+use App\Modules\Competition\Application\Contracts\MatchScorePublisher;
 use App\Modules\Competition\Application\Validation\MatchResultInput as Input;
 use App\Modules\Competition\Domain\Contracts\MatchCorrectionRepository;
 use App\Modules\Competition\Domain\Contracts\MatchRepository;
@@ -31,7 +32,7 @@ final readonly class MatchResultService
     public function __construct(private MatchRepository $matches, private MatchResultRepository $results, private MatchScoreRepository $scores,
         private MatchScoreService $scoreService, private MatchReferenceDirectory $references, private TenantAuthorization $authorization,
         private TenantBusinessGuard $guard, private TenantAuditJournal $audit, private Factory $validator, private ConnectionInterface $database,
-        private MatchCorrectedScores $effective, private MatchCorrectionRepository $corrections) {}
+        private MatchCorrectedScores $effective, private MatchCorrectionRepository $corrections, private MatchScorePublisher $publisher) {}
 
     /** @param array<string,mixed> $input
      * @return array<string,mixed> */
@@ -131,6 +132,8 @@ final readonly class MatchResultService
             }
             $this->audit->record($context->organizationId, new AuditWriteData($context->actorUserId, AuditAction::DomainChanged, AuditTarget::Organization,
                 $context->organizationId, AuditReason::Domain, $context->requestId, $ip, [], ['match_id' => $record->id, 'match_action' => 'result_'.$action, 'match_status' => $target, 'version' => $version]));
+
+            $this->publisher->changed($context->organizationId, $record->id);
 
             return $this->project($context, $record);
         });

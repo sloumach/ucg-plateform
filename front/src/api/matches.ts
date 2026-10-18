@@ -45,3 +45,5 @@ export type MatchCorrectionGame = { game_id: string; number: number; outcome: Ma
 export type MatchCorrection = { id: string; number: number; match_version: string; state: 'pending' | 'applied'; before: MatchCorrectionGame[]; after: MatchCorrectionGame[];
   reason: string; actor_user_id: number; occurred_at: string; applied_at: string | null }
 export type MatchCorrectionPage = Page<MatchCorrection> & { corrections: { match_version: string; score_revision: string | null; pending: boolean; can_correct: boolean } }
+
+export type MatchLiveScore = Pick<MatchScorecard, 'match_version' | 'score_revision' | 'recalculation_pending' | 'series'> & { status: MatchStatus; outcome: MatchResultOutcome | null; winner_ids: string[]; observed_at: string }

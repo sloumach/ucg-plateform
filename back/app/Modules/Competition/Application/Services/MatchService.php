@@ -3,6 +3,7 @@
 namespace App\Modules\Competition\Application\Services;
 
 use App\Exceptions\DomainConflictException;
+use App\Modules\Competition\Application\Contracts\MatchScorePublisher;
 use App\Modules\Competition\Application\Validation\MatchInput;
 use App\Modules\Competition\Domain\Contracts\MatchRepository;
 use App\Modules\Competition\Domain\MatchWorkflow;
@@ -28,7 +29,7 @@ final readonly class MatchService
 {
     public function __construct(private MatchRepository $records, private MatchReferenceDirectory $references,
         private MatchSchedule $schedule, private TenantAuthorization $authorization, private TenantBusinessGuard $guard,
-        private TenantAuditJournal $audit, private Factory $validator, private ConnectionInterface $database, private MatchLineupService $lineups, private MatchCorrectedScores $effective) {}
+        private TenantAuditJournal $audit, private Factory $validator, private ConnectionInterface $database, private MatchLineupService $lineups, private MatchCorrectedScores $effective, private MatchScorePublisher $publisher) {}
 
     /** @param array<string,mixed> $input
      * @return LengthAwarePaginator<int,MatchRecord>
@@ -141,6 +142,8 @@ final readonly class MatchService
             }
             $this->audit($context, $saved, $record === null ? 'created' : 'updated', $ip);
 
+            $this->publisher->changed($context->organizationId, $saved->id);
+
             return $saved;
         });
     }
@@ -176,6 +179,8 @@ final readonly class MatchService
             }
             $this->event($context, $saved, $previous, trim($values['reason']));
             $this->audit($context, $saved, 'transition', $ip);
+
+            $this->publisher->changed($context->organizationId, $saved->id);
 
             return $saved;
         });

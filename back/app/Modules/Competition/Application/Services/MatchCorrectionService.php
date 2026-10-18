@@ -4,6 +4,7 @@ namespace App\Modules\Competition\Application\Services;
 
 use App\Exceptions\DomainConflictException;
 use App\Modules\Competition\Application\Contracts\MatchRecalculationQueue;
+use App\Modules\Competition\Application\Contracts\MatchScorePublisher;
 use App\Modules\Competition\Application\Validation\MatchCorrectionInput as Input;
 use App\Modules\Competition\Domain\Contracts\MatchCorrectionRepository;
 use App\Modules\Competition\Domain\Contracts\MatchRepository;
@@ -39,7 +40,7 @@ final readonly class MatchCorrectionService
         private MatchCorrectedScores $effective, private MatchReferenceDirectory $references, private TenantAuthorization $authorization,
         private TenantBusinessGuard $guard, private TenantAuditJournal $audit, private TenantCache $cache,
         private Factory $validator, private Connection $database, private MatchRecalculationQueue $queue, private LoggerInterface $logger,
-        private BestOfScore $bestOf, private PointsScore $points) {}
+        private BestOfScore $bestOf, private PointsScore $points, private MatchScorePublisher $publisher) {}
 
     /** @param array<string,mixed> $input
      * @return array<string,mixed> */
@@ -129,6 +130,7 @@ final readonly class MatchCorrectionService
                 'reason' => trim($values['reason']), 'actor_user_id' => $context->actorUserId]);
             $this->audit($context, $record->id, $correction->id, 'correction_requested', $ip);
             $this->enqueue($context, $record->id, $correction->id);
+            $this->publisher->changed($context->organizationId, $record->id);
 
             return $correction;
         });
@@ -179,6 +181,7 @@ final readonly class MatchCorrectionService
             $this->cache->forget($context, self::cacheKey($record->id, $record->version, $id));
             $this->corrections->complete(['organization_id' => $context->organizationId, 'match_id' => $record->id, 'correction_id' => $id, 'series' => $series, 'actor_user_id' => $context->actorUserId]);
             $this->audit($context, $record->id, $id, 'correction_applied', null);
+            $this->publisher->changed($context->organizationId, $record->id);
         });
     }
 

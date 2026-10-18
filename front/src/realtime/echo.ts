@@ -1,3 +1,4 @@
+import { tenancyRequest } from '../api/tenancy'
 import Echo from 'laravel-echo'
 import Pusher from 'pusher-js'
 
@@ -68,10 +69,30 @@ export function disconnectRealtimeClient(): void {
   realtimeClient = undefined
 }
 
+const matchAuthorizations = new Map<string, { revision: string | undefined; users: number }>()
+
+export function registerMatchAuthorization(channel: string, revision: string | undefined): () => void {
+  const current = matchAuthorizations.get(channel)
+  matchAuthorizations.set(channel, { revision, users: (current?.users ?? 0) + 1 })
+  return () => {
+    const entry = matchAuthorizations.get(channel)
+    if (entry && entry.users > 1) entry.users--
+    else matchAuthorizations.delete(channel)
+  }
+}
+
 async function authorizePrivateChannel(
   socketId: string,
   channelName: string,
 ): Promise<BroadcastAuthorization> {
+  const match = /^private-tenants\.([a-f0-9-]{36})\.matches\.([a-f0-9-]{36})$/.exec(channelName)
+  if (match) {
+    const authorization = matchAuthorizations.get(channelName.slice('private-'.length))
+    if (!authorization) throw new Error('Match channel is no longer active.')
+    return tenancyRequest<BroadcastAuthorization>(`tenants/${match[1]}/matches/${match[2]}/realtime/auth`, {
+      method: 'POST', revision: authorization.revision, body: { socket_id: socketId, channel_name: channelName },
+    })
+  }
   const csrfToken = document.cookie
     .split('; ')
     .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
