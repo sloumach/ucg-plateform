@@ -3216,3 +3216,61 @@ statut → audit, rollback complet en cas d’échec.
 100 participants/tentatives MATCH-003. Les transitions de résultat exigent un
 événement SQL de même version/from/to ; les scores restent aussi gelés en SQL.
 Aucun endpoint opérationnel générique ne valide ou conteste un résultat.
+
+
+### MATCH-005 — Préparation, VOD, débrief et suivi
+
+Base : `/api/v1/tenants/{tenant}/matches/{match}/notebook`.
+
+- GET : page/per_page (1–100), management, audience internal/strategy/shared,
+  kind objective/note/vod/debrief/action, state open/done facultatifs.
+- POST : kind, audience, title (1–200), body (1–10000), vod_url HTTPS sans
+  credentials (obligatoire pour VOD), timestamp_seconds nullable (0–604800),
+  state open/done (action seulement, open par défaut), due_at nullable (action
+  seulement, format ISO `Y-m-dTH:i:sP` avec décalage), confirm_sharing si shared.
+- PATCH /{entry} : version courante obligatoire et champs éditables ci-dessus,
+  sans kind ni audience ; confirmation renouvelée pour shared.
+- GET /{entry}/history : page/per_page et management ; versions descendantes,
+  mêmes droits de lecture que le contenu courant.
+
+Read : sports.read, audience du match et sports.notes.read pour internal ou
+sports.strategies.read pour strategy. management exige sports.write et ne donne
+aucun accès sensible supplémentaire. Write : sports.read/write plus read/write
+de l’espace ; shared exige sports.publish et confirm_sharing à chaque version.
+MFA, organisation active/revision courante et confirmation pour les mutations.
+Identifiants masqués/hors tenant : 404 ; filtre d’espace interdit : 403. Les
+comptes sans délégation ne récupèrent ni métadonnées ni totaux des espaces privés.
+
+GET retourne data MatchNotebookResource[], links/meta et writable_audiences
+calculé côté serveur. Resource : entry_id, version (identifiant de révision),
+number, kind, audience, title, body, vod_url, timestamp_seconds, state, due_at,
+actor_user_id, occurred_at serveur. POST 201/PATCH 200 : data Resource et
+notification Flasher. Champ inconnu/type/espace modifié : 422 ; conflit
+MATCH_NOTEBOOK_VERSION_STALE, limite MATCH_NOTEBOOK_LIMIT : 409. Aucun rejeu.
+Réponses Cache-Control private,no-store. Audit sans texte ni URL.
+
+Exemples cURL pour un client déjà authentifié (cookie et CSRF courants), UUIDs
+remplacés par ceux du tenant actif ; ne jamais inclure de credentials dans la VOD :
+
+```bash
+curl -b cookies.txt -H "Accept: application/json" \
+  -H "X-Tenant-Revision: {revision-session}" \
+  "{api}/api/v1/tenants/{tenant}/matches/{match}/notebook?audience=internal&per_page=10"
+
+curl -b cookies.txt -X POST -H "Content-Type: application/json" \
+  -H "Accept: application/json" -H "X-XSRF-TOKEN: {csrf-courant}" \
+  -H "X-Tenant-Revision: {revision-session}" \
+  "{api}/api/v1/tenants/{tenant}/matches/{match}/notebook" \
+  --data '{"kind":"vod","audience":"strategy","title":"Rotation à revoir","body":"Analyser le déplacement collectif.","vod_url":"https://example.com/vod/42","timestamp_seconds":123}'
+
+curl -b cookies.txt -X PATCH -H "Content-Type: application/json" \
+  -H "Accept: application/json" -H "X-XSRF-TOKEN: {csrf-courant}" \
+  -H "X-Tenant-Revision: {revision-session}" \
+  "{api}/api/v1/tenants/{tenant}/matches/{match}/notebook/{entry}" \
+  --data '{"version":"{version-contenu}","body":"Annotation corrigée après analyse."}'
+```
+
+Shared reste dans l’audience authentifiée du match ; aucun endpoint public,
+iframe ou téléchargement. Lien ouvert explicitement avec protection du référent.
+500 contenus/match et 100 révisions/contenu, dont versions historiques conservées.
+La version du contenu ne remplace jamais match_version pour les opérations sportives.

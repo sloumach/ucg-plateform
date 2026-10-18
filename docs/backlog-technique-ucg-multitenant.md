@@ -783,7 +783,7 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 
 ### UCG-MATCH-004 — Proposer et valider les résultats
 
-- **Statut** : implémenté localement sur staging le 18 octobre 2026 ; push/CI distantes, migration et recette à effectuer après livraison. Départ propre/synchronisé sur 085e3cc ; MATCH-003 Ran batch 39 vérifié en lecture seule.
+- **Statut** : commit f25f966 poussé ; CI et migration confirmées par l’utilisateur avant MATCH-005. Migration vérifiée en lecture seule Ran, batch 40. Départ propre et synchronisé sur staging/origin/staging.
 - **Livré** : soumission de résultat joué calculé complet, ou forfait/abandon de rencontre avec bénéficiaire explicite sans scores fictifs. Snapshot chiffré des règles/participants/série/parties et preuve référencée textuelle confirmée ; la pièce matérielle reste dans l’espace privé de l’organisation, sans dépôt/téléchargement automatique ni garantie d’intégrité externe.
 - **Approbation** : sports.read/validate et vérification personnelle déclarée, compte distinct du soumissionnaire et de tous les auteurs des règles/parties. Pas de write exigé pour valider, ni de contournement de l’audience privée ; une mutation partagée exige publish et consentement. Résultat joué/abandon validé, forfait forfeited ; contestation motivée, conservation de toutes les décisions puis nouvelle soumission avant réapprobation.
 - **Fiabilité** : MatchResultWorkflow de domaine, Service/Repository/Form Request/Policy/Resources ; version commune au dossier, soumission exacte, garde tenant → Match, journal → dossier → statuts → audit atomiques. Journal append-only et gel SQL des scores ; migration additive adapte les gardes Match sans modifier les anciens fichiers. Down protecteur et restauration des anciennes gardes seulement à vide, portabilité exhaustive et migrations parents actualisées.
@@ -796,6 +796,13 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 
 ### UCG-MATCH-005 — Gérer préparation, VOD et débrief
 
+- **Vérifications** : SQLite complet 2058 réussis/25 exclusions attendues ; PostgreSQL complet 1869 réussis/deux exclusions Redis, puis 42 tests finaux MATCH-005 dont concurrence réelle. Frontend 319 tests et cinq parcours navigateur sportifs simulés ; PHPStan 8, Pint, Composer strict, build/lint/TypeScript strict réussis. Migration principale non appliquée par l’agent.
+- **Statut** : implémenté localement sur staging ; push/CI distantes, migration additive et recette à effectuer après livraison. MATCH-004 validé par l’utilisateur, Ran batch 40 vérifié en lecture seule.
+- **Livré** : objectifs, notes, liens VOD HTTPS avec horodatage/annotation, débriefs et actions de suivi à échéance UTC et état à faire/terminée. Panneau React accessible depuis chaque match, filtres et historique paginés.
+- **Confidentialité** : espaces fixes internal/strategy/shared ; droits sports.notes.read/write et sports.strategies.read/write explicites, cumulés avec sports.read/write. Aucun droit implicite pour le propriétaire, administrateur, auteur ou sports.validate. L’espace shared exige sports.publish et consentement à chaque création/révision ; lecture limitée à l’audience authentifiée du match. La vitrine anonyme reste dans son lot P1, sans endpoint public ajouté ici.
+- **Intégrité** : versions append-only chiffrées, audience/type immuables, FK tenant/Match/racine et gardes SQLite/PostgreSQL ; aucune réécriture du score, statut ou version sportive, même après approbation. Verrou tenant → match, version du contenu et conflit 409 sans rejeu. Audit minimal atomique et portabilité chiffrée intégrée ; down refuse un historique peuplé.
+- **Bornes** : 500 contenus par match, 100 versions par contenu, 10000 caractères de notes, horodatage 0–604800 secondes, pages 1–100. Aucune VOD chargée, intégrée, contrôlée ou téléchargée par le serveur ; lien ouvert explicitement sans référent. Pas d’attribution automatique de droits, notification externe ou migration principale par l’agent.
+- **Suite** : après validation, MATCH-006 pour la correction motivée et le recalcul des scores, puis MATCH-007.
 - **Priorité / taille** : P0 / M
 - **Périmètre** : objectifs, notes, liens VOD, annotations et actions de suivi.
 - **Acceptation** : stratégies protégées par permission dédiée ; contenus publics séparés des notes internes.

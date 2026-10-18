@@ -22,11 +22,14 @@ class MatchScoreSchemaTest extends TestCase
     {
         $migration = require database_path('migrations/2026_10_18_135008_create_match_score_rules_and_game_instances.php');
         $matchResults = require database_path('migrations/2026_10_18_144624_create_match_result_events_and_guards.php');
+        $notebook = require database_path('migrations/2026_10_18_155140_create_match_notebook_revisions.php');
+        $notebook->down();
         $matchResults->down();
         $migration->down();
         $this->assertFalse(Schema::hasTable('match_game_instances'));
         $migration->up();
         $matchResults->up();
+        $notebook->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         app(PortabilityRepository::class)->assertCatalog();
     }

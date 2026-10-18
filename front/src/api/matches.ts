@@ -34,3 +34,9 @@ export type MatchResultEvent = { id: string; number: number; action: MatchResult
   snapshot: { outcome: MatchResultOutcome; winner_ids: string[]; participants: { participant_id: string; label: string }[]; series: MatchScorecard['series']; rules: MatchScorecard['rules']; game_ids: string[] } | null }
 export type MatchResult = { match_version: string; status: MatchStatus; locked: boolean; allowed_actions: MatchResultAction[]; current: MatchResultEvent | null; submission: MatchResultEvent | null }
 export type MatchResultPage = Page<MatchResultEvent> & { result: MatchResult }
+
+export const notebookKinds = ['objective', 'note', 'vod', 'debrief', 'action'] as const
+export type NotebookAudience = 'internal' | 'strategy' | 'shared'
+export type MatchNotebookEntry = { entry_id: string; version: string; number: number; kind: typeof notebookKinds[number]; audience: NotebookAudience;
+  title: string; body: string; vod_url: string | null; timestamp_seconds: number | null; state: 'open' | 'done' | null; due_at: string | null; actor_user_id: number; occurred_at: string }
+export type MatchNotebookPage = Page<MatchNotebookEntry> & { writable_audiences: NotebookAudience[] }

@@ -131,6 +131,8 @@ class ExternalOpponentSchemaTest extends TestCase
         $matchLineups = require database_path('migrations/2026_10_18_101019_create_match_lineup_revisions.php');
         $matchScores = require database_path('migrations/2026_10_18_135008_create_match_score_rules_and_game_instances.php');
         $matchResults = require database_path('migrations/2026_10_18_144624_create_match_result_events_and_guards.php');
+        $notebook = require database_path('migrations/2026_10_18_155140_create_match_notebook_revisions.php');
+        $notebook->down();
         $matchResults->down();
         $matchScores->down();
         $matchLineups->down();
@@ -141,6 +143,7 @@ class ExternalOpponentSchemaTest extends TestCase
         $matchLineups->up();
         $matchScores->up();
         $matchResults->up();
+        $notebook->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         $opponent = ExternalOpponent::factory()->create();
         $this->reject(fn () => DB::table('external_opponents')->where('id', $opponent->id)->delete());

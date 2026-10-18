@@ -18,6 +18,10 @@ enum Permission: string
     case SportsWrite = 'sports.write';
     case SportsValidate = 'sports.validate';
     case SportsPublish = 'sports.publish';
+    case SportsNotesRead = 'sports.notes.read';
+    case SportsNotesWrite = 'sports.notes.write';
+    case SportsStrategiesRead = 'sports.strategies.read';
+    case SportsStrategiesWrite = 'sports.strategies.write';
     case AdministrativeRead = 'administrative.read';
     case AdministrativeWrite = 'administrative.write';
     case AdministrativeValidate = 'administrative.validate';

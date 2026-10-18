@@ -340,6 +340,17 @@ Un scrim est une activité d’entraînement privée. Un match officiel peut êt
 - MATCH-06 : valider le score par un responsable interne autorisé ; conserver la preuve et traiter les contestations internes sans portail adversaire ni arbitrage de tournoi.
 - MATCH-07 : conserver tout changement de score avec ancienne valeur, nouvelle valeur, motif et auteur.
 - MATCH-08 : ajouter VOD, notes, objectifs et débrief ; appliquer des droits spécifiques aux stratégies.
+  Livraison MATCH-005 : cinq types de contenu (objectif, note, VOD annotée,
+  débrief, action), révisions chiffrées conservées et actions à échéance UTC avec
+  état open/done. Notes internes et stratégies demandent respectivement
+  sports.notes.read/write et sports.strategies.read/write, cumulés avec les
+  permissions sportives de base. Espaces fixes ; une synthèse partageable est
+  créée séparément avec sports.publish et confirmation à chaque révision.
+  Lecture partagée limitée à l’audience authentifiée du match ; publication
+  anonyme réservée à la vitrine P1. VOD HTTPS référencées sans téléchargement ni
+  intégration ; annotation par lien, horodatage en secondes et texte. Débrief
+  indépendant d’un score validé ; modifications concurrentes refusées sans perte.
+
 - MATCH-09 : en P1, gérer le veto ou la sélection des cartes lorsque le jeu et le règlement l’exigent.
 - MATCH-10 : diffuser le score autorisé aux abonnés temps réel ; ne jamais diffuser les données privées dans un canal public.
 - MATCH-11 : identifier l’organisation propriétaire du match et représenter les adversaires externes par une référence publique ou un instantané autorisé, sans relier leurs données internes ni leur accorder d’accès.

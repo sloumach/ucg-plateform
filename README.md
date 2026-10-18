@@ -2989,3 +2989,53 @@ complet, auto-approbation refusée, preuve non confirmée, contestation après
 validation/forfait, nouvelle proposition, droits révoqués et deux décisions concurrentes.
 Aucun migrate/seed principal, compte/droit/match réel, e-mail ni notification
 externe n’a été créé par l’agent. Prochain P0 : MATCH-005, préparation/VOD/débrief.
+
+
+## Préparation, VOD et débrief — UCG-MATCH-005
+
+MATCH-004 (f25f966) est poussé ; CI et migration validées par l’utilisateur,
+constatées Ran batch 40 en lecture seule. MATCH-005 est livré localement.
+
+Dans Scrims et matchs, ouvrir « Préparation, VOD et débrief » : créer objectifs,
+notes, débriefs, liens VOD annotés avec horodatage en secondes, et actions de suivi
+à faire/terminées avec échéance UTC. Les versions sont conservées et paginées.
+Un débrief reste modifiable après approbation sans toucher au résultat sportif.
+
+Les espaces internal, strategy et shared sont séparés et fixes. La lecture
+exige sports.read et l’audience du match ; internal exige sports.notes.read,
+strategy sports.strategies.read. La modification exige aussi sports.write et
+sports.notes.write ou sports.strategies.write. Ces permissions sont disponibles
+dans le catalogue des rôles mais ne sont attribuées à aucun compte automatiquement.
+Même administration et propriété du tenant ne dispensent pas des délégations.
+
+Shared exige sports.publish et une confirmation à chaque version. Il est visible
+uniquement par les lecteurs authentifiés du match, sans endpoint anonyme. Les
+notes internes ne deviennent jamais partageables par un changement de visibilité
+du match ; rédiger une synthèse distincte et vérifier ses données avant partage.
+
+Les VOD sont des liens HTTPS sans identifiants, ouverts à la demande sans référent.
+Aucun téléchargement ou lecteur intégré ; une annotation réunit lien, horodatage
+et notes, plusieurs annotations pouvant référencer la même vidéo. Limites : 500
+contenus/match, 100 versions/contenu, texte 10000 caractères et pages de 100 maximum.
+Aucun cache partagé de ces données sensibles.
+
+Migration additive à appliquer après sauvegarde et CI :
+`2026_10_18_155140_create_match_notebook_revisions` ; down refuse un historique
+peuplé. Aucun migrate principal, seed, attribution réelle, push ou envoi externe
+par l’agent. Prochain P0 après validation : MATCH-006, correction et recalcul.
+
+
+Vérifications locales : suite SQLite complète 2083 tests, 2058 réussis et 25
+exclusions attendues (Redis/PostgreSQL/ClamAV) ; sélection PostgreSQL complète
+1871 tests, 1869 réussis et deux exclusions Redis. Les deux derniers scénarios
+(débrief après approbation et sélection tenant périmée/non confirmée), ajoutés
+pendant le lancement PostgreSQL complet, passent ensuite dans les 42 tests finaux
+de MATCH-005 (288 assertions), dont une course réelle à deux processus. SQLite
+final ciblé : 41 réussis, 275 assertions. Première commande Composer SQLite arrêtée
+par son délai standard ; relance complète réussie avec COMPOSER_PROCESS_TIMEOUT=0.
+319 tests frontend/46 fichiers, cinq parcours navigateur sportifs à API simulée,
+build, lint, TypeScript strict, PHPStan niveau 8, Pint et Composer strict réussis.
+Sept tests frontend du carnet relancés après l’ajustement de son libellé de filtre ;
+parcours carnet relancé après normalisation des UUIDs simulés. Captures 320/375 px
+inspectées, sans débordement ni exécution HTML. Bases PostgreSQL de test supprimées,
+serveur Vite de recette arrêté ; aucun effet sur les données métier principales.

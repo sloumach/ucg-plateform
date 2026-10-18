@@ -2,6 +2,7 @@
 
 use App\Exceptions\DomainConflictException;
 use App\Modules\Competition\Application\Services\MatchLineupService;
+use App\Modules\Competition\Application\Services\MatchNotebookService;
 use App\Modules\Competition\Application\Services\MatchResultService;
 use App\Modules\Competition\Application\Services\MatchScoreService;
 use App\Modules\Competition\Application\Services\MatchService;
@@ -37,7 +38,9 @@ while (! is_file($barrier)) {
 }
 try {
     $service = app(MatchService::class);
-    if (str_starts_with($payload['operation'], 'result_')) {
+    if ($payload['operation'] === 'notebook') {
+        app(MatchNotebookService::class)->change($context, $payload['match'], $payload['entry'], $payload['input'], null);
+    } elseif (str_starts_with($payload['operation'], 'result_')) {
         app(MatchResultService::class)->change($context, $payload['match'], $payload['input'], substr($payload['operation'], 7));
     } elseif (in_array($payload['operation'], ['game', 'score_rules'], true)) {
         app(MatchScoreService::class)->save($context, $payload['match'], $payload['input'], $payload['operation'] === 'score_rules', null);

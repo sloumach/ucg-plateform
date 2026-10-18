@@ -9,10 +9,13 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-MATCH-004` — proposition et validation des résultats.
+- Dernier ticket traité : `UCG-MATCH-005` — préparation, VOD et débrief.
   Implémentation locale sur staging ; push, CI distantes et migration additive
   à effectuer après livraison. Aucun migrate/seed principal, donnée métier réelle
-  ni attribution de permission par l’agent. Prochain P0 : MATCH-005.
+  ni attribution de permission par l’agent. Prochain P0 : MATCH-006.
+- MATCH-004 : `f25f966` présent sur staging et origin/staging au démarrage ;
+  CI et migration validées par l’utilisateur. Migration constatée en lecture seule
+  Ran, batch 40. Départ propre et synchronisé avant MATCH-005.
 - MATCH-003 : `085e3cc` présent sur staging et origin/staging au démarrage ;
   push et CI validés par l’utilisateur. Migration constatée en lecture seule
   Ran batch 39. Branche propre et synchronisée au démarrage de MATCH-004.
@@ -131,10 +134,11 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : pousser MATCH-004, vérifier les CI puis sauvegarder et appliquer
-  sa migration additive. Recetter soumission, preuve référencée, approbation indépendante,
-  contestation, nouvelle proposition et décisions concurrentes avec deux comptes
-  explicitement habilités. Prochain P0 sportif : MATCH-005 (préparation, VOD et débrief).
+- Prochaine action : pousser MATCH-005, vérifier les CI, sauvegarder puis appliquer
+  la migration additive 2026_10_18_155140_create_match_notebook_revisions.
+  Recetter les espaces avec des comptes de lecteur, rédacteur interne et stratège
+  explicitement habilités, puis vérifier le refus après révocation et le conflit
+  concurrent. Prochain P0 sportif : MATCH-006 (correction et recalcul des scores).
   CAL-007/CAL-008 restent P1. Recetter report/annulation avant activation de
   calendar-changes et supervision scheduler/worker.
   Permissions explicites et activation supervisée de calendar-invitations restent
@@ -3435,3 +3439,59 @@ ensuite ce fichier pour qu'il reflète la réalité.
   externe par l’agent. Après push et CI : sauvegarde, migration additive puis recette
   supervisée à deux comptes habilités. Prochain P0 : MATCH-005, préparation/VOD/
   débrief ; correction de scores MATCH-006 et diffusion MATCH-007 non démarrées.
+
+
+## 18 octobre 2026 — UCG-MATCH-005 : préparation, VOD et débrief
+
+- Autorisation : poursuivre prudemment après confirmation utilisateur de la CI et
+  de la migration MATCH-004. Commit f25f966 poussé et départ propre/synchronisé ;
+  migrate:status confirme MATCH-004 Ran batch 40. Aucun migrate/seed principal.
+- Livré : objectifs, notes, VOD HTTPS et annotation horodatée, débrief, actions
+  avec état open/done et échéance UTC. API versionnée et panneau React, listes,
+  filtres et historique paginés, toasts et confirmation du tenant avant écriture.
+- Accès : sports.read et audience du match à la lecture ; management exige write.
+  Notes internes exigent sports.notes.read ; stratégies exigent
+  sports.strategies.read. Écrire exige en plus sports.write et le droit write de
+  l’espace. Shared exige sports.publish et confirm_sharing à chaque version.
+  Aucun héritage de permission via administration, auteur ou sports.validate.
+  Les comptes sans lecture sensible ne voient ni contenus, ni totaux, ni versions
+  de cet espace ; accès direct à un identifiant masqué retourne 404.
+- Shared signifie partage avec les lecteurs authentifiés du match ; aucune
+  publication anonyme ni partage inter-tenant. La vitrine reste dans son lot P1.
+  Audience et type fixes : une synthèse partageable doit être rédigée séparément.
+- Persistance : match_notebook_revisions append-only, FK tenant/Match/racine,
+  séquence et audience/type gardés en SQL, titre/texte/lien chiffrés. Inventaire
+  explicite de portabilité et round-trips parents mis à jour ; down à vide,
+  refus si historique peuplé. Aucun ancien fichier de migration modifié.
+- Versions indépendantes du score : un débrief après approbation ne change ni
+  statut, ni version du match, ni scores. Transaction verrou tenant → match,
+  contrôle droits/version puis révision et audit minimal atomiques. Deux
+  processus ne peuvent pas remplacer silencieusement une même version.
+- Liens : HTTPS sans identifiants ; affichage texte échappé ; ouverture humaine
+  avec noopener/noreferrer et no-referrer ; aucun téléchargement, contrôle du
+  contenu distant, iframe ou notification automatique. Chaque annotation est un
+  contenu VOD avec lien, horodatage et texte ; plusieurs annotations peuvent
+  référencer la même VOD.
+- Bornes : 500 contenus/match, 100 révisions/contenu ; titre 200, notes 10000,
+  lien 2000 caractères ; horodatage 0–604800 secondes ; pages bornées à 100.
+  Requête anti-existence indexée pour ne lire que la dernière version, filtrage
+  des espaces avant total/pagination ; aucune requête d’auteur par ligne.
+- Migration en attente : 2026_10_18_155140_create_match_notebook_revisions.
+  Après livraison : push, CI, sauvegarde/migration supervisée et recette avec
+  rôles explicitement délégués. Suite : MATCH-006, puis MATCH-007.
+
+
+Vérifications locales : suite SQLite complète 2083 tests, 2058 réussis et 25
+exclusions attendues (Redis/PostgreSQL/ClamAV) ; sélection PostgreSQL complète
+1871 tests, 1869 réussis et deux exclusions Redis. Les deux derniers scénarios
+(débrief après approbation et sélection tenant périmée/non confirmée), ajoutés
+pendant le lancement PostgreSQL complet, passent ensuite dans les 42 tests finaux
+de MATCH-005 (288 assertions), dont une course réelle à deux processus. SQLite
+final ciblé : 41 réussis, 275 assertions. Première commande Composer SQLite arrêtée
+par son délai standard ; relance complète réussie avec COMPOSER_PROCESS_TIMEOUT=0.
+319 tests frontend/46 fichiers, cinq parcours navigateur sportifs à API simulée,
+build, lint, TypeScript strict, PHPStan niveau 8, Pint et Composer strict réussis.
+Sept tests frontend du carnet relancés après l’ajustement de son libellé de filtre ;
+parcours carnet relancé après normalisation des UUIDs simulés. Captures 320/375 px
+inspectées, sans débordement ni exécution HTML. Bases PostgreSQL de test supprimées,
+serveur Vite de recette arrêté ; aucun effet sur les données métier principales.

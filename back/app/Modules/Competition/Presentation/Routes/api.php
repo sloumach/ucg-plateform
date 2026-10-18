@@ -2,6 +2,7 @@
 
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchLineupController;
+use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchNotebookController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchResultController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchScoreController;
 use Illuminate\Support\Facades\Route;
@@ -12,6 +13,12 @@ Route::prefix('tenants/{tenant}/matches')->whereUuid('tenant')->middleware('tena
         Route::get('choices', [MatchLineupController::class, 'choices'])->name('matches.lineups.choices');
         Route::post('', [MatchLineupController::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('matches.lineups.store');
         Route::post('substitutions', [MatchLineupController::class, 'substitute'])->middleware('tenant.confirmed')->block(10, 10)->name('matches.lineups.substitute');
+    });
+    Route::prefix('{match}/notebook')->whereUuid('match')->group(function (): void {
+        Route::get('', [MatchNotebookController::class, 'index'])->name('matches.notebook.index');
+        Route::get('{entry}/history', [MatchNotebookController::class, 'history'])->whereUuid('entry')->name('matches.notebook.history');
+        Route::post('', [MatchNotebookController::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('matches.notebook.store');
+        Route::patch('{entry}', [MatchNotebookController::class, 'update'])->whereUuid('entry')->middleware('tenant.confirmed')->block(10, 10)->name('matches.notebook.update');
     });
     Route::get('{match}/results', [MatchResultController::class, 'index'])->whereUuid('match')->name('matches.results.index');
     Route::post('{match}/results', [MatchResultController::class, 'submit'])->whereUuid('match')->middleware('tenant.confirmed')->block(10, 10)->name('matches.results.submit');

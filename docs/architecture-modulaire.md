@@ -2164,3 +2164,36 @@ Les mutations partagées exigent publish et consentement. React utilise les acti
 serveur, la version fraîche et les confirmations, conserve un 422 et ne rejoue pas
 un 409. Les ressources anciennes et preuves référencées restent consultables selon
 l’audience courante, indépendamment de l’approbation actuelle.
+
+
+### MATCH-005 — Carnet de préparation et débrief
+
+Competition ajoute MatchNotebookRequest/Input, Controller, Service et le contrat
+MatchNotebookRepository lié à EloquentMatchNotebookRepository. MatchPolicy garde
+les contrôles de base sports.read/write ; le service impose les droits notes ou
+stratégies par espace, à nouveau sous verrou lors des mutations. Le mode gestion
+ne dispense pas des droits sensibles. Le filtrage des espaces précède les totaux,
+la pagination et les lectures d’historique ; aucune donnée privée ajoutée aux
+ressources Match, score, résultat ou canaux publics.
+
+match_notebook_revisions stocke un journal chiffré et append-only avec racine
+entry_id, nombre séquentiel et identifiant de révision utilisé comme version.
+FK composites vers Match et racine, unicité tenant/match/entrée/numéro ; gardes
+SQL SQLite/PostgreSQL empêchant mutation, suppression, changement de type/espace
+et séquence/limites invalides. Index composite tenant/match/entrée/numéro pour
+la sélection des dernières versions via anti-existence. Audit minimal et révision
+partagent une transaction, avec verrou tenant puis match ; aucun changement du
+statut/version sportif ni interaction avec les gardes de résultat scellé.
+
+Pas de cache pour les contenus sensibles ; réponses private,no-store et texte
+React échappé. Les VOD sont des liens HTTPS sans credentials ; aucune connexion
+serveur au lien et ouverture humaine noreferrer/no-referrer. Actions simples à
+échéance UTC, aucun rappel ou envoi automatique. Bornes 500 contenus × 100 versions
+par match, notes 10000 caractères, pages de 100 maximum ; profiler requêtes,
+chiffrement et contention du verrou tenant avant d’augmenter ces limites. Une
+évolution vers des verrous plus fins doit conserver la révocation atomique des
+droits et du cycle de vie du tenant.
+
+Migration additive, sans backfill ni modification des triggers des anciens lots.
+Down refuse un journal peuplé ; portabilité explicite conserve les champs
+chiffrés. Aucun droit nouveau n’est automatiquement délégué à un rôle existant.
