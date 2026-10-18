@@ -110,6 +110,8 @@ class OrganizationSchemaTest extends TestCase
         $matches = require database_path('migrations/2026_10_17_225945_create_matches_participants_and_status_events.php');
         $matchLineups = require database_path('migrations/2026_10_18_101019_create_match_lineup_revisions.php');
         $matchScores = require database_path('migrations/2026_10_18_135008_create_match_score_rules_and_game_instances.php');
+        $matchResults = require database_path('migrations/2026_10_18_144624_create_match_result_events_and_guards.php');
+        $matchResults->down();
         $matchScores->down();
         $matchLineups->down();
         $matches->down();
@@ -215,6 +217,7 @@ class OrganizationSchemaTest extends TestCase
         $matches->up();
         $matchLineups->up();
         $matchScores->up();
+        $matchResults->up();
         $this->assertTrue(Schema::hasTable('calendar_feeds'));
         $this->assertTrue(Schema::hasTable('organizations'));
         $this->assertTrue(Schema::hasTable('organization_settings'));

@@ -2,6 +2,7 @@
 
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchLineupController;
+use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchResultController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchScoreController;
 use Illuminate\Support\Facades\Route;
 
@@ -12,6 +13,10 @@ Route::prefix('tenants/{tenant}/matches')->whereUuid('tenant')->middleware('tena
         Route::post('', [MatchLineupController::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('matches.lineups.store');
         Route::post('substitutions', [MatchLineupController::class, 'substitute'])->middleware('tenant.confirmed')->block(10, 10)->name('matches.lineups.substitute');
     });
+    Route::get('{match}/results', [MatchResultController::class, 'index'])->whereUuid('match')->name('matches.results.index');
+    Route::post('{match}/results', [MatchResultController::class, 'submit'])->whereUuid('match')->middleware('tenant.confirmed')->block(10, 10)->name('matches.results.submit');
+    Route::post('{match}/results/approvals', [MatchResultController::class, 'approve'])->whereUuid('match')->middleware('tenant.confirmed')->block(10, 10)->name('matches.results.approve');
+    Route::post('{match}/results/disputes', [MatchResultController::class, 'dispute'])->whereUuid('match')->middleware('tenant.confirmed')->block(10, 10)->name('matches.results.dispute');
     Route::get('{match}/games', [MatchScoreController::class, 'index'])->whereUuid('match')->name('matches.games.index');
     Route::post('{match}/games', [MatchScoreController::class, 'store'])->whereUuid('match')->middleware('tenant.confirmed')->block(10, 10)->name('matches.games.store');
     Route::post('{match}/score-rules', [MatchScoreController::class, 'configure'])->whereUuid('match')->middleware('tenant.confirmed')->block(10, 10)->name('matches.score-rules.configure');

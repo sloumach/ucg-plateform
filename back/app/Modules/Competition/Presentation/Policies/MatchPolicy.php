@@ -19,4 +19,14 @@ final readonly class MatchPolicy
     {
         return $this->viewAny($user, $context) && $this->authorization->allows($context, 'sports.write');
     }
+
+    public function validateResult(Authenticatable $user, TenantContext $context): bool
+    {
+        return $this->viewAny($user, $context) && $this->authorization->allows($context, 'sports.validate');
+    }
+
+    public function disputeResult(Authenticatable $user, TenantContext $context): bool
+    {
+        return $this->manage($user, $context) || $this->validateResult($user, $context);
+    }
 }

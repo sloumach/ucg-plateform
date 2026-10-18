@@ -22,11 +22,14 @@ class MatchLineupSchemaTest extends TestCase
     {
         $migration = require database_path('migrations/2026_10_18_101019_create_match_lineup_revisions.php');
         $matchScores = require database_path('migrations/2026_10_18_135008_create_match_score_rules_and_game_instances.php');
+        $matchResults = require database_path('migrations/2026_10_18_144624_create_match_result_events_and_guards.php');
+        $matchResults->down();
         $matchScores->down();
         $migration->down();
         $this->assertFalse(Schema::hasTable('match_lineup_revisions'));
         $migration->up();
         $matchScores->up();
+        $matchResults->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         app(PortabilityRepository::class)->assertCatalog();
     }

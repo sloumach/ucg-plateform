@@ -4,10 +4,12 @@ namespace App\Modules\Competition\Providers;
 
 use App\Modules\Competition\Domain\Contracts\MatchLineupRepository;
 use App\Modules\Competition\Domain\Contracts\MatchRepository;
+use App\Modules\Competition\Domain\Contracts\MatchResultRepository;
 use App\Modules\Competition\Domain\Contracts\MatchScoreRepository;
 use App\Modules\Competition\Domain\Models\MatchRecord;
 use App\Modules\Competition\Infrastructure\Persistence\EloquentMatchLineupRepository;
 use App\Modules\Competition\Infrastructure\Persistence\EloquentMatchRepository;
+use App\Modules\Competition\Infrastructure\Persistence\EloquentMatchResultRepository;
 use App\Modules\Competition\Infrastructure\Persistence\EloquentMatchScoreRepository;
 use App\Modules\Competition\Presentation\Policies\MatchPolicy;
 use Illuminate\Support\Facades\Gate;
@@ -18,6 +20,7 @@ final class CompetitionServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(MatchResultRepository::class, EloquentMatchResultRepository::class);
         $this->app->bind(MatchScoreRepository::class, EloquentMatchScoreRepository::class);
         $this->app->bind(MatchLineupRepository::class, EloquentMatchLineupRepository::class);
         $this->app->bind(MatchRepository::class, EloquentMatchRepository::class);

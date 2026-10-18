@@ -6,7 +6,7 @@ final class MatchWorkflow
 {
     public const array STATUSES = ['proposed', 'confirmed', 'in_progress', 'awaiting_validation', 'validated', 'disputed', 'cancelled', 'forfeited'];
 
-    /** A result status is reached only through the future score/proof workflow. */
+    /** Result commands are handled by the independent score/proof workflow, never by operational transitions. */
     public const array RESULT_STATUSES = ['validated', 'disputed', 'forfeited'];
 
     /** @return list<string> */

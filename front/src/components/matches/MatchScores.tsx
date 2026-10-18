@@ -21,7 +21,7 @@ export function MatchScores({ active, item, root, management, disabled, onInvali
   const blocked = disabled || mutation.blocked, scorecard = list?.scorecard, rules = scorecard?.rules
   const shared = item.visibility !== 'private', permissions = active.context!.permissions
   const writable = permissions.includes('sports.write') && (!shared || permissions.includes('sports.publish')) && ['in_progress', 'awaiting_validation'].includes(item.status)
-  const editable = writable && page === 1 && !loading && !error && !!scorecard
+  const editable = writable && !scorecard?.result_locked && page === 1 && !loading && !error && !!scorecard
   const version = scorecard?.match_version
   const scoreErrors = mutation.errors(path), ruleErrors = mutation.errors(rulesPath)
   return <section aria-label={text('scores.title')} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-3">

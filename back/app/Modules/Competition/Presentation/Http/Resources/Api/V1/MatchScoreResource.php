@@ -12,7 +12,7 @@ final class MatchScoreResource extends JsonResource
     {
         $data = $this->resource;
 
-        return ['match_version' => $data['match_version'], 'rules' => $data['rules'], 'series' => $data['series'],
+        return ['result_locked' => $data['result_locked'] ?? false, 'match_version' => $data['match_version'], 'rules' => $data['rules'], 'series' => $data['series'],
             ...(array_key_exists('game', $data) ? ['game' => $data['game'] === null ? null : MatchGameResource::make($data['game'])] : [])];
     }
 }

@@ -2912,3 +2912,80 @@ externe n’est exécuté par l’agent. Recetter avec deux comptes habilités :
 BO3 au meilleur des trois, refus d’une quatrième partie, remake, nul autorisé,
 forfait/abandon, lobby à trois participants, révocation et version périmée.
 Prochain P0 : **MATCH-004 — soumission, preuves et approbation des résultats**.
+
+
+## Résultats, preuve référencée et approbation — UCG-MATCH-004
+
+MATCH-003 (`085e3cc`) : push et CI validés par l’utilisateur avant ce lot ;
+migration constatée en lecture seule **Ran, batch 39**. MATCH-004 est livré
+localement ; sa nouvelle migration reste à appliquer après push et CI vertes.
+
+Dans **Scrims et matchs → Résultats et validation**, soumettre un résultat joué
+après saisie complète des parties, ou déclarer un forfait/abandon de rencontre
+avec bénéficiaire explicite et motif. Aucun score fictif n’est créé pour une
+décision attribuée ; les scores partiels restent conservés. La soumission fige
+les scores et place le match en attente de validation.
+
+Indiquer une référence précise vers la preuve conservée dans votre espace privé
+(rapport, capture, document) et confirmer qu’un approbateur habilité peut la
+consulter. **La plateforme conserve la référence, pas le fichier.** Elle ne
+récupère pas de pièce externe et ne garantit pas son intégrité/disponibilité.
+Le responsable conserve la pièce et contrôle ses accès hors de ce parcours.
+
+Un autre compte avec sports.read + sports.validate consulte personnellement la
+preuve et approuve avec un motif et une déclaration explicite. Il doit être
+distinct du soumissionnaire et de tous les auteurs des règles/parties ; posséder
+sports.validate ne permet pas d’approuver ses propres scores soumis par un autre.
+Le résultat joué/abandon devient validé ; un forfait devient forfeited.
+
+La contestation motivée conserve toutes les décisions/références antérieures et
+passe le dossier en disputed. Une nouvelle proposition avec preuve référencée,
+puis une nouvelle approbation indépendante, est nécessaire. Les corrections des
+parties restent prévues en MATCH-006 ; aucune partie passée n’est réécrite ici.
+
+sports.read/write pour soumettre ; read et write ou validate pour contester.
+Le validateur sans write reste soumis à l’audience du match : ne pas lui attribuer
+write pour contourner un problème de partage. Sur un match partagé, chaque auteur
+et validateur doit aussi avoir sports.publish et confirmer le partage de la
+preuve/décision à cette audience. MFA, tenant confirmé et version fraîche restent
+obligatoires. Aucun droit n’est attribué automatiquement au propriétaire.
+
+Exemple depuis la SPA authentifiée, après confirmation humaine, dans un tenant
+confirmé et sur un résultat joué complet :
+
+```ts
+const path = `tenants/${organizationId}/matches/${matchId}/results`
+const submitted = await tenancyRequest<{ data: MatchResult }>(path, {
+  method: 'POST', revision: active.revision,
+  body: { version: match.version, outcome: 'played', proof_reference: 'Rapport privé conservé R-2026-42',
+    confirm_proof: true, reason: 'Résultat proposé selon le rapport conservé.' },
+})
+```
+
+Après connexion avec le compte approbateur indépendant, lecture autorisée fraîche,
+consultation personnelle de la preuve et confirmation humaine :
+
+```ts
+const current = await tenancyRequest<MatchResultPage>(path + '?page=1&per_page=10', { revision: active.revision })
+await tenancyRequest(path + '/approvals', {
+  method: 'POST', revision: active.revision,
+  body: { version: current.result.match_version, submission_id: current.result.submission!.id,
+    confirm_evidence: true, reason: 'Preuve consultée et résultat vérifié personnellement.' },
+})
+```
+
+Types MatchResult/MatchResultPage dans `front/src/api/matches.ts`. Ajouter
+confirm_sharing:true aux mutations d’un match partagé après consentement explicite.
+Contestation : POST /disputes avec version, submission_id et reason (sans
+confirm_evidence). Après 409 : recharger et décider, aucun rejeu automatique.
+Historique paginé, 200 événements au plus ; détails dans [conventions API](docs/conventions-api.md).
+
+Déploiement : push, CI vertes, sauvegarde puis `php artisan migrate` pour
+`2026_10_18_144624_create_match_result_events_and_guards`. Migration additive sans
+backfill : nouveau journal, adaptation des gardes Match/statuts et gel SQL des
+scores. Rollback refusé si le journal contient des données ; privilégier une
+correction en avant. Recetter avec deux comptes explicitement habilités : résultat
+complet, auto-approbation refusée, preuve non confirmée, contestation après
+validation/forfait, nouvelle proposition, droits révoqués et deux décisions concurrentes.
+Aucun migrate/seed principal, compte/droit/match réel, e-mail ni notification
+externe n’a été créé par l’agent. Prochain P0 : MATCH-005, préparation/VOD/débrief.

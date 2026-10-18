@@ -395,9 +395,35 @@ La version du dossier protège aussi scores et compositions contre les écriture
 concurrentes ; les mutations partagées demandent permission et consentement.
 Un BO3 déjà terminé refuse une partie supplémentaire ; le client ne peut pas
 imposer un total de série. La saisie est possible en cours ou terminé à valider,
-mais ne valide aucun résultat ni statut forfait du dossier. Preuve et approbation
-distincte restent MATCH-004, correction motivée/recalcul MATCH-006 et diffusion
+mais ne valide aucun résultat ni statut forfait du dossier. Preuve référencée et approbation
+distincte font l’objet de MATCH-004 ci-dessous, correction motivée/recalcul MATCH-006 et diffusion
 MATCH-007. Aucun accès adverse, notification ou partage public automatique.
+
+Livraison MATCH-004 : soumission interne d’un résultat joué complet, ou déclaration
+motivée d’un forfait/abandon de rencontre avec bénéficiaire explicite, sans partie
+ni score fictif. Le serveur conserve un snapshot des participants, règles, parties
+et résultat calculé/attribué. La soumission passe en attente de validation et fige
+les scores ; toute décision utilise la version courante du dossier et l’identifiant
+exact de la proposition.
+
+La preuve est une référence textuelle chiffrée vers un rapport, une capture ou une
+pièce conservée par l’organisation dans son espace privé, dont l’auteur confirme
+la consultation possible par l’approbateur. Ce lot ne dépose, n’archive ni ne
+récupère le fichier ; il ne garantit pas l’intégrité ou la disponibilité externe.
+Un autre compte habilité sports.read/validate consulte personnellement la preuve
+et approuve explicitement avec motif. Il doit être distinct du soumissionnaire et
+de tous les auteurs des règles/parties. Aucun droit implicite propriétaire ni accès
+privé hors audience via sports.validate ; les mutations partagées demandent aussi
+sports.publish et consentement.
+
+Une contestation motivée est possible avant ou après approbation, y compris après
+forfait. Elle conserve les décisions et références précédentes, passe le dossier
+en contesté et exige une nouvelle proposition puis une approbation indépendante.
+Les réécritures de scores restent MATCH-006, la diffusion MATCH-007 ; aucune
+notification, ouverture adverse ou publication automatique. Le journal est immuable,
+numéroté, attribué et borné à 200 événements ; preuve référencée, snapshots et motifs
+sont chiffrés. Des gardes SQL imposent l’événement correspondant aux transitions,
+protègent l’historique et refusent les ajouts de scores après soumission.
 
 Le manager confirme la rencontre et les participants. Le coach prépare les objectifs. Les joueurs répondent à la convocation. Un score est saisi ou importé avec sa source. Une personne habilitée le valide. Les agrégats sont recalculés, puis la publication éventuelle intervient séparément. Le coach clôture le débrief et attribue les actions suivantes.
 

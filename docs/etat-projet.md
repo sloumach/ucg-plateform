@@ -9,10 +9,13 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-MATCH-003` — parties, cartes et score de série.
+- Dernier ticket traité : `UCG-MATCH-004` — proposition et validation des résultats.
   Implémentation locale sur staging ; push, CI distantes et migration additive
   à effectuer après livraison. Aucun migrate/seed principal, donnée métier réelle
-  ni attribution de permission par l’agent. Prochain P0 : MATCH-004.
+  ni attribution de permission par l’agent. Prochain P0 : MATCH-005.
+- MATCH-003 : `085e3cc` présent sur staging et origin/staging au démarrage ;
+  push et CI validés par l’utilisateur. Migration constatée en lecture seule
+  Ran batch 39. Branche propre et synchronisée au démarrage de MATCH-004.
 - MATCH-002 : `9a1c6e4` présent sur staging et origin/staging au démarrage ;
   CI et migration confirmées par l’utilisateur avant MATCH-003. Migration vérifiée
   en lecture seule Ran batch 38. Branche propre et synchronisée au démarrage.
@@ -128,10 +131,10 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : pousser MATCH-003, vérifier les CI puis sauvegarder et appliquer
-  sa migration additive. Recetter règles, BO3, remake, nuls, forfait/abandon de
-  partie, lobby et conflit avec deux comptes explicitement habilités.
-  Prochain P0 sportif : MATCH-004 (soumission, preuves et validation des résultats).
+- Prochaine action : pousser MATCH-004, vérifier les CI puis sauvegarder et appliquer
+  sa migration additive. Recetter soumission, preuve référencée, approbation indépendante,
+  contestation, nouvelle proposition et décisions concurrentes avec deux comptes
+  explicitement habilités. Prochain P0 sportif : MATCH-005 (préparation, VOD et débrief).
   CAL-007/CAL-008 restent P1. Recetter report/annulation avant activation de
   calendar-changes et supervision scheduler/worker.
   Permissions explicites et activation supervisée de calendar-invitations restent
@@ -3348,3 +3351,87 @@ ensuite ce fichier pour qu'il reflète la réalité.
   comptes explicitement habilités. Le rollback refuse l’historique ; privilégier
   une correction en avant. Prochain P0 : MATCH-004, preuves/soumission/approbation ;
   corrections motivées et recalcul MATCH-006, diffusion MATCH-007 non démarrés.
+
+
+## 18 octobre 2026 — UCG-MATCH-004 : résultats et approbation indépendante
+
+- Autorisation utilisateur : poursuivre MATCH-004 après push et CI validée de
+  MATCH-003. Départ staging propre/synchronisé avec origin/staging sur 085e3cc ;
+  migration MATCH-003 constatée Ran batch 39 en lecture seule. Aucun migrate/seed
+  ni changement de données principales par l’agent.
+- Implémentation complète : MatchResultWorkflow de domaine, MatchResultService,
+  repository injecté, Form Request réutilisable hors HTTP, Policy, Resources,
+  routes privées et panneau React. API GET/POST results, POST approvals/disputes.
+  sports.read/write pour soumettre ; read/validate pour approuver ; write ou
+  validate avec read pour contester. MFA, tenant confirmé et version courante.
+  Le validateur sans write respecte l’audience ; management garde son droit write.
+- Résultat joué : série complète calculée par MATCH-003, aucun total/snapshot/
+  vainqueur imposé par le client. Forfait/abandon de rencontre : bénéficiaire
+  explicite autorisé parmi les participants, également en confirmed avant départ ;
+  scores partiels conservés, aucune partie ni victoire fictive. La soumission
+  place le dossier en awaiting_validation et fige définitivement les scores ici.
+- Preuve : référence textuelle 10–2000 caractères, conservée chiffrée et confirmée
+  consultable par l’approbateur. Le fichier demeure dans l’espace privé géré par
+  l’organisation : pas de dépôt, archivage, téléchargement, ouverture automatique
+  ni garantie d’intégrité/disponibilité externe. Convention de preuve référencée
+  cohérente avec SPON-003 ; limite explicitée dans le produit, README et CDC.
+- Snapshot serveur : règles, série calculée/partielle/null, participants/libellés,
+  bénéficiaires et IDs des parties immuables. Contributeurs (auteur des règles,
+  toutes les tentatives et soumissionnaire) chiffrés et exclus des Resources.
+  L’approbateur, avec sports.validate, doit être distinct de tous et confirme sa
+  consultation personnelle de la preuve. Aucun auteur ne peut faire approuver
+  ses propres scores en demandant simplement une soumission par un autre compte.
+- Approbation played/abandon → validated ; forfeit → forfeited. Contestation
+  motivée possible sur proposition ou approbation, y compris forfeited → disputed.
+  Toute contestation retire l’approbation courante sans effacer le passé ; nouvelle
+  proposition puis nouvelle vérification indépendante nécessaires. Le gel des
+  parties reste actif : corrections et recalculs réservés à MATCH-006.
+- Transactions : garde tenant puis verrou Match, UUID de version commun aux
+  transitions/compositions/scores/résultats ; événement autorisant une transition
+  exacte base_version → match_version, puis dossier/historique de statut/audit.
+  Une panne d’audit annule journal, statut, historique et version. Ancienne version
+  ou mauvais submission_id : 409, aucune perte silencieuse ni rejeu automatique.
+- Migration additive 2026_10_18_144624_create_match_result_events_and_guards :
+  journal match_result_events, FK tenant/Match/soumission propre au match, numéro/
+  version uniques, preuves/snapshots/motifs chiffrés, UPDATE/DELETE interdits.
+  Gardes SQL Match/statuts adaptées à partir d’une copie historique conservant
+  les invariants antérieurs ; nouveaux états exigent l’événement de même version.
+  Inserts de scores refusés après une soumission, même sur une série incomplète.
+  Aucun ancien fichier de migration modifié. Attente de verrou PostgreSQL 5 s.
+  Down refuse un journal peuplé, restaure les anciennes gardes à vide puis retire
+  les ajouts. Inventaire de portabilité physique complet, round-trips parents mis
+  à jour avant leurs suppressions ; pas de backfill ni modification de valeur existante.
+- Bornes : 200 événements par match ; historiques page 1–100000, per_page 1–100 ;
+  snapshots bornés à 100 participants/tentatives. Pas de requête d’auteur par ligne
+  ni cache privé partagé ; GET matérialisé sous verrou pour une version cohérente.
+  Profiler contention, volumes et chiffrement avant modification des limites.
+- PostgreSQL ciblé initial : 139 tests réussis, 987 assertions ; quatre nouvelles
+  courses réelles à deux processus (deux soumissions, deux approbations,
+  approbation/contestation et score/soumission), plus courses Match/Compositions/
+  Scores existantes et migrations parents. Un succès, un 409 MATCH_VERSION_STALE,
+  sans doublon ni perte silencieuse. Base isolée supprimée.
+- SQLite complet avec cache database : composer test:ci, 2041 tests, 2017 réussis,
+  24 exclusions attendues, 10042 assertions. Ciblage final résultats/policy/schéma/
+  workflow : 30 tests réussis, 235 assertions. Revue du test de gel SQL : première
+  partie valide d’un BO1 encore incomplet refusée à cause du résultat soumis,
+  sans confondre ce gel avec une série déjà terminée ; trois tests/26 assertions
+  repassés sur SQLite et PostgreSQL après cet affinage, base temporaire supprimée.
+- Frontend : 312 tests/45 fichiers réussis ; sept tests Résultats repassés après
+  nettoyage des paramètres inutilisés. Build/lint et TypeScript strict des nouveaux
+  tests unitaires/navigateur passent. Six parcours Playwright à API simulée
+  Résultats/Scores/Compositions/Matchs/Calendrier/Équipes réussis dans Chrome installé.
+  Résultats couvre deux comptes, refus d’auto-approbation dans les actions serveur,
+  soumission/approbation/contestation/nouvelle preuve, historique et conflit sans
+  rejeu. Captures 320/375 px inspectées : pas de débordement ni HTML exécuté.
+- Sélection PostgreSQL complète identique à la CI : 1831 tests, 1829 réussis,
+  deux exclusions Redis attendues, 9323 assertions. Les quatre nouvelles courses
+  et les sept courses Match/Compositions/Scores existantes passent. Toutes les
+  bases temporaires créées ont été supprimées ; absence confirmée en lecture seule.
+  Base principale : MATCH-003 Ran batch 39, nouvelle migration MATCH-004 Pending.
+  Serveur Vite de recette arrêté ; aucune modification des données principales.
+- PHPStan niveau 8, Pint/format:check et Composer validate --strict réussis.
+  Aucun paquet ajouté. Code/tests/six documents existants dans un seul commit local ;
+  aucun push, compte/rôle/match réel, donnée métier principale, e-mail ou notification
+  externe par l’agent. Après push et CI : sauvegarde, migration additive puis recette
+  supervisée à deux comptes habilités. Prochain P0 : MATCH-005, préparation/VOD/
+  débrief ; correction de scores MATCH-006 et diffusion MATCH-007 non démarrées.

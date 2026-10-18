@@ -88,6 +88,10 @@ describe('parties et scores', () => {
     request.mockResolvedValue(page({ ...card, series: { ...card.series!, complete: true } }))
     show(); await screen.findByText('<script>Motif retenu</script>'); expect(screen.queryByRole('form')).toBeNull()
   })
+  it('fige les formulaires de score dès qu’un résultat est soumis', async () => {
+    request.mockResolvedValue(page({ ...card, result_locked: true }))
+    show(); await screen.findByText('<script>Motif retenu</script>'); expect(screen.queryByRole('form')).toBeNull()
+  })
   it('n’écrit pas sans permission de partage sur un match partagé', async () => {
     show({ ...record, visibility: 'organization' })
     await screen.findByText('<script>Motif retenu</script>'); expect(screen.queryByRole('form')).toBeNull()

@@ -23,6 +23,14 @@ export function matchText(key: string) { return t(('matches.' + key) as Translat
 export type MatchGameOutcome = 'played' | 'draw' | 'forfeit' | 'abandon' | 'remake'
 export type MatchGame = { id: string; number: number; match_version: string; outcome: MatchGameOutcome; map: string | null; mode: string | null; game_patch: string;
   reason: string; actor_user_id: number; occurred_at: string; results: { participant_id: string; label: string; score: number | null; lineup_revision_id: string | null }[] }
-export type MatchScorecard = { match_version: string; rules: { format: MatchRecord['format']; game_limit: number; allow_draw: boolean } | null;
+export type MatchScorecard = { result_locked?: boolean; match_version: string; rules: { format: MatchRecord['format']; game_limit: number; allow_draw: boolean } | null;
   series: { complete: boolean; played: number; draw: boolean; winner_ids: string[]; standings: { participant_id: string; score: number }[] } | null; game?: MatchGame | null }
 export type MatchGamePage = Page<MatchGame> & { scorecard: MatchScorecard }
+
+export type MatchResultAction = 'submit' | 'approve' | 'dispute'
+export type MatchResultOutcome = 'played' | 'forfeit' | 'abandon'
+export type MatchResultEvent = { id: string; number: number; action: MatchResultAction; outcome: MatchResultOutcome; from_status: MatchStatus; to_status: MatchStatus;
+  match_version: string; submission_id: string | null; proof_reference: string | null; reason: string; actor_user_id: number; occurred_at: string;
+  snapshot: { outcome: MatchResultOutcome; winner_ids: string[]; participants: { participant_id: string; label: string }[]; series: MatchScorecard['series']; rules: MatchScorecard['rules']; game_ids: string[] } | null }
+export type MatchResult = { match_version: string; status: MatchStatus; locked: boolean; allowed_actions: MatchResultAction[]; current: MatchResultEvent | null; submission: MatchResultEvent | null }
+export type MatchResultPage = Page<MatchResultEvent> & { result: MatchResult }

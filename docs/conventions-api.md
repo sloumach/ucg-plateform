@@ -3135,3 +3135,84 @@ relations et compositions chargées en bloc. Le GET matérialise résumé/page s
 le verrou du match pour une version cohérente. Pas de cache d’autorisation ou
 de contenu privé partagé. Corrections motivées/recalculs : MATCH-006 ; preuves,
 soumission et approbation distincte : MATCH-004 ; diffusion : MATCH-007.
+
+
+## Soumission, preuve référencée et validation — UCG-MATCH-004
+
+Routes privées sous `/api/v1/tenants/{tenant}/matches/{match}/results` ; Sanctum,
+MFA et audience Match existants. Aucune attribution automatique ni accès adverse.
+La preuve est une **référence textuelle déclarée** conservée chiffrée : aucun
+fichier n’est déposé, archivé, téléchargé ou vérifié automatiquement. L’auteur
+conserve la pièce dans son espace privé et garantit sa consultation par le validateur.
+La référence ne prouve ni l’intégrité ni la disponibilité future de cette pièce.
+
+| Méthode | Suffixe | Permission et résultat |
+| --- | --- | --- |
+| GET | aucun | sports.read, audience du dossier, historique paginé |
+| POST | aucun | sports.read/write, soumission, 201 |
+| POST | /approvals | sports.read/validate, approbation indépendante, 200 |
+| POST | /disputes | sports.read et sports.write ou sports.validate, contestation, 200 |
+
+Toutes les mutations exigent tenant confirmé, révision de session, version UUID
+courante du dossier et reason de 10–1000 caractères non blancs. Un match partagé
+exige en plus sports.publish et confirm_sharing:true **sur chaque action**.
+Le validateur n’a pas besoin de sports.write, mais reste soumis à l’audience du
+dossier ; aucun accès de gestion aux matchs privés ne vient de sports.validate.
+GET management=1 conserve l’exigence sports.write. Paramètres et corps fermés.
+Pagination page 1–100000, per_page 1–100, défauts 1/10, tri number décroissant.
+
+Soumission : outcome joué = played, sinon forfeit/abandon ; proof_reference
+10–2000 caractères et confirm_proof:true obligatoires. played exige une série
+MATCH-003 complète ; ni score agrégé, snapshot, vainqueur ni auteur fournis par
+le client. forfeit/abandon exigent winner_participant_id appartenant au dossier,
+sans inventer de parties ni changer les scores enregistrés. Ces décisions de
+rencontre sont distinctes des forfaits/abandons de **partie** MATCH-003.
+
+played : soumission en in_progress/awaiting_validation ou après contestation.
+forfeit/abandon : également possibles en confirmed avant le démarrage. Toute
+soumission passe en awaiting_validation et fige règles/parties/compositions ;
+une nouvelle soumission nécessite d’abord une contestation. Le serveur scelle
+règles, série calculée ou partielle/null, participants/libellés, bénéficiaire(s),
+IDs des parties immuables et auteurs des règles/parties. Les contributeurs restent
+privés, ne figurent dans aucune Resource, et servent au contrôle d’indépendance.
+
+Approbation : submission_id de la proposition courante et confirm_evidence:true
+obligatoires. L’approbateur doit être distinct du soumissionnaire **et** de tous
+les auteurs des règles/parties, même si une autre personne a soumis leurs scores.
+Il déclare avoir consulté la preuve et vérifié le résultat. played/abandon passe
+en validated ; forfeit en forfeited. Aucune publication ou notification automatique.
+
+Contestation : submission_id courant et motif obligatoire ; disponible pour une
+proposition en attente ou approuvée, y compris un forfait approuvé. Le dossier
+passe en disputed et perd son approbation courante ; les décisions antérieures
+et références de preuve restent immuables. Une nouvelle soumission, puis une
+nouvelle approbation indépendante, sont nécessaires. Les parties restent figées ;
+la correction motivée des scores et le recalcul relèvent de MATCH-006.
+
+GET : data MatchResultEventResource[], links/meta et result
+{match_version,status,locked,current,submission,allowed_actions}. current est le
+dernier événement ; submission la dernière proposition associée. allowed_actions
+est calculé côté serveur pour le compte courant, sans dispenser des contrôles à
+l’exécution. POST : data de même forme, sans historique, et notification Flasher.
+Toujours reprendre match_version et submission.id d’une lecture fraîche ; aucun
+rejeu après 409. GET /games expose désormais scorecard.result_locked, qui fige
+également ses formulaires ; les snapshots et scores n’affirment pas une approbation.
+
+Événement : id, number, action submit/approve/dispute, outcome, from_status,
+to_status, match_version, submission_id nullable à la soumission, proof_reference
+et snapshot présents uniquement à la soumission, reason, actor_user_id interne,
+occurred_at serveur. Aucun contributeur, donnée administrative ou coordonnées.
+La référence est rendue en texte échappé, jamais ouverte automatiquement.
+
+409 : MATCH_VERSION_STALE, MATCH_RESULT_SUBMISSION_STALE,
+MATCH_RESULT_TRANSITION_INVALID, MATCH_RESULT_INDEPENDENT_REQUIRED,
+MATCH_RESULT_INCOMPLETE, MATCH_RESULT_LIMIT ; écritures de scores après soumission :
+MATCH_RESULT_LOCKED. 422 : saisie fermée, pièce/motif/confirmations/bénéficiaire
+invalides. 403 : droits/MFA insuffisants ; 404 : dossier hors audience/tenant.
+Cache-Control private,no-store ; transaction événement → dossier → historique
+statut → audit, rollback complet en cas d’échec.
+
+200 événements au plus par match, lectures paginées et snapshots bornés aux
+100 participants/tentatives MATCH-003. Les transitions de résultat exigent un
+événement SQL de même version/from/to ; les scores restent aussi gelés en SQL.
+Aucun endpoint opérationnel générique ne valide ou conteste un résultat.

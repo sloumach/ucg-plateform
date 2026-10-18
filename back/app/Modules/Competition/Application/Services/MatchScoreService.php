@@ -6,6 +6,7 @@ use App\Exceptions\DomainConflictException;
 use App\Modules\Competition\Application\Validation\MatchScoreInput as Input;
 use App\Modules\Competition\Domain\Contracts\MatchLineupRepository;
 use App\Modules\Competition\Domain\Contracts\MatchRepository;
+use App\Modules\Competition\Domain\Contracts\MatchResultRepository;
 use App\Modules\Competition\Domain\Contracts\MatchScoreRepository;
 use App\Modules\Competition\Domain\Models\MatchGameInstance;
 use App\Modules\Competition\Domain\Models\MatchParticipant;
@@ -32,7 +33,7 @@ final readonly class MatchScoreService
     public function __construct(private MatchRepository $matches, private MatchScoreRepository $scores, private MatchLineupRepository $lineups,
         private MatchReferenceDirectory $references, private TenantAuthorization $authorization, private TenantBusinessGuard $guard,
         private TenantAuditJournal $audit, private Factory $validator, private ConnectionInterface $database,
-        private BestOfScore $bestOf, private PointsScore $points) {}
+        private BestOfScore $bestOf, private PointsScore $points, private MatchResultRepository $results) {}
 
     /** @param array<string,mixed> $input
      * @return array<string,mixed>
@@ -52,7 +53,7 @@ final readonly class MatchScoreService
             $rules = $this->scores->rules($context->organizationId, $record->id);
             $games = $this->scores->games($context->organizationId, $record->id);
 
-            return ['match_version' => $record->version, 'rules' => $this->rulesProjection($rules),
+            return ['result_locked' => $this->results->latest($context->organizationId, $record->id) !== null, 'match_version' => $record->version, 'rules' => $this->rulesProjection($rules),
                 'series' => $rules === null ? null : $this->calculate($record, $rules, $this->facts($games)),
                 'games' => $this->scores->paginate($context->organizationId, $record->id, (int) ($values['page'] ?? 1), (int) ($values['per_page'] ?? 10))];
         });
@@ -72,6 +73,9 @@ final readonly class MatchScoreService
             $record = $this->matches->find($context->organizationId, $match, $context->actorUserId, ['person_id' => null, 'team_ids' => []], true, true);
             if ($record->version !== strtolower($values['version'])) {
                 throw new DomainConflictException(__('matches.stale'), 'MATCH_VERSION_STALE');
+            }
+            if ($this->results->latest($context->organizationId, $record->id) !== null) {
+                throw new DomainConflictException(__('match_results.locked'), 'MATCH_RESULT_LOCKED');
             }
             if (! in_array($record->status, ['in_progress', 'awaiting_validation'], true)) {
                 throw new DomainConflictException(__('match_scores.frozen'), 'MATCH_SCORE_FROZEN');

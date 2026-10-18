@@ -12,7 +12,7 @@ return [
     'frozen' => 'Seul un match proposé peut être modifié. Rouvrez explicitement une rencontre confirmée avant correction.',
     'stale' => 'Ce match a changé. Rechargez le dossier avant de décider.',
     'transition' => 'Ce changement de statut n’est pas autorisé depuis le statut actuel.',
-    'results_reserved' => 'La validation, la contestation et le forfait nécessitent le workflow de résultats et de preuves, prévu dans les prochains lots.',
+    'results_reserved' => 'Utilisez le panneau Résultats et validation pour soumettre, approuver ou contester un résultat avec sa preuve.',
     'reason' => 'Indiquez un motif opérationnel de 10 à 1000 caractères.',
     'sharing' => 'Confirmez explicitement le partage interne de ce dossier.',
     'team_required' => 'La visibilité équipe exige au moins une équipe interne participante.',

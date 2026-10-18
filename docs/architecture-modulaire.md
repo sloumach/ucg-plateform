@@ -2111,3 +2111,56 @@ React charge la feuille à l’ouverture, utilise sa version fraîche, confirme
 règles/résultats et tenant avant POST, échappe tout texte et ferme/rafraîchit le
 dossier après succès. Les pages historiques, lecteurs et états terminaux sont en
 lecture seule ; un conflit invalide le contexte sans rejeu automatique.
+
+
+## Résultats et approbation indépendante — UCG-MATCH-004
+
+Competition porte MatchResultWorkflow, règle de domaine pure des transitions de
+soumission/approbation/contestation. MatchResultService orchestre garde tenant,
+permissions actuelles, verrou Match et version optimiste commune. Le repository
+MatchResultRepository isole un journal append-only unique match_result_events.
+Le service consomme MatchScoreService/Repository à l’intérieur de Competition,
+sans nouvelle dépendance de module. Le snapshot provient des scores immuables,
+jamais d’un total/vainqueur fourni pour un résultat joué.
+
+Un événement de soumission conserve la référence textuelle de preuve, snapshot,
+contributeurs, motif, auteur et date serveur. Une décision référence cette exacte
+soumission par FK composite tenant/match ; la séquence et la version sont uniques.
+Les contributeurs incluent auteur de la proposition, des règles et de toutes les
+tentatives ; ces IDs chiffrés restent hors des Resources. Un approbateur doit être
+indépendant de tous. La preuve matérielle reste dans un espace privé géré par
+l’organisation ; seul son identifiant déclaré est conservé ici, sans téléchargement,
+vérification technique, stockage de fichier ou prétention d’intégrité externe.
+
+La soumission passe le dossier en awaiting_validation ; approbation en validated
+ou forfeited, contestation en disputed, puis nouvelle soumission nécessaire.
+Un forfait/abandon de rencontre peut être déclaré avant démarrage, sans parties
+fictives ; les scores partiels sont conservés et distingués du résultat attribué.
+MATCH-006 devra traiter toute correction des parties ; aucun contournement par une
+réouverture opérationnelle ou un changement de version ne libère le gel ici.
+
+La migration additive crée le journal, ses FK/index et gardes SQL, puis remplace
+les définitions des gardes Match/statuts par une copie historique conservant tous
+les invariants précédents et ajoutant uniquement les transitions justifiées par
+un événement de résultat. Les anciennes migrations sont inchangées. L’attente de
+verrou PostgreSQL est bornée à cinq secondes. Aucun backfill ni changement de
+valeur métier existante. Down refuse un journal peuplé, restaure les gardes
+précédentes à vide puis retire table/gardes ajoutées. Les round-trips parents
+appliquent ce down avant toute suppression d’une table référencée.
+
+L’événement autorise une seule transition de base_version vers match_version,
+inséré avant la modification du parent ; la transaction comprend statut/historique
+et audit. SQL refuse réécritures, auto-approbation du soumissionnaire, mauvaise
+phase/séquence/soumission/version et modification du dossier ou ajout de score
+hors de cet événement. L’indépendance des contributeurs chiffrés, autorisation et
+complétude des scores restent contrôlées dans les services.
+
+GET matérialise dossier, décision courante et page sous verrou Match cohérent ;
+limites 200 événements, 100 participants/tentatives, pagination 1–100. Aucun chargement
+d’auteur par ligne ni cache partagé de droits/contenus privés. Profiler contention,
+taille des snapshots et coût du chiffrement avant augmentation des limites.
+Le validateur read/validate reste dans l’audience ; management exige toujours write.
+Les mutations partagées exigent publish et consentement. React utilise les actions
+serveur, la version fraîche et les confirmations, conserve un 422 et ne rejoue pas
+un 409. Les ressources anciennes et preuves référencées restent consultables selon
+l’audience courante, indépendamment de l’approbation actuelle.
