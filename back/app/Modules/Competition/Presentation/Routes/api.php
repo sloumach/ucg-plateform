@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\CompetitionOutcomeController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\CompetitionRegistrationController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\ExternalCompetitionController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchController;
@@ -68,4 +69,13 @@ Route::prefix('tenants/{tenant}/external-competitions/{competition}/registration
     Route::get('history', [CompetitionRegistrationController::class, 'history'])->name('competition-registration.history');
     Route::get('people', [CompetitionRegistrationController::class, 'people'])->name('competition-registration.people');
     Route::get('reminders', [CompetitionRegistrationController::class, 'reminders'])->name('competition-registration.reminders');
+});
+
+Route::prefix('tenants/{tenant}/external-competitions/{competition}/outcomes/{stream}')->whereUuid(['tenant', 'competition'])->whereIn('stream', ['sport', 'awards'])->middleware('tenant')->group(function (): void {
+    $controller = CompetitionOutcomeController::class;
+    Route::get('', [$controller, 'show'])->name('competition-outcomes.show');
+    Route::patch('', [$controller, 'save'])->middleware('tenant.confirmed')->block(10, 10)->name('competition-outcomes.save');
+    Route::get('history', [$controller, 'history'])->name('competition-outcomes.history');
+    Route::get('choices', [$controller, 'choices'])->name('competition-outcomes.choices');
+    Route::get('matches/{reference}/result', [$controller, 'result'])->whereUuid('reference')->name('competition-outcomes.result');
 });

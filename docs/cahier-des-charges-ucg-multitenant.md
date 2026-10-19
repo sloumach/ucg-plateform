@@ -1161,3 +1161,21 @@ externe n’est activé ; scheduler/worker et recette à deux comptes sont requi
 avant activation de CALENDAR_CHANGES_ENABLED, false par défaut. Les équipes
 entières ne sont pas ajoutées automatiquement aux destinataires. Les récurrences
 et la logistique avancée restent CAL-007/CAL-008, P1.
+
+
+### Livraison COMP-003 — résultats, classement communiqué et dotations
+
+Le suivi interne rattache au plus 20 matchs existants du même jeu et de la même
+organisation. Leurs permissions restent effectives, y compris dans l’historique.
+Les résultats approuvés du workflow MATCH restent la référence ; une contestation
+ou une correction en attente empêche l’affichage d’un score comme approuvé. Le
+classement communiqué est saisi manuellement avec source et date, sans déduction
+à partir des matchs ni publication auprès de l’organisateur.
+
+Les dotations annoncée et reçue cumulée ont un historique distinct sous
+financial.read/write, en plus des droits de lecture du dossier. Chaque état est
+sourcé, daté, motivé et chiffré ; les entiers en unités mineures évitent les arrondis.
+La devise est explicite et la date de réception obligatoire si un montant reçu
+est connu. Absence et zéro restent distincts. Aucun paiement, conversion,
+rapprochement bancaire, classement automatique ni partage inter-tenant dans ce lot.
+Archives en lecture seule et révisions anciennes conservées.

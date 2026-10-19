@@ -27,6 +27,15 @@ use Illuminate\Validation\ValidationException;
 
 final readonly class MatchService
 {
+    /** @param list<string> $ids
+     * @return array<string,MatchRecord> */
+    public function visibleByIds(TenantContext $context, array $ids): array
+    {
+        $this->authorization->authorize($context, 'sports.read');
+
+        return $this->records->visibleByIds($context->organizationId, $context->actorUserId, $this->references->viewer($context), $ids);
+    }
+
     public function __construct(private MatchRepository $records, private MatchReferenceDirectory $references,
         private MatchSchedule $schedule, private TenantAuthorization $authorization, private TenantBusinessGuard $guard,
         private TenantAuditJournal $audit, private Factory $validator, private ConnectionInterface $database, private MatchLineupService $lineups, private MatchCorrectedScores $effective, private MatchScorePublisher $publisher) {}

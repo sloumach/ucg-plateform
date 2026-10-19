@@ -3254,3 +3254,75 @@ focus après retrait de ligne, conflit sans rejeu et secondes UTC vérifiés.
 PHPStan niveau 8, Pint, Composer strict, lint, tsc et build verts. Bases PostgreSQL
 temporaires supprimées et serveurs de recette arrêtés. Aucun changement de dépendance.
 Les pièces restent une checklist avec références texte privées : pas d’upload binaire.
+
+## 19 octobre 2026 — UCG-COMP-003 : matchs, classement et dotations
+
+Le dossier externe propose « Matchs et classement » et, avec financial.read,
+« Dotations de compétition ». Le classement est celui communiqué par
+l’organisateur, consigné avec sa source et sa date de constat. Les matchs liés
+restent soumis à leur audience actuelle, dans les vues courantes et anciennes :
+un lecteur non habilité voit une référence opaque « Match à accès restreint ».
+L’ouverture d’un résultat recontrôle l’accès et ne présente le score comme
+approuvé que si sa validation est encore valable et aucun recalcul n’est en attente.
+Les preuves du résultat ne sont pas recopiées dans ce panneau.
+
+Deux flux de révisions indépendants conservent les changements motivés : sport et
+awards. Les droits sportifs sont sports.read + sports.competitions.read, puis
+sports.competitions.write aux écritures et au choix des matchs. Les dotations
+ajoutent financial.read puis financial.write aux écritures ; aucun octroi
+implicite au propriétaire/administrateur. Les montants ne figurent pas dans les
+réponses sportives. MFA, CSRF, contexte tenant confirmé et vérification actuelle
+des droits restent obligatoires pour les écritures.
+
+La dotation annoncée et le montant reçu cumulé sont distincts. Chaque état indique
+sa devise explicite (EUR/USD/GBP/CAD/CHF/JPY/AUD), sa source et sa date ; une réception
+connue, même nulle, exige une date de réception. Les montants sont des entiers
+positifs ou nuls en unités mineures, au plus 1 000 000 000 000. Le formulaire convertit
+les chaînes décimales par arithmétique entière (deux décimales, aucune pour JPY).
+Changer de devise efface les montants à ressaisir ; aucune conversion implicite,
+paiement, écriture comptable ou publication n’est déclenché.
+
+Migration additive `2026_10_19_005858_create_competition_outcome_tracking.php` :
+competition_outcome_revisions et competition_outcome_matches, clés étrangères
+composites tenant, chiffrement du contenu/motif, séquences bornées à 1000 par
+flux, 20 matchs par révision. Historique immuable, suppression SQL interdite,
+retour arrière refusé dès qu’il existe des données. Les liens exigent le même
+jeu et le match conserve ce jeu après rattachement. L’inventaire de portabilité
+inclut les deux tables avec leurs colonnes physiques et le contenu chiffré.
+
+L’écriture verrouille organisation puis dossier ; elle vérifie les versions du
+dossier, de la dernière révision et des nouveaux matchs. Historique, liens et
+audit sont atomiques. Les choix et historiques sont paginés (10 par page au
+maximum), les liens inclus dans un état sont bornés à 20. Leur projection utilise
+une lecture groupée, et les scores sont consultés à la demande. L’archivage fige
+les deux flux sans supprimer leur historique.
+
+COMP-002 `67ddc29` était poussé et synchronisé à la reprise ; CI et migration
+validées par l’utilisateur, migration constatée Ran batch 44. Cette livraison
+reste locale : push/CI, sauvegarde et migration principale à valider par
+l’utilisateur. Aucun migrate/seed principal, droit réel, donnée réelle ou worker
+activé par l’agent. Prochain P0 proposé : STAT-001 après validation et recette.
+La recette réelle Reverb/broadcasts et l’activation des rappels COMP-002 restent
+séparées.
+
+Vérifications COMP-003 : 34 nouveaux cas backend (31 exécutables sur SQLite,
+3 courses entre processus PostgreSQL) et 16 nouveaux cas frontend. Les suites
+ci-dessous couvrent tout le projet, pas seulement cette fonctionnalité.
+SQLite complet : 2261 cas, 2224 réussis, 37 exclusions attendues, puis 143 cas
+ciblés finaux réussis, incluant les forfaits/abandons et tous les retours arrière
+concernés. Sélection CI PostgreSQL intégrale rejouée sur deux bases indépendantes :
+2053 cas, 2051 réussis, 2 exclusions Redis attendues, 11032 assertions ; les 146
+contrôles ciblés finaux étaient également verts. Toutes les bases jetables supprimées.
+Frontend : 372 tests/53 fichiers réussis, puis les 16 cas du nouveau panneau rejoués
+sur la version finale. Trois parcours Chrome distincts COMP-001/002/003 réussis ;
+COMP-003 rejoué après finition, captures 320/375 px sans débordement, lecture
+financière absente pour le profil sportif et texte malveillant échappé.
+PHPStan niveau 8, Pint, Composer strict/format:check, oxlint, TypeScript (y compris
+nouveaux tests) et build Vite verts.
+
+Les premières passes ont révélé l’ordre à adapter dans d’anciens tests de retour
+arrière (deux cas SQLite, trois PostgreSQL). Les dépendances sont maintenant
+retirées/recréées dans l’ordre, sans modifier les anciennes migrations ni utiliser
+CASCADE. Un écart de comptage global dans AuditJournalTest (46 contre 45, cache
+array) n’a pas été reproduit dans les contrôles ciblés ni dans la seconde suite
+SQLite complète ; aucun seuil ni code d’audit n’a été modifié.

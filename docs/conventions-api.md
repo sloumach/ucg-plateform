@@ -3555,3 +3555,85 @@ const { data: response } = await api.patch(path, {
 Rappels internes asynchrones via TEN-006, flag opérateur désactivé par défaut.
 L’inscription, la remise des originaux et le check-in effectifs restent chez
 l’organisateur externe. Aucune transmission ou notification externe automatique.
+
+
+### COMP-003 — Matchs, classement et dotations externes
+
+Préfixe `/api/v1/tenants/{tenant}/external-competitions/{competition}/outcomes/{stream}`,
+avec `stream=sport|awards`. Toutes les réponses sont `private, no-store`.
+Authentification de session et MFA ; PATCH exige CSRF et tenant confirmé.
+
+| Méthode | Suffixe | Réponse / droit supplémentaire |
+| --- | --- | --- |
+| GET | vide | `data: null` ou dernier état ; awards exige financial.read |
+| PATCH | vide | nouvel état motivé ; sport exige sports.competitions.write, awards financial.read + financial.write |
+| GET | `/history?page=1&per_page=5` | historique paginé ; mêmes droits de lecture |
+| GET | `/choices?page=1&per_page=10` | sport uniquement, matchs accessibles du même jeu ; sports.competitions.write |
+| GET | `/matches/{reference}/result` | sport uniquement, lien courant et audience du match revérifiés |
+
+Le socle sports.read + sports.competitions.read est toujours requis. Un droit
+sports.write seul ne donne pas accès au dossier. L’audience des matchs est le
+mode ordinaire : aucun accès de gestion n’est déduit du droit de modifier le dossier.
+Les query strings et objets sont fermés, UUID insensibles à la casse aux écritures.
+Pagination : page 1..100000, per_page 1..10.
+
+Exemple via le client SPA existant `tenancyRequest`, qui transmet CSRF et la
+révision du contexte tenant :
+
+```ts
+const path = `tenants/${tenant}/external-competitions/${competition}/outcomes`
+await tenancyRequest(`${path}/sport`, {
+  method: 'PATCH', revision: tenantRevision,
+  body: {
+    competition_version: competitionVersion, expected_version: currentVersion ?? null,
+    source: 'Rapport officiel de l’organisateur, référence R-42',
+    source_url: 'https://organizer.example/results', observed_on: '2026-10-18',
+    notes: null, place: 2, field_size: 16,
+    matches: [{ reference_id: null, match_id: matchId, match_version: matchVersion }],
+    reason: 'Classement communiqué et match du dossier vérifiés.'
+  }
+})
+await tenancyRequest(`${path}/awards`, {
+  method: 'PATCH', revision: tenantRevision,
+  body: {
+    competition_version: competitionVersion, expected_version: awardVersion ?? null,
+    source: 'Annonce organisateur et relevé de réception R-43', source_url: null,
+    observed_on: '2026-10-18', notes: 'Réception partielle constatée.',
+    currency: 'EUR', announced_minor: 100000, received_minor: 12345,
+    received_on: '2026-10-18', reason: 'Réception vérifiée selon le relevé privé.'
+  }
+})
+```
+
+`expected_version=null` initialise un flux ; ensuite l’UUID de sa dernière
+révision est obligatoire. `competition_version` reste la version du dossier
+COMP-001 ; ces écritures ne modifient pas cette version. Un lien conservé s’envoie
+avec `{reference_id, match_id:null, match_version:null}` ; la référence appartient
+à l’état courant du même dossier. L’omettre du nouvel état le retire, sans effacer
+les anciennes révisions. Un nouveau lien envoie l’UUID/version du match visible.
+20 liens maximum et aucune répétition. Une référence inaccessible ne révèle ni
+UUID métier, ni titre, ni score : `{reference_id, match:null}`. L’historique
+résout également les titres avec les droits actuels, sans copier leur ancien titre.
+
+Chaque état renvoie `version`, `number`, `stream`, `payload`, `matches`, `reason`,
+`occurred_at`. Les flux awards ne sont jamais fusionnés aux listes sportives.
+Le résultat renvoie `reference_id`, `status`, `approved`, `outcome`, `series`,
+`winners`, `observed_at` ; `outcome/series=null` si non approuvé ou recalcul en attente.
+Les standings approuvés incluent un label échappé par React et le score du moteur
+MATCH ; un forfait/abandon approuvé conserve sa décision et ses vainqueurs déclarés, avec series=null. Aucune preuve, contribution privée ou stratégie ne figure dans cette projection.
+
+Sources textuelles requises (500 caractères), motif 10..1000 caractères après trim,
+notes nullable jusqu’à 2000 ; URL HTTPS publique facultative, jamais récupérée par
+le serveur. Dates strictes AAAA-MM-JJ non futures dans le fuseau du tenant. Rang
+nullable entier 1..1000000, ne dépassant pas le nombre de participants s’il est
+renseigné. `announced_minor/received_minor` sont des entiers JSON 0..1000000000000
+ou null ; chaînes numériques et flottants refusés. Devise parmi
+EUR/USD/GBP/CAD/CHF/JPY/AUD, sans conversion. Montant reçu et received_on sont
+renseignés ensemble ; zéro est distinct de null. Le montant reçu est un cumul
+constaté dans la devise de cet état, pas une nouvelle transaction à additionner.
+
+Conflits 409 `COMPETITION_OUTCOME_STALE`, `COMPETITION_OUTCOME_ARCHIVED`,
+`COMPETITION_OUTCOME_LIMIT` ; recharger, sans rejeu automatique. Inconnu/hors
+périmètre/match inaccessible : 404 ; droits insuffisants : 403 ; données ou
+non-changement : 422. Succès : notification Flasher, sans contenu financier dans
+le journal général. Migration additive `2026_10_19_005858`, sans activation de worker.

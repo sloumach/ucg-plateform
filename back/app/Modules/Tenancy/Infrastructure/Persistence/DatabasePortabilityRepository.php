@@ -18,6 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
+        'competition_outcome_matches' => 'id', 'competition_outcome_revisions' => 'id',
         'competition_registration_reminders' => 'id', 'competition_registration_revisions' => 'id',
         'external_competition_documents' => 'id', 'external_competition_revisions' => 'id', 'external_competitions' => 'id',
         'match_score_recalculations' => 'id', 'match_score_corrections' => 'id', 'match_notebook_revisions' => 'id', 'match_result_events' => 'id', 'match_game_instances' => 'id', 'match_score_rules' => 'id', 'match_lineup_revisions' => 'id', 'match_status_events' => 'id', 'match_participants' => 'id', 'matches' => 'id',
@@ -65,6 +66,8 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'competition_outcome_matches' => ['id', 'organization_id', 'competition_id', 'revision_id', 'reference_id', 'match_id'],
+        'competition_outcome_revisions' => ['id', 'organization_id', 'competition_id', 'stream', 'number', 'payload', 'reason', 'actor_user_id', 'created_at'],
         'competition_registration_revisions' => ['id', 'organization_id', 'competition_id', 'number', 'payload', 'reason', 'actor_user_id', 'created_at', 'next_due_at', 'checked_at'],
         'competition_registration_reminders' => ['id', 'organization_id', 'competition_id', 'revision_id', 'item_id', 'recipient_id', 'occurrence', 'stage', 'payload', 'run_id', 'created_at'],
         'external_competitions' => ['id', 'organization_id', 'reference', 'game_id', 'game_key', 'game_name', 'name', 'organizer', 'region', 'season', 'website_url', 'contacts', 'status', 'version', 'created_by', 'created_at', 'updated_at'],

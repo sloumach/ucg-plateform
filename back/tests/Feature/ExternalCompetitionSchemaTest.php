@@ -24,11 +24,14 @@ class ExternalCompetitionSchemaTest extends TestCase
     {
         $migration = require database_path('migrations/2026_10_18_210127_create_external_competitions_and_private_documents.php');
         $registrations = require database_path('migrations/2026_10_18_231153_create_competition_registration_tracking.php');
+        $outcomes = require database_path('migrations/2026_10_19_005858_create_competition_outcome_tracking.php');
+        $outcomes->down();
         $registrations->down();
         $migration->down();
         $this->assertFalse(Schema::hasTable('external_competitions'));
         $migration->up();
         $registrations->up();
+        $outcomes->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         app(PortabilityRepository::class)->assertCatalog();
     }

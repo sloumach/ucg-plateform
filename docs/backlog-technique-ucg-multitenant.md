@@ -866,14 +866,14 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 
 ### UCG-COMP-002 — Suivre les dossiers d’inscription externes et échéances
 
-- **Livraison** : implémenté localement le 19 octobre 2026 ; nouveau push/CI et migration principale à valider. Un suivi par compétition, révisions chiffrées et motivées, lecture seule après archivage.
+- **Livraison** : commit `67ddc29` poussé ; CI et migration validées par l’utilisateur avant COMP-003. Un suivi par compétition, révisions chiffrées et motivées, lecture seule après archivage.
 - **Validation** : SQLite complet 2195 réussis/34 exclusions attendues ; PostgreSQL CI complet 2017 réussis/2 exclusions Redis puis 72 cas finaux ciblés. Frontend 356 tests, deux parcours Chrome, captures 320/375 px ; PHPStan 8/Pint/Composer strict/lint/tsc/build verts.
 - **Fonctionnel** : inscription/paiement/roster/check-in déclaratifs, exigences externes sans déduction contractuelle, roster de 20 personnes, 50 pièces/tâches avec état, échéance UTC et responsable. Statut approuvé du roster à réévaluer si sa composition change.
 - **Pièces** : suivi des pièces demandées/remises et lien facultatif à une version texte privée COMP-001 ; aucun upload binaire ni transmission automatique à l’organisateur dans ce lot.
 - **Accès** : sports.read + sports.competitions.read + sports.registrations.read ; sports.registrations.write en supplément aux écritures et choix des personnes. MFA/CSRF/contexte confirmé ; aucun grant implicite ni modification des rôles existants.
 - **Rappels** : journal interne personnel durable et dédupliqué (7 jours, 1 jour, dépassé), contrôle actuel des destinataires ; cache de complétion indépendant. Aucun e-mail. Intégration TEN-006, traitement tournant limité à 25 dossiers avec budget de 45 secondes vérifié entre dossiers, flag désactivé par défaut.
-- **Schéma** : deux nouvelles tables tenant, gardes d’immutabilité et de séquence PostgreSQL/SQLite, inventaire de portabilité chiffré complet, down refusé sur données existantes. Nouvelle migration `2026_10_18_231153` en attente.
-- **Suite** : push/CI, sauvegarde/migration utilisateur, délégation ciblée et recette des révocations. Scheduler/worker et activation des rappels à valider séparément. Prochain P0 : COMP-003.
+- **Schéma** : deux nouvelles tables tenant, gardes d’immutabilité et de séquence PostgreSQL/SQLite, inventaire de portabilité chiffré complet, down refusé sur données existantes. Migration `2026_10_18_231153` constatée Ran, batch 44.
+- **Suite** : délégation ciblée et recette des révocations. Scheduler/worker et activation des rappels à valider séparément. Prochain P0 : COMP-003.
 
 - **Priorité / taille** : P0 / L
 - **Périmètre** : suivi interne du paiement renseigné, des pièces, du roster soumis, de sa validation par l’organisateur, du statut de check-in externe, des règles d’âge/résidence/rang et des tâches manager.
@@ -881,6 +881,13 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Références CDC** : COMP-02, COMP-04, COMP-05.
 
 ### UCG-COMP-003 — Relier résultats, classement et dotation
+
+- **Livraison** : implémenté localement le 19 octobre 2026 ; push/CI et migration principale restent à valider.
+- **Validation** : 34 nouveaux cas backend et 16 frontend. SQLite complet 2224 réussis/37 exclusions, puis 143 cas finaux ciblés ; sélection CI PostgreSQL intégrale en deux bases isolées, 2051 réussis/2 exclusions Redis, plus 146 cas finaux ciblés. Frontend 372 tests, trois parcours Chrome dont COMP-003 rejoué après finition, captures 320/375 px ; PHPStan 8/Pint/Composer strict/lint/tsc/build verts. Ordre des anciens tests de rollback adapté ; aucune ancienne migration modifiée.
+- **Sportif** : 20 liens de matchs maximum, même tenant/jeu, audience actuelle conservée dans le dossier et l’historique. Choix paginés, lecture groupée des références. Classement communiqué manuellement par l’organisateur avec source et date ; résultats affichés uniquement s’ils sont encore approuvés, hors recalcul en attente.
+- **Financier** : journal séparé sous financial.read/write en plus de sports.read + sports.competitions.read ; le droit sportif d’écriture ne suffit pas. Montants entiers en unités mineures, devise explicite, absence distincte de zéro, réception datée. Aucune conversion ni exécution de paiement.
+- **Fiabilité** : deux tables tenant, contenu chiffré, révisions append-only et audit atomique ; versions du dossier, du suivi et des nouveaux matchs vérifiées. Archives figées, historique paginé, gardes SQL PostgreSQL/SQLite et export chiffré complet. Un match rattaché conserve son jeu.
+- **Mise en service** : migration additive `2026_10_19_005858`, sans reprise de données ni seed principal. Recette des deux profils et révocations après push/CI et migration utilisateur. STAT-001 est le prochain P0 proposé ; Reverb/broadcasts et rappels COMP-002 restent à recetter séparément.
 
 - **Priorité / taille** : P0 / M
 - **Périmètre** : matchs, classement, dotation annoncée et réellement reçue.

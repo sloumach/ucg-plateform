@@ -1,6 +1,7 @@
 <?php
 
 use App\Exceptions\DomainConflictException;
+use App\Modules\Competition\Application\Services\CompetitionOutcomeService;
 use App\Modules\Competition\Application\Services\CompetitionRegistrationService;
 use App\Modules\Competition\Application\Services\ExternalCompetitionDocumentService;
 use App\Modules\Competition\Application\Services\ExternalCompetitionService;
@@ -44,7 +45,9 @@ while (! is_file($barrier)) {
 }
 try {
     $service = app(MatchService::class);
-    if ($payload['operation'] === 'registration') {
+    if ($payload['operation'] === 'competition_outcome') {
+        app(CompetitionOutcomeService::class)->save($context, $payload['competition'], $payload['stream'], $payload['input'], null);
+    } elseif ($payload['operation'] === 'registration') {
         app(CompetitionRegistrationService::class)->save($context, $payload['competition'], $payload['input'], null);
     } elseif ($payload['operation'] === 'registration_reminders') {
         app(ProcessCompetitionRegistrationReminders::class)->run(new TenantExecutionContext($context->organizationId, $context->requestId, 'UTC', 'fr'), $context->requestId);

@@ -11,9 +11,9 @@ final readonly class MatchRealtimeService
     public function __construct(private MatchService $matches, private TenantAuthorization $authorization, private MatchScoreService $scores, private MatchResultService $results, private ConnectionInterface $database) {}
 
     /** @return array<string,mixed> */
-    public function snapshot(TenantContext $context, string $matchId): array
+    public function snapshot(TenantContext $context, string $matchId, bool $ordinaryAudience = false): array
     {
-        $management = $this->authorization->allows($context, 'sports.write');
+        $management = ! $ordinaryAudience && $this->authorization->allows($context, 'sports.write');
 
         return $this->database->transaction(function () use ($context, $matchId, $management): array {
             $score = $this->scores->index($context, $matchId, ['per_page' => 1, 'management' => $management]);
