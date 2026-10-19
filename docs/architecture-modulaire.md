@@ -2744,3 +2744,25 @@ cas ont réussi à la relance, puis la suite complète a réussi sans changement
 de ce code. PHPStan zéro erreur, Pint, typage application/tests/navigateur, lint,
 build et validation Composer réussis. Dépendances inchangées ; CI distante
 à exécuter après push utilisateur.
+
+## Correctif CI STAT-003A — ordre de démontage PostgreSQL
+
+La CI distante a révélé deux tests de réversibilité oubliés dans la sélection
+locale : PersonSchemaTest et TenantStorageSchemaTest. Reproduction locale :
+16 réussis et deux erreurs de dépendance sur artifacts_tenant_id_unique.
+Les tests démontaient l’import People (qui possède cet index) avant la table
+statistical_imports, dont la FK composite en dépend.
+
+Correction limitée aux tests : démonter statistical_imports avant l’import
+People, puis la recréer après celui-ci. Vérifier également que la table et
+l’isolation tenant sont restaurées. Aucun CASCADE, ancienne migration modifiée,
+nouvelle migration, changement applicatif ou donnée réelle touchée.
+Les quatre tests qui démontent cet index ont tous été revus.
+
+Contrôles ciblés après correction : 54/54 PostgreSQL en base jetable supprimée,
+54/54 SQLite ; Pint et PHPStan sans erreur.
+
+Sélection PostgreSQL complète du workflow CI rejouée localement après correction :
+2139 cas, 2137 réussis, deux ignorés, aucun échec et 11794 assertions.
+La base PostgreSQL jetable a été supprimée. La CI distante reste à relancer après
+push du correctif ; aucune nouvelle migration nécessaire pour ce correctif.

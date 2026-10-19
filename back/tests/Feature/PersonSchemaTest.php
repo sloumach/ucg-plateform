@@ -158,6 +158,8 @@ class PersonSchemaTest extends TestCase
         $eligibility->down();
         $lineups->down();
         $memberships->down();
+        $statisticalImports = require database_path('migrations/2026_10_19_143154_create_statistical_import_previews.php');
+        $statisticalImports->down();
         $importMigration->down();
         $lifecycleMigration->down();
         $profilesMigration->down();
@@ -167,6 +169,7 @@ class PersonSchemaTest extends TestCase
         $profilesMigration->up();
         $lifecycleMigration->up();
         $importMigration->up();
+        $statisticalImports->up();
         $memberships->up();
         $lineups->up();
         $eligibility->up();
@@ -191,6 +194,8 @@ class PersonSchemaTest extends TestCase
         $observations->up();
         $availability->up();
 
+        $this->assertTrue(Schema::hasTable('statistical_imports'));
+        $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         $this->assertTrue(Schema::hasTable('people'));
         $this->assertDatabaseCount('people', 0);
     }

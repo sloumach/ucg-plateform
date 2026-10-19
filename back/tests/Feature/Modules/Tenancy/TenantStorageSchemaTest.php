@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Modules\Tenancy;
 
+use App\Architecture\Database\TenantSchemaInspector;
 use App\Modules\Tenancy\Domain\Models\Organization;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -72,17 +73,22 @@ class TenantStorageSchemaTest extends TestCase
         $governance->down();
         $scans->down();
         $documents->down();
+        $statisticalImports = require database_path('migrations/2026_10_19_143154_create_statistical_import_previews.php');
+        $statisticalImports->down();
         $importMigration->down();
         $migration->down();
         $this->assertFalse(Schema::hasTable('tenant_artifacts'));
         $this->assertFalse(Schema::hasTable('tenant_storage_usage'));
         $migration->up();
         $importMigration->up();
+        $statisticalImports->up();
         $documents->up();
         $scans->up();
         $governance->up();
         $reminders->up();
 
+        $this->assertTrue(Schema::hasTable('statistical_imports'));
+        $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         $this->assertTrue(Schema::hasTable('tenant_artifacts'));
         $this->assertTrue(Schema::hasTable('tenant_storage_usage'));
         $this->assertDatabaseHas('organizations', ['id' => $organization->id, 'slug' => $organization->slug]);
