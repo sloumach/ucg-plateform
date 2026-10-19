@@ -9,13 +9,17 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : **UCG-STAT-003A** — dépôt CSV privé et prévisualisation,
-  sans création d’observations. Livraison locale sur `staging`.
-  Migration additive `2026_10_19_143154` à appliquer après push → CI → sauvegarde.
-  Aucun push ni migrate/seed principal, donnée privée ou droit réel créé par
-  l’agent. Aucun traitement, worker ou fournisseur activé.
-  Prochaine étape après recette : **STAT-003B**, confirmation, traitement,
-  idempotence des observations incluant le tenant, erreurs et reprise.
+- Dernier ticket traité : **UCG-STAT-003B** — confirmation, traitement borné,
+  idempotence par organisation, résultats privés et reprise explicite.
+  Livraison locale sur `staging`, commit demandé par utilisateur ; push et CI à suivre.
+  Migration additive `2026_10_19_175141` après push → CI → sauvegarde.
+  Traitement désactivé par défaut (`STATISTICAL_IMPORT_PROCESSING_ENABLED=false`).
+  Aucune migration/seed principale, donnée privée ou habilitation réelle créée ;
+  aucun worker/fournisseur activé. Recette puis activation supervisée à prévoir.
+  Prochain P0 proposé après validation : **STAT-004**, agrégats et ratios.
+- STAT-003A et correctif : `3f6f0d9` et `5165aad` présents sur staging et
+  origin/staging à la reprise. Migration constatée Ran batch 48 en lecture seule.
+  La CI distante et la sauvegarde ne sont pas revalidées par ce constat.
 - STAT-002 : `aa6e52e` poussé et synchronisé à la reprise ; push, CI et migration
   validés par l’utilisateur. Migration constatée Ran batch 47. La sauvegarde
   n’a pas été explicitement confirmée dans cette reprise.
@@ -4060,3 +4064,85 @@ Sélection PostgreSQL complète du workflow CI rejouée localement après correc
 2139 cas, 2137 réussis, deux ignorés, aucun échec et 11794 assertions.
 La base PostgreSQL jetable a été supprimée. La CI distante reste à relancer après
 push du correctif ; aucune nouvelle migration nécessaire pour ce correctif.
+
+## UCG-STAT-003B — confirmation, acquisition et reprise (19 octobre 2026)
+
+Objectif : terminer le pipeline CSV sans modifier les aperçus A ni créer une
+observation avant confirmation. POST {import}/confirm exige la version de
+l’aperçu immuable, confirm accepté et un accord si des lignes sont invalides.
+Droits, joueur, jeu, audience match et version de métrique sont revalidés à la
+confirmation puis à chaque ligne. Référence modifiée avant confirmation : nouvel
+aperçu nécessaire ; après confirmation : ligne refusée, autres lignes poursuivies.
+Les cinq permissions de A, session/e-mail vérifiés, MFA, tenant confirmé et
+révision de session restent requis. Import et résultats privés au déposant ;
+audience de tous les matchs réappliquée au détail. Réponses private/no-store.
+
+Deux tables additives : statistical_import_executions pour état/version/progression
+et résultats chiffrés, statistical_import_receipts pour la déduplication durable.
+FK composites tenant/import et tenant/observation, unicité tenant/identité de
+source, reçus immuables, identité d’exécution protégée et compteurs bornés.
+Aucune ancienne migration modifiée, aucun backfill ou lancement des aperçus A.
+Tables et colonnes incluses dans le catalogue fermé des exports privés.
+Down refusé si historique non vide. Tests de démontage des schémas parents adaptés
+aux dépendances, sans CASCADE. Migration `2026_10_19_175141` laissée Pending.
+
+Identité canonique : organisation, joueur, métrique, jeu, source, période,
+match/partie et contexte sportif, indépendamment du fichier et du déposant.
+Empreinte HMAC ; valeur exacte normalisée, disponibilité, échantillon et version
+de métrique contrôlés séparément. Même contenu : duplicate, aucune révision.
+Contenu différent : OBSERVATION_CONFLICT, aucun écrasement. Utiliser la correction
+STAT-002 avec ses permissions dédiées. Zéro reste distinct de valeur absente.
+
+ProcessStatisticalImport réutilise TenantJob/TEN-006 et la file reports, trois
+essais, timeout 60 s et backoff 5/30/120 s. Transport : identifiants tenant,
+acteur, requête, import et génération ; aucune cellule ou preuve MFA sérialisée.
+Dix lignes maximum par job, une transaction par ligne : observation, révision,
+reçu, audit et résultat atomiques. Verrous tenant et catalogue libérés entre
+lignes. Limites 1 Mio/100 lignes conservées ; aucun gros traitement synchrone
+sur toute la collection. Listes/détails paginés, état chargé en bloc pour la liste.
+
+Après panne, les lignes commises restent conservées. failed stocke uniquement
+PROCESSING_INTERRUPTED ; une panne de dispatch laisse queued durable et un message
+localisé, avec journal technique limité aux IDs/type d’exception. POST {import}/resume
+exige confirmation et version courante : nouvelle génération, anciens jobs et
+callbacks failed inertes. Reprise possible pour failed ou queued après perte du
+worker ou de la mise en file. Les lignes refusées restent définitives pour cet
+import ; les corriger dans un nouveau CSV. completed signifie toutes les lignes
+examinées : compteurs created/duplicate/rejected et code par ligne source.
+
+React : confirmation explicite, accord sur lignes invalides, progression,
+résultats paginés et reprise. Aucun traitement au dépôt ou à l’ouverture.
+Confirmation tenant avant mutation, pas de rejeu sur 409, import sélectionné
+conservé à l’actualisation, rendu échappé et captures mobiles 320/375 px.
+
+Mise en service : push → CI → sauvegarde → migration, puis recette isolée avec
+habilitations explicites, worker reports, révocation, concurrence et interruption.
+Activer ensuite explicitement STATISTICAL_IMPORT_PROCESSING_ENABLED sous supervision,
+avec rechargement habituel des configurations et workers. Le dépôt conserve false ;
+.env, base principale et droits réels inchangés. Aucun scheduler/fournisseur externe
+nécessaire au CSV. Recette et CI distantes restent à valider par l’utilisateur.
+
+Validation locale STAT-003B : 21 nouveaux cas backend de traitement/confirmation,
+un cas PostgreSQL avec deux processus indépendants, trois nouveaux tests frontend,
+et parcours Chrome avec API simulée : confirmation, accord sur lignes invalides,
+interruption, reprise, résultats et confidentialité. Captures 320/375 px relues,
+aucun débordement ; contenu dangereux affiché comme texte. API réelle et worker
+sont couverts séparément dans les tests backend, dont transport sync/TEN-006.
+
+Suite frontend complète : 394 réussis dans 56 fichiers ; lint, build et TypeScript
+application/tests/navigateur validés. Backend : suite SQLite complète, 2368 cas,
+2327 réussis et 41 ignorés. Cette passe précède les derniers cas MFA/tenant,
+changement de métrique et panne de validation après écriture ; sélection finale
+SQLite 80/80 avec ces cas, observations, aperçus et architecture. PHPStan zéro
+erreur, Pint, Composer strict et git diff --check réussis. Dépendances inchangées.
+
+Sélection PostgreSQL élargie : 194/194 réussis, incluant tous les schémas parents
+concernés et les courses d’import/correction. Cette sélection précède le dernier
+affinement : seules les erreurs de draft sont des refus de ligne ; une exception
+de validation en écriture/audit reste une panne réessayable et annule la ligne.
+Le test ajouté vérifie la reprise, sans création d’observation ou reçu orphelin.
+
+Validation PostgreSQL finale après cet ajustement : 22/22 réussis, couvrant les
+21 cas de traitement et la course entre deux imports. Les bases PostgreSQL jetables
+ont été supprimées après chaque passe. Aucun résultat local ne remplace la CI
+distante ou la recette avec les habilitations réelles.

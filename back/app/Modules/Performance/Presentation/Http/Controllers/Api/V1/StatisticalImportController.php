@@ -3,6 +3,7 @@
 namespace App\Modules\Performance\Presentation\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Performance\Application\Services\StatisticalImportConfirmation;
 use App\Modules\Performance\Application\Services\StatisticalImportService;
 use App\Modules\Performance\Domain\Models\StatisticalImport;
 use App\Modules\Performance\Presentation\Http\Requests\Api\V1\StatisticalImportRequest as Request;
@@ -39,5 +40,15 @@ final class StatisticalImportController extends Controller
 
         return Resource::make($this->service->show($context, $run->id))
             ->additional(['meta' => ['request_id' => $context->requestId], 'notification' => ['type' => 'success', 'message' => __('statistical_imports.saved')]]);
+    }
+
+    public function confirm(Request $request, TenantContext $context, string $tenant, string $import,
+        StatisticalImportConfirmation $confirmation): Resource
+    {
+        $this->gate->authorize('manage', [StatisticalImport::class, $context]);
+        $confirmation->confirm($context, $import, $request->validated(), $request->routeIs('api.v1.statistical-imports.resume'));
+
+        return Resource::make($this->service->show($context, $import))
+            ->additional(['meta' => ['request_id' => $context->requestId], 'notification' => ['type' => 'success', 'message' => __('statistical_imports.queued')]]);
     }
 }

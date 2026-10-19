@@ -2,6 +2,7 @@
 
 namespace App\Modules\Performance\Providers;
 
+use App\Modules\Performance\Application\Contracts\StatisticalImportQueue;
 use App\Modules\Performance\Domain\Contracts\MetricCatalogueRepository;
 use App\Modules\Performance\Domain\Contracts\ObservationRepository;
 use App\Modules\Performance\Domain\Contracts\StatisticalImportRepository;
@@ -11,6 +12,7 @@ use App\Modules\Performance\Domain\Models\StatisticalObservation;
 use App\Modules\Performance\Infrastructure\Persistence\EloquentMetricCatalogueRepository;
 use App\Modules\Performance\Infrastructure\Persistence\EloquentObservationRepository;
 use App\Modules\Performance\Infrastructure\Persistence\EloquentStatisticalImportRepository;
+use App\Modules\Performance\Infrastructure\Queue\LaravelStatisticalImportQueue;
 use App\Modules\Performance\Presentation\Policies\MetricCataloguePolicy;
 use App\Modules\Performance\Presentation\Policies\ObservationPolicy;
 use App\Modules\Performance\Presentation\Policies\StatisticalImportPolicy;
@@ -22,6 +24,8 @@ final class PerformanceServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(StatisticalImportQueue::class,
+            LaravelStatisticalImportQueue::class);
         $this->app->bind(StatisticalImportRepository::class, EloquentStatisticalImportRepository::class);
         $this->app->bind(ObservationRepository::class, EloquentObservationRepository::class);
         $this->app->bind(MetricCatalogueRepository::class, EloquentMetricCatalogueRepository::class);

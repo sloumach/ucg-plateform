@@ -10,7 +10,7 @@ const fake = vi.hoisted(() => ({ request: vi.fn(), invalid: vi.fn() }))
 vi.mock('../../api/tenancy', async (original) => ({ ...await original<typeof import('../../api/tenancy')>(), tenancyRequest: fake.request }))
 const org = '11111111-1111-4111-8111-111111111111', id = '22222222-2222-4222-8222-222222222222', revision = '33333333-3333-4333-8333-333333333333'
 const active: ActiveOrganization = { context: { organization_id: org, name: 'Alpha', slug: 'alpha', timezone: 'UTC', language: 'fr', roles: ['member'], permissions: ['sports.read', 'sports.write', 'sports.statistics.read', 'sports.statistics.write', 'sports.statistics.import'], actor_user_id: 42, is_owner: false, membership_id: id }, revision, confirmed: false }
-const run: StatisticalImport = { id, status: 'previewed', row_count: 1, valid_count: 0, invalid_count: 1, created_at: '2026-10-19T10:00:00Z', can_confirm: false, headers: ['value'], delimiter: ',', rows: { data: [{ line: 2, status: 'invalid', values: { value: '0', source_label: '<script>Source privée</script>' }, errors: { reference: ['Référence inaccessible.'] }, resolved: null }], meta: { current_page: 1, last_page: 2, per_page: 10, total: 11 } } }
+const run: StatisticalImport = { id, version: id, can_resume: false, processed_count: 0, counts: { created: 0, duplicate: 0, rejected: 0 }, failure_code: null, status: 'previewed', row_count: 1, valid_count: 0, invalid_count: 1, created_at: '2026-10-19T10:00:00Z', can_confirm: false, headers: ['value'], delimiter: ',', rows: { data: [{ line: 2, status: 'invalid', values: { value: '0', source_label: '<script>Source privée</script>' }, errors: { reference: ['Référence inaccessible.'] }, resolved: null }], meta: { current_page: 1, last_page: 2, per_page: 10, total: 11 } } }
 const root = 'tenants/' + org + '/statistical-imports'
 let failure: ApiClientError | null
 beforeEach(() => {
@@ -84,4 +84,51 @@ it('does not finish an upload after the organization panel unmounts during confi
   rendered.unmount(); release?.()
   await waitFor(() => expect(fake.request.mock.calls.filter(([path]) => path === 'active-organization/confirmation')).toHaveLength(1))
   expect(fake.request.mock.calls.some(([path, options]) => path === root && options?.method === 'POST')).toBe(false)
+})
+
+it('requires acknowledgment and an explicit tenant confirmation before processing valid rows', async () => {
+  const executable = { ...run, can_confirm: true, valid_count: 1 }
+  fake.request.mockImplementation(async (path: string, options?: { method?: string }) => {
+    if (path === 'active-organization/confirmation') return { data: { ...active, confirmed: true } }
+    if (options?.method === 'POST') return { data: { ...executable, status: 'queued', can_confirm: false, can_resume: true } }
+    if (path.includes('/statistical-imports/')) return { data: executable }
+    return { data: [executable], meta: { current_page: 1, last_page: 1, total: 1 } }
+  })
+  show(); await open(); await userEvent.click(screen.getByRole('button', { name: 'Voir cet aperçu · 22222222' }))
+  const execute = await screen.findByRole('button', { name: 'Importer les observations valides' })
+  expect(execute).toBeDisabled()
+  await userEvent.click(screen.getByRole('checkbox', { name: 'J’accepte que les lignes invalides de cet aperçu soient ignorées.' }))
+  await userEvent.click(execute)
+  expect(fake.request.mock.calls.some(([path]) => path.endsWith('/confirm'))).toBe(false)
+  await userEvent.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
+  await waitFor(() => expect(fake.request.mock.calls.some(([path]) => path === root + '/' + id + '/confirm')).toBe(true))
+  const writes = fake.request.mock.calls.filter(([, options]) => options?.method === 'POST')
+  expect(writes.map(([path]) => path)).toEqual(['active-organization/confirmation', root + '/' + id + '/confirm'])
+  expect(writes[1]![1]).toMatchObject({ revision, body: { version: id, confirm: true, acknowledge_rejected: true } })
+})
+
+it('resumes an interrupted import with its execution version and displays saved outcomes', async () => {
+  const interrupted = { ...run, status: 'failed', version: revision, can_resume: true, processed_count: 1, counts: { created: 0, duplicate: 0, rejected: 1 }, failure_code: 'PROCESSING_INTERRUPTED', rows: { ...run.rows, data: [{ ...run.rows.data[0]!, outcome: { status: 'rejected', code: 'OBSERVATION_CONFLICT' } }] } }
+  fake.request.mockImplementation(async (path: string, options?: { method?: string }) => {
+    if (options?.method === 'POST' || path.includes('/statistical-imports/')) return { data: interrupted }
+    return { data: [interrupted], meta: { current_page: 1, last_page: 1, total: 1 } }
+  })
+  show({ ...active, confirmed: true }); await open(); await userEvent.click(screen.getByRole('button', { name: 'Voir cet aperçu · 22222222' }))
+  const resume = await screen.findByRole('button', { name: 'Reprendre le traitement' })
+  expect(await screen.findByText(/Une observation de même origine existe/)).toBeVisible()
+  await userEvent.click(resume); await userEvent.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
+  await waitFor(() => expect(fake.request).toHaveBeenCalledWith(root + '/' + id + '/resume', expect.objectContaining({ revision, body: { version: revision, confirm: true } })))
+})
+
+it('does not replay a confirmation refused with a stale version', async () => {
+  fake.request.mockImplementation(async (path: string, options?: { method?: string }) => {
+    if (options?.method === 'POST') throw new ApiClientError('Import modifié.', { status: 409 })
+    if (path.includes('/statistical-imports/')) return { data: { ...run, can_confirm: true, invalid_count: 0 } }
+    return { data: [run], meta: { current_page: 1, last_page: 1, total: 1 } }
+  })
+  show({ ...active, confirmed: true }); await open(); await userEvent.click(screen.getByRole('button', { name: 'Voir cet aperçu · 22222222' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Importer les observations valides' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
+  await waitFor(() => expect(fake.invalid).toHaveBeenCalledOnce())
+  expect(fake.request.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(1)
 })

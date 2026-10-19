@@ -2,6 +2,7 @@
 
 namespace App\Modules\Performance\Presentation\Http\Requests\Api\V1;
 
+use App\Modules\Performance\Application\Services\StatisticalImportConfirmation;
 use App\Modules\Performance\Application\Validation\ObservationInput;
 use App\Modules\Performance\Domain\Models\StatisticalImport;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
@@ -19,6 +20,10 @@ final class StatisticalImportRequest extends FormRequest
     /** @return array<string,mixed> */
     public function rules(): array
     {
+        if ($this->routeIs('api.v1.statistical-imports.confirm', 'api.v1.statistical-imports.resume')) {
+            return StatisticalImportConfirmation::rules($this->routeIs('api.v1.statistical-imports.resume'));
+        }
+
         return $this->isMethod('POST') ? [
             'file' => ['required', 'file', 'extensions:csv', 'mimetypes:text/plain,text/csv,application/csv,application/vnd.ms-excel', 'max:1024'],
             'delimiter' => ['required', Rule::in([',', ';'])],

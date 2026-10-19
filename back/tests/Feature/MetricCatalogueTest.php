@@ -174,11 +174,14 @@ class MetricCatalogueTest extends TestCase
     {
         $migration = require database_path('migrations/2026_10_19_094551_create_metric_dictionary.php');
         $observations = require database_path('migrations/2026_10_19_113618_create_statistical_observations.php');
+        $statisticalExecution = require database_path('migrations/2026_10_19_175141_create_statistical_import_executions.php');
+        $statisticalExecution->down();
         $observations->down();
         $migration->down();
         $this->assertFalse(Schema::hasTable('metric_definitions'));
         $migration->up();
         $observations->up();
+        $statisticalExecution->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
     }
 

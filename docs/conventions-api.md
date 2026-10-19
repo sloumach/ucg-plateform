@@ -3813,8 +3813,7 @@ audience actuelle des matchs résolus réappliquée. Réponses private, no-store
 | POST | racine | multipart file et delimiter ; 200 avec aperçu |
 | GET | {import}?page=1 | aperçu daté, dix lignes, erreurs par champ/ligne source |
 
-POST prépare l’aperçu immédiatement. Aucune route confirm/process, aucun job ni
-observation créés. `status: previewed` et `can_confirm: false` restent constants.
+Le contrat initial A prépare uniquement un aperçu sans observation. STAT-003B ajoute les routes confirm/resume et les statuts décrits dans la section suivante.
 Réponse : id, compteurs row_count/valid_count/invalid_count, created_at,
 meta.request_id ; le dépôt ajoute une notification localisée. Le détail ajoute
 headers, delimiter et rows:{data,meta:{current_page,last_page,per_page,total}}.
@@ -3866,3 +3865,76 @@ réutilise son aperçu ; les doublons exacts dans le fichier sont invalides.
 Cela ne garantit pas l’idempotence d’observations entre fichiers : confirmation,
 origines, traitement et reprise restent STAT-003B. Un aperçu ancien ne dispense
 jamais de revalider droits, références et versions.
+
+### STAT-003B — confirmation et reprise des CSV statistiques
+
+Complète le contrat initial STAT-003A ci-dessus : le dépôt conserve son rôle de
+prévisualisation, les routes suivantes autorisent ensuite le traitement. Mêmes
+cinq permissions, session/e-mail vérifiés, MFA, tenant confirmé et X-Tenant-Revision.
+Import et résultats privés au déposant ; autre déposant/tenant : 404. Réponses
+Resource privées/no-store, meta.request_id et notification localisée sur mutation.
+
+| Méthode | Route relative à statistical-imports | Entrée fermée |
+| --- | --- | --- |
+| POST | {import}/confirm | version UUID de l’aperçu, confirm accepté, acknowledge_rejected booléen facultatif |
+| POST | {import}/resume | version UUID courante de l’exécution, confirm accepté |
+
+Le premier confirm revalide les lignes valides. Si des lignes invalides existent,
+acknowledge_rejected doit être true après accord explicite, sinon 409
+STAT_IMPORT_REJECTED. Version/référence modifiée : 409 STAT_IMPORT_STALE, préparer
+un nouvel aperçu. Aucune ligne valide : STAT_IMPORT_EMPTY. Droits révoqués : 403.
+Clé inconnue/confirmation invalide : 422 ; version de requête périmée : 409
+STAT_IMPORT_VERSION. Ne jamais rejouer automatiquement une mutation sur 409.
+
+Confirmation répétée avec l’UUID de l’aperçu : même exécution, aucun nouveau job.
+Reprise : version courante reçue par GET, remplacée à la remise en file ; anciens
+jobs et callbacks de panne deviennent inertes. Les résultats acquis sont conservés.
+Les lignes déjà refusées ne sont pas réexaminées : les corriger dans un nouveau CSV.
+Reprise après completed avec version courante : aucun job.
+
+Résumé/détail ajoutent version, processed_count, counts:{created,duplicate,rejected},
+failure_code nullable, can_resume et can_confirm calculés côté serveur. status :
+previewed, queued, completed ou failed. completed signifie toutes les lignes examinées,
+même refusées. Les compteurs valid_count/invalid_count restent ceux de la préparation.
+Chaque ligne du détail ajoute outcome nullable : status created|duplicate|rejected
+et code nullable. Codes fermés : PREVIEW_INVALID, REFERENCE_CHANGED, ALREADY_IMPORTED,
+OBSERVATION_CONFLICT. Aucun ID d’observation d’un autre déposant exposé.
+
+La déduplication inclut organisation, métrique, joueur, jeu, source, période et
+contexte, indépendamment du fichier/déposant et de la justification. Contenu identique :
+aucune création. Contenu différent sur la même origine : conflit sans écrasement ;
+utiliser la correction STAT-002 avec ses droits dédiés. Une transaction par ligne
+réunit observation, révision, reçu, audit et résultat ; dix lignes maximum par job
+reports, droits/références revérifiés. Reprise après le dernier résultat commis.
+PROCESSING_INTERRUPTED reste générique, sans cellule ou exception privée.
+
+Panne de mise en file : 409 STAT_IMPORT_DISPATCH_FAILED, état queued durable ;
+consulter GET puis confirmer explicitement une reprise. Traitement désactivé :
+409 STAT_IMPORT_DISABLED, sans nouvelle exécution. Le réglage opérateur
+STATISTICAL_IMPORT_PROCESSING_ENABLED reste false par défaut. Migration additive,
+CI/sauvegarde et recette isolée avant activation ; worker database/Redis écoutant
+reports requis pour le traitement asynchrone. Aucune activation réelle par l’agent.
+
+Exemple après initialisation CSRF/session, confirmation du tenant et accord de
+l’utilisateur sur les lignes invalides :
+
+```ts
+const root = `tenants/${organizationId}/statistical-imports/${importId}`
+const preview = await tenancyRequest<ApiSuccessResponse<StatisticalImport>>(root, {
+  revision: activeRevision,
+})
+await tenancyRequest(root + '/confirm', {
+  method: 'POST', revision: activeRevision,
+  body: { version: preview.data.version, confirm: true, acknowledge_rejected: true },
+})
+// Après consultation du suivi et décision explicite de reprendre une interruption :
+const current = await tenancyRequest<ApiSuccessResponse<StatisticalImport>>(root, {
+  revision: activeRevision,
+})
+if (current.data.can_resume) {
+  await tenancyRequest(root + '/resume', {
+    method: 'POST', revision: activeRevision,
+    body: { version: current.data.version, confirm: true },
+  })
+}
+```

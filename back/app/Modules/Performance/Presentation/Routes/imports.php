@@ -7,4 +7,8 @@ Route::prefix('tenants/{tenant}/statistical-imports')->whereUuid('tenant')->midd
     Route::get('', [Controller::class, 'index'])->name('statistical-imports.index');
     Route::post('', [Controller::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('statistical-imports.store');
     Route::get('{import}', [Controller::class, 'show'])->whereUuid('import')->name('statistical-imports.show');
+    foreach (['confirm', 'resume'] as $action) {
+        Route::post('{import}/'.$action, [Controller::class, 'confirm'])->whereUuid('import')
+            ->middleware('tenant.confirmed')->block(10, 10)->name('statistical-imports.'.$action);
+    }
 });

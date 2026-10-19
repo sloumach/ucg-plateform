@@ -140,6 +140,8 @@ class GameCatalogueSchemaTest extends TestCase
         $outcomes = require database_path('migrations/2026_10_19_005858_create_competition_outcome_tracking.php');
         $metrics = require database_path('migrations/2026_10_19_094551_create_metric_dictionary.php');
         $observations = require database_path('migrations/2026_10_19_113618_create_statistical_observations.php');
+        $statisticalExecution = require database_path('migrations/2026_10_19_175141_create_statistical_import_executions.php');
+        $statisticalExecution->down();
         $observations->down();
         $metrics->down();
         $outcomes->down();
@@ -191,6 +193,7 @@ class GameCatalogueSchemaTest extends TestCase
         $outcomes->up();
         $metrics->up();
         $observations->up();
+        $statisticalExecution->up();
         $this->assertDatabaseCount('game_catalogue_entries', 18);
         $this->assertDatabaseCount('organization_games', 0);
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
@@ -240,6 +243,8 @@ class GameCatalogueSchemaTest extends TestCase
         $outcomes = require database_path('migrations/2026_10_19_005858_create_competition_outcome_tracking.php');
         $metrics = require database_path('migrations/2026_10_19_094551_create_metric_dictionary.php');
         $observations = require database_path('migrations/2026_10_19_113618_create_statistical_observations.php');
+        $statisticalExecution = require database_path('migrations/2026_10_19_175141_create_statistical_import_executions.php');
+        $statisticalExecution->down();
         $observations->down();
         $metrics->down();
         $outcomes->down();
@@ -299,6 +304,7 @@ class GameCatalogueSchemaTest extends TestCase
         $outcomes->up();
         $metrics->up();
         $observations->up();
+        $statisticalExecution->up();
         $this->assertDatabaseCount('organization_games', 4);
         $this->assertSame(1, OrganizationGame::query()->where('organization_id', $org->id)->where('enabled', true)->count());
     }

@@ -135,6 +135,8 @@ class PersonSchemaTest extends TestCase
         $notebook = require database_path('migrations/2026_10_18_155140_create_match_notebook_revisions.php');
         $outcomes = require database_path('migrations/2026_10_19_005858_create_competition_outcome_tracking.php');
         $observations = require database_path('migrations/2026_10_19_113618_create_statistical_observations.php');
+        $statisticalExecution = require database_path('migrations/2026_10_19_175141_create_statistical_import_executions.php');
+        $statisticalExecution->down();
         $observations->down();
         $outcomes->down();
         $notebook->down();
@@ -192,6 +194,7 @@ class PersonSchemaTest extends TestCase
         $notebook->up();
         $outcomes->up();
         $observations->up();
+        $statisticalExecution->up();
         $availability->up();
 
         $this->assertTrue(Schema::hasTable('statistical_imports'));

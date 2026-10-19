@@ -8,4 +8,10 @@ return [
     'duplicate' => 'Ligne identique déjà présente dans ce fichier.',
     'columns' => 'Le nombre de cellules ne correspond pas aux en-têtes.',
     'stale' => 'La métrique ou une référence a changé : préparez un nouveau fichier à jour.',
+    'version' => 'Cet import a changé. Actualisez son suivi avant de continuer.',
+    'empty' => 'Aucune ligne valide à importer. Préparez un fichier corrigé.',
+    'rejected' => 'Confirmez explicitement que les lignes invalides seront ignorées.',
+    'disabled' => 'Le traitement des CSV statistiques doit être activé par un opérateur après recette.',
+    'queued' => 'Import confirmé. Consultez le suivi pour connaître les observations effectivement créées.',
+    'dispatch_failed' => 'La mise en file a échoué. L’import est conservé ; utilisez la reprise après rétablissement du service.',
 ];

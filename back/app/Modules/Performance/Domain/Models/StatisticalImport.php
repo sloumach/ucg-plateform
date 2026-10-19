@@ -5,6 +5,7 @@ namespace App\Modules\Performance\Domain\Models;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * @property string $id
@@ -20,6 +21,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $invalid_count
  * @property string $request_id
  * @property CarbonImmutable $created_at
+ * @property-read StatisticalImportExecution|null $execution
  */
 final class StatisticalImport extends Model
 {
@@ -30,6 +32,12 @@ final class StatisticalImport extends Model
     protected $guarded = ['*'];
 
     protected $hidden = ['organization_id', 'actor_user_id', 'artifact_id', 'fingerprint', 'headers', 'preview', 'request_id'];
+
+    /** @return HasOne<StatisticalImportExecution,$this> */
+    public function execution(): HasOne
+    {
+        return $this->hasOne(StatisticalImportExecution::class, 'import_id');
+    }
 
     protected function casts(): array
     {

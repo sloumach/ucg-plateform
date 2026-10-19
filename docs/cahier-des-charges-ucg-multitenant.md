@@ -520,7 +520,7 @@ version exacte de métrique ; les en-têtes inconnus sont refusés. Limites 1 Mi
 de zéro. Le fichier et l’aperçu sont chiffrés ; chaque déposant consulte seulement
 ses aperçus dans l’organisation active, avec droits explicites et audience match
 actuelle. Aucune observation n’est créée, même si toutes les lignes sont valides.
-La confirmation et le traitement idempotent avec reprise restent STAT-003B.
+STAT-003B ajoute localement la confirmation, la revalidation, les résultats privés par ligne et la reprise explicite. La déduplication couvre les fichiers et déposants du même tenant ; un contenu différent sur une même origine est refusé sans écrasement. Le traitement reste désactivé par défaut avant recette et activation supervisée.
 
 ### 10.4 Faisabilité des connecteurs
 

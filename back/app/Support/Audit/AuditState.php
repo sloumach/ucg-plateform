@@ -16,6 +16,7 @@ final class AuditState
         foreach ($state as $key => $value) {
             $valid = match ($key) {
                 'statistical_import_id', 'observation_id' => is_string($value) && Str::isUuid($value),
+                'statistical_import_action' => is_string($value) && in_array($value, ['confirmed', 'resumed'], true),
                 'observation_action' => is_string($value) && in_array($value, ['created', 'corrected'], true),
                 'external_competition_id', 'external_competition_document_id' => is_string($value) && Str::isUuid($value),
                 'external_competition_action' => is_string($value) && in_array($value, ['created', 'updated', 'archived', 'document_created', 'document_updated', 'registration_updated', 'outcomes_updated', 'awards_updated'], true),

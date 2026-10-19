@@ -168,6 +168,7 @@ final readonly class StatisticalImportService
         $ids = array_values(array_unique(array_filter(array_column(array_column($visible, 'resolved'), 'person_id'))));
         $labels = $this->people->pseudonyms($context, $ids);
         foreach ($visible as &$row) {
+            $row['outcome'] = $run->execution?->results[$row['line']] ?? null;
             if ($row['resolved'] !== null) {
                 $row['resolved']['person_label'] = $labels[$row['resolved']['person_id']] ?? null;
             }
@@ -181,9 +182,18 @@ final readonly class StatisticalImportService
     /** @return array<string,mixed> */
     private function summary(StatisticalImport $run): array
     {
-        return ['id' => $run->id, 'status' => 'previewed', 'row_count' => $run->row_count,
+        $execution = $run->execution;
+        $counts = ['created' => 0, 'duplicate' => 0, 'rejected' => 0];
+        foreach ($execution->results ?? [] as $result) {
+            $counts[$result['status']]++;
+        }
+
+        return ['id' => $run->id, 'status' => $execution->status ?? 'previewed', 'row_count' => $run->row_count,
             'valid_count' => $run->valid_count, 'invalid_count' => $run->invalid_count, 'created_at' => $run->created_at->toISOString(),
-            'can_confirm' => false];
+            'version' => $execution->version ?? $run->id, 'processed_count' => $execution->processed_count ?? 0,
+            'counts' => $counts, 'failure_code' => $execution?->failure_code,
+            'can_confirm' => config('statistical_imports.processing_enabled', false) && $execution === null && $run->valid_count > 0,
+            'can_resume' => config('statistical_imports.processing_enabled', false) && $execution !== null && $execution->status !== 'completed'];
     }
 
     private function cleanup(TenantContext $context, string $artifact): void

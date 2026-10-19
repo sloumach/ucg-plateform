@@ -104,10 +104,13 @@ class PersonImportSchemaTest extends TestCase
         $scans->down();
         $documents->down();
         $statImports = require database_path('migrations/2026_10_19_143154_create_statistical_import_previews.php');
+        $statisticalExecution = require database_path('migrations/2026_10_19_175141_create_statistical_import_executions.php');
+        $statisticalExecution->down();
         $statImports->down();
         $migration->down();
         $migration->up();
         $statImports->up();
+        $statisticalExecution->up();
         $documents->up();
         $scans->up();
         $governance->up();

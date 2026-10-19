@@ -3557,3 +3557,29 @@ Sélection PostgreSQL complète du workflow CI rejouée localement après correc
 2139 cas, 2137 réussis, deux ignorés, aucun échec et 11794 assertions.
 La base PostgreSQL jetable a été supprimée. La CI distante reste à relancer après
 push du correctif ; aucune nouvelle migration nécessaire pour ce correctif.
+
+### Imports statistiques confirmés — UCG-STAT-003B
+
+Le dépôt CSV prépare un aperçu privé ; seule une confirmation explicite autorise
+la création des observations. STAT-003B ajoute confirmation, revalidation,
+déduplication par organisation entre fichiers/déposants, résultats par ligne et
+reprise sans recréer les observations acquises. Une valeur différente sur la même
+origine est refusée sans écrasement : utiliser la correction autorisée STAT-002.
+
+La migration additive `2026_10_19_175141` crée le suivi et les reçus immuables.
+Appliquer après push, CI et sauvegarde, puis recetter en environnement isolé.
+Ne pas modifier les migrations A/STAT-002 ni utiliser migrate:fresh.
+`STATISTICAL_IMPORT_PROCESSING_ENABLED=false` reste la valeur par défaut.
+Activer explicitement après recette et recharger configurations/workers selon
+les procédures habituelles. Aucun .env réel, worker, fournisseur ou droit réel modifié.
+
+La file reports traite dix lignes maximum par job et une transaction par ligne.
+Un worker database/Redis est requis pour le traitement asynchrone ; le worker local
+documenté ci-dessus écoute déjà cette file. Après panne, consulter le suivi puis
+confirmer une reprise ; anciennes générations de jobs inertes, résultats conservés.
+Limites 1 Mio/100 lignes inchangées. Reçus indexés par organisation/identité ; suivi
+chargé en bloc pour les listes. Profiler les verrous tenant/catalogue avant tout
+élargissement des quotas ou parallélisme supplémentaire.
+
+Voir [le contrat API et ses exemples](docs/conventions-api.md) et
+[les résultats de validation](docs/etat-projet.md).

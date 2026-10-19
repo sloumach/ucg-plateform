@@ -8,6 +8,7 @@ use App\Modules\People\Application\Contracts\SportingPeopleDirectory;
 use App\Modules\Performance\Application\Validation\ObservationInput as Input;
 use App\Modules\Performance\Domain\Contracts\MetricCatalogueRepository;
 use App\Modules\Performance\Domain\Contracts\ObservationRepository;
+use App\Modules\Performance\Domain\Contracts\StatisticalImportRepository;
 use App\Modules\Performance\Domain\Models\ObservationRevision as Revision;
 use App\Modules\Performance\Domain\Models\StatisticalObservation as Observation;
 use App\Modules\Teams\Application\Contracts\MatchReferenceDirectory;
@@ -21,15 +22,17 @@ use App\Support\Audit\AuditReason;
 use App\Support\Audit\AuditTarget;
 use App\Support\Audit\AuditWriteData;
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Encryption\Encrypter;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\Validation\Factory;
 use Illuminate\Database\ConnectionInterface;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 final readonly class ObservationService
 {
-    public function __construct(private ObservationRepository $records, private MetricCatalogueRepository $metrics, private MetricCatalogueService $dictionary, private ObservationMatchDirectory $matches, private SportingPeopleDirectory $people, private MatchReferenceDirectory $games, private MetricGameDirectory $catalogue, private TenantAuthorization $authorization, private TenantBusinessGuard $guard, private TenantAuditJournal $audit, private ConnectionInterface $database, private Factory $validator) {}
+    public function __construct(private ObservationRepository $records, private MetricCatalogueRepository $metrics, private MetricCatalogueService $dictionary, private ObservationMatchDirectory $matches, private SportingPeopleDirectory $people, private MatchReferenceDirectory $games, private MetricGameDirectory $catalogue, private TenantAuthorization $authorization, private TenantBusinessGuard $guard, private TenantAuditJournal $audit, private ConnectionInterface $database, private Factory $validator, private Encrypter $crypt, private StatisticalImportRepository $imports) {}
 
     public function authorize(TenantContext $context, string $operation = 'read'): void
     {
@@ -159,6 +162,52 @@ final readonly class ObservationService
         $values = $this->revisionValues($v);
 
         return ['observation' => $this->prepare($context, $v), 'revision' => [...$values, 'reason' => trim($v['reason'])]];
+    }
+
+    /** Caller holds the tenant guard; receipt and observation commit in the same line transaction.
+     * @param  array<string,mixed>  $input
+     * @return array{status:string,code:?string}
+     */
+    public function import(TenantContext $context, array $input, string $importId): array
+    {
+        return $this->database->transaction(function () use ($context, $input, $importId): array {
+            $this->guard->lock($context);
+            $this->authorize($context, 'create');
+            $this->authorization->authorize($context, 'sports.statistics.import');
+            $this->catalogue->lock($this->catalogue->version());
+            $this->metrics->state(true);
+            try {
+                $draft = $this->draft($context, $input);
+            } catch (ValidationException|ModelNotFoundException|DomainConflictException) {
+                return ['status' => 'rejected', 'code' => 'REFERENCE_CHANGED'];
+            }
+            $attributes = $draft['observation'];
+            $values = $draft['revision'];
+            $identity = array_intersect_key($attributes, array_flip(['organization_id', 'metric_id', 'game_id', 'person_id',
+                'match_id', 'match_game_id', 'source_kind', 'source_label', 'period_start', 'period_end', 'observed_on']));
+            $identity['scope'] = array_intersect_key($attributes['context'], array_flip(['region', 'season', 'map', 'opponent', 'round_number', 'session_label']));
+            $identity['references'] = array_intersect_key($attributes['context']['game_context'], array_flip(['mode_id', 'role_id', 'release_id']));
+            $key = hash_hmac('sha256', json_encode($identity, JSON_THROW_ON_ERROR), $this->crypt->getKey());
+            $hash = hash_hmac('sha256', json_encode([$attributes['metric_revision_id'], $attributes['sample_size'],
+                array_intersect_key($values, array_flip(Input::REVISION_FIELDS))], JSON_THROW_ON_ERROR), $this->crypt->getKey());
+            $receipt = $this->imports->receipt($context->organizationId, $key);
+            if ($receipt !== null) {
+                return hash_equals($receipt->payload_hash, $hash)
+                    ? ['status' => 'duplicate', 'code' => 'ALREADY_IMPORTED']
+                    : ['status' => 'rejected', 'code' => 'OBSERVATION_CONFLICT'];
+            }
+            $record = $this->records->create([...$attributes, 'acquired_via' => 'import', 'origin_reference' => 'csv:'.$key]);
+            $revision = $this->records->append(['id' => (string) Str::uuid(), 'organization_id' => $context->organizationId,
+                'observation_id' => $record->id, 'number' => 1, 'base_version' => null, ...$values,
+                'actor_user_id' => $context->actorUserId, 'request_id' => $context->requestId]);
+            $this->imports->createReceipt(['organization_id' => $context->organizationId, 'import_id' => $importId,
+                'observation_id' => $record->id, 'identity_key' => $key, 'payload_hash' => $hash]);
+            $this->audit->record($context->organizationId, new AuditWriteData($context->actorUserId, AuditAction::DomainChanged,
+                AuditTarget::Organization, $context->organizationId, AuditReason::Domain, $context->requestId, null, [],
+                ['observation_id' => $record->id, 'statistical_import_id' => $importId, 'version' => $revision->id]));
+
+            return ['status' => 'created', 'code' => null];
+        });
     }
 
     /** @param array<string,mixed> $v

@@ -14,6 +14,7 @@ use App\Modules\Competition\Application\Services\MatchService;
 use App\Modules\Competition\Application\Services\ProcessCompetitionRegistrationReminders;
 use App\Modules\Performance\Application\Services\MetricCatalogueService;
 use App\Modules\Performance\Application\Services\ObservationService;
+use App\Modules\Performance\Application\Services\StatisticalImportProcessor;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use App\Modules\Tenancy\Application\Contracts\TenantExecutionContext;
 use Carbon\CarbonImmutable;
@@ -47,7 +48,9 @@ while (! is_file($barrier)) {
 }
 try {
     $service = app(MatchService::class);
-    if ($payload['operation'] === 'observation') {
+    if ($payload['operation'] === 'statistical_import') {
+        app(StatisticalImportProcessor::class)->process($context, $payload['import'], $payload['version']);
+    } elseif ($payload['operation'] === 'observation') {
         app(ObservationService::class)->save($context, $payload['input'], $payload['observation']);
     } elseif ($payload['operation'] === 'metric') {
         app(MetricCatalogueService::class)->save($context->actorUserId, $context->requestId, $payload['input'], $payload['metric']);

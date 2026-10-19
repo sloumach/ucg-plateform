@@ -39,20 +39,23 @@ export function StatisticalImportsPanel({ active, disabled, onInvalid }: Props) 
       </form>
       <details className="min-w-0"><summary>{text('schema')}</summary><p>{text('schemaHint')}</p><code className="block whitespace-pre-wrap [overflow-wrap:anywhere]">{statisticalCsvHeaders.join(',')}</code><p>{text('optional')}</p></details>
       <ImportReferences {...{ active, onInvalid }} disabled={blocked} />
-      <Button disabled={blocked || loading} onClick={() => { setSelected(null); setRefresh((n) => n + 1) }}>{text('refresh')}</Button>
+      <Button disabled={blocked || loading} onClick={() => setRefresh((n) => n + 1)}>{text('refresh')}</Button>
       {loading && <p role="status">{text('loading')}</p>}{error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
       {list?.data.length === 0 && <p>{text('empty')}</p>}
       <ul className="grid min-w-0 gap-3">{list?.data.map((run) => <li key={run.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
-        <p className="[overflow-wrap:anywhere]">{run.created_at} · {text('valid')} : {run.valid_count} · {text('invalid')} : {run.invalid_count}</p>
+        <p>{text(run.status)}</p><p className="[overflow-wrap:anywhere]">{run.created_at} · {text('valid')} : {run.valid_count} · {text('invalid')} : {run.invalid_count}</p>
         <Button disabled={blocked} onClick={() => { setSelected(run.id); setRowPage(1) }}>{text('view')} · {run.id.slice(-8)}</Button>
       </li>)}</ul>
       {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} onPageChange={(n) => { setPage(n); setSelected(null) }} disabled={blocked || loading} />}
-      {selected && <ImportPreview key={selected + ':' + rowPage + ':' + refresh} {...{ active, onInvalid }} path={root + '/' + selected + '?page=' + rowPage} disabled={blocked} onPageChange={setRowPage} />}
+      {selected && <ImportPreview key={selected + ':' + rowPage + ':' + refresh} {...{ active, onInvalid }} path={root + '/' + selected + '?page=' + rowPage} disabled={blocked} onPageChange={setRowPage} onSaved={() => setRefresh((n) => n + 1)} />}
     </>}
   </section>
 }
-function ImportPreview({ active, path, disabled, onInvalid, onPageChange }: Props & { path: string; onPageChange: (n: number) => void }) {
+function ImportPreview({ active, path, disabled, onInvalid, onPageChange, onSaved }: Props & { path: string; onPageChange: (n: number) => void; onSaved: () => void }) {
   const [run, setRun] = useState<StatisticalImport | null>(null), [error, setError] = useState<ReturnType<typeof apiError> | null>(null)
+  const [acknowledge, setAcknowledge] = useState(false)
+  const mutation = usePeopleMutation<StatisticalImport>(active, onSaved, onInvalid)
+  const blocked = disabled || mutation.blocked
   useEffect(() => {
     const controller = new AbortController()
     void tenancyRequest<ApiSuccessResponse<StatisticalImport>>(path, { revision: active.revision ?? undefined, signal: controller.signal }).then((result) => {
@@ -66,14 +69,23 @@ function ImportPreview({ active, path, disabled, onInvalid, onPageChange }: Prop
   return <section aria-label={text('preview')} className="grid min-w-0 gap-3"><h3 className="font-bold">{text('preview')}</h3><p>{text('advisory')}</p>
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
     {!run && !error && <p role="status">{text('loading')}</p>}
-    {run && <><p>{text('valid')} : {run.valid_count} · {text('invalid')} : {run.invalid_count}</p>
+    {mutation.feedback}
+    {run && <><p role="status">{text(run.status)} · {run.processed_count} / {run.row_count} · {text('created')} : {run.counts.created} · {text('duplicate')} : {run.counts.duplicate} · {text('rejected')} : {run.counts.rejected}</p>
+      {run.failure_code && <Alert tone="error" title={text(run.failure_code)} />}
+      {(run.can_confirm || run.can_resume) && <form aria-label={text('execution')} onSubmit={(event) => mutation.propose(event, text(run.can_confirm ? 'confirm' : 'resume'), path.split('?')[0] + (run.can_confirm ? '/confirm' : '/resume'), { version: run.version, confirm: true, ...(run.can_confirm ? { acknowledge_rejected: acknowledge } : {}) })} className="grid min-w-0 gap-3">
+        <p>{text('confirmHint')}</p>
+        {run.can_confirm && run.invalid_count > 0 && <label className="flex items-start gap-2"><input type="checkbox" checked={acknowledge} disabled={blocked} onChange={(event) => setAcknowledge(event.target.checked)} />{text('acknowledge')}</label>}
+        <Button type="submit" disabled={blocked || (run.can_confirm && run.invalid_count > 0 && !acknowledge)}>{text(run.can_confirm ? 'confirm' : 'resume')}</Button>
+      </form>}
+      <p>{text('valid')} : {run.valid_count} · {text('invalid')} : {run.invalid_count}</p>
       {run.rows.data.map((row) => <article key={row.line} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3 whitespace-pre-wrap [overflow-wrap:anywhere]">
+        {row.outcome && <p>{text(row.outcome.status)}{row.outcome.code ? ' · ' + text(row.outcome.code) : ''}</p>}
         <h4 className="font-bold">{text('line')} {row.line} · {text(row.status)}</h4>
         {row.resolved && <p>{row.resolved.person_label ?? observationText('hiddenPerson')} · {row.resolved.metric.code} · {row.resolved.metric.title} · v{row.resolved.metric.number}</p>}
         <dl className="grid min-w-0 gap-2">{Object.entries(row.values).map(([field, value]) => <div key={field}><dt className="font-semibold">{observationText(field)}</dt><dd>{value === null ? '—' : ['availability', 'source_kind', 'status'].includes(field) ? observationText(String(value)) : value}</dd></div>)}</dl>
         {Object.entries(row.errors).map(([field, messages]) => <p key={field} className="text-rose-200">{field} : {messages.join(' ')}</p>)}
       </article>)}
-      <Pagination currentPage={run.rows.meta.current_page} totalPages={run.rows.meta.last_page} onPageChange={onPageChange} disabled={disabled} />
+      <Pagination currentPage={run.rows.meta.current_page} totalPages={run.rows.meta.last_page} onPageChange={onPageChange} disabled={blocked} />
     </>}
   </section>
 }

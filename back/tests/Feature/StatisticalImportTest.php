@@ -88,7 +88,7 @@ class StatisticalImportTest extends TestCase
             ->assertJsonPath('data.rows.data.2.status', 'invalid')->assertJsonPath('data.rows.data.3.status', 'invalid');
         $id = $response->json('data.id');
         $this->getJson($s['imports'].'/'.$id)->assertOk()->assertHeader('Cache-Control', 'no-store, private');
-        $this->postJson($s['imports'].'/'.$id.'/confirm', ['confirm' => true])->assertNotFound();
+        $this->postJson($s['imports'].'/'.$id.'/confirm', ['confirm' => true])->assertUnprocessable()->assertJsonValidationErrors('version');
         $this->assertDatabaseCount('statistical_observations', 0);
         $this->assertDatabaseCount('observation_revisions', 0);
         $this->assertDatabaseCount('people', 1);
@@ -319,9 +319,12 @@ class StatisticalImportTest extends TestCase
     public function test_empty_migration_can_be_reversed_and_reapplied(): void
     {
         $this->assertDatabaseCount('statistical_imports', 0);
+        $statisticalExecution = require database_path('migrations/2026_10_19_175141_create_statistical_import_executions.php');
+        $statisticalExecution->down();
         $migration = require database_path('migrations/2026_10_19_143154_create_statistical_import_previews.php');
         $migration->down();
         $migration->up();
+        $statisticalExecution->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         app(PortabilityRepository::class)->assertCatalog();
     }
