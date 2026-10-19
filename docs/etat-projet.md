@@ -5,14 +5,18 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 18 octobre 2026.
+- Dernière mise à jour : 19 octobre 2026.
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-COMP-001` — suivi privé des compétitions externes.
-  Implémentation locale sur staging, push/CI et nouvelle migration à valider.
-  Migration `2026_10_18_210127` en attente sur la base principale ; aucun migrate/seed,
-  dossier réel, droit réel ou worker activé par l’agent. Prochain P0 : COMP-002.
+- Dernier ticket traité : `UCG-COMP-002` — suivi interne de participation et échéances.
+  Livraison locale sur staging ; nouveau push/CI et migration à valider.
+  Migration `2026_10_18_231153` en attente. Aucun migrate/seed principal,
+  droit réel, donnée métier réelle, worker ou rappel réel activé par l’agent.
+  Prochain P0 après validation : COMP-003, liens résultats/classement/dotation.
+- COMP-001 : `abdb569` poussé, CI et migration validées par l’utilisateur.
+  Migration constatée en lecture seule Ran, batch 43. Branche propre et
+  synchronisée avec origin/staging au départ de COMP-002.
 - MATCH-007 : `2c5d622` poussé ; CI validées par l’utilisateur avant COMP-001.
   Aucune migration pour ce ticket. Recette réelle Reverb + worker broadcasts
   toujours à réaliser en environnement isolé avant activation supervisée.
@@ -142,11 +146,14 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : revue/push de COMP-001, CI vertes, sauvegarde puis
-  `php artisan migrate` depuis back/. Déléguer ensuite explicitement via IAM-003
-  sports.competitions.read/write aux seuls habilités et recetter deux comptes.
-  La lecture exige aussi sports.read et MFA ; aucun rôle existant n’est enrichi.
-  Suite P0 : COMP-002, dossiers d’inscription et échéances externes.
+- Prochaine action : revue/push de COMP-002, CI vertes, sauvegarde puis
+  `php artisan migrate` depuis back/. Déléguer sports.registrations.read/write
+  aux seuls habilités via IAM-003, avec sports.read et sports.competitions.read.
+  Aucun enrichissement automatique des rôles existants. Recetter deux comptes,
+  archivage, concurrence et révocation. Prochain P0 : COMP-003.
+  Rappels internes désactivés par défaut : valider en environnement isolé le
+  scheduler et le worker default/TEN-006, puis activer explicitement
+  COMPETITION_REGISTRATION_REMINDERS_ENABLED sous supervision.
   Recetter séparément Reverb, la file broadcasts et VITE_REVERB_* avec deux comptes,
   avant activation supervisée ; vérifier les travaux en attente. Le recalcul
   MATCH-006 continue de dépendre de sa file persistante default.
@@ -3683,3 +3690,54 @@ revalidé (35 cas avec les schémas), puis inclus dans SQLite complet réussi.
 Bases PostgreSQL temporaires supprimées et serveurs navigateur arrêtés.
 Le contrôle de clés JSON à jokers a été reproduit en échec puis corrigé/testé.
 Aucun test du service Reverb réel dans cette tâche.
+
+
+## 19 octobre 2026 — UCG-COMP-002 : participation et échéances externes
+
+COMP-001 (`abdb569`) poussé ; CI/migration confirmées par l’utilisateur.
+Migration précédente constatée Ran, batch 43, branche staging initialement propre
+et synchronisée. Ce lot ajoute un suivi interne par compétition externe.
+
+- Statuts déclarés de l’inscription, du paiement, du roster et du check-in,
+  référence/source externes et exigences d’âge, résidence et rang. Le paiement
+  reste un statut renseigné ; aucun montant bancaire ni transaction financière.
+- Roster borné à 20 personnes du tenant et 50 éléments de suivi : pièces demandées,
+  inscription, paiement, roster, check-in ou tâches manager. Chaque élément a son
+  état, une échéance ISO avec fuseau, un responsable et une note facultatifs.
+  Les dates sont normalisées en UTC et les secondes sont conservées dans le formulaire.
+- Pièces suivies par leur état et leur remise ; rattachement facultatif à une
+  version texte privée de COMP-001. Aucun dépôt de PDF/fichier binaire dans ce
+  parcours. Les originaux et leur transmission restent chez l’organisateur.
+- Chaque écriture ajoute une révision chiffrée, attribuée et motivée. Contrôle de
+  la version du suivi et du parent, verrous tenant/compétition, historique SQL
+  protégé. Une modification du roster déjà approuvé impose de revoir son statut.
+  Archivage de la compétition = suivi en lecture seule, historique conservé.
+- Lecture : sports.read, sports.competitions.read et sports.registrations.read.
+  Écriture : sports.registrations.write supplémentaire, MFA et tenant confirmé.
+  Aucun besoin implicite sports.write/competitions.write ni grant automatique.
+- Rappels internes personnels : seuils 7 jours, 1 jour et dépassement. Un rattrapage
+  choisit le seuil le plus urgent, sans rafale. Clé durable par élément, échéance,
+  responsable/compte et seuil, indépendante des notes et du cache de fin de job.
+  Droits/MFA/appartenance actuels revérifiés ; aucun rappel pour élément terminé,
+  responsable sans compte habilité ou compétition archivée. Aucun e-mail.
+
+Nouvelle migration additive `2026_10_18_231153_create_competition_registration_tracking`,
+Pending sur la base principale. Après push/CI vertes : sauvegarder puis
+`php artisan migrate` depuis back/. Recetter les droits dédiés avec deux comptes.
+Les rappels utilisent TEN-006 (scheduler, cache partagé et worker default), avec
+`COMPETITION_REGISTRATION_REMINDERS_ENABLED=false` par défaut. Examiner la file
+et recetter en environnement isolé avant activation supervisée du flag.
+Aucun migrate/seed principal, attribution réelle, rappel métier ou push par l’agent.
+Prochain P0 : COMP-003 ; recette réelle Reverb/broadcasts toujours distincte et requise.
+
+Vérifications COMP-002 : SQLite complet 2229 tests, 2195 réussis, 34 exclusions
+attendues (concurrence PostgreSQL, Redis et scanner réel opt-in), 11 386 assertions.
+Sélection CI PostgreSQL complète : 2019 tests, 2017 réussis, deux exclusions Redis,
+10 791 assertions ; revalidation finale ciblée : 72 réussis, 398 assertions,
+comprenant les trois courses réelles (édition, archivage, rappels dédupliqués).
+Frontend complet final : 356 tests/52 fichiers ; deux parcours Chrome à API simulée
+COMP-001/COMP-002 réussis, captures 320/375 px sans débordement. Erreurs 422,
+focus après retrait de ligne, conflit sans rejeu et secondes UTC vérifiés.
+PHPStan niveau 8, Pint, Composer strict, lint, tsc et build verts. Bases PostgreSQL
+temporaires supprimées et serveurs de recette arrêtés. Aucun changement de dépendance.
+Les pièces restent une checklist avec références texte privées : pas d’upload binaire.

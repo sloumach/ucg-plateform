@@ -3472,3 +3472,86 @@ const file = await api.get(`${root}/${competition.id}/documents/${doc.document_i
 
 L’inscription effective et le check-in restent chez l’organisateur ; suivi des
 pièces, échéances et tâches en COMP-002, rattachements résultats/dotation en COMP-003.
+
+
+### COMP-002 — Suivi interne de participation externe
+
+Préfixe `/api/v1/tenants/{tenant}/external-competitions/{competition}/registration`.
+Session Sanctum, MFA, tenant courant ; lecture : sports.read,
+sports.competitions.read et sports.registrations.read. Écriture et choix des
+personnes : sports.registrations.write supplémentaire. Aucun droit implicite du
+propriétaire/administrateur. Écriture : CSRF, X-Tenant-Revision et tenant confirmé.
+
+| Méthode | Suffixe | Fonction |
+| --- | --- | --- |
+| GET | vide | Dernier suivi ou data:null avant initialisation |
+| PATCH | vide | Initialise ou ajoute une révision motivée, réponse 200 |
+| GET | `/people` | Personnes actives/substitutes du tenant, choix paginés |
+| GET | `/history` | Révisions complètes, auteurs, dates et motifs paginés |
+| GET | `/reminders` | Historique paginé des rappels émis pour le compte courant |
+
+Resources JSON et Cache-Control private/no-store ; notification Flasher au PATCH.
+Pagination page 1–100000, per_page 1–10 (défaut 10). Le suivi complet contient
+au plus 20 joueurs et 50 éléments ; l’historique au plus 1000 révisions/compétition.
+Chaque PATCH envoie l’état complet, pas un diff imbriqué. Champs inconnus et clés
+à jokers refusés, y compris dans les tableaux. Aucun fichier binaire accepté.
+
+Contrôle optimiste : competition_version UUID du parent et expected_version UUID
+de la dernière révision (null à l’initialisation). Ces versions sont indépendantes :
+modifier le suivi ne change pas le parent. 409 COMPETITION_REGISTRATION_STALE,
+COMPETITION_REGISTRATION_ARCHIVED ou COMPETITION_REGISTRATION_LIMIT : relire avant
+une nouvelle confirmation, jamais de retry automatique. 422 : validation, aucun
+changement ou roster approuvé modifié sans réévaluation. Référence étrangère au
+tenant/parent (personne, document ou compétition) : 404 ; droit manquant : 403.
+
+Payload : registration_status preparing/submitted/accepted/rejected/withdrawn,
+payment_status not_required/pending/paid/refunded, roster_status
+draft/submitted/approved/rejected, checkin_status
+not_open/required/completed/missed/not_required. Aucun de ces états n’est déduit
+par le serveur d’un contrat, d’une checklist complète ou d’une règle juridique.
+external_reference nullable (160), source_url nullable HTTPS sans credentials,
+notes nullable (2000), requirements avec clés age/residence/rank nullable (1000 chacune).
+Motif reason obligatoire (10–1000 après trim). Un roster déclaré soumis/approuvé
+ne peut être vide ; un roster approuvé modifié ne peut rester approuvé dans la
+même commande. Les étiquettes historiques restent lisibles après un départ.
+
+roster : liste de `{person_id, role:starter|substitute}`, sans doublon de personne.
+Les labels sont reconstruits côté serveur. items : liste de clés fermées
+`{id,kind,title,status,due_at,responsible_person_id,note,document_version_id}`.
+id UUID unique stable ; kind registration/payment/document/roster/checkin/task,
+title 1–160, status pending/done/waived, due_at nullable au format
+`YYYY-MM-DDTHH:mm:ss+HH:mm`, responsable nullable dans le tenant, note nullable
+(1000), document_version_id nullable vers une version texte privée de la même
+compétition et réservé au kind document. Les dates sont normalisées en UTC,
+les noms des responsables sont fournis par le serveur.
+
+La réponse contient version, number, payload, reason, actor_user_id, occurred_at
+et summary (pending, due_soon, overdue), recalculé au moment de la lecture.
+Les rappels historiques émis contiennent seulement id/item_id/stage/payload/
+occurred_at, sans roster, exigences ou contacts. Ils ne remplacent pas les tâches
+courantes ; leur consultation revérifie les droits du compte courant.
+
+Exemple avec le client Axios de session CSRF configuré (baseURL /api/v1,
+withCredentials/withXSRFToken), après confirmation du tenant :
+
+```js
+const path = `tenants/${tenantId}/external-competitions/${competition.id}/registration`;
+const headers = { 'X-Tenant-Revision': tenantRevision };
+const { data: response } = await api.patch(path, {
+  competition_version: competition.version, expected_version: current?.version ?? null,
+  registration_status: 'preparing', payment_status: 'pending',
+  roster_status: 'draft', checkin_status: 'not_open',
+  external_reference: null, source_url: 'https://organisateur.example/competition', notes: null,
+  requirements: { age: 'Exigence indiquée dans le règlement source', residence: null, rank: null },
+  roster: [{ person_id: playerId, role: 'starter' }],
+  items: [{ id: crypto.randomUUID(), kind: 'document', title: 'Pièce demandée par la source',
+    status: 'pending', due_at: '2026-10-28T17:30:15+00:00',
+    responsible_person_id: managerPersonId, note: null, document_version_id: null }],
+  reason: 'Préparation du dossier selon les consignes externes.'
+}, { headers });
+// Conserver response.data.version pour la prochaine commande confirmée.
+```
+
+Rappels internes asynchrones via TEN-006, flag opérateur désactivé par défaut.
+L’inscription, la remise des originaux et le check-in effectifs restent chez
+l’organisateur externe. Aucune transmission ou notification externe automatique.

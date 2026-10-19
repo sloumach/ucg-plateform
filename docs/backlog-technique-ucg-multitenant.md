@@ -850,7 +850,7 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 
 ### UCG-COMP-001 — Suivre les compétitions externes
 
-- **État** : livré localement le 18 octobre 2026 ; push/CI et migration principale à valider. Nouvelle migration additive `2026_10_18_210127`, anciennes migrations intactes.
+- **État** : commit `abdb569` poussé ; CI et migration validées par l’utilisateur avant COMP-002. Migration constatée Ran, batch 43. Anciennes migrations intactes.
 - **Validation** : SQLite complet 2160 réussis/31 exclusions attendues ; PostgreSQL 67 cas finaux réussis (42 COMP-001 et démontages de schémas corrigés après trois erreurs dans la sélection globale). Frontend 349 tests, 8 parcours Chrome, captures 320/375 px, PHPStan 8/Pint/Composer et lint/tsc/build verts.
 - **Livré** : dossier par tenant, référence et jeu immuables, organisateur, région/saison, URL HTTPS, dix contacts structurés, modifications motivées, historique chiffré et archivage définitif en lecture seule. API et panneau React paginés.
 - **Documents** : un règlement logique et des notes privées, versions texte chiffrées et immuables, téléchargement authentifié `.txt` des versions anciennes avec contrôle actuel des droits. Aucun upload binaire dans ce lot ; les pièces d’inscription restent COMP-002.
@@ -865,6 +865,15 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Références CDC** : COMP-01.
 
 ### UCG-COMP-002 — Suivre les dossiers d’inscription externes et échéances
+
+- **Livraison** : implémenté localement le 19 octobre 2026 ; nouveau push/CI et migration principale à valider. Un suivi par compétition, révisions chiffrées et motivées, lecture seule après archivage.
+- **Validation** : SQLite complet 2195 réussis/34 exclusions attendues ; PostgreSQL CI complet 2017 réussis/2 exclusions Redis puis 72 cas finaux ciblés. Frontend 356 tests, deux parcours Chrome, captures 320/375 px ; PHPStan 8/Pint/Composer strict/lint/tsc/build verts.
+- **Fonctionnel** : inscription/paiement/roster/check-in déclaratifs, exigences externes sans déduction contractuelle, roster de 20 personnes, 50 pièces/tâches avec état, échéance UTC et responsable. Statut approuvé du roster à réévaluer si sa composition change.
+- **Pièces** : suivi des pièces demandées/remises et lien facultatif à une version texte privée COMP-001 ; aucun upload binaire ni transmission automatique à l’organisateur dans ce lot.
+- **Accès** : sports.read + sports.competitions.read + sports.registrations.read ; sports.registrations.write en supplément aux écritures et choix des personnes. MFA/CSRF/contexte confirmé ; aucun grant implicite ni modification des rôles existants.
+- **Rappels** : journal interne personnel durable et dédupliqué (7 jours, 1 jour, dépassé), contrôle actuel des destinataires ; cache de complétion indépendant. Aucun e-mail. Intégration TEN-006, traitement tournant limité à 25 dossiers avec budget de 45 secondes vérifié entre dossiers, flag désactivé par défaut.
+- **Schéma** : deux nouvelles tables tenant, gardes d’immutabilité et de séquence PostgreSQL/SQLite, inventaire de portabilité chiffré complet, down refusé sur données existantes. Nouvelle migration `2026_10_18_231153` en attente.
+- **Suite** : push/CI, sauvegarde/migration utilisateur, délégation ciblée et recette des révocations. Scheduler/worker et activation des rappels à valider séparément. Prochain P0 : COMP-003.
 
 - **Priorité / taille** : P0 / L
 - **Périmètre** : suivi interne du paiement renseigné, des pièces, du roster soumis, de sa validation par l’organisateur, du statut de check-in externe, des règles d’âge/résidence/rang et des tâches manager.

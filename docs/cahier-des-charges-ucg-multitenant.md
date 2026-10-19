@@ -534,6 +534,27 @@ Ces droits sont délégués explicitement. Les propriétaires et administrateurs
 reçoivent pas d’accès métier implicite. Conflits de versions et requêtes inter-tenant
 sont refusés ; les historiques restent accessibles uniquement aux habilités actuels.
 
+### Livraison COMP-002 — suivi des démarches externes
+
+Chaque compétition dispose d’un suivi privé versionné : statuts de l’inscription,
+du paiement renseigné, du roster et du check-in, référence/source et exigences
+externes. Ces valeurs sont des observations consignées par un habilité, sans
+validation automatique d’éligibilité, de paiement ou d’inscription par UltraTools.
+Le roster conserve les libellés sportifs du tenant ; modifier un roster approuvé
+impose de revoir son statut externe. Aucun contrat ne suffit à prouver l’éligibilité.
+
+La liste bornée des pièces et tâches indique les manquants, leur responsable et
+leur échéance. Une pièce peut référencer une version texte privée déjà conservée
+avec COMP-001 ; le lot ne reçoit pas de fichiers binaires. Les statuts fait/remis
+ou dispensé sont déclaratifs et motivés. Les dates comportent un fuseau explicite,
+sont stockées en UTC et affichées dans le fuseau du tenant.
+
+Les habilités peuvent recevoir des rappels internes personnels aux seuils de sept
+jours, un jour et dépassement. Un passage tardif ne produit que le seuil urgent.
+L’émission dédupliquée dépend du scheduler/worker supervisés et d’un flag opérateur,
+inactif par défaut ; aucun e-mail ni envoi à l’organisateur. Le suivi et son
+historique restent privés et deviennent non modifiables après archivage du parent.
+
 ### 11.3 Événements hors compétition
 
 Bootcamp, rencontre communautaire, activation sponsor, réunion et lancement peuvent partager le calendrier, les participants, tâches, documents, budget et visibilité. Les règles sportives restent dans les modules de compétition.

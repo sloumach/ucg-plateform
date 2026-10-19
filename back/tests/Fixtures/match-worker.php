@@ -1,6 +1,7 @@
 <?php
 
 use App\Exceptions\DomainConflictException;
+use App\Modules\Competition\Application\Services\CompetitionRegistrationService;
 use App\Modules\Competition\Application\Services\ExternalCompetitionDocumentService;
 use App\Modules\Competition\Application\Services\ExternalCompetitionService;
 use App\Modules\Competition\Application\Services\MatchCorrectionService;
@@ -9,7 +10,9 @@ use App\Modules\Competition\Application\Services\MatchNotebookService;
 use App\Modules\Competition\Application\Services\MatchResultService;
 use App\Modules\Competition\Application\Services\MatchScoreService;
 use App\Modules\Competition\Application\Services\MatchService;
+use App\Modules\Competition\Application\Services\ProcessCompetitionRegistrationReminders;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
+use App\Modules\Tenancy\Application\Contracts\TenantExecutionContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Str;
@@ -41,7 +44,11 @@ while (! is_file($barrier)) {
 }
 try {
     $service = app(MatchService::class);
-    if ($payload['operation'] === 'external_competition') {
+    if ($payload['operation'] === 'registration') {
+        app(CompetitionRegistrationService::class)->save($context, $payload['competition'], $payload['input'], null);
+    } elseif ($payload['operation'] === 'registration_reminders') {
+        app(ProcessCompetitionRegistrationReminders::class)->run(new TenantExecutionContext($context->organizationId, $context->requestId, 'UTC', 'fr'), $context->requestId);
+    } elseif ($payload['operation'] === 'external_competition') {
         app(ExternalCompetitionService::class)->save($context, $payload['input'], $payload['competition'], null);
     } elseif ($payload['operation'] === 'external_competition_document') {
         app(ExternalCompetitionDocumentService::class)->save($context, $payload['competition'], $payload['document'], $payload['input'], null);

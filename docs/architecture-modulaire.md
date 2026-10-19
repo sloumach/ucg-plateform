@@ -20,7 +20,7 @@ dépendance signifie que le module de gauche peut consommer l’API publique du 
 | `Teams` | `Identity`, `Tenancy`, `People` |
 | `Academy` | `Tenancy`, `People`, `Teams` |
 | `Scheduling` | `Tenancy`, `People`, `Teams` |
-| `Competition` | `Tenancy`, `Teams`, `Scheduling` |
+| `Competition` | `Tenancy`, `People`, `Teams`, `Scheduling` |
 | `Performance` | `Tenancy`, `People`, `Teams`, `Competition` |
 | `Contracts` | `Tenancy`, `People` |
 | `Partnerships` | `Tenancy`, `People`, `Teams`, `Contracts` |
@@ -2373,3 +2373,71 @@ revalidé (35 cas avec les schémas), puis inclus dans SQLite complet réussi.
 Bases PostgreSQL temporaires supprimées et serveurs navigateur arrêtés.
 Le contrôle de clés JSON à jokers a été reproduit en échec puis corrigé/testé.
 Aucun test du service Reverb réel dans cette tâche.
+
+
+## 19 octobre 2026 — UCG-COMP-002 : suivi interne et rappels de participation
+
+CompetitionRegistrationController/FormRequest/Policy délèguent à
+CompetitionRegistrationService et CompetitionRegistrationRepository. Les écritures
+PATCH sont des commandes versionnées : competition_version + expected_version
+(null à l’initialisation), état complet borné et motif. Organisation puis parent
+verrouillés, droits revérifiés, comparaison de la dernière révision et append dans
+la même transaction que l’audit transverse sans contenu privé. Aucun parent
+COMP-001 modifié : sa version évolue seulement via son propre service.
+
+`competition_registration_revisions` conserve payload/reason chiffrés, numéro
+séquentiel (1–1000), auteur/date et next_due_at pour le balayage. Uniquement
+checked_at peut évoluer techniquement, sans altérer le contenu historique.
+`competition_registration_reminders` est append-only, clé unique tenant/parent/
+occurrence et FK composite vers la révision d’origine. Les deux tables figurent
+dans l’inventaire de portabilité avec colonnes explicites et chiffrement conservé.
+Le down refuse toute perte d’historique. Les tests de démontage des dépendances
+retirent ces tables avant COMP-001 et les recréent ensuite ; anciennes migrations
+inchangées, aucune reprise de données existantes.
+
+Le port People CompetitionRegistrationPeople résout en lot les labels sportifs et
+les comptes du tenant, sans ouvrir de données personnelles complètes. La dépendance
+Competition → People est déclarée pour ce port public ; pas de lecture de tables
+People depuis Competition. Nouvelles affectations revérifiées actives, libellés
+historiques conservés. Références documentaires cherchées en une requête limitée
+au parent/tenant ; identifiants UUID normalisés en minuscules.
+
+Agrégat borné à 20 joueurs et 50 éléments. Les exigences âge/résidence/rang restent
+textuelles ; les états externes sont renseignés, sans moteur d’éligibilité ni
+transaction financière. Les pièces sont une checklist et un lien vers une version
+texte privée COMP-001, pas un stockage de fichiers binaires. Roster approuvé modifié
+= réévaluation explicite. Parent archivé = gel de toute écriture du suivi.
+
+ProcessCompetitionRegistrationReminders réutilise TenantScheduledTask/TEN-006.
+Balayage de 25 dernières révisions avec échéance à sept jours ou moins, ordre tournant
+checked_at/id et budget 45 s vérifié entre dossiers (worker TEN-006 60 s). Parent verrouillé puis dernière
+révision/statut relus ; résolution des comptes en lot et contrôle des droits/MFA
+actuels de chaque destinataire distinct. Journal interne et checked_at transactionnels.
+Clé de déduplication : parent/élément/échéance/personne/compte/seuil, indépendante
+d’une édition de notes ou de la complétion du job. Le passage tardif émet seulement
+le seuil urgent ; une nouvelle échéance ou attribution crée une nouvelle occurrence.
+Les rappels déjà émis restent un historique personnel daté, pas une liste d’actions
+courantes. Un échec est journalisé avec IDs/classe d’exception puis relancé via la
+politique TEN-006. Aucun service de mail appelé pour envoyer un message.
+
+Les droits privilégiés sports.registrations.read/write s’ajoutent à sports.read et
+sports.competitions.read. Aucune attribution automatique, besoin sports.write ou
+impersonation du propriétaire. UI React paginée pour références/historiques/rappels,
+état agrégé borné, textes échappés, sources HTTPS, annulation des lectures au
+changement de contexte ; erreurs 422 conservées et 409 sans nouvelle tentative.
+Pas de cache partagé de contenu privé. À l’échelle, profiler le balayage et le
+volume d’instantanés avant de modifier les index ou le découpage de cet agrégat.
+
+Flag COMPETITION_REGISTRATION_REMINDERS_ENABLED désactivé par défaut ; aucune
+activation de scheduler/worker ni migration principale effectuée dans ce lot.
+Vérifications COMP-002 : SQLite complet 2229 tests, 2195 réussis, 34 exclusions
+attendues (concurrence PostgreSQL, Redis et scanner réel opt-in), 11 386 assertions.
+Sélection CI PostgreSQL complète : 2019 tests, 2017 réussis, deux exclusions Redis,
+10 791 assertions ; revalidation finale ciblée : 72 réussis, 398 assertions,
+comprenant les trois courses réelles (édition, archivage, rappels dédupliqués).
+Frontend complet final : 356 tests/52 fichiers ; deux parcours Chrome à API simulée
+COMP-001/COMP-002 réussis, captures 320/375 px sans débordement. Erreurs 422,
+focus après retrait de ligne, conflit sans rejeu et secondes UTC vérifiés.
+PHPStan niveau 8, Pint, Composer strict, lint, tsc et build verts. Bases PostgreSQL
+temporaires supprimées et serveurs de recette arrêtés. Aucun changement de dépendance.
+Les pièces restent une checklist avec références texte privées : pas d’upload binaire.

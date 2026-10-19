@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\CompetitionRegistrationController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\ExternalCompetitionController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchController;
 use App\Modules\Competition\Presentation\Http\Controllers\Api\V1\MatchCorrectionController;
@@ -59,4 +60,12 @@ Route::prefix('tenants/{tenant}/external-competitions')->whereUuid('tenant')->mi
         Route::patch('documents/{document}', $controller.'@documentUpdate')->whereUuid('document')->middleware('tenant.confirmed')->block(10, 10)->name('external-competitions.documents.update');
         Route::get('documents/{document}/versions/{version}/download', $controller.'@download')->whereUuid(['document', 'version'])->name('external-competitions.documents.download');
     });
+});
+
+Route::prefix('tenants/{tenant}/external-competitions/{competition}/registration')->whereUuid(['tenant', 'competition'])->middleware('tenant')->group(function (): void {
+    Route::get('', [CompetitionRegistrationController::class, 'show'])->name('competition-registration.show');
+    Route::patch('', [CompetitionRegistrationController::class, 'save'])->middleware('tenant.confirmed')->block(10, 10)->name('competition-registration.save');
+    Route::get('history', [CompetitionRegistrationController::class, 'history'])->name('competition-registration.history');
+    Route::get('people', [CompetitionRegistrationController::class, 'people'])->name('competition-registration.people');
+    Route::get('reminders', [CompetitionRegistrationController::class, 'reminders'])->name('competition-registration.reminders');
 });

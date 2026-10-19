@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Competition\Application\Services\ProcessCompetitionRegistrationReminders;
 use App\Modules\Contracts\Application\Services\ProcessContractReminders;
 use App\Modules\Scheduling\Application\Services\ProcessCalendarChanges;
 use App\Modules\Scheduling\Application\Services\ProcessCalendarInvitations;
@@ -18,6 +19,7 @@ return [
     ],
     // Closed server-side task registry; business modules register their handlers explicitly.
     'scheduled_tasks' => [
+        ...(env('COMPETITION_REGISTRATION_REMINDERS_ENABLED', false) ? ['competition-registration-reminders' => ProcessCompetitionRegistrationReminders::class] : []),
         ...(env('CONTRACT_REMINDERS_ENABLED', false) ? ['contract-reminders' => ProcessContractReminders::class] : []),
         ...(env('CALENDAR_INVITATIONS_ENABLED', false) ? ['calendar-invitations' => ProcessCalendarInvitations::class] : []),
         ...(env('CALENDAR_CHANGES_ENABLED', false) ? ['calendar-changes' => ProcessCalendarChanges::class] : []),

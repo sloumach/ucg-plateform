@@ -14,7 +14,7 @@ final class ModuleDependencyMap
             ModuleName::Teams => [ModuleName::Identity, ModuleName::Tenancy, ModuleName::People],
             ModuleName::Academy => [ModuleName::Tenancy, ModuleName::People, ModuleName::Teams],
             ModuleName::Scheduling => [ModuleName::Tenancy, ModuleName::People, ModuleName::Teams],
-            ModuleName::Competition => [ModuleName::Tenancy, ModuleName::Teams, ModuleName::Scheduling],
+            ModuleName::Competition => [ModuleName::Tenancy, ModuleName::People, ModuleName::Teams, ModuleName::Scheduling],
             ModuleName::Performance => [
                 ModuleName::Tenancy,
                 ModuleName::People,

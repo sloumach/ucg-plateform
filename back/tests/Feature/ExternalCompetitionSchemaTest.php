@@ -23,9 +23,12 @@ class ExternalCompetitionSchemaTest extends TestCase
     public function test_empty_roundtrip_keeps_the_tenant_inventory_complete(): void
     {
         $migration = require database_path('migrations/2026_10_18_210127_create_external_competitions_and_private_documents.php');
+        $registrations = require database_path('migrations/2026_10_18_231153_create_competition_registration_tracking.php');
+        $registrations->down();
         $migration->down();
         $this->assertFalse(Schema::hasTable('external_competitions'));
         $migration->up();
+        $registrations->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         app(PortabilityRepository::class)->assertCatalog();
     }

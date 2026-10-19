@@ -11,18 +11,21 @@ import { Button } from '../Button'
 import { Alert } from '../feedback/Alert'
 import { ExternalCompetitionForm } from './ExternalCompetitionForm'
 import { CompetitionDocuments } from './CompetitionDocuments'
+import { CompetitionRegistrationPanel } from './CompetitionRegistrationPanel'
+import { registrationText } from '../../api/competitionRegistrations'
 
 type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
 export function ExternalCompetitionsPanel({ active, disabled, onInvalid }: Props) {
   const [open, setOpen] = useState(false), [page, setPage] = useState(1), [refresh, setRefresh] = useState(0)
   const [filters, setFilters] = useState({ status: 'active', season: '', region: '' })
   const [editor, setEditor] = useState<ExternalCompetition | 'new' | null>(null), [archive, setArchive] = useState<ExternalCompetition | null>(null)
+  const [registration, setRegistration] = useState<ExternalCompetition | null>(null)
   const [history, setHistory] = useState<ExternalCompetition | null>(null), [documents, setDocuments] = useState<ExternalCompetition | null>(null)
   const permissions = active.context?.permissions ?? [], allowed = permissions.includes('sports.read') && permissions.includes('sports.competitions.read'), canWrite = permissions.includes('sports.competitions.write')
   const root = 'tenants/' + active.context!.organization_id + '/external-competitions'
   const params = new URLSearchParams({ page: String(page), per_page: '10', status: filters.status, ...(filters.season ? { season: filters.season } : {}), ...(filters.region ? { region: filters.region } : {}) })
   const { list, loading, error } = usePartnershipList<ExternalCompetition>(root + '?' + params, active, open && allowed, onInvalid, refresh)
-  const clear = () => { setEditor(null); setArchive(null); setHistory(null); setDocuments(null) }
+  const clear = () => { setRegistration(null); setEditor(null); setArchive(null); setHistory(null); setDocuments(null) }
   const mutation = usePeopleMutation<ExternalCompetition>(active, () => { clear(); setRefresh((value) => value + 1) }, onInvalid)
   const blocked = disabled || mutation.blocked
   const editPath = root + (editor && editor !== 'new' ? '/' + editor.id : '')
@@ -45,6 +48,7 @@ export function ExternalCompetitionsPanel({ active, disabled, onInvalid }: Props
       {list?.data.length === 0 && <p>{text('empty')}</p>}
       <ol className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
         <CompetitionMetadata item={item} />
+        {permissions.includes('sports.registrations.read') && <Button disabled={blocked} onClick={() => { clear(); setRegistration(item) }}>{registrationText('panel')}</Button>}
         <div className="flex flex-wrap gap-3">
           <Button disabled={blocked} onClick={() => { clear(); setDocuments(item) }}>{text('documents')}</Button><Button disabled={blocked} onClick={() => { clear(); setHistory(item) }}>{text('history')}</Button>
           {canWrite && item.status === 'active' && <><Button disabled={blocked} onClick={() => { clear(); setEditor(item) }}>{text('edit')}</Button><Button disabled={blocked} onClick={() => { clear(); setArchive(item) }}>{text('archive')}</Button></>}
@@ -57,6 +61,7 @@ export function ExternalCompetitionsPanel({ active, disabled, onInvalid }: Props
       }}><p className="[overflow-wrap:anywhere]">{archive.name} · {text('archiveHint')}</p><FormField name="reason" label={text('reason')} minLength={10} maxLength={1000} required disabled={blocked} error={mutation.errors(root + '/' + archive.id).reason?.[0]} />
         <div className="flex flex-wrap gap-3"><Button type="submit" disabled={blocked}>{text('archive')}</Button><Button disabled={blocked} onClick={() => setArchive(null)}>{text('cancel')}</Button></div></form>}
       {history && <CompetitionHistory key={history.id} {...{ active, onInvalid }} path={root + '/' + history.id + '/history'} disabled={blocked} onClose={() => setHistory(null)} />}
+      {registration && <CompetitionRegistrationPanel key={registration.id + active.revision} {...{ active, root, onInvalid }} item={registration} disabled={blocked} onClose={() => setRegistration(null)} />}
       {documents && <CompetitionDocuments key={documents.id + active.revision} {...{ active, root, onInvalid }} item={documents} disabled={blocked} onClose={() => setDocuments(null)} />}
     </>}
   </section>

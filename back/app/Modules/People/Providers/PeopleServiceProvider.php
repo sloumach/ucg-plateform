@@ -5,6 +5,7 @@ namespace App\Modules\People\Providers;
 use App\Modules\People\Application\Contracts\AdministrativePeopleDirectory;
 use App\Modules\People\Application\Contracts\AvailabilityPeopleDirectory;
 use App\Modules\People\Application\Contracts\CalendarPeopleDirectory;
+use App\Modules\People\Application\Contracts\CompetitionRegistrationPeople;
 use App\Modules\People\Application\Contracts\EligibilityPeopleDirectory;
 use App\Modules\People\Application\Contracts\LinkedPersonAccountDirectory;
 use App\Modules\People\Application\Contracts\PartnershipPeopleDirectory;
@@ -14,6 +15,7 @@ use App\Modules\People\Application\Contracts\SportingPeopleDirectory;
 use App\Modules\People\Application\Services\AdministrativePeopleService;
 use App\Modules\People\Application\Services\AvailabilityPeopleService;
 use App\Modules\People\Application\Services\CalendarPeopleService;
+use App\Modules\People\Application\Services\CompetitionRegistrationPeopleService;
 use App\Modules\People\Application\Services\EligibilityPeopleService;
 use App\Modules\People\Application\Services\LinkedPersonAccountService;
 use App\Modules\People\Application\Services\PartnershipPeopleService;
@@ -52,6 +54,7 @@ final class PeopleServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(CompetitionRegistrationPeople::class, CompetitionRegistrationPeopleService::class);
         $this->app->bind(AvailabilityPeopleDirectory::class, AvailabilityPeopleService::class);
         $this->app->bind(CalendarPeopleDirectory::class, CalendarPeopleService::class);
         $this->app->bind(CalendarPeopleRepository::class, EloquentCalendarPeopleRepository::class);
