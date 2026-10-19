@@ -912,6 +912,12 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 
 ### UCG-STAT-002 — Saisir et corriger les observations
 
+- **Livraison** : implémenté localement le 19 octobre 2026 ; push/CI et migration `2026_10_19_113618` à valider après sauvegarde.
+- **Saisie** : valeurs décimales exactes, indisponibilité explicite, source et contexte privés immuables, joueur, période, échantillon, partie/manche ou séance selon le niveau ; version de métrique et formule conservées.
+- **Corrections** : ajout de révisions motivées, invalidation/réactivation, contrôle de version concurrente et audit atomique ; provenance importée jamais remplacée. Importeur STAT-003 et calculs STAT-004 séparés.
+- **Accès** : permissions statistiques distinctes sous MFA, confirmation tenant ; aucun accès implicite propriétaire/admin. Audience match ordinaire réappliquée aux listes et historiques ; tables et exports privés isolés par organisation.
+- **Validation locale** : 34 cas backend du registre et une course PostgreSQL entre deux correcteurs, six tests frontend et un parcours Chrome mobile. Suite SQLite complète : 2288 réussis, 40 ignorés ; frontend complet : 385 réussis. Derniers contrôles ciblés : 34/34 SQLite et 35/35 PostgreSQL. Sélection générale PostgreSQL validée en lots : 2080 tests ordinaires et 36 courses réussis, deux ignorés Redis ; CI distante à exécuter après push utilisateur.
+
 - **Priorité / taille** : P0 / L
 - **Périmètre** : source, période, partie, joueur, contexte, valeur absente, correction autorisée et historique.
 - **Acceptation** : indisponible différent de zéro ; donnée importée jamais écrasée silencieusement.

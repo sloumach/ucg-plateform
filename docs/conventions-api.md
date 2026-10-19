@@ -3713,3 +3713,88 @@ inconnue/hors parent. Succès avec notification Flasher ; auteur, request_id, mo
 et date inscrits atomiquement dans la révision. Aucune table tenant ni permission
 métier réelle modifiée par ce lot. Migration `2026_10_19_094551` à appliquer après
 sauvegarde et validation CI.
+
+
+## STAT-002 — observations privées et corrections
+
+Base : `/api/v1/tenants/{tenant}/observations`. Session vérifiée, MFA, tenant actif ;
+les écritures exigent sa confirmation et l’en-tête `X-Tenant-Revision` courant.
+Chaque endpoint appelle une policy et les services réautorisent les écritures dans
+la transaction. Les permissions de consultation/saisie/correction sont celles
+présentées dans l’état du projet ; aucun droit implicite du superadmin ou propriétaire.
+
+| Méthode | Suffixe | Contrat |
+| --- | --- | --- |
+| GET | vide | Liste visible, `page`, `per_page` ≤ 10 ; filtres `person_id`, `metric_id`, `source_kind`, `status`, `from`, `to` (chevauchement de période). |
+| POST | vide | Saisie manuelle, état initial `active`. |
+| GET | `/{observation}` | Dernière version visible. |
+| PATCH | `/{observation}` | Correction complète des seuls champs de révision, avec `version` attendu. |
+| GET | `/{observation}/history` | Révisions paginées, cinq par défaut, dix maximum. |
+| GET | `/{observation}/versions/{version}` | Révision exacte, contrôlée sous son parent et son audience actuelle. |
+| GET | `/choices` | `kind=people`, `kind=matches&game_id=...` ou `kind=parts&match_id=...`, choix paginés limités à dix ; droits de saisie requis. |
+
+Le POST accepte seulement : `metric_id`, `metric_version`, `person_id`, `mode_id`,
+`role_id`, `release_id`, `match_id`, `match_game_id`, `source_kind`, `source_label`,
+`period_start`, `period_end`, `observed_on`, `sample_size`, `region`, `season`, `map`,
+`opponent`, `session_label`, `round_number`, et les champs de révision ci-dessous.
+Les champs nullable doivent être présents à null s’ils ne sont pas renseignés.
+Source : `official|scrim|training|assessment`. Une évaluation humaine exige une
+métrique subjective ; les autres sources une métrique objective. Une évaluation
+peut être liée à une partie ou à un match visible, même si le match est officiel
+ou scrim ; pour un relevé officiel/scrim, la nature doit correspondre au match. Les références
+mode/rôle/patch doivent appartenir au jeu et respecter les restrictions de la
+métrique. Niveaux partie/manche : partie réelle obligatoire ; match : match réel ;
+manche : numéro 1–10000 ; séance : libellé explicite. Pas d’audience de gestion
+implicite. L’échantillon est déclaré, entre 1 et 1000000 ; aucun agrégat calculé.
+
+Champs de révision obligatoires en POST/PATCH : `availability`, `value`,
+`missing_reason`, `notes`, `status`, `reason`. `availability=available` exige une
+valeur **chaîne** décimale, sans exposant, 12 chiffres entiers et six décimales
+maximum ; motif d’indisponibilité null. `unavailable` exige valeur null et motif
+non vide. Zéro n’est jamais une absence. `status=active|voided` ; motif 10–1000
+caractères, note ≤ 4000. Les décimales sont normalisées sans calcul flottant.
+PATCH ne reçoit ni source, ni contexte, ni joueur, ni identifiant de métrique.
+Pour corriger ces champs immuables : invalider puis saisir une nouvelle observation.
+
+Exemple SPA, après confirmation de l’organisation active :
+
+```ts
+const created = await tenancyRequest<ApiSuccessResponse<StatisticalObservation>>(
+  `tenants/${organizationId}/observations`, {
+    method: 'POST', revision: activeRevision,
+    body: {
+      metric_id: metric.id, metric_version: metric.version, person_id: personId,
+      mode_id: metric.mode_id, role_id: metric.role_id, release_id: metric.release_id,
+      match_id: null, match_game_id: null, // métrique de niveau période dans cet exemple
+      source_kind: 'training', source_label: 'Grille coach séance A',
+      period_start: '2026-10-01', period_end: '2026-10-18', observed_on: '2026-10-19',
+      sample_size: 3, region: 'Europe', season: '2026', map: null, opponent: null,
+      session_label: null, round_number: null, availability: 'available', value: '0',
+      missing_reason: null, notes: null, status: 'active', reason: 'Relevé vérifié sur la grille.'
+    }
+  }
+)
+await tenancyRequest(`tenants/${organizationId}/observations/${created.data.id}`, {
+  method: 'PATCH', revision: activeRevision,
+  body: {
+    version: created.data.version, availability: 'unavailable', value: null,
+    missing_reason: 'Source incomplète après contrôle.', notes: null, status: 'active',
+    reason: 'Correction motivée après vérification.'
+  }
+})
+```
+
+Réponses via Resource : `id`, `version`, `number`, contexte et source d’origine,
+version exacte de métrique et snapshot de sa formule, valeur courante et motif.
+`organization_id` et identité administrative exclus ; pseudonyme résolu en lot
+au moment de lire. `Cache-Control: private, no-store` ; métadonnée request_id et
+notification Flasher au succès. Audit transverse limité à observation/action/version,
+les contenus privés restent chiffrés dans les tables tenant. Champs inconnus refusés.
+
+Erreurs : 404 hors tenant, match invisible, partie étrangère ou version hors parent ;
+403 droits insuffisants ; 409 `OBSERVATION_STALE`, `OBSERVATION_METRIC` (définition
+périmée/retirée/indisponible) ou `OBSERVATION_LIMIT`. Références jeu/personne
+indisponibles conservent leurs codes de domaine existants. 422 pour valeur,
+contexte, période, champs interdits ou correction sans changement. Aucun rejeu
+automatique sur conflit. Maximum 1000 versions, `page` ≤ 100000. Pas d’endpoint de
+suppression, d’import, de calcul ou d’activation de connecteur dans STAT-002.

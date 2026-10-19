@@ -498,6 +498,15 @@ collecte, observation privée ou activation de fournisseur dans ce lot.
 - STAT-10 : comparer des joueurs dans un contexte comparable et distinguer périodes et échantillons.
 - STAT-11 : rattacher chaque observation privée, import et agrégat à son organisation ; une métrique globalement définie ne rend pas ses valeurs visibles entre tenants.
 
+Livraison STAT-002 : registre privé de saisie manuelle, avec provenance et contexte
+immuables, version exacte de définition, échantillon et observation disponible ou
+explicitement absente. Corrections, invalidations et réactivations motivées et
+historisées ; aucune donnée importée réécrite. Les droits de consultation, saisie
+et correction sont distincts, sous MFA, tenant confirmé et audience match actuelle.
+Un changement de contexte exige invalidation puis nouvelle observation. Les
+valeurs sont chiffrées et ne figurent pas dans le dictionnaire global. Aucun
+calcul ni import automatique dans ce lot.
+
 ### 10.3 Modes d’acquisition
 
 P0 : saisie manuelle et import CSV validé. P1 : premier connecteur pour chaque jeu prioritaire après confirmation d’accès et de licence. P2 : autres connecteurs, démos ou télémétrie autorisée.

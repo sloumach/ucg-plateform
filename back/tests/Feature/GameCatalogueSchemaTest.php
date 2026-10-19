@@ -139,6 +139,8 @@ class GameCatalogueSchemaTest extends TestCase
         $registrations = require database_path('migrations/2026_10_18_231153_create_competition_registration_tracking.php');
         $outcomes = require database_path('migrations/2026_10_19_005858_create_competition_outcome_tracking.php');
         $metrics = require database_path('migrations/2026_10_19_094551_create_metric_dictionary.php');
+        $observations = require database_path('migrations/2026_10_19_113618_create_statistical_observations.php');
+        $observations->down();
         $metrics->down();
         $outcomes->down();
         $registrations->down();
@@ -188,6 +190,7 @@ class GameCatalogueSchemaTest extends TestCase
         $registrations->up();
         $outcomes->up();
         $metrics->up();
+        $observations->up();
         $this->assertDatabaseCount('game_catalogue_entries', 18);
         $this->assertDatabaseCount('organization_games', 0);
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
@@ -236,6 +239,8 @@ class GameCatalogueSchemaTest extends TestCase
         $registrations = require database_path('migrations/2026_10_18_231153_create_competition_registration_tracking.php');
         $outcomes = require database_path('migrations/2026_10_19_005858_create_competition_outcome_tracking.php');
         $metrics = require database_path('migrations/2026_10_19_094551_create_metric_dictionary.php');
+        $observations = require database_path('migrations/2026_10_19_113618_create_statistical_observations.php');
+        $observations->down();
         $metrics->down();
         $outcomes->down();
         $registrations->down();
@@ -293,6 +298,7 @@ class GameCatalogueSchemaTest extends TestCase
         $registrations->up();
         $outcomes->up();
         $metrics->up();
+        $observations->up();
         $this->assertDatabaseCount('organization_games', 4);
         $this->assertSame(1, OrganizationGame::query()->where('organization_id', $org->id)->where('enabled', true)->count());
     }

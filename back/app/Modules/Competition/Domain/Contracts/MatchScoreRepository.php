@@ -8,6 +8,8 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface MatchScoreRepository
 {
+    public function findGame(string $org, string $match, string $id): MatchGameInstance;
+
     public function rules(string $org, string $match): ?MatchScoreRules;
 
     /** @param array<string,mixed> $attributes */

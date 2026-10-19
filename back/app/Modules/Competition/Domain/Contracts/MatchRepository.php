@@ -5,6 +5,7 @@ namespace App\Modules\Competition\Domain\Contracts;
 use App\Modules\Competition\Domain\Models\MatchRecord;
 use App\Modules\Competition\Domain\Models\MatchStatusEvent;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Query\Builder;
 
 interface MatchRepository
 {
@@ -26,6 +27,9 @@ interface MatchRepository
      * @param  list<array<string,mixed>>|null  $participants
      */
     public function save(?MatchRecord $record, array $attributes, ?array $participants): MatchRecord;
+
+    /** @param array{person_id:string|null,team_ids:list<string>} $viewer */
+    public function visibleIdsQuery(string $org, int $actor, array $viewer): Builder;
 
     /** @param array<string,mixed> $attributes */
     public function event(array $attributes): void;

@@ -10,6 +10,11 @@ use Illuminate\Database\Eloquent\Builder;
 
 final class EloquentMatchScoreRepository implements MatchScoreRepository
 {
+    public function findGame(string $org, string $match, string $id): MatchGameInstance
+    {
+        return $this->query($org, $match)->findOrFail($id);
+    }
+
     public function rules(string $org, string $match): ?MatchScoreRules
     {
         return MatchScoreRules::query()->where('organization_id', $org)->where('match_id', $match)->first();

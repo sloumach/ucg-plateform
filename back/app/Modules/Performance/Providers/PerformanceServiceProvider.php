@@ -3,9 +3,13 @@
 namespace App\Modules\Performance\Providers;
 
 use App\Modules\Performance\Domain\Contracts\MetricCatalogueRepository;
+use App\Modules\Performance\Domain\Contracts\ObservationRepository;
 use App\Modules\Performance\Domain\Models\MetricDefinition;
+use App\Modules\Performance\Domain\Models\StatisticalObservation;
 use App\Modules\Performance\Infrastructure\Persistence\EloquentMetricCatalogueRepository;
+use App\Modules\Performance\Infrastructure\Persistence\EloquentObservationRepository;
 use App\Modules\Performance\Presentation\Policies\MetricCataloguePolicy;
+use App\Modules\Performance\Presentation\Policies\ObservationPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -14,11 +18,14 @@ final class PerformanceServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(ObservationRepository::class, EloquentObservationRepository::class);
         $this->app->bind(MetricCatalogueRepository::class, EloquentMetricCatalogueRepository::class);
     }
 
     public function boot(): void
     {
+        Gate::policy(StatisticalObservation::class, ObservationPolicy::class);
+        Route::middleware(['api', 'auth:sanctum', 'identity.session', 'audit.failures', 'mfa'])->prefix('api/v1')->name('api.v1.')->group(__DIR__.'/../Presentation/Routes/observations.php');
         Gate::policy(MetricDefinition::class, MetricCataloguePolicy::class);
         Route::middleware(['api', 'auth:sanctum', 'identity.session', 'audit.failures', 'mfa'])->prefix('api/v1/metric-catalogue')->name('api.v1.metric-catalogue.')->group(__DIR__.'/../Presentation/Routes/api.php');
     }

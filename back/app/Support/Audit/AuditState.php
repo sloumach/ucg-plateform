@@ -15,6 +15,8 @@ final class AuditState
         $result = [];
         foreach ($state as $key => $value) {
             $valid = match ($key) {
+                'observation_id' => is_string($value) && Str::isUuid($value),
+                'observation_action' => is_string($value) && in_array($value, ['created', 'corrected'], true),
                 'external_competition_id', 'external_competition_document_id' => is_string($value) && Str::isUuid($value),
                 'external_competition_action' => is_string($value) && in_array($value, ['created', 'updated', 'archived', 'document_created', 'document_updated', 'registration_updated', 'outcomes_updated', 'awards_updated'], true),
                 'match_correction_id', 'match_notebook_entry_id', 'match_id' => is_string($value) && Str::isUuid($value),
@@ -85,7 +87,7 @@ final class AuditState
                 'roles' => self::listWithin($value, ['member', 'administrator']),
                 'media_id' => is_string($value) && Str::isUuid($value),
                 'media_action' => is_string($value) && in_array($value, ['created', 'updated', 'archived'], true),
-                'permissions' => self::listWithin($value, ['organization.view', 'organization.update', 'memberships.manage', 'invitations.manage', 'roles.manage', 'roles.assign', 'audit.view', 'games.manage', 'teams.manage', 'sports.read', 'sports.write', 'sports.validate', 'sports.publish', 'administrative.read', 'administrative.write', 'administrative.validate', 'financial.read', 'financial.write', 'financial.validate', 'partnerships.read', 'partnerships.write', 'partnerships.validate', 'media.read', 'media.write', 'media.publish', 'communication.read', 'communication.write', 'communication.publish', 'communication.comment', 'calendar.read', 'calendar.export', 'calendar.write', 'calendar.publish', 'calendar.resources.manage', 'calendar.conflicts.override', 'calendar.invitations.manage', 'calendar.invitations.respond', 'availability.self', 'availability.read', 'availability.manage']),
+                'permissions' => self::listWithin($value, ['organization.view', 'organization.update', 'memberships.manage', 'invitations.manage', 'roles.manage', 'roles.assign', 'audit.view', 'games.manage', 'teams.manage', 'sports.statistics.read', 'sports.statistics.write', 'sports.statistics.correct', 'sports.read', 'sports.write', 'sports.validate', 'sports.publish', 'administrative.read', 'administrative.write', 'administrative.validate', 'financial.read', 'financial.write', 'financial.validate', 'partnerships.read', 'partnerships.write', 'partnerships.validate', 'media.read', 'media.write', 'media.publish', 'communication.read', 'communication.write', 'communication.publish', 'communication.comment', 'calendar.read', 'calendar.export', 'calendar.write', 'calendar.publish', 'calendar.resources.manage', 'calendar.conflicts.override', 'calendar.invitations.manage', 'calendar.invitations.respond', 'availability.self', 'availability.read', 'availability.manage']),
                 'actions' => self::listWithin($value, ['organization.inspect', 'access.inspect']),
                 default => false,
             };

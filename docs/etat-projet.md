@@ -9,11 +9,13 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-STAT-001` — dictionnaire global versionné des métriques.
-  Livraison locale sur staging ; nouveau push/CI et migration à valider.
-  Migration `2026_10_19_094551` en attente. Aucun migrate/seed principal,
-  droit réel, métrique réelle, valeur privée, worker ou fournisseur activé par l’agent.
-  Prochain P0 proposé après validation : STAT-002, observations privées et corrections.
+- Dernier ticket traité : `UCG-STAT-002` — observations statistiques privées et corrections.
+  Livraison locale sur staging ; push/CI et migration principale à valider.
+  Migration `2026_10_19_113618` en attente. Aucun migrate/seed principal,
+  donnée privée, droit réel, worker ou fournisseur activé par l’agent.
+  Prochain P0 proposé après recette : STAT-003, pipeline d’import privé.
+- STAT-001 : `cbeba13` poussé et synchronisé à la reprise ; push/CI/migration
+  validés par l’utilisateur. Migration constatée Ran batch 46.
 - COMP-003 : `045887d` poussé et synchronisé à la reprise ; push, CI, sauvegarde
   et migration validés par l’utilisateur. Migration constatée Ran, batch 45.
 - COMP-002 : `67ddc29` poussé et synchronisé au départ de COMP-003 ; CI et
@@ -3888,3 +3890,100 @@ Environnement local : Artisan annonce Laravel 13.35.0, tandis que les métadonn�
 Composer installées et le lock annoncent 13.34.0. Aucun fichier de dépendances
 n’a été modifié ; les contrôles ci-dessus portent sur ce vendor local. La CI
 doit reconstruire les dépendances depuis composer.lock.
+
+## UCG-STAT-002 — observations statistiques privées (19 octobre 2026)
+
+Livraison locale sur `staging` : saisie manuelle d’une observation pour un joueur,
+avec version exacte de métrique, période, date de constat, source et taille
+explicite de l’échantillon. Sources distinctes : officiel, scrim, entraînement et
+évaluation humaine ; cette dernière exige une métrique déclarée subjective et
+peut concerner une partie ou un match visible, officiel ou scrim. Les
+sources officielles restent des relevés manuels, sans certification automatique.
+Contexte jeu/mode/rôle/patch vérifié par les ports publics Teams ; région, saison,
+carte et adversaire sont des libellés documentaires privés. Une métrique au niveau
+partie/manche exige une partie existante du même match ; le niveau match exige
+un match, la manche son numéro et la séance une référence documentaire.
+
+Deux tables tenant : `statistical_observations` (provenance et contexte immuables)
+et `observation_revisions` (valeur, disponibilité, note, état, motif, acteur,
+request_id, date et version précédente). Valeur décimale transportée en chaîne,
+sans flottant : 12 chiffres entiers et six décimales maximum ; zéro reste une
+valeur disponible. Une absence exige valeur nulle et motif explicite. Les champs
+privés textuels et valeurs sont chiffrés au repos. Les corrections, invalidations
+et réactivations ajoutent une version ; aucune suppression ou réécriture SQL de
+l’historique. La source importée d’origine est conservée même après correction ;
+aucun importeur n’est activé dans STAT-002. Pour corriger un joueur, une période
+ou la source elle-même : invalider l’observation puis en saisir une nouvelle.
+
+Droits organisation explicites, sous MFA : `sports.read` +
+`sports.statistics.read` pour lire ; en plus `sports.write` +
+`sports.statistics.write` pour saisir ; `sports.statistics.correct` pour corriger.
+Ni propriétaire, ni administrateur, ni rôle technique plateforme ne reçoit ces
+droits implicitement. Pas de grant réel ni de nouveau rôle prédéfini par ce lot.
+Les droits d’équipe seuls ne donnent pas accès au registre d’organisation.
+Une observation liée à un match suit son audience ordinaire actuelle, y compris
+pour les listes, historiques et versions exactes ; aucun accès de gestion des
+matchs ajouté implicitement. Les références hors tenant ou hors audience renvoient
+404. Le pseudonyme est résolu à la lecture, sans recopier l’identité administrative.
+
+Écritures sous confirmation du tenant actif et contrôle de révision de session.
+Réautorisation dans la transaction après le verrou métier tenant ; contrôle de
+version optimiste et motif obligatoire pour corriger. Un conflit exige un
+rechargement, sans rejeu automatique. Identité, première révision et audit minimal
+sont atomiques : aucun contenu privé n’est copié dans le journal transverse.
+Les séquences et références composites sont protégées SQL sur les deux moteurs.
+Le rattachement aux parties ajoute l’index unique composite `so_part_reference`
+sur `match_game_instances`, sans modification d’une ancienne migration.
+
+Listes, choix et historique paginés, dix éléments maximum par page (historique
+par défaut cinq), 1000 versions maximum par observation. Audience match appliquée
+par sous-requête via le port public Competition `ObservationMatchDirectory`, sans
+charger tous les identifiants en mémoire. Chargement anticipé de la dernière
+révision et résolution groupée des pseudonymes : nombre de requêtes stable quand
+une page passe d’une à dix observations. Index tenant/joueur/période et
+tenant/métrique/période. Les deux tables et leurs colonnes sont déclarées dans le
+catalogue fermé des exports privés ; les valeurs y restent chiffrées. Les verrous
+globaux du dictionnaire sont conservés pour la saisie manuelle contrôlée ; le
+pipeline d’import de STAT-003 devra traiter les lots avec des limites explicites,
+pas exécuter une transaction longue contenant toutes les lignes.
+
+Migration additive `2026_10_19_113618_create_statistical_observations.php`, sans
+reprise ni seed principal ; down refuse tout historique existant. À appliquer par
+l’utilisateur après push/CI et sauvegarde, puis recette lecteur/saisisseur/correcteur,
+révocation, changement d’organisation et audience match. STAT-001 `cbeba13` était
+synchronisé au démarrage et sa migration constatée Ran batch 46 ; push/CI/migration
+validés par l’utilisateur. Aucun push, migrate principal, donnée ou permission
+réelle, connecteur, worker ou fournisseur activé par l’agent. Prochain P0 proposé
+après validation : STAT-003, import statistique privé avec prévisualisation et
+confirmation. Les calculs effectifs et agrégats restent STAT-004.
+
+Validations STAT-002 : 34 cas backend du registre, plus un cas PostgreSQL avec deux
+correcteurs dans des processus distincts (une seule correction acceptée, l’autre
+reçoit OBSERVATION_STALE). Vérification finale dédiée : 34/34 SQLite et 35/35
+PostgreSQL, y compris les évaluations humaines liées à une partie et les séances,
+la validation des choix et leurs liens de pagination. Six tests frontend dédiés ;
+suite frontend complète : 385 réussis dans 55 fichiers. Un parcours Chrome réel,
+avec API simulée, a été rejoué : création zéro, correction en indisponibilité,
+ancienne valeur conservée, accès lecteur et absence de débordement à 320/375 px.
+Les captures ont été relues. Typage de l’application et des tests, lint, build,
+PHPStan (zéro erreur), Pint et validation Composer réussis ; dépendances inchangées.
+
+Les nombres suivants couvrent tout le projet, pas seulement les nouveaux cas :
+suite SQLite complète, 2328 cas dont 2288 réussis et 40 ignorés (tests réservés
+aux autres environnements). Cette exécution précède les derniers ajustements de
+filtrage tenant, pagination et évaluation subjective, tous revérifiés dans les
+34 cas dédiés ci-dessus. Les tests de démontage/recréation des schémas parents
+ont été adaptés aux nouvelles dépendances ; cinq erreurs d’ordre détectées dans
+la première sélection générale PostgreSQL ont motivé leur remise en ordre, sans
+modification des anciennes migrations.
+
+Sélection CI PostgreSQL validée en lots : 2082 cas hors classes de concurrence,
+dont 2080 réussis et deux ignorés Redis ; 36 cas de concurrence réussis issus de
+la sélection complète, sans erreur parmi ces cas. La course STAT-002 a également
+été rejouée avec le code final dans les 35 contrôles dédiés. Au total, la sélection
+couvre 2118 exécutions, dont 2116 réussies et deux ignorées. Les cinq erreurs de
+schéma de la première passe sont corrigées et passent dans le lot général repris.
+Les schémas concernés et le registre ont aussi passé 54 contrôles SQLite ciblés.
+Toutes les bases PostgreSQL temporaires ont été supprimées. CI distante, push,
+sauvegarde, migration et recette avec habilitations réelles restent à réaliser
+par l’utilisateur ; aucun de ces résultats locaux ne vaut validation de la CI distante.

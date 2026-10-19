@@ -4,6 +4,8 @@ namespace App\Modules\Competition\Providers;
 
 use App\Modules\Competition\Application\Contracts\MatchRecalculationQueue;
 use App\Modules\Competition\Application\Contracts\MatchScorePublisher;
+use App\Modules\Competition\Application\Contracts\ObservationMatchDirectory;
+use App\Modules\Competition\Application\Services\ObservationMatchService;
 use App\Modules\Competition\Domain\Contracts\CompetitionOutcomeRepository;
 use App\Modules\Competition\Domain\Contracts\CompetitionRegistrationRepository;
 use App\Modules\Competition\Domain\Contracts\ExternalCompetitionRepository;
@@ -40,6 +42,7 @@ final class CompetitionServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(ObservationMatchDirectory::class, ObservationMatchService::class);
         $this->app->bind(CompetitionOutcomeRepository::class, EloquentCompetitionOutcomeRepository::class);
         $this->app->bind(CompetitionRegistrationRepository::class, EloquentCompetitionRegistrationRepository::class);
         $this->app->bind(ExternalCompetitionRepository::class, EloquentExternalCompetitionRepository::class);

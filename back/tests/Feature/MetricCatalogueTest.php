@@ -173,9 +173,12 @@ class MetricCatalogueTest extends TestCase
     public function test_empty_schema_roundtrip(): void
     {
         $migration = require database_path('migrations/2026_10_19_094551_create_metric_dictionary.php');
+        $observations = require database_path('migrations/2026_10_19_113618_create_statistical_observations.php');
+        $observations->down();
         $migration->down();
         $this->assertFalse(Schema::hasTable('metric_definitions'));
         $migration->up();
+        $observations->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
     }
 

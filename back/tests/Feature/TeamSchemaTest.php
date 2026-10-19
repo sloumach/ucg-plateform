@@ -98,6 +98,8 @@ class TeamSchemaTest extends TestCase
         $matchResults = require database_path('migrations/2026_10_18_144624_create_match_result_events_and_guards.php');
         $notebook = require database_path('migrations/2026_10_18_155140_create_match_notebook_revisions.php');
         $outcomes = require database_path('migrations/2026_10_19_005858_create_competition_outcome_tracking.php');
+        $observations = require database_path('migrations/2026_10_19_113618_create_statistical_observations.php');
+        $observations->down();
         $outcomes->down();
         $notebook->down();
         $corrections = require database_path('migrations/2026_10_18_184341_create_match_score_corrections_and_recalculations.php');
@@ -137,6 +139,7 @@ class TeamSchemaTest extends TestCase
         $corrections->up();
         $notebook->up();
         $outcomes->up();
+        $observations->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         $this->assertDatabaseCount('teams', 0);
     }

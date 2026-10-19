@@ -36,6 +36,11 @@ final readonly class EloquentMatchRepository implements MatchRepository
         return $this->visible($org, $actor, $viewer, false)->whereIn('id', $ids)->get()->keyBy('id')->all();
     }
 
+    public function visibleIdsQuery(string $org, int $actor, array $viewer): Query
+    {
+        return $this->visible($org, $actor, $viewer, false)->select('matches.id')->toBase();
+    }
+
     public function save(?MatchRecord $record, array $attributes, ?array $participants): MatchRecord
     {
         $record ??= new MatchRecord;
