@@ -912,7 +912,7 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 
 ### UCG-STAT-002 — Saisir et corriger les observations
 
-- **Livraison** : implémenté localement le 19 octobre 2026 ; push/CI et migration `2026_10_19_113618` à valider après sauvegarde.
+- **Livraison** : push/CI et migration 2026_10_19_113618 validés par l’utilisateur avant STAT-003A ; migration constatée Ran batch 47.
 - **Saisie** : valeurs décimales exactes, indisponibilité explicite, source et contexte privés immuables, joueur, période, échantillon, partie/manche ou séance selon le niveau ; version de métrique et formule conservées.
 - **Corrections** : ajout de révisions motivées, invalidation/réactivation, contrôle de version concurrente et audit atomique ; provenance importée jamais remplacée. Importeur STAT-003 et calculs STAT-004 séparés.
 - **Accès** : permissions statistiques distinctes sous MFA, confirmation tenant ; aucun accès implicite propriétaire/admin. Audience match ordinaire réappliquée aux listes et historiques ; tables et exports privés isolés par organisation.
@@ -924,6 +924,12 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Références CDC** : STAT-02, STAT-04, STAT-05, STAT-08.
 
 ### UCG-STAT-003 — Construire le pipeline d’import statistique
+
+- **Découpage validé** : STAT-003A = dépôt, validation et prévisualisation sans observation ; STAT-003B = confirmation, traitement, idempotence incluant le tenant, erreurs et reprise.
+- **STAT-003A livré localement** : CSV UTF-8 1 Mio/100 lignes, schéma fermé, UUID joueur du tenant et version de métrique explicites ; règles de saisie partagées, erreurs par ligne et doublons du fichier signalés. Fichier et aperçu chiffrés privés au déposant dans son tenant ; nouvelle permission explicite sous MFA, confirmation tenant et audience match réappliquée.
+- **Mise en service A** : migration additive `2026_10_19_143154` après push/CI/sauvegarde utilisateur, puis recette avec habilitation explicite. Aucune route de confirmation/traitement, aucune observation créée, aucun worker nécessaire.
+- **Validation A** : 21 nouveaux cas backend, six frontend et un parcours Chrome mobile ; 137/137 PostgreSQL ciblés, suite SQLite complète 2309 réussis/40 ignorés, frontend complet 391 réussis ; typage, lint, build, Pint et PHPStan verts. Ces totaux de suites couvrent tout le projet.
+- **Reste B** : revalidation des droits/références/versions à la confirmation, déduplication des observations entre fichiers et relances, traitement borné et reprise ; le ticket parent reste ouvert.
 
 - **Priorité / taille** : P0 / XL
 - **Périmètre** : fichier privé, validation de schéma, prévisualisation, correspondance des joueurs, déduplication incluant le tenant, erreurs et reprise.

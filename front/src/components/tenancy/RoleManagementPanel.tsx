@@ -16,6 +16,7 @@ type Data = { roles: Page<OrganizationRole> | null; assignments: Page<RoleAssign
 type Pending = { label: string; path: string; method: 'POST' | 'PUT'; body: Record<string, unknown>; form: HTMLFormElement }
 const permissionNames: Record<PermissionKey, Parameters<typeof t>[0]> = {
   'sports.registrations.read': 'roles.permission.sports.registrations.read', 'sports.registrations.write': 'roles.permission.sports.registrations.write',
+  'sports.statistics.import': 'roles.permission.sports.statistics.import',
   'sports.statistics.read': 'roles.permission.sports.statistics.read', 'sports.statistics.write': 'roles.permission.sports.statistics.write', 'sports.statistics.correct': 'roles.permission.sports.statistics.correct',
   'sports.competitions.read': 'roles.permission.sports.competitions.read', 'sports.competitions.write': 'roles.permission.sports.competitions.write',
   'sports.correct': 'roles.permission.sports.correct',

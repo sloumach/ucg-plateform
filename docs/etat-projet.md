@@ -9,11 +9,16 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : `UCG-STAT-002` — observations statistiques privées et corrections.
-  Livraison locale sur staging ; push/CI et migration principale à valider.
-  Migration `2026_10_19_113618` en attente. Aucun migrate/seed principal,
-  donnée privée, droit réel, worker ou fournisseur activé par l’agent.
-  Prochain P0 proposé après recette : STAT-003, pipeline d’import privé.
+- Dernier ticket traité : **UCG-STAT-003A** — dépôt CSV privé et prévisualisation,
+  sans création d’observations. Livraison locale sur `staging`.
+  Migration additive `2026_10_19_143154` à appliquer après push → CI → sauvegarde.
+  Aucun push ni migrate/seed principal, donnée privée ou droit réel créé par
+  l’agent. Aucun traitement, worker ou fournisseur activé.
+  Prochaine étape après recette : **STAT-003B**, confirmation, traitement,
+  idempotence des observations incluant le tenant, erreurs et reprise.
+- STAT-002 : `aa6e52e` poussé et synchronisé à la reprise ; push, CI et migration
+  validés par l’utilisateur. Migration constatée Ran batch 47. La sauvegarde
+  n’a pas été explicitement confirmée dans cette reprise.
 - STAT-001 : `cbeba13` poussé et synchronisé à la reprise ; push/CI/migration
   validés par l’utilisateur. Migration constatée Ran batch 46.
 - COMP-003 : `045887d` poussé et synchronisé à la reprise ; push, CI, sauvegarde
@@ -3987,3 +3992,49 @@ Les schémas concernés et le registre ont aussi passé 54 contrôles SQLite cib
 Toutes les bases PostgreSQL temporaires ont été supprimées. CI distante, push,
 sauvegarde, migration et recette avec habilitations réelles restent à réaliser
 par l’utilisateur ; aucun de ces résultats locaux ne vaut validation de la CI distante.
+
+## UCG-STAT-003A — dépôt CSV et prévisualisation (19 octobre 2026)
+
+STAT-002 `aa6e52e` est poussé, CI et migration validées par l’utilisateur ;
+migration constatée Ran batch 47 à la reprise. Ce lot ajoute uniquement le dépôt
+privé et l’aperçu de CSV : UTF-8, virgule ou point-virgule, 1 Mio et 100 lignes
+maximum, avec quotas tenant également appliqués. Joueurs et métriques utilisent
+des identifiants et versions explicites ; erreurs et doublons du fichier sont
+affichés par ligne source. Aucun rapprochement approximatif ni création de joueur.
+Les valeurs sont des décimales exactes, et indisponible reste distinct de zéro.
+
+Fichier et aperçu chiffrés, réservés au déposant dans son organisation ; l’audience
+actuelle des matchs reste appliquée. Nouvelle permission explicite
+`sports.statistics.import` en plus de `sports.read`, `sports.write`,
+`sports.statistics.read` et `sports.statistics.write`, sous MFA et tenant confirmé.
+Aucun droit réel n’est attribué par l’agent. Listes et lignes paginées par dix,
+rendu React échappé, fichier conservé sur 422, aucun rejeu sur 409.
+
+Migration additive `2026_10_19_143154_create_statistical_import_previews.php` :
+FK artefact du même tenant, compteurs bornés, historique immuable, down refusé
+si non vide. Appliquer après push → CI → sauvegarde, puis recette utilisateur.
+Aucun push ni migrate/seed principal exécuté par l’agent. Aucun worker nécessaire.
+
+**Aucune observation créée et aucun bouton de traitement dans STAT-003A.**
+STAT-003B reste à livrer pour confirmation, revalidation, idempotence des
+observations incluant l’organisation, traitement et reprise. Le statut « valide
+à la préparation » décrit un aperçu daté, pas un import effectué.
+
+Validation STAT-003A : 21 nouveaux cas backend d’import, six nouveaux tests
+frontend et un parcours Chrome réel avec API simulée (dépôt multipart confirmé,
+références, zéro, erreurs, absence de traitement, lecture sans permission refusée,
+aucun débordement à 320/375 px ; captures relues). Vérification backend ciblée
+finale : 92/92 SQLite avec les architectures ; sélection PostgreSQL dédiée :
+137/137 dans une base isolée supprimée, incluant les schémas parents, les imports
+People, les observations et la concurrence de correction existante. Le workflow
+CI inclut le nouveau test d’import dans la sélection PostgreSQL.
+
+Les nombres suivants couvrent les suites du projet : SQLite complète finale,
+2349 cas dont 2309 réussis et 40 ignorés ; frontend complet, 391 réussis dans
+56 fichiers. Les 12 cas frontend des observations/imports ont été rejoués après
+les derniers ajustements de libellés. Un ancien test du protocole antivirus simulé
+avait produit une erreur de décodage lors de la première passe SQLite ; ses dix
+cas ont réussi à la relance, puis la suite complète a réussi sans changement
+de ce code. PHPStan zéro erreur, Pint, typage application/tests/navigateur, lint,
+build et validation Composer réussis. Dépendances inchangées ; CI distante
+à exécuter après push utilisateur.

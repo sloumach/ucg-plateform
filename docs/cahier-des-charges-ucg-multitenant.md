@@ -513,6 +513,15 @@ P0 : saisie manuelle et import CSV validé. P1 : premier connecteur pour chaque 
 
 Chaque import comporte une prévisualisation, une validation de schéma, la correspondance des joueurs dans le tenant actif, une clé de déduplication incluant l’organisation, un journal des erreurs et une possibilité de reprise. Les lignes refusées restent identifiables. Une relance ne doit pas créer un second match et un fichier importé par un tenant ne doit jamais être accessible à un autre.
 
+Livraison STAT-003A : dépôt et prévisualisation uniquement. Le CSV reprend les
+champs des observations, avec identifiants explicites du joueur dans le tenant et
+version exacte de métrique ; les en-têtes inconnus sont refusés. Limites 1 Mio et
+100 lignes, UTF-8, virgule ou point-virgule. Les valeurs absentes restent distinctes
+de zéro. Le fichier et l’aperçu sont chiffrés ; chaque déposant consulte seulement
+ses aperçus dans l’organisation active, avec droits explicites et audience match
+actuelle. Aucune observation n’est créée, même si toutes les lignes sont valides.
+La confirmation et le traitement idempotent avec reprise restent STAT-003B.
+
 ### 10.4 Faisabilité des connecteurs
 
 Pour chaque jeu, établir une fiche : données nécessaires, endpoints officiels ou fournisseur, compte propriétaire, organisation utilisatrice, accord d’accès, consentements, quotas, latence, historique accessible, coût et restrictions de publication. Les credentials, quotas et autorisations d’un connecteur sont isolés par tenant, sauf contrat plateforme explicitement documenté.

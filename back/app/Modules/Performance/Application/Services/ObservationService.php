@@ -97,24 +97,7 @@ final readonly class ObservationService
         $operation = $id === null ? 'create' : 'correct';
         $this->authorize($context, $operation);
         $v = Input::validate($this->validator, $input, $id === null ? 'store' : 'update');
-        if (mb_strlen(trim($v['reason'])) < 10) {
-            throw ValidationException::withMessages(['reason' => __('observations.reason')]);
-        }
-        if (($v['availability'] === 'available' && ($v['value'] === null || $v['missing_reason'] !== null)) || ($v['availability'] === 'unavailable' && ($v['value'] !== null || $v['missing_reason'] === null))) {
-            throw ValidationException::withMessages(['value' => __('observations.value')]);
-        }
-        $values = array_intersect_key($v, array_flip(Input::REVISION_FIELDS));
-        foreach ($values as $key => $value) {
-            if (is_string($value)) {
-                $values[$key] = trim($value);
-            }
-        }
-        if ($values['value'] !== null) {
-            $values['value'] = str_contains($values['value'], '.') ? rtrim(rtrim($values['value'], '0'), '.') : $values['value'];
-            if ($values['value'] === '-0') {
-                $values['value'] = '0';
-            }
-        }
+        $values = $this->revisionValues($v);
 
         return $this->database->transaction(function () use ($context, $id, $ip, $v, $values, $operation): Observation {
             $this->guard->lock($context);
@@ -134,46 +117,8 @@ final readonly class ObservationService
                 // Same global lock as dictionary edits, after the tenant guard, before reading the exact revision.
                 $this->catalogue->lock($this->catalogue->version());
                 $this->metrics->state(true);
-                $metric = $this->metrics->find(strtolower($v['metric_id']));
-                $revision = $metric->current;
-                if ($revision === null || $revision->id !== strtolower($v['metric_version']) || $revision->status !== 'active' || $revision->availability === 'unavailable') {
-                    $this->conflict('metric');
-                }
-                $this->games->game($context, $metric->game_id);
-                $references = [];
-                foreach (['mode_id', 'role_id', 'release_id'] as $field) {
-                    $references[$field] = $v[$field] === null ? null : strtolower($v[$field]);
-                    if ($revision->getAttribute($field) !== null && $revision->getAttribute($field) !== $references[$field]) {
-                        throw ValidationException::withMessages([$field => __('observations.reference')]);
-                    }
-                }
-                $gameContext = $this->catalogue->resolve($metric->game_id, $references['mode_id'], $references['role_id'], $references['release_id'], true);
-
-                $person = strtolower($v['person_id']);
-                $this->people->assertAssignable($context, $person);
-                $match = $v['match_id'] === null ? null : strtolower($v['match_id']);
-                $part = $v['match_game_id'] === null ? null : strtolower($v['match_game_id']);
-                if ($match !== null) {
-                    $linked = $this->matches->assertReference($context, $match, $metric->game_id, $part);
-                    if ($v['source_kind'] !== 'assessment' && $linked['kind'] !== $v['source_kind']) {
-                        throw ValidationException::withMessages(['source_kind' => __('observations.reference')]);
-                    }
-                }
-                $level = $revision->scope['aggregation_level'] ?? 'game';
-                if (($part !== null && $match === null) || (in_array($level, ['game', 'round'], true) && $part === null) || ($level === 'match' && $match === null) || ($level === 'round' && $v['round_number'] === null) || ($level !== 'round' && $v['round_number'] !== null) || ($level === 'session' && $v['session_label'] === null) || ($revision->measurement_kind === 'subjective' && $v['source_kind'] !== 'assessment') || ($revision->measurement_kind !== 'subjective' && $v['source_kind'] === 'assessment') || $values['status'] !== 'active') {
-                    throw ValidationException::withMessages(['record' => __('observations.reference')]);
-                }
-                if ($v['observed_on'] > CarbonImmutable::now($context->timezone)->format('Y-m-d')) {
-                    throw ValidationException::withMessages(['observed_on' => __('observations.period')]);
-                }
-                $fields = ['source_label', 'period_start', 'period_end', 'observed_on', 'sample_size', 'source_kind'];
-                $attributes = array_intersect_key($v, array_flip($fields));
-                $attributes['source_label'] = trim($attributes['source_label']);
-                $scope = [];
-                foreach (['region', 'season', 'map', 'opponent', 'round_number', 'session_label'] as $f) {
-                    $scope[$f] = is_string($v[$f]) ? trim($v[$f]) : $v[$f];
-                }
-                $record = $this->records->create(['id' => (string) Str::uuid(), 'organization_id' => $context->organizationId, 'metric_id' => $metric->id, 'metric_revision_id' => $revision->id, 'game_id' => $metric->game_id, 'person_id' => $person, 'match_id' => $match, 'match_game_id' => $part, 'acquired_via' => 'manual', 'origin_reference' => null, ...$attributes, 'context' => [...$scope, 'metric' => $this->dictionary->project($metric), 'game_context' => $gameContext], 'created_by' => $context->actorUserId, 'request_id' => $context->requestId]);
+                $attributes = $this->prepare($context, $v);
+                $record = $this->records->create([...$attributes, 'acquired_via' => 'manual']);
             }
             $revision = $this->records->append(['id' => (string) Str::uuid(), 'organization_id' => $context->organizationId, 'observation_id' => $record->id, 'number' => ($old->number ?? 0) + 1, 'base_version' => $old?->id, ...$values, 'reason' => trim($v['reason']), 'actor_user_id' => $context->actorUserId, 'request_id' => $context->requestId]);
             $this->audit->record($context->organizationId, new AuditWriteData($context->actorUserId, AuditAction::DomainChanged, AuditTarget::Organization, $context->organizationId, AuditReason::Domain, $context->requestId, $ip, [], ['observation_id' => $record->id, 'observation_action' => $id === null ? 'created' : 'corrected', 'version' => $revision->id]));
@@ -201,6 +146,94 @@ final readonly class ObservationService
         $revision ??= $record->current;
 
         return ['id' => $record->id, 'metric_id' => $record->metric_id, 'metric_version' => $record->metric_revision_id, 'game_id' => $record->game_id, 'person_id' => $record->person_id, 'person_label' => $labels[$record->person_id] ?? null, 'match_id' => $record->match_id, 'match_game_id' => $record->match_game_id, 'source_kind' => $record->source_kind, 'acquired_via' => $record->acquired_via, 'origin_reference' => $record->origin_reference, 'source_label' => $record->source_label, 'period_start' => $record->period_start, 'period_end' => $record->period_end, 'observed_on' => $record->observed_on, 'sample_size' => $record->sample_size, 'context' => $record->context, 'version' => $revision?->id, 'number' => $revision?->number, 'availability' => $revision?->availability, 'value' => $revision?->value, 'missing_reason' => $revision?->missing_reason, 'notes' => $revision?->notes, 'status' => $revision?->status, 'reason' => $revision?->reason, 'occurred_at' => $revision?->created_at->toISOString()];
+    }
+
+    /** Read-only domain validation; caller holds the tenant guard and catalogue locks.
+     * @param  array<string,mixed>  $input
+     * @return array<string,mixed>
+     */
+    public function draft(TenantContext $context, array $input): array
+    {
+        $this->authorize($context, 'create');
+        $v = Input::validate($this->validator, $input, 'store');
+        $values = $this->revisionValues($v);
+
+        return ['observation' => $this->prepare($context, $v), 'revision' => [...$values, 'reason' => trim($v['reason'])]];
+    }
+
+    /** @param array<string,mixed> $v
+     * @return array<string,mixed>
+     */
+    private function revisionValues(array $v): array
+    {
+        if (mb_strlen(trim($v['reason'])) < 10) {
+            throw ValidationException::withMessages(['reason' => __('observations.reason')]);
+        }
+        if (($v['availability'] === 'available' && ($v['value'] === null || $v['missing_reason'] !== null)) || ($v['availability'] === 'unavailable' && ($v['value'] !== null || $v['missing_reason'] === null))) {
+            throw ValidationException::withMessages(['value' => __('observations.value')]);
+        }
+        $values = array_intersect_key($v, array_flip(Input::REVISION_FIELDS));
+        foreach ($values as $key => $value) {
+            if (is_string($value)) {
+                $values[$key] = trim($value);
+            }
+        }
+        if ($values['value'] !== null) {
+            $values['value'] = str_contains($values['value'], '.') ? rtrim(rtrim($values['value'], '0'), '.') : $values['value'];
+            if ($values['value'] === '-0') {
+                $values['value'] = '0';
+            }
+        }
+
+        return $values;
+    }
+
+    /** @param array<string,mixed> $v
+     * @return array<string,mixed>
+     */
+    private function prepare(TenantContext $context, array $v): array
+    {
+        $metric = $this->metrics->find(strtolower($v['metric_id']));
+        $revision = $metric->current;
+        if ($revision === null || $revision->id !== strtolower($v['metric_version']) || $revision->status !== 'active' || $revision->availability === 'unavailable') {
+            $this->conflict('metric');
+        }
+        $this->games->game($context, $metric->game_id);
+        $references = [];
+        foreach (['mode_id', 'role_id', 'release_id'] as $field) {
+            $references[$field] = $v[$field] === null ? null : strtolower($v[$field]);
+            if ($revision->getAttribute($field) !== null && $revision->getAttribute($field) !== $references[$field]) {
+                throw ValidationException::withMessages([$field => __('observations.reference')]);
+            }
+        }
+        $gameContext = $this->catalogue->resolve($metric->game_id, $references['mode_id'], $references['role_id'], $references['release_id'], true);
+
+        $person = strtolower($v['person_id']);
+        $this->people->assertAssignable($context, $person);
+        $match = $v['match_id'] === null ? null : strtolower($v['match_id']);
+        $part = $v['match_game_id'] === null ? null : strtolower($v['match_game_id']);
+        if ($match !== null) {
+            $linked = $this->matches->assertReference($context, $match, $metric->game_id, $part);
+            if ($v['source_kind'] !== 'assessment' && $linked['kind'] !== $v['source_kind']) {
+                throw ValidationException::withMessages(['source_kind' => __('observations.reference')]);
+            }
+        }
+        $level = $revision->scope['aggregation_level'] ?? 'game';
+        if (($part !== null && $match === null) || (in_array($level, ['game', 'round'], true) && $part === null) || ($level === 'match' && $match === null) || ($level === 'round' && $v['round_number'] === null) || ($level !== 'round' && $v['round_number'] !== null) || ($level === 'session' && $v['session_label'] === null) || ($revision->measurement_kind === 'subjective' && $v['source_kind'] !== 'assessment') || ($revision->measurement_kind !== 'subjective' && $v['source_kind'] === 'assessment') || $v['status'] !== 'active') {
+            throw ValidationException::withMessages(['record' => __('observations.reference')]);
+        }
+        if ($v['observed_on'] > CarbonImmutable::now($context->timezone)->format('Y-m-d')) {
+            throw ValidationException::withMessages(['observed_on' => __('observations.period')]);
+        }
+        $fields = ['source_label', 'period_start', 'period_end', 'observed_on', 'sample_size', 'source_kind'];
+        $attributes = array_intersect_key($v, array_flip($fields));
+        $attributes['source_label'] = trim($attributes['source_label']);
+        $scope = [];
+        foreach (['region', 'season', 'map', 'opponent', 'round_number', 'session_label'] as $f) {
+            $scope[$f] = is_string($v[$f]) ? trim($v[$f]) : $v[$f];
+        }
+
+        return ['id' => (string) Str::uuid(), 'organization_id' => $context->organizationId, 'metric_id' => $metric->id, 'metric_revision_id' => $revision->id, 'game_id' => $metric->game_id, 'person_id' => $person, 'match_id' => $match, 'match_game_id' => $part, 'acquired_via' => 'import', 'origin_reference' => null, ...$attributes, 'context' => [...$scope, 'metric' => $this->dictionary->project($metric), 'game_context' => $gameContext], 'created_by' => $context->actorUserId, 'request_id' => $context->requestId];
     }
 
     private function conflict(string $key): never

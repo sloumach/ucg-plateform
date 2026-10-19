@@ -3798,3 +3798,71 @@ indisponibles conservent leurs codes de domaine existants. 422 pour valeur,
 contexte, période, champs interdits ou correction sans changement. Aucun rejeu
 automatique sur conflit. Maximum 1000 versions, `page` ≤ 100000. Pas d’endpoint de
 suppression, d’import, de calcul ou d’activation de connecteur dans STAT-002.
+
+## STAT-003A — CSV privés et aperçu sans acquisition
+
+Base : `api/v1/tenants/{tenant}/statistical-imports`. Session vérifiée, MFA,
+droits organisation explicites sports.read/write, sports.statistics.read/write
+et sports.statistics.import. POST exige la confirmation tenant et
+X-Tenant-Revision. Lecture privée au déposant, 404 pour autre acteur/tenant ;
+audience actuelle des matchs résolus réappliquée. Réponses private, no-store.
+
+| Méthode | Route relative | Contrat |
+| --- | --- | --- |
+| GET | racine ?page=1 | dix résumés maximum, pagination Laravel |
+| POST | racine | multipart file et delimiter ; 200 avec aperçu |
+| GET | {import}?page=1 | aperçu daté, dix lignes, erreurs par champ/ligne source |
+
+POST prépare l’aperçu immédiatement. Aucune route confirm/process, aucun job ni
+observation créés. `status: previewed` et `can_confirm: false` restent constants.
+Réponse : id, compteurs row_count/valid_count/invalid_count, created_at,
+meta.request_id ; le dépôt ajoute une notification localisée. Le détail ajoute
+headers, delimiter et rows:{data,meta:{current_page,last_page,per_page,total}}.
+Chaque ligne : line, status valid|invalid, values, errors, resolved (null si
+invalide). La résolution expose joueur/pseudonyme sportif actuel, IDs
+métrique/version/jeu/match/partie et snapshots de définition/contexte de jeu.
+Aucun chemin de fichier, empreinte, acteur technique ou identité administrative.
+
+CSV UTF-8, BOM facultatif, grammaire stricte, retours en cellule et CRLF permis.
+Séparateur virgule ou point-virgule, 1 Mio brut, 100 lignes de données et 32 colonnes
+maximum ; quotas import_bytes/import_rows, stockage privé et artefact également
+appliqués. Les numéros désignent le début de ligne physique. En-têtes exacts et
+uniques issus des champs STAT-002 ; schéma inconnu/mal formé : 422 file, aucun
+artefact conservé. En-têtes obligatoires :
+
+```csv
+metric_id,metric_version,person_id,source_kind,source_label,period_start,period_end,observed_on,sample_size,availability,status,reason
+```
+
+Colonnes nullable facultatives :
+`value,missing_reason,notes,mode_id,role_id,release_id,match_id,match_game_id,region,season,map,opponent,session_label,round_number`.
+Une cellule vide nullable devient null. Valeur disponible exige value sans
+missing_reason ; indisponible exige missing_reason sans value. status = active.
+Décimales en chaîne exacte, point et six décimales maximum, sans exposant ou
+formule ; les règles métier de STAT-002 s’appliquent. Certaines références sont
+requises par le niveau et les restrictions de la métrique.
+
+Correspondance seulement par UUID joueur assignable du tenant, UUID métrique et
+version courante active/utilisable. Aucun alias externe/pseudonyme déduit ni
+référentiel créé. Les références paginées du frontend aident à préparer le CSV.
+Une référence étrangère/inaccessible produit une erreur générique par ligne,
+sans libellé étranger ; les autres lignes restent visibles.
+
+Exemple avec la session et CSRF déjà initialisés, tenant confirmé :
+
+```ts
+const body = new FormData()
+body.set('file', selectedCsvFile)
+body.set('delimiter', ';')
+await tenancyRequest('tenants/' + organizationId + '/statistical-imports', {
+  method: 'POST', body, revision: activeRevision,
+})
+```
+
+Ne pas fixer Content-Type : le navigateur ajoute la frontière multipart.
+422 conserve le fichier et affiche les erreurs ; 401/403/404/409 invalident le
+contexte sans rejeu. La relance d’octets identiques par le même compte/tenant
+réutilise son aperçu ; les doublons exacts dans le fichier sont invalides.
+Cela ne garantit pas l’idempotence d’observations entre fichiers : confirmation,
+origines, traitement et reprise restent STAT-003B. Un aperçu ancien ne dispense
+jamais de revalider droits, références et versions.

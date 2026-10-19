@@ -8,6 +8,7 @@ import { SelectField } from '../people/peopleForms'
 import { Button } from '../Button'
 import { Alert } from '../feedback/Alert'
 import { Pagination } from '../data/Pagination'
+import { StatisticalImportsPanel } from './StatisticalImportsPanel'
 import { ObservationForm } from './ObservationForm'
 
 type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
@@ -29,6 +30,7 @@ export function ObservationPanel({ active, disabled, onInvalid }: Props) {
       {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(n) => { setPage(n); setEditing(null); setHistory(null) }} />}
       {history && <ObservationHistory key={history.id} {...{ active, root, onInvalid }} record={history} disabled={blocked} onClose={() => setHistory(null)} />}
     </>}
+    <StatisticalImportsPanel {...{ active, disabled: blocked, onInvalid }} />
   </section>
 }
 function ObservationView({ row }: { row: StatisticalObservation }) {

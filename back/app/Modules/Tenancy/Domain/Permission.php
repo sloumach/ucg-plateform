@@ -15,6 +15,7 @@ enum Permission: string
     case SportsRead = 'sports.read';
     case StatisticsRead = 'sports.statistics.read';
     case StatisticsWrite = 'sports.statistics.write';
+    case StatisticsImport = 'sports.statistics.import';
     case StatisticsCorrect = 'sports.statistics.correct';
     case SportsRegistrationsRead = 'sports.registrations.read';
     case SportsRegistrationsWrite = 'sports.registrations.write';
