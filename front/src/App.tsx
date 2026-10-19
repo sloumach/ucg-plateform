@@ -12,6 +12,7 @@ import { NotificationProvider } from './components/feedback/NotificationProvider
 import { useNotifications } from './components/feedback/notificationContext'
 import { t } from './i18n/fr'
 import { TenantWorkspace } from './components/tenancy/TenantWorkspace'
+import { MetricCataloguePanel } from './components/performance/MetricCataloguePanel'
 import { GameCataloguePanel } from './components/teams/GameCataloguePanel'
 import type { ActiveOrganization } from './api/tenancy'
 
@@ -287,7 +288,7 @@ function Application() {
           </aside>
         </section>
         {user && !mfaPending && <TenantWorkspace key={user.id} onContextChange={setActiveTenant} />}
-        {user?.email_verified && !mfaPending && <GameCataloguePanel key={'catalogue:' + user.id} />}
+        {user?.email_verified && !mfaPending && <><GameCataloguePanel key={'catalogue:' + user.id} /><MetricCataloguePanel key={'metrics:' + user.id} /></>}
       </div>
     </main>
   )

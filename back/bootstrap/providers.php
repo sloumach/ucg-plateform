@@ -6,6 +6,7 @@ use App\Modules\Identity\Providers\IdentityServiceProvider;
 use App\Modules\Media\Providers\MediaServiceProvider;
 use App\Modules\Partnerships\Providers\PartnershipsServiceProvider;
 use App\Modules\People\Providers\PeopleServiceProvider;
+use App\Modules\Performance\Providers\PerformanceServiceProvider;
 use App\Modules\Scheduling\Providers\SchedulingServiceProvider;
 use App\Modules\Teams\Providers\TeamsServiceProvider;
 use App\Modules\Tenancy\Providers\TenancyServiceProvider;
@@ -18,6 +19,7 @@ return [
     MediaServiceProvider::class,
     PartnershipsServiceProvider::class,
     PeopleServiceProvider::class,
+    PerformanceServiceProvider::class,
     SchedulingServiceProvider::class,
     TeamsServiceProvider::class,
     TenancyServiceProvider::class,

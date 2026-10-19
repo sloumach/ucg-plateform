@@ -11,6 +11,7 @@ use App\Modules\Teams\Application\Contracts\HistoricalLineups;
 use App\Modules\Teams\Application\Contracts\MatchLineups;
 use App\Modules\Teams\Application\Contracts\MatchReferenceDirectory;
 use App\Modules\Teams\Application\Contracts\MediaTeamsDirectory;
+use App\Modules\Teams\Application\Contracts\MetricGameDirectory;
 use App\Modules\Teams\Application\Contracts\OrganizationGameCatalogue;
 use App\Modules\Teams\Application\Contracts\PartnershipTeamsDirectory;
 use App\Modules\Teams\Application\Services\CalendarTeamsService;
@@ -22,6 +23,7 @@ use App\Modules\Teams\Application\Services\GameProfileCatalogueBridge;
 use App\Modules\Teams\Application\Services\MatchLineupDirectoryService;
 use App\Modules\Teams\Application\Services\MatchReferenceService;
 use App\Modules\Teams\Application\Services\MediaTeamsService;
+use App\Modules\Teams\Application\Services\MetricGameDirectoryService;
 use App\Modules\Teams\Application\Services\PartnershipTeamsService;
 use App\Modules\Teams\Application\Services\TeamDepartureParticipant;
 use App\Modules\Teams\Application\Services\TeamLineupService;
@@ -62,6 +64,7 @@ final class TeamsServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(MetricGameDirectory::class, MetricGameDirectoryService::class);
         $this->app->bind(ExternalCompetitionGames::class, ExternalCompetitionGameService::class);
         $this->app->bind(MatchLineups::class, MatchLineupDirectoryService::class);
         $this->app->bind(MatchReferenceDirectory::class, MatchReferenceService::class);

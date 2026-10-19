@@ -6,6 +6,9 @@ final class TableOwnership
 {
     /** @var array<string, string> Closed exceptions; every other table is tenant-owned. */
     public const GLOBAL_TABLES = [
+        'metric_definitions' => 'Performance : définitions globales, aucune valeur privée tenant.',
+        'metric_revisions' => 'Performance : versions et audit des définitions globales.',
+        'metric_catalogue_state' => 'Performance : version du dictionnaire commun.',
         'game_catalogue_entries' => 'Teams : références communes sans données métier tenant.',
         'game_catalogue_state' => 'Teams : version du catalogue commun.',
         'game_catalogue_events' => 'Teams : audit append-only du catalogue commun, aucun contenu tenant.',

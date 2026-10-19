@@ -898,6 +898,13 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 
 ### UCG-STAT-001 — Créer le dictionnaire versionné des métriques
 
+- **Livraison** : implémenté localement le 19 octobre 2026 ; push/CI et migration principale à valider.
+- **Définitions** : code stable par jeu, unité, niveau de mesure distinct de l’opérateur d’agrégation, formule documentaire, comportement explicite des ratios à dénominateur nul, mesure subjective/objective, disponibilité et limites ; contexte mode/rôle/patch issu du catalogue commun.
+- **Versions** : identité immuable, corrections et retrait/réactivation append-only, versions anciennes consultables par UUID ; auteur, motif, date et request_id conservés. Compteurs et immutabilité protégés SQL PostgreSQL/SQLite ; publication de la version globale atomique.
+- **Accès** : lecture des seules métadonnées par compte vérifié ; écriture superadmin plateforme + MFA et confirmation globale. Aucun grant tenant implicite. Trois tables globales exclues des exports privés ; observations et valeurs restent STAT-002.
+- **Mise en service** : migration additive `2026_10_19_094551`, dictionnaire initialement vide, aucune métrique réelle ni reprise automatique. Recette lecteur/superadmin, historique, révocation et concurrence après migration utilisateur. Prochain P0 proposé : STAT-002.
+- **Validation locale** : 28 cas backend du dictionnaire, deux courses PostgreSQL entre opérateurs distincts, sept tests frontend et un parcours Chrome mobile ; suites complètes du projet et contrôles statiques verts. Vérification finale ciblée : 53/53 SQLite et 55/55 PostgreSQL. CI distante après push utilisateur.
+
 - **Priorité / taille** : P0 / L
 - **Périmètre** : code, définition, unité, agrégation, formule, jeu, mode, rôle, patch et disponibilité.
 - **Acceptation** : version de formule conservée ; métriques globales séparées des valeurs privées des tenants.

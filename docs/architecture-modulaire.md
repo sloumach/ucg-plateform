@@ -2513,3 +2513,67 @@ retirées/recréées dans l’ordre, sans modifier les anciennes migrations ni u
 CASCADE. Un écart de comptage global dans AuditJournalTest (46 contre 45, cache
 array) n’a pas été reproduit dans les contrôles ciblés ni dans la seconde suite
 SQLite complète ; aucun seuil ni code d’audit n’a été modifié.
+
+## 19 octobre 2026 — UCG-STAT-001 : dictionnaire global des métriques
+
+Le module Performance fournit le dictionnaire commun, séparé des futures valeurs
+privées des organisations. Chaque métrique possède un code stable unique par jeu,
+un nom, une définition, une unité, un niveau de mesure (manche/partie/match/séance/
+période), une méthode d’agrégation, une formule documentaire versionnée et ses
+conditions de disponibilité. Les références facultatives de mode, rôle et patch
+proviennent du catalogue de jeux, avec leurs libellés conservés dans chaque révision.
+Mesure objective/subjective et disponibilité manuelle/source à confirmer/indisponible
+sont explicites. Un ratio impose un comportement pour le dénominateur nul ; aucune
+moyenne de ratios ni exécution de code utilisateur n’est déclenchée.
+
+Le catalogue est lisible par les comptes vérifiés via l’API de session. L’écriture
+exige le superadmin plateforme et la MFA, y compris un recontrôle dans la transaction.
+Les droits de propriétaire/administrateur tenant ne suffisent pas. Le formulaire
+exige une confirmation globale distincte ; aucune donnée privée d’organisation ne
+doit être saisie dans ces définitions communes. Les valeurs, observations, imports,
+connecteurs et calculs effectifs restent dans les tickets STAT suivants.
+
+Trois tables globales déclarées dans l’inventaire fermé : metric_definitions,
+metric_revisions et metric_catalogue_state. Identité jeu/code immuable, historique
+append-only avec acteur, motif, request_id et date ; compteur par métrique et
+compteur global contrôlés par SQL sur PostgreSQL et SQLite. Une révision publie
+atomiquement la version du catalogue ; aucune entrée partielle si le journal échoue.
+Les écritures vérifient la version du dictionnaire, la version du catalogue de jeux
+et, pour une correction, celle de la définition. Retrait/réactivation produisent
+des révisions ; les anciennes formules restent accessibles par leur UUID exact.
+
+Le dictionnaire est limité à 10 000 métriques et 1000 révisions par métrique.
+Lectures et historiques paginés (10 maximum par page), références également
+paginées ; projection d’une page en trois requêtes, sans N+1. La résolution de la
+dernière version compare les numéros, sans MAX sur des UUID PostgreSQL. Les trois
+tables sont exclues des exports privés tenant : aucune valeur privée n’y est stockée.
+Le verrou global convient à la curation de définitions et ne servira pas aux
+écritures massives d’observations privées de STAT-002.
+
+Migration additive `2026_10_19_094551_create_metric_dictionary.php`, sans métrique
+préremplie ni modification des anciennes migrations. Down refusé si un historique
+existe. Les tests d’aller-retour du catalogue parent retirent/recréent ces nouvelles
+dépendances dans l’ordre. La dépendance Performance → Identity est déclarée pour
+les seuls contrats publics d’accès ; le catalogue de jeux est consommé via le
+nouveau port public Teams MetricGameDirectory.
+
+COMP-003 `045887d` était poussé et synchronisé à la reprise, migration constatée
+Ran batch 45 ; push/CI/sauvegarde/migration validés par l’utilisateur. STAT-001 reste
+local, nouvelle migration principale en attente. Aucun migrate/seed principal,
+droit réel, métrique réelle, valeur privée, fournisseur ou worker activé. Suite
+proposée après push/CI, sauvegarde/migration et recette : STAT-002. Les recettes
+réelles Reverb/broadcasts et rappels COMP-002 restent distinctes.
+
+Validations locales STAT-001 : 28 cas backend dédiés au dictionnaire et deux cas
+PostgreSQL de concurrence entre deux superadmins ; sept tests frontend et un
+parcours Chrome (création/correction/historique/lecteur, 320 et 375 px) rejoué après
+les derniers ajustements. Les grands totaux suivants couvrent tout le projet,
+pas seulement ce ticket : suite SQLite complète, 2252 réussis et 39 ignorés sur
+2291 cas ; sélection CI PostgreSQL complète en deux bases isolées, 2079 réussis
+et deux ignorés Redis sur 2081 cas ; frontend complet, 379 réussis dans 54 fichiers.
+Ces suites complètes précèdent les deux derniers cas sur le niveau de mesure ;
+la vérification finale ciblée inclut ces ajouts et les schémas parents : 53/53 sur
+SQLite et 55/55 sur PostgreSQL, concurrence comprise. Toutes les bases PostgreSQL
+de test ont été supprimées. PHPStan sans erreur, Pint, validation Composer,
+TypeScript, lint et build frontend réussis. Les captures mobiles ont été relues.
+La CI distante de STAT-001 reste à exécuter après le push utilisateur.

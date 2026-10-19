@@ -475,6 +475,15 @@ Chaque métrique possède un code, une définition, une unité, un niveau d’ag
 
 Ces métriques sont des exemples fonctionnels. Aucune disponibilité automatique n’est promise avant une étude de faisabilité pour le jeu concerné.
 
+Livraison STAT-001 : dictionnaire commun versionné, avec niveau de mesure distinct
+(manche, partie, match, séance, période), agrégation, unité, formule documentaire et
+comportement du ratio à dénominateur nul. Contexte jeu/mode/rôle/patch et libellés
+historisés ; disponibilité conditionnelle, mesure objective ou subjective explicite.
+Lecture par compte vérifié, modification réservée au superadmin plateforme sous
+MFA et confirmation globale. L’identité jeu/code reste stable et chaque correction
+est motivée ; les versions antérieures sont conservées. Aucune exécution de formule,
+collecte, observation privée ou activation de fournisseur dans ce lot.
+
 ### 10.2 Exigences
 
 - STAT-01 : afficher profil par jeu, historique de rang lorsqu’il est disponible, résultats et tendances.

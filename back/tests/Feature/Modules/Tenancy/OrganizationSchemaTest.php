@@ -115,6 +115,8 @@ class OrganizationSchemaTest extends TestCase
         $competitions = require database_path('migrations/2026_10_18_210127_create_external_competitions_and_private_documents.php');
         $registrations = require database_path('migrations/2026_10_18_231153_create_competition_registration_tracking.php');
         $outcomes = require database_path('migrations/2026_10_19_005858_create_competition_outcome_tracking.php');
+        $metrics = require database_path('migrations/2026_10_19_094551_create_metric_dictionary.php');
+        $metrics->down();
         $outcomes->down();
         $registrations->down();
         $competitions->down();
@@ -233,6 +235,7 @@ class OrganizationSchemaTest extends TestCase
         $competitions->up();
         $registrations->up();
         $outcomes->up();
+        $metrics->up();
         $this->assertTrue(Schema::hasTable('calendar_feeds'));
         $this->assertTrue(Schema::hasTable('organizations'));
         $this->assertTrue(Schema::hasTable('organization_settings'));

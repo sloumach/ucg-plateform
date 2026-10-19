@@ -12,6 +12,7 @@ use App\Modules\Competition\Application\Services\MatchResultService;
 use App\Modules\Competition\Application\Services\MatchScoreService;
 use App\Modules\Competition\Application\Services\MatchService;
 use App\Modules\Competition\Application\Services\ProcessCompetitionRegistrationReminders;
+use App\Modules\Performance\Application\Services\MetricCatalogueService;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use App\Modules\Tenancy\Application\Contracts\TenantExecutionContext;
 use Carbon\CarbonImmutable;
@@ -45,7 +46,9 @@ while (! is_file($barrier)) {
 }
 try {
     $service = app(MatchService::class);
-    if ($payload['operation'] === 'competition_outcome') {
+    if ($payload['operation'] === 'metric') {
+        app(MetricCatalogueService::class)->save($context->actorUserId, $context->requestId, $payload['input'], $payload['metric']);
+    } elseif ($payload['operation'] === 'competition_outcome') {
         app(CompetitionOutcomeService::class)->save($context, $payload['competition'], $payload['stream'], $payload['input'], null);
     } elseif ($payload['operation'] === 'registration') {
         app(CompetitionRegistrationService::class)->save($context, $payload['competition'], $payload['input'], null);

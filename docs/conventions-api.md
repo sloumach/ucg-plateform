@@ -3637,3 +3637,79 @@ Conflits 409 `COMPETITION_OUTCOME_STALE`, `COMPETITION_OUTCOME_ARCHIVED`,
 périmètre/match inaccessible : 404 ; droits insuffisants : 403 ; données ou
 non-changement : 422. Succès : notification Flasher, sans contenu financier dans
 le journal général. Migration additive `2026_10_19_005858`, sans activation de worker.
+
+
+### STAT-001 — Dictionnaire commun des métriques
+
+Préfixe `/api/v1/metric-catalogue`, hors tenant. Session authentifiée et compte
+vérifié ; MFA exigée pour le superadmin plateforme. Aucun droit tenant ne donne
+l’écriture globale. Toutes les réponses sont `private, no-store` ; écritures sous
+CSRF, confirmation globale et session bloquée pendant l’opération.
+
+| Méthode | Suffixe | Comportement |
+| --- | --- | --- |
+| GET | vide | liste paginée, meta.catalogue_version/game_catalogue_version/can_manage |
+| POST | vide | nouvelle identité et première révision, 201, superadmin uniquement |
+| GET | `/{metric}` | état courant de cette définition |
+| PATCH | `/{metric}` | nouvelle révision motivée, 200, superadmin uniquement |
+| GET | `/{metric}/history` | historique paginé, plus récent d’abord |
+| GET | `/{metric}/versions/{version}` | version immuable exacte du même identifiant |
+
+Filtres GET : game_id, code exact, status active/retired, availability,
+aggregation, mode_id, role_id, release_id. Page 1..100000, per_page 1..10 ;
+aucun filtre de texte libre ni valeur privée. Sans status, la liste inclut actifs
+et retirés. Le frontend commence sur active. Références de contexte via
+`GET /api/v1/game-catalogue?kind=game|mode|role|release&game_id=...&page=1&per_page=10`
+(game_id uniquement pour les références rattachées au jeu).
+
+Exemple avec le client SPA existant :
+
+```ts
+await tenancyRequest('metric-catalogue', {
+  method: 'POST',
+  body: {
+    catalogue_version: dictionaryVersion, game_catalogue_version: gamesVersion,
+    confirm_global: true, game_id: gameId, code: 'KD_RATIO',
+    mode_id: null, role_id: null, release_id: null,
+    title: 'Ratio éliminations / morts', definition: 'Composantes comparables dans le même contexte.',
+    unit: 'ratio', aggregation_level: 'period', aggregation: 'ratio',
+    formula: 'sum(kills) / sum(deaths)', zero_denominator: 'unavailable',
+    measurement_kind: 'objective', availability: 'source_required',
+    availability_note: 'Source et accès à confirmer avant acquisition.',
+    status: 'active', reason: 'Définition commune vérifiée avant utilisation.'
+  }
+})
+```
+
+PATCH envoie le même état documentaire complet, remplace game_id/code par
+`version` (UUID de la dernière révision) et conserve les deux versions de catalogue.
+Jeu et code ne peuvent pas être changés. Le niveau vaut game à la création s’il
+est omis ; une correction qui l’omet conserve le niveau précédent. Le formulaire
+l’envoie explicitement. Il est conservé dans scope.aggregation_level et projeté
+aussi au niveau de la définition. Une révision ultérieure ne modifie jamais les
+anciens niveaux/formules. Les futurs faits privés devront référencer l’UUID exact
+de définition ; aucune écriture de faits ni recalcul n’est livré par STAT-001.
+
+Champs : code ASCII `[A-Z][A-Z0-9_]{1,63}`, titre 160 caractères, définition 4000,
+unité 40, formule 2000, note de disponibilité 2000, motif 10..1000 après trim.
+Méthodes : sum/mean/min/max/last/ratio/manual ; niveaux : round/game/match/session/
+period. Un ratio exige zero_denominator unavailable ou zero ; les autres méthodes
+exigent not_applicable. Nature : objective/subjective ; disponibilité : manual/
+source_required/unavailable. Les formules sont du texte descriptif, jamais du PHP,
+JavaScript ou SQL à exécuter. Aucune disponibilité d’API fournisseur n’est déduite.
+
+Mode, rôle et release sont nullable, du même jeu, et actifs pour une définition
+active. Le retrait peut conserver des références devenues inactives. Les libellés
+sont des instantanés de la révision. Réactivation et retrait créent une version ;
+le retrait ne supprime ni code ni historique. 10 000 métriques maximum, 1000 révisions
+par métrique. Aucun contenu organization_id/person_id/value/import n’est accepté
+et les objets/query strings sont fermés. Les définitions globales sont exclues
+des exports de valeurs privées des organisations.
+
+409 METRIC_CATALOGUE_STALE/LIMIT/DUPLICATE ; un catalogue de jeux périmé renvoie
+GAME_CATALOGUE_VERSION_STALE. Recharger sans rejeu automatique. 422 pour données
+invalides/non-changement, 403 pour droits insuffisants, 404 pour référence ou version
+inconnue/hors parent. Succès avec notification Flasher ; auteur, request_id, motif
+et date inscrits atomiquement dans la révision. Aucune table tenant ni permission
+métier réelle modifiée par ce lot. Migration `2026_10_19_094551` à appliquer après
+sauvegarde et validation CI.
