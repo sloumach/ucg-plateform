@@ -2792,3 +2792,28 @@ Les tables sont inscrites dans l’inventaire fermé de portabilité du tenant.
 Le réglage STATISTICAL_CALCULATIONS_ENABLED est indépendant et false par défaut.
 Le frontend propose sélection, confirmation, suivi, détail, historique et recalcul ;
 les profils/comparaisons de STAT-005 restent distincts.
+
+### Profils et comparaisons — UCG-STAT-005
+
+Le module Performance expose deux GET statistical-profiles et
+statistical-profiles/people. StatisticalProfileService orchestre validation,
+lecture des pseudonymes par le contrat public People, versions du dictionnaire,
+audience actuelle des matchs via le contrat Competition, puis projection.
+StatisticalProfileRepository borne les candidats indexés et charge leurs dernières
+révisions en bloc ; les filtres sur contexte/libellé chiffrés suivent le contrôle
+de quota. Aucun modèle d’un autre module importé directement.
+
+StatisticalProfileProjector partitionne les contextes, réutilise le moteur décimal
+STAT-004 et produit groupes, chronologie et comparaisons paginées. Les empreintes
+de couverture exigent le même ensemble d’intervalles ; périodes superposées et
+origines répétées restent indisponibles. La lecture ne persiste ni calcul ni job.
+Les profils sont partagés aux lecteurs statistiques du tenant et filtrés par
+audience ; les calculs enregistrés restent privés au demandeur initial.
+
+Pas de nouvelle table/migration, cache privé, index ajouté sans mesure ou
+modification de la portabilité. 1 000 candidats par joueur, deux joueurs et
+366 jours inclusifs maximum ; refus avant déchiffrement si dépassement. Le nombre
+de requêtes est constant quand le nombre d’observations croît dans cette borne.
+Les snapshots historiques du dictionnaire restent sélectionnables ; une version
+n’est jamais remplacée implicitement par la courante. Le frontend invalide son
+résultat sur changement de filtre/tenant/compte et annule les lectures obsolètes.

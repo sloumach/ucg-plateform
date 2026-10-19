@@ -9,14 +9,17 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket livré localement : **UCG-STAT-004** — agrégats, ratios,
-  calculs privés versionnés et recalcul ciblé après correction ; backend et frontend.
-  Migration additive `2026_10_19_183908`, à appliquer après push, CI et sauvegarde.
-  Calculs désactivés par défaut (`STATISTICAL_CALCULATIONS_ENABLED=false`).
-  Commit STAT-004 demandé par l’utilisateur ; push et CI à suivre.
-  Aucune migration/seed principale exécutée ni aucun worker activé pour STAT-004.
-  Recette et activation supervisée restent à prévoir. Prochain P0 : **STAT-005**,
-  profils et comparaisons contextualisés.
+- Dernier ticket livré localement : **UCG-STAT-005** — profils par joueur et jeu,
+  filtres contextuels, historique des observations, fraîcheur et comparaisons.
+  Backend et frontend en lecture seule, sans nouvelle migration.
+  Commit STAT-005 demandé par l’utilisateur ; push et CI distante à suivre.
+  Les profils relisent les observations accessibles ; les calculs enregistrés et
+  workers STAT-004 conservent leur réglage séparé. Aucun worker/.env réel activé.
+  Push/CI distante et recette utilisateur de STAT-005 restent à effectuer.
+- STAT-004 : `4c1b8fe` poussé et synchronisé à la reprise, CI validée par
+  l’utilisateur. Migration `2026_10_19_183908` constatée Ran batch 50 en lecture
+  seule. Ce constat ne confirme ni sauvegarde ni activation du traitement.
+  `STATISTICAL_CALCULATIONS_ENABLED=false` reste la valeur par défaut.
 - STAT-003B : `5f24f3f` poussé, CI validée par l’utilisateur. Migration constatée
   Ran batch 49 en lecture seule à la reprise. Le traitement des imports conserve
   son réglage séparé, désactivé par défaut ; aucune activation réelle effectuée.
@@ -4208,3 +4211,67 @@ trois mutations attendues, échappement et absence de débordement à 375/320 px
 Captures mobiles relues. PHPStan zéro erreur, Pint (fichiers suivis et nouveaux),
 build, lint, typage application/tests/navigateur et validation Composer réussis.
 Dépendances inchangées ; la CI distante de STAT-004 reste à exécuter après push.
+
+## UCG-STAT-005 — profils et comparaisons contextualisés (19 octobre 2026)
+
+Livraison locale backend et frontend sur staging ; commit demandé par l’utilisateur,
+push et CI distante à suivre. Départ propre
+et synchronisé sur 4c1b8fe ; CI STAT-004 validée par l’utilisateur. La migration
+STAT-004 a été constatée Ran batch 50 en lecture seule. Aucune nouvelle migration,
+modification de .env réel, seed, donnée privée, habilitation, fournisseur ou worker
+activé pour STAT-005.
+
+Les lecteurs sports.read + sports.statistics.read, sous session vérifiée et MFA,
+peuvent consulter un joueur ou en comparer deux, par jeu/métrique/version exacte.
+Le sélecteur propose aussi les anciennes définitions et les métriques retirées.
+Personnes et observations restreintes au tenant et à l’audience actuelle des
+matchs. Les profils sont consultables par les lecteurs habilités du tenant ;
+les calculs enregistrés STAT-004 restent privés au demandeur initial.
+
+Filtres exacts : saison, patch, rôle, mode, région, carte, adversaire, type/libellé
+de source et fenêtre. Seules les périodes entièrement incluses sont retenues,
+sans découpage implicite. Chaque contexte reste séparé, y compris ses valeurs
+non renseignées. La chronologie paginée conserve la métrique/version/unité de
+chaque composant, taille d’échantillon, période, date d’observation et dernière
+correction. Absences et invalidations explicites, zéro conservé. Aucun historique
+de rang externe ni donnée fournisseur reconstitué en l’absence de source.
+
+Le moteur décimal STAT-004 est réutilisé pour les profils. Ratios par versions
+figées des composants, aucune moyenne de ratios ni formule évaluée. Origines
+répétées/périodes superposées : agrégat indisponible avec motif. Une comparaison
+exige même définition, contexte déclaré, données complètes/disponibles et ensemble
+identique d’intervalles couverts ; des bornes min/max égales ne masquent pas un
+trou de couverture. Écart décimal gauche − droite seulement si compatible.
+Tailles différentes signalées ; aucun classement automatique.
+
+Les profils relisent les observations à chaque GET et intègrent donc nouvelles
+sources et corrections à l’actualisation. Date de consultation distincte des dates
+de source/correction. Un changement de filtre masque le résultat précédent ;
+changement de tenant/compte/révision réinitialise les états privés et annule les
+lectures obsolètes. Les échantillons fixes et jobs STAT-004 restent indépendants :
+aucun calcul enregistré ni job créé par une consultation, même si son worker est
+désactivé. Aucun cache privé pouvant conserver une ancienne audience.
+
+Limites : deux joueurs, 366 jours inclusifs, 1 000 candidats maximum par joueur
+avant déchiffrement des filtres de contexte/libellé, dix éléments par page.
+Dépassement refusé en 409 STAT_PROFILE_LIMIT, sans résultat tronqué ; réduire la
+fenêtre ou préciser le type de source. Les différentes collections sont rabattues
+à leur dernière page pour ne pas masquer le côté le plus court. Candidats bornés,
+dernières révisions chargées en bloc et requêtes constantes avec le volume.
+Profiler plans SQL, déchiffrement et usage réel avant d’ajouter un index de recherche
+chiffré ou d’élargir les quotas. Aucun schéma ou inventaire de portabilité modifié.
+
+Validation locale : 18 nouveaux cas fonctionnels backend. Sélection profils,
+calculs, observations et architecture SQLite : 74/74 réussis, 903 assertions.
+La même sélection PostgreSQL réussit 74/74, 903 assertions, dans une base isolée
+supprimée après l’exécution.
+Suite frontend complète : 411/411 réussis dans 58 fichiers, dont neuf cas de
+profils (lecture seule, versions historiques, filtres, zéro/XSS, comparaison,
+incompatibilité, fraîcheur, quota, révocation/tenant). Parcours Chrome réel avec
+API simulée réussi : consultation, filtres, différence prudente, refus après
+actualisation, changement de filtre masquant les résultats et zéro mutation.
+Captures 375/320 px relues, aucun débordement et aucune erreur navigateur.
+Pint (nouveaux fichiers inclus), PHPStan zéro erreur, build, lint et typage strict
+application/tests/navigateur réussis. Dépendances inchangées. La sélection CI
+PostgreSQL inclut le nouveau test ; CI distante et recette utilisateur à faire
+après le commit demandé et le push utilisateur.

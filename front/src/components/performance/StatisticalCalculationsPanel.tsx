@@ -81,7 +81,7 @@ function CalculationDetail({ active, onInvalid, id, root, disabled, write, onRec
     </>}
   </section>
 }
-function CalculationResult({ result }: { result: StatisticalCalculationResult }) {
+export function CalculationResult({ result }: { result: StatisticalCalculationResult }) {
   return <div className="grid min-w-0 gap-2"><p>{text('value')} : {result.availability === 'available' ? result.value : text('unavailable')}</p>
     <p>{text('sample')} : {result.sample_size} · {text('included')} : {result.included_count} / {result.source_count}</p>
     <p>{text('missing')} : {result.missing_count} · {text('voided')} : {result.voided_count} · {text(result.incomplete ? 'incomplete' : 'complete')}</p>

@@ -12,6 +12,7 @@ import { StatisticalImportsPanel } from './StatisticalImportsPanel'
 import { ObservationForm } from './ObservationForm'
 import { calculationText } from '../../api/statisticalCalculations'
 import { StatisticalCalculationsPanel } from './StatisticalCalculationsPanel'
+import { StatisticalProfilesPanel } from './StatisticalProfilesPanel'
 
 type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
 export function ObservationPanel({ active, disabled, onInvalid }: Props) {
@@ -39,6 +40,7 @@ export function ObservationPanel({ active, disabled, onInvalid }: Props) {
     </>}
     <StatisticalImportsPanel {...{ active, disabled: blocked, onInvalid }} />
     <StatisticalCalculationsPanel key={scope} {...{ active, disabled: blocked, onInvalid, selected }} onClear={() => setSelection({ scope, rows: [] })} />
+    <StatisticalProfilesPanel {...{ active, disabled: blocked, onInvalid }} />
   </section>
 }
 function ObservationView({ row }: { row: StatisticalObservation }) {

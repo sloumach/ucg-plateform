@@ -3614,3 +3614,32 @@ Voir [le contrat et les exemples API](docs/conventions-api.md) et
 [la validation locale](docs/etat-projet.md). Commit demandé par l’utilisateur ;
 push et CI à suivre. Aucune migration/seed principale ni activation réelle
 effectuée pour STAT-004.
+
+### Profils et comparaisons — UCG-STAT-005
+
+Les lecteurs habilités peuvent consulter un joueur ou comparer deux joueurs,
+par jeu et version de métrique, avec filtres de saison, patch, rôle, mode, carte,
+adversaire, région, source et période. Chaque contexte reste séparé ; chronologie,
+échantillons, données absentes/invalidées et dates d’observation/correction visibles.
+L’historique du dictionnaire permet de consulter une ancienne définition.
+
+Un écart n’est présenté que pour des groupes compatibles, disponibles et complets
+couvrant les mêmes périodes. Les tailles différentes sont signalées ; aucun
+classement automatique ni moyenne naïve de ratios. Les contextes non renseignés
+restent explicitement non renseignés, sans équivalence métier déduite.
+
+Consultation en lecture seule : les nouvelles sources/corrections entrent à
+l’actualisation ; un changement de filtre masque l’ancien résultat. Les calculs
+enregistrés STAT-004 conservent leur sélection fixe et leur historique séparés.
+Aucun job, calcul enregistré, import ou profil administratif créé par cette lecture.
+Aucune nouvelle migration ou activation de worker pour STAT-005.
+
+Limites : un ou deux joueurs, fenêtre de 366 jours inclusifs, 1 000 candidats
+maximum par joueur avant filtrage des champs chiffrés, dix groupes/observations
+par page. Dépassement refusé plutôt que résultat partiel. Index et audiences
+existants, relations chargées en bloc ; profiler les données et les plans avant
+tout élargissement. Aucun cache privé susceptible de conserver un ancien contexte.
+
+Voir [le contrat API](docs/conventions-api.md) et [les validations](docs/etat-projet.md).
+Commit STAT-005 demandé par l’utilisateur ; push et CI distante à suivre. Aucun .env réel,
+seed/migration principale, worker, fournisseur ou droit réel modifié.

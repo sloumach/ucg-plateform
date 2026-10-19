@@ -522,6 +522,21 @@ Limites : 1 000 observations sélectionnées, 100 calculs par demandeur/tenant e
 automatiquement un échantillon existant. Profils et comparaisons : STAT-005.
 Calculs désactivés par défaut avant migration, recette et activation supervisée.
 
+Livraison locale STAT-005 : profils en lecture seule sur les observations
+accessibles de l’organisation, par jeu et définition versionnée. Filtres exacts
+de saison, patch, rôle, mode, carte, adversaire, région, source et période ;
+groupes distincts pour les contextes différents. Chronologie des observations,
+échantillons, dates d’observation et de dernière correction affichés ; les données
+absentes et invalidées restent explicites. Une comparaison de deux joueurs exige
+des groupes compatibles, disponibles et complets avec la même couverture de
+périodes. Les tailles différentes sont signalées ; aucun classement automatique.
+Les valeurs de rang ou de résultat ne sont montrées que si des observations de
+ces métriques existent ; aucun historique externe ni compte fournisseur déduit.
+Les profils relisent les sources à chaque consultation et intègrent donc les
+nouvelles observations/corrections à l’actualisation. Les calculs enregistrés
+STAT-004 gardent leur sélection fixe et leur historique séparé. Aucune écriture,
+nouvelle migration, activation de worker ou collecte automatique dans STAT-005.
+
 ### 10.3 Modes d’acquisition
 
 P0 : saisie manuelle et import CSV validé. P1 : premier connecteur pour chaque jeu prioritaire après confirmation d’accès et de licence. P2 : autres connecteurs, démos ou télémétrie autorisée.

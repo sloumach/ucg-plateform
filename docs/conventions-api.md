@@ -4041,3 +4041,124 @@ STATISTICAL_CALCULATIONS_ENABLED=false par défaut, indépendant des imports.
 Activer explicitement après recette ; worker database/Redis sur reports requis.
 Désactiver les calculs n’empêche pas leur invalidation lors d’une correction.
 Aucune activation opérateur ni migration principale effectuée pour ce lot.
+
+### STAT-005 — profils et comparaisons contextualisés
+
+Routes GET uniquement, sous session vérifiée, MFA et contexte tenant :
+/api/v1/tenants/{tenant}/statistical-profiles et /statistical-profiles/people.
+Permissions sports.read et sports.statistics.read, Policy et Form Request.
+Aucun droit de saisie ni confirmation de mutation exigé pour ces consultations.
+L’audience actuelle des matchs est appliquée à chaque requête ; seules les
+observations accessibles du tenant entrent dans les résultats et les compteurs.
+Les profils sont partagés aux lecteurs habilités du tenant, indépendamment de
+l’auteur des observations ; les calculs enregistrés STAT-004 restent privés au
+demandeur. Réponses Resource privées/no-store, meta.request_id.
+
+GET people : page facultatif (1–100000), dix joueurs par page, UUID/pseudonyme
+seulement. Le choix propose les personnes ayant au moins une observation accessible,
+y compris historiques ; aucune identité administrative ni compte externe exposé.
+
+GET racine : entrée fermée, query string :
+
+| Champ | Règle |
+| --- | --- |
+| people[] | un ou deux UUID distincts, ordre conservé pour l’écart gauche − droite |
+| metric_id, metric_version | UUID de définition et révision exacte, obligatoires |
+| from, to | dates YYYY-MM-DD obligatoires, ordre valide, 366 jours inclusifs maximum |
+| source_kind | official, scrim, training ou assessment, facultatif |
+| source_label | libellé exact facultatif, 500 caractères maximum |
+| season, region | chaîne exacte facultative, 80 caractères maximum |
+| map, opponent | chaîne exacte facultative, 160 caractères maximum |
+| mode_id, role_id, release_id | UUID facultatifs, release_id désigne le patch/version du jeu |
+| page, timeline_page | entiers facultatifs de 1 à 100000, dix éléments par page |
+
+Une observation doit être entièrement incluse dans la fenêtre :
+period_start >= from et period_end <= to. Les périodes ne sont pas découpées,
+les dates observées ne remplacent pas les dates couvertes. Filtres de texte exacts,
+sans recherche partielle ni interprétation SQL. Champ omis = tous les contextes,
+valeur absente dans les données = null, jamais une correspondance générique.
+
+Les versions historiques et métriques retirées peuvent être consultées. Le
+frontend propose l’historique paginé du dictionnaire pour choisir la version.
+Aucune conversion implicite entre définitions : une source d’une autre version
+est exclue. Pour les ratios à recette, les observations des versions figées de
+tous les composants sont chargées, pas les ratios déjà saisis. Formules
+documentaires jamais exécutées ; moteur décimal stat-004.v1 de STAT-004 réutilisé.
+
+Bornage avant déchiffrement : 1 000 observations candidates maximum par joueur
+après restriction tenant/audience, personne, versions, fenêtre et type de source.
+Au-delà : 409 STAT_PROFILE_LIMIT, réduire la fenêtre ou préciser source_kind.
+Les autres filtres portent sur des champs chiffrés et sont appliqués ensuite :
+un filtre season/source_label très sélectif ne contourne pas la limite initiale.
+Aucune troncature silencieuse, somme partielle présentée comme totale ou scan
+illimité. Une révision source manquante : 409 STAT_PROFILE_UNAVAILABLE.
+Personne étrangère ou version d’une autre métrique/inexistante : 404.
+Entrée invalide/clé inconnue : 422. Droits/MFA : 403 ; absence de session : 401.
+
+data : metric (définition exacte), filters, generated_at, engine_version, live:true,
+profiles (un ou deux éléments bornés) et comparison nullable. generated_at est
+l’instant de consultation, pas une garantie de fraîcheur du fournisseur.
+Chaque profil expose person_id, person_label, source_count, latest_observed_on,
+last_updated_at, groups et timeline. Ces deux derniers sont {data,meta} paginés ;
+meta contient current_page,last_page,per_page,total. Les pages de chaque collection
+sont rabattues à sa dernière page, pour garder visibles les collections plus
+courtes lors d’une comparaison. Une sélection vide conserve ses compteurs à zéro
+et ses dates à null. source_count inclut les observations invalidées/absentes.
+
+Groupes séparés par source_kind, source_label, mode/rôle/patch, région, saison,
+carte et adversaire. Chaque groupe contient key, context (identifiants et valeurs
+déclarés), context_labels (libellés figés du mode/rôle/patch), result au format
+STAT-004 ou null, issue, source_count, period_count, coverage_version, period_start,
+period_end, latest_observed_on et last_updated_at. coverage_version est l’empreinte
+de l’ensemble exact des intervalles couverts ; la seule égalité des bornes ne
+suffit pas. Les données non renseignées restent visibles comme telles, sans
+déduire un contexte depuis la définition ou depuis un autre joueur.
+Origines répétées/périodes superposées : issue INCOMPATIBLE_SOURCES, aucun agrégat.
+Ratio sans recette : RATIO_COMPONENTS_REQUIRED. Agrégation manual : indisponibilité
+explicite du moteur ; les observations restent consultables dans la chronologie.
+
+timeline : observations les plus récentes d’abord (date, fin de période, UUID),
+dix par page. Champs fermés : id, metric_id, metric_version, metric_code,
+metric_number, metric_unit, period_start, period_end, observed_on, sample_size,
+status, availability, value, version de l’observation, last_updated_at,
+context et context_labels. Ni notes, motif privé de correction, cellule CSV,
+identifiant externe ni rang fournisseur inventé. Les métriques de rang/résultat
+existantes peuvent être consultées comme toute autre définition ; aucune collecte
+ou reconstitution d’un historique absent.
+
+comparison, si deux joueurs : {data,meta}, une paire par union de contextes.
+Champs : key, context, context_labels, left/right (groupe ou null), comparable,
+reason, difference décimale gauche − droite ou null, unequal_samples.
+Même définition cible, contexte déclaré identique, résultats disponibles/complets
+et ensemble identique de périodes requis. Motifs fermés :
+MISSING_CONTEXT, INCOMPATIBLE_SOURCES, INCOMPLETE_SAMPLE, UNAVAILABLE_RESULT,
+PERIOD_MISMATCH. Les tailles différentes sont signalées, pas normalisées ni cachées.
+Aucun écart pour une paire refusée et aucun classement automatique.
+
+Lecture actuelle, sans cache de valeurs privées : nouvelles observations et
+corrections intégrées à la prochaine requête. Le frontend masque les résultats
+dès qu’un filtre change ; nouvelle consultation explicite, aucune mutation rejouée.
+Les calculs enregistrés STAT-004 gardent leurs propres générations/versions et
+ne sont ni créés ni recalculés par ces GET. Les profils fonctionnent en lecture
+seule indépendamment du réglage du worker STATISTICAL_CALCULATIONS_ENABLED.
+Aucune migration ni activation opérateur supplémentaire.
+
+Exemple avec session et contexte tenant initialisés :
+
+```ts
+const params = new URLSearchParams({
+  metric_id: selectedMetric.id,
+  metric_version: selectedMetric.version,
+  from: '2026-10-01',
+  to: '2026-10-18',
+  season: '2026',
+  source_kind: 'training',
+})
+params.append('people[]', firstPersonId)
+params.append('people[]', secondPersonId)
+const response = await tenancyRequest<ApiSuccessResponse<StatisticalProfileResponse>>(
+  'tenants/' + organizationId + '/statistical-profiles?' + params.toString(),
+  { revision: activeRevision },
+)
+// Vérifier comparable et reason pour chaque paire avant d’utiliser difference.
+```

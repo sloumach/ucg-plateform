@@ -8,6 +8,7 @@ use App\Modules\Performance\Domain\Contracts\MetricCatalogueRepository;
 use App\Modules\Performance\Domain\Contracts\ObservationRepository;
 use App\Modules\Performance\Domain\Contracts\StatisticalCalculationRepository;
 use App\Modules\Performance\Domain\Contracts\StatisticalImportRepository;
+use App\Modules\Performance\Domain\Contracts\StatisticalProfileRepository;
 use App\Modules\Performance\Domain\Models\MetricDefinition;
 use App\Modules\Performance\Domain\Models\StatisticalCalculation;
 use App\Modules\Performance\Domain\Models\StatisticalImport;
@@ -16,6 +17,7 @@ use App\Modules\Performance\Infrastructure\Persistence\EloquentMetricCatalogueRe
 use App\Modules\Performance\Infrastructure\Persistence\EloquentObservationRepository;
 use App\Modules\Performance\Infrastructure\Persistence\EloquentStatisticalCalculationRepository;
 use App\Modules\Performance\Infrastructure\Persistence\EloquentStatisticalImportRepository;
+use App\Modules\Performance\Infrastructure\Persistence\EloquentStatisticalProfileRepository;
 use App\Modules\Performance\Infrastructure\Queue\LaravelStatisticalCalculationQueue;
 use App\Modules\Performance\Infrastructure\Queue\LaravelStatisticalImportQueue;
 use App\Modules\Performance\Presentation\Policies\MetricCataloguePolicy;
@@ -29,6 +31,7 @@ final class PerformanceServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(StatisticalProfileRepository::class, EloquentStatisticalProfileRepository::class);
         $this->app->bind(StatisticalCalculationRepository::class, EloquentStatisticalCalculationRepository::class);
         $this->app->bind(StatisticalCalculationQueue::class, LaravelStatisticalCalculationQueue::class);
         $this->app->bind(StatisticalImportQueue::class,
@@ -40,6 +43,7 @@ final class PerformanceServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Route::middleware(['api', 'auth:sanctum', 'identity.session', 'audit.failures', 'mfa'])->prefix('api/v1')->name('api.v1.')->group(__DIR__.'/../Presentation/Routes/profiles.php');
         Gate::policy(StatisticalCalculation::class, ObservationPolicy::class);
         Route::middleware(['api', 'auth:sanctum', 'identity.session', 'audit.failures', 'mfa'])->prefix('api/v1')->name('api.v1.')->group(__DIR__.'/../Presentation/Routes/calculations.php');
         Gate::policy(StatisticalImport::class, StatisticalImportPolicy::class);

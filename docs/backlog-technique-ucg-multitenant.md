@@ -951,6 +951,7 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Périmètre** : filtres saison, patch, rôle, carte, adversaire, période, source et fraîcheur.
 - **Acceptation** : comparaisons uniquement sur contextes cohérents ; données incomplètes clairement signalées.
 - **Références CDC** : STAT-01, STAT-03, STAT-04, STAT-10.
+- **Livré localement** : profils en lecture seule, choix du jeu/métrique et de sa version historique, filtres exacts par saison/patch/rôle/mode/carte/adversaire/région/source/période, groupes cohérents et évolution paginée des observations. Taille d’échantillon, dates de source et de correction, absence/invalidation et motifs de refus de comparaison explicites. Comparaison de deux joueurs seulement sur même définition, contexte et couverture de périodes ; écart décimal et alerte sur tailles différentes, aucun classement automatique. Lecture bornée à 1 000 candidats par joueur et 366 jours inclusifs ; dépassement refusé, jamais tronqué. Aucune migration ni activation des workers. Validation et limites dans etat-projet.md ; CI distante et recette avant clôture de livraison.
 
 ### UCG-STAT-006 — Créer le framework de connecteurs
 
