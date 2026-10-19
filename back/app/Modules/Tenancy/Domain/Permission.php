@@ -12,6 +12,11 @@ enum Permission: string
     case RolesManage = 'roles.manage';
     case RolesAssign = 'roles.assign';
     case AuditView = 'audit.view';
+    case ReportingDirection = 'reporting.direction';
+    case ReportingManager = 'reporting.manager';
+    case ReportingCoach = 'reporting.coach';
+    case ReportingPlayer = 'reporting.player';
+    case ReportingAdministration = 'reporting.administration';
     case SportsRead = 'sports.read';
     case StatisticsRead = 'sports.statistics.read';
     case StatisticsWrite = 'sports.statistics.write';
@@ -66,7 +71,7 @@ enum Permission: string
 
     public function organizationOnly(): bool
     {
-        return str_starts_with($this->value, 'organization.') || str_starts_with($this->value, 'memberships.')
+        return str_starts_with($this->value, 'reporting.') || str_starts_with($this->value, 'organization.') || str_starts_with($this->value, 'memberships.')
             || str_starts_with($this->value, 'invitations.') || str_starts_with($this->value, 'roles.') || $this === self::AuditView;
     }
 

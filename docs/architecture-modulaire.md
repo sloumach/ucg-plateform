@@ -2817,3 +2817,29 @@ de requêtes est constant quand le nombre d’observations croît dans cette bor
 Les snapshots historiques du dictionnaire restent sélectionnables ; une version
 n’est jamais remplacée implicitement par la courante. Le frontend invalide son
 résultat sur changement de filtre/tenant/compte et annule les lectures obsolètes.
+
+### Tableaux de bord par rôle — UCG-REP-001
+
+Reporting possède le catalogue de vues/cartes, DashboardService, FormRequest,
+Gate/Policy, Resource et deux routes GET versionnées. Il ne possède aucune table,
+repository de stockage, job ou cache. Les données restent dans leurs modules.
+Les contrats publics `{People,Scheduling,Competition,Contracts,Partnerships,Performance}Dashboard`
+sont implémentés et liés par chaque fournisseur du module source ; Reporting
+orchestre ces contrats, sans importer leurs modèles ni leurs repositories.
+`DashboardFeed` et `DashboardWindow` sont des DTO neutres dans Support/Data.
+
+Les adaptateurs réutilisent les services métier et leurs autorisations/audiences.
+Trois nouvelles lectures paginées sont portées par les repositories propriétaires :
+matchs visibles chevauchant la fenêtre, contrats signés/actifs à échéance et
+dernière échéance persistée d’inscription active. Les sources chargent leurs
+relations en bloc ou projettent des colonnes ; aucun accès relationnel par ligne
+supplémentaire. L’accès en écriture ne transforme pas une vue de coach en lecture
+de tous les matchs privés. Les calculs sont ceux du demandeur, sans création.
+
+Permissions de vue explicites et limitées à l’organisation, puis permissions
+métier cumulatives ; aucun nom de rôle ne déclenche d’élévation. Politique liée
+à l’acteur du contexte, MFA et middleware tenant communs. Une carte indisponible
+ou en erreur ne donne aucun zéro de substitution. Projections minimales, logs
+sans charge privée et réponses no-store. Pas de mutation du schéma, des données
+réelles, des workers ou de l’inventaire de portabilité. Les COUNT paginés restent
+en direct : les agrégats coûteux et leur fraîcheur relèvent de REP-002.

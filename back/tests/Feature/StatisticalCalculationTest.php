@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Architecture\Database\TenantSchemaInspector;
 use App\Modules\Competition\Domain\Models\MatchRecord;
 use App\Modules\Identity\Application\Services\MfaSession;
+use App\Modules\Identity\Domain\Models\User;
 use App\Modules\People\Domain\Models\Person;
 use App\Modules\Performance\Application\Contracts\StatisticalCalculationQueue;
 use App\Modules\Performance\Application\Services\StatisticalCalculationProcessor;
@@ -14,6 +15,7 @@ use App\Modules\Performance\Infrastructure\Queue\CalculateStatistics;
 use App\Modules\Performance\Infrastructure\Queue\RecalculateObservationStatistics;
 use App\Modules\Tenancy\Domain\Contracts\PortabilityRepository;
 use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Modules\Tenancy\Domain\Models\OrganizationRole;
 use App\Modules\Tenancy\Presentation\Support\ActiveOrganizationSession;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
@@ -134,6 +136,27 @@ class StatisticalCalculationTest extends TestCase
         $this->assertDatabaseCount('statistical_calculation_revisions', 1);
         $raw = DB::table('statistical_calculation_revisions')->firstOrFail();
         $this->assertStringNotContainsString('0.3', $raw->result);
+    }
+
+    public function test_coach_dashboard_only_reads_current_personal_results_without_restarting_calculations(): void
+    {
+        $s = $this->scenario();
+        $role = OrganizationRole::query()->whereKey($s['assignment']->role_id)->firstOrFail();
+        $role->forceFill(['permissions' => [...$role->permissions, 'reporting.coach']])->save();
+        $row = $this->observation($s, '0', 1);
+        $calculation = $this->requestCalculation($s, [$row]);
+        $this->process($s, $calculation);
+        $path = '/api/v1/tenants/'.$s['org']->id.'/dashboards/calculations?view=coach&from=2026-10-01&to=2026-10-19';
+        Queue::fake();
+        $this->getJson($path)->assertOk()->assertJsonPath('data.total', 1)->assertJsonPath('data.items.0.value', '0');
+        $this->correct($s, $row, '9');
+        Queue::fake();
+        $this->getJson($path)->assertOk()->assertJsonPath('data.items.0.value', null)->assertJsonPath('data.items.0.state', 'stale');
+        Queue::assertNothingPushed();
+        $other = User::factory()->withMfa()->create();
+        $this->grantPeopleAccess($s['org'], $other, ['reporting.coach', 'sports.read', 'sports.statistics.read']);
+        $this->actingAsWithMfa($other);
+        $this->getJson($path)->assertOk()->assertJsonPath('data.total', 0);
     }
 
     public function test_ratio_recipe_pins_component_versions_and_combines_them_without_naive_average(): void

@@ -1229,6 +1229,7 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / L
 - **Périmètre** : direction, manager, coach, joueur et administration ; définitions, périodes et périmètres visibles.
 - **Acceptation** : indicateurs expliqués, limités au tenant, paginés si nécessaire et sans requêtes N+1.
+- **Livraison locale** : cinq vues backend/frontend avec permissions explicites, onze cartes sur sources existantes, définitions/périodes/périmètres, pagination et reprise par carte. Budgets et progression agrégée indisponibles explicitement ; autres indicateurs cibles du CDC tributaires de leurs sources. Aucun calcul lourd, job, migration ou attribution réelle de permission. Agrégats/cache/fraîcheur restent REP-002. Vérifications dans etat-projet.md ; livraison incluse dans le commit UCG-REP-001, push, CI et recette restent à faire.
 
 ### UCG-REP-002 — Calculer les indicateurs en arrière-plan
 

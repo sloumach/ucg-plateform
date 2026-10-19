@@ -741,6 +741,19 @@ Inventaire, numéros de série, affectations, état, prêt, remise et restitutio
 
 Chaque indicateur possède une définition, une période, une organisation propriétaire et un périmètre d’accès. Les rapports lourds et exports sont générés en arrière-plan, avec contexte de tenant persistant, téléchargement contrôlé et expiration.
 
+
+État local REP-001 (19 octobre 2026) : les cinq vues sont raccordées aux sources
+existantes avec permissions `reporting.*` explicites et droits métier conservés.
+Effectif actif, contrats, livrables en retard, activités/matchs autorisés, prochaine
+échéance d’inscription persistée, convocations/disponibilités personnelles,
+calculs privés existants, fiches sans compte et statuts d’import sont consultables.
+Fenêtre de 31 jours inclusifs maximum ou instantané actuel clairement identifié.
+Budgets et progression agrégée sont signalés indisponibles ; conflits consolidés,
+objectifs, feedback, actions et alertes attendent leurs sources/agrégats. Cette
+livraison ne vaut pas couverture de tous les indicateurs cibles ci-dessus.
+Agrégats versionnés, fraîcheur et recalculs automatiques restent REP-002 ; aucune
+attribution de droits réelle ni activation de traitement.
+
 ## 16 Architecture et stack recommandée
 
 ### 16.1 Choix principal

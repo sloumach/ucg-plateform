@@ -1,0 +1,28 @@
+<?php
+
+return [
+    'closed' => 'Seuls les filtres prévus pour ce tableau de bord sont acceptés.',
+    'period' => 'Choisissez une fenêtre de 31 jours inclusifs maximum.',
+    'source_unavailable' => 'Cet indicateur est temporairement indisponible. Actualisez sa carte.',
+    'import' => 'Import de personnes',
+    'unlinked' => 'Fiche sans compte lié',
+    'availability' => 'Disponibilité personnelle',
+    'FINANCE_REQUIRED' => 'Le suivi des budgets ne dispose pas encore de source métier. Aucun montant n’est estimé.',
+    'REP_002_REQUIRED' => 'Les indicateurs de progression en arrière-plan seront fournis par REP-002.',
+    'views' => ['direction' => 'Direction', 'manager' => 'Manager', 'coach' => 'Coach', 'player' => 'Joueur', 'administration' => 'Administration'],
+    'cards' => [
+        'active_people' => ['label' => 'Effectif actif', 'definition' => 'Nombre actuel de fiches au statut actif dans l’organisation. Ne représente ni un roster ni une éligibilité sportive.'],
+        'expiring_contracts' => ['label' => 'Contrats arrivant à échéance', 'definition' => 'Contrats signés ou actifs dont la date de fin est comprise dans la fenêtre choisie. Références et dates seulement, aucun terme financier.'],
+        'overdue_deliverables' => ['label' => 'Livrables sponsors en retard', 'definition' => 'Livrables promis dont l’échéance est dépassée au moment de la consultation. Toutes dates ; une livraison déclarée n’est pas une validation.'],
+        'activities' => ['label' => 'Activités accessibles', 'definition' => 'Activités non archivées chevauchant la fenêtre locale choisie, selon votre audience actuelle. Les annulations restent identifiées. Aucune présence n’est déduite.'],
+        'matches' => ['label' => 'Matchs accessibles', 'definition' => 'Rencontres chevauchant la fenêtre choisie et visibles avec vos affectations actuelles. Le statut ne vaut pas résultat validé ; aucun taux de victoire n’est calculé.'],
+        'registration_due' => ['label' => 'Échéances d’inscription', 'definition' => 'Dernières révisions de dossiers actifs ayant une prochaine échéance non résolue dans la fenêtre choisie. Aucun paiement, roster ou détail de pièce exposé.'],
+        'invitations' => ['label' => 'Mes convocations', 'definition' => 'Convocations envoyées à votre compte et votre fiche actuels, encore rattachées à la bonne version d’activité. Toutes dates ; réponse déclarée, pas preuve de présence.'],
+        'availability' => ['label' => 'Mes disponibilités', 'definition' => 'Créneaux de votre fiche liée au compte actif, chevauchant la fenêtre choisie. Aucun accès aux disponibilités d’un autre joueur ni à ses commentaires.'],
+        'calculations' => ['label' => 'Mes calculs statistiques', 'definition' => 'Calculs privés demandés par votre compte dans ce tenant, encore autorisés par l’audience des matchs. Un résultat obsolète ou interrompu reste masqué. Toutes périodes propres aux échantillons fixes.'],
+        'unlinked_people' => ['label' => 'Fiches sans compte', 'definition' => 'Fiches actuelles sans compte utilisateur lié. Ce constat ne signifie pas qu’une invitation doit être envoyée. Aucun nom civil ou contact affiché.'],
+        'people_imports' => ['label' => 'Suivi des imports de personnes', 'definition' => 'Imports du tenant et leur statut actuel, toutes dates. Ni fichier, cellule, correspondance de colonne, erreur privée ou lancement automatique.'],
+        'budgets' => ['label' => 'Budgets', 'definition' => 'Indicateur budgétaire réservé à une source financière implémentée et autorisée.'],
+        'team_progress' => ['label' => 'Progression des équipes', 'definition' => 'Agrégats sportifs versionnés et calculés en arrière-plan, sur des contextes cohérents. Aucun calcul lourd déclenché depuis ce tableau.'],
+    ],
+];

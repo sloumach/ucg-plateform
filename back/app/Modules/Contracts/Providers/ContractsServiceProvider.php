@@ -3,7 +3,9 @@
 namespace App\Modules\Contracts\Providers;
 
 use App\Modules\Contracts\Application\Contracts\ContractDocumentScanQueue;
+use App\Modules\Contracts\Application\Contracts\ContractsDashboard;
 use App\Modules\Contracts\Application\Contracts\PartnershipContractDirectory;
+use App\Modules\Contracts\Application\Services\ContractsDashboardService;
 use App\Modules\Contracts\Application\Services\PartnershipContractService;
 use App\Modules\Contracts\Domain\Contracts\ContractDocumentRepository;
 use App\Modules\Contracts\Domain\Contracts\ContractDocumentScanner;
@@ -33,6 +35,7 @@ final class ContractsServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(ContractsDashboard::class, ContractsDashboardService::class);
         $this->app->bind(PartnershipContractDirectory::class, PartnershipContractService::class);
         $this->app->bind(ContractReminderRepository::class, EloquentContractReminderRepository::class);
         $this->app->bind(ContractReminderMailer::class, LaravelContractReminderMailer::class);

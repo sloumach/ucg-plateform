@@ -13,6 +13,13 @@ use Illuminate\Support\Str;
 
 final readonly class EloquentContractRepository implements ContractRepository
 {
+    public function expiring(string $organizationId, string $from, string $to, int $page): LengthAwarePaginator
+    {
+        return ContractRecord::query()->where('organization_id', $organizationId)->whereIn('status', ['signed', 'active'])
+            ->where('ends_on', '>=', $from)->where('ends_on', '<', $to)->orderBy('ends_on')->orderBy('id')
+            ->paginate(5, ['id', 'reference', 'status', 'ends_on'], 'page', $page);
+    }
+
     /** @return Builder<ContractRecord> */
     private function query(string $org): Builder
     {

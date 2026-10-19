@@ -12,6 +12,18 @@ use Illuminate\Database\Query\Builder;
 
 final class EloquentCompetitionRegistrationRepository implements CompetitionRegistrationRepository
 {
+    public function dashboardDue(string $org, string $from, string $to, int $page): LengthAwarePaginator
+    {
+        return Revision::query()->join('external_competitions as parent', function ($join) use ($org): void {
+            $join->on('parent.id', '=', 'competition_registration_revisions.competition_id')->where('parent.organization_id', $org)->where('parent.status', 'active');
+        })->where('competition_registration_revisions.organization_id', $org)->where('next_due_at', '>=', $from)->where('next_due_at', '<', $to)
+            ->whereNotExists(fn (Builder $query) => $query->selectRaw('1')->from('competition_registration_revisions as newer')
+                ->where('newer.organization_id', $org)->whereColumn('newer.competition_id', 'competition_registration_revisions.competition_id')
+                ->whereColumn('newer.number', '>', 'competition_registration_revisions.number'))
+            ->withCasts(['competition_label' => 'encrypted'])->orderBy('next_due_at')->orderBy('competition_registration_revisions.id')
+            ->paginate(5, ['competition_registration_revisions.*', 'parent.name as competition_label'], 'page', $page);
+    }
+
     public function latest(string $org, string $competition): ?Revision
     {
         return Revision::query()->where('organization_id', $org)->where('competition_id', $competition)->orderByDesc('number')->first();

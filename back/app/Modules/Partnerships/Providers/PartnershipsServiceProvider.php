@@ -2,6 +2,8 @@
 
 namespace App\Modules\Partnerships\Providers;
 
+use App\Modules\Partnerships\Application\Contracts\PartnershipsDashboard;
+use App\Modules\Partnerships\Application\Services\PartnershipsDashboardService;
 use App\Modules\Partnerships\Domain\Contracts\SponsorRepository;
 use App\Modules\Partnerships\Domain\Contracts\SponsorshipAgreementRepository;
 use App\Modules\Partnerships\Domain\Contracts\SponsorshipCampaignRepository;
@@ -20,6 +22,7 @@ final class PartnershipsServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(PartnershipsDashboard::class, PartnershipsDashboardService::class);
         $this->app->bind(SponsorshipCampaignRepository::class, EloquentSponsorshipCampaignRepository::class);
         $this->app->bind(SponsorshipAgreementRepository::class, EloquentSponsorshipAgreementRepository::class);
         $this->app->bind(SponsorRepository::class, EloquentSponsorRepository::class);

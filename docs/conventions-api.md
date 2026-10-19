@@ -4162,3 +4162,81 @@ const response = await tenancyRequest<ApiSuccessResponse<StatisticalProfileRespo
 )
 // Vérifier comparable et reason pour chaque paire avant d’utiliser difference.
 ```
+
+### REP-001 — tableaux de bord par rôle
+
+Lecture authentifiée avec MFA et contexte de tenant actif. Aucune confirmation
+ni mutation. `X-Tenant-Revision` suit le contrat commun des lectures. Réponses
+`Cache-Control: private, no-store` et `meta.request_id` ; aucune donnée privée
+mise en cache par ce module.
+
+- `GET /api/v1/tenants/{tenant}/dashboards` : catalogue des vues et cartes autorisées.
+  Aucun filtre accepté. Réponse `data` : `organization_id`, `timezone`, `max_days=31`,
+  `views[] {id,label,cards[]}`. Les cinq permissions `reporting.{direction|manager|coach|player|administration}`
+  sont configurables, privilégiées et limitées au périmètre organisation.
+- `GET /api/v1/tenants/{tenant}/dashboards/{card}?view=direction&from=2026-10-19&to=2026-10-25&page=1` :
+  lecture d’une carte. `view`, `from`, `to` obligatoires ; dates ISO ordonnées,
+  31 jours calendaires inclusifs maximum ; `page` de 1 à 10 000, taille fixe.
+  Aucun sélecteur d’organisation, de personne, de fuseau ou de périmètre accepté.
+
+Chaque définition contient `id,label,definition,period_kind,scope,status,reason`.
+La lecture ajoute `organization_id,view,captured_at,period,total,items,meta`.
+`period={kind,from,to,timezone}` distingue fenêtre incluse et instantané actuel
+(dates nulles). `captured_at` est la date de lecture, sans garantie d’un snapshot
+transactionnel commun aux cartes. `items[]` expose seulement
+`{id,label,state,at,value}` ; pas de modèle/source complet. `meta` interne :
+`total,current_page,last_page,per_page` ; le `meta.request_id` reste externe.
+Une carte vide retourne total 0. Une source non implémentée retourne
+`status=unavailable,total=null,items=[],meta=null` avec motif, jamais un faux zéro.
+Les états des convocations sont déclaratifs et ne prouvent aucune présence.
+
+| Carte | Vues | Permissions métier additionnelles | Période / périmètre |
+| --- | --- | --- | --- |
+| active_people | direction | sports.read | instantané / organisation |
+| expiring_contracts | direction, administration | administrative.read | fenêtre / organisation |
+| overdue_deliverables | direction, manager | partnerships.read | instantané / organisation |
+| activities | manager, coach | calendar.read | fenêtre / audience actuelle |
+| matches | direction, manager, coach | sports.read | fenêtre / audience actuelle |
+| registration_due | manager | sports.read, sports.competitions.read, sports.registrations.read | fenêtre / organisation |
+| invitations | joueur | calendar.read | instantané / soi |
+| availability | joueur | availability.self | fenêtre / soi |
+| calculations | coach | sports.read, sports.statistics.read | instantané / demandeur |
+| unlinked_people | administration | administrative.read | instantané / organisation |
+| people_imports | administration | sports.read/write, administrative.read/write | instantané / organisation |
+| budgets | direction | financial.read | indisponible, source Finance requise |
+| team_progress | coach | sports.read, sports.statistics.read | indisponible, REP-002 requis |
+
+Les filtres de dates sont validés pour toutes les cartes ; les instantanés
+ignorent ensuite la fenêtre (mention visible). Débuts locaux inclus et lendemain
+de fin exclus pour les timestamps, y compris aux changements d’heure.
+`registration_due` lit uniquement la dernière révision d’une compétition active
+et son `next_due_at` déjà persisté, sans recalcul de complétude. `calculations`
+réutilise le service statistique : demandeur privé et audience actuelle,
+valeur masquée si génération obsolète, sans déclencher le worker.
+
+403 : permission de vue/carte absente ou révoquée ; 404 : tenant/carte inconnu
+selon le contrat commun ; 422 : filtres fermés/fenêtre invalide. Un échec SQL ou
+de déchiffrement est traduit en 409 `REPORTING_SOURCE_UNAVAILABLE`, sans détail
+SQL ou charge privée ; journal structuré avec tenant, carte et requête.
+L’interface masque les valeurs précédentes pendant une lecture ou après un
+changement de filtre/contexte ; erreur et reprise sont propres à chaque carte.
+
+Exemple (session existante avec MFA, UUID et révision à remplacer) :
+
+```bash
+curl --cookie session.cookies --get \
+  --header 'Accept: application/json' \
+  --header 'X-Tenant-Revision: REVISION_ACTIVE' \
+  --data-urlencode 'view=direction' \
+  --data-urlencode 'from=2026-10-19' \
+  --data-urlencode 'to=2026-10-25' \
+  --data-urlencode 'page=1' \
+  'http://localhost:8000/api/v1/tenants/UUID_ORGANISATION/dashboards/active_people'
+```
+
+La consultation exige les droits choisis via l’IAM ; aucune attribution automatique.
+Les agrégats versionnés et exports restent REP-002/REP-004, les autres indicateurs
+du CDC attendent leurs sources. Paginations et bornes évitent la matérialisation
+complète ; les totaux restent des COUNT en direct. Avant une montée en charge,
+profiler les plans SQL réels et matérialiser les agrégats via REP-002 plutôt que
+mettre en cache une audience privée sans mécanisme d’invalidation.

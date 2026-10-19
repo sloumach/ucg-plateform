@@ -13,6 +13,12 @@ use Illuminate\Support\Str;
 
 final readonly class EloquentMatchRepository implements MatchRepository
 {
+    public function dashboard(string $org, int $actor, array $viewer, string $from, string $to, int $page): LengthAwarePaginator
+    {
+        return $this->visible($org, $actor, $viewer, false)->where('starts_at', '<', $to)->where('ends_at', '>', $from)
+            ->orderBy('starts_at')->orderBy('id')->paginate(5, ['id', 'title', 'status', 'starts_at', 'ends_at'], 'page', $page);
+    }
+
     public function paginate(string $org, int $actor, array $viewer, array $filters, bool $management): LengthAwarePaginator
     {
         $query = $this->visible($org, $actor, $viewer, $management)->with('participants');

@@ -9,6 +9,10 @@ use Illuminate\Database\Query\Builder;
 
 interface MatchRepository
 {
+    /** @param array{person_id:string|null,team_ids:list<string>} $viewer
+     * @return LengthAwarePaginator<int,MatchRecord> */
+    public function dashboard(string $org, int $actor, array $viewer, string $from, string $to, int $page): LengthAwarePaginator;
+
     /** @param array<string,mixed> $filters
      * @param  array{person_id:string|null,team_ids:list<string>}  $viewer
      * @return LengthAwarePaginator<int,MatchRecord>

@@ -3643,3 +3643,31 @@ tout élargissement. Aucun cache privé susceptible de conserver un ancien conte
 Voir [le contrat API](docs/conventions-api.md) et [les validations](docs/etat-projet.md).
 Commit STAT-005 demandé par l’utilisateur ; push et CI distante à suivre. Aucun .env réel,
 seed/migration principale, worker, fournisseur ou droit réel modifié.
+
+### Tableaux de bord par rôle — UCG-REP-001
+
+Cinq vues en lecture seule : direction, manager, coach, joueur et administration.
+L’entrée « Tableaux de bord par rôle » est chargée à l’ouverture ; chaque carte
+possède sa définition, son périmètre, sa période, sa date de lecture et sa
+pagination indépendante. Fenêtre de 31 jours inclusifs maximum, dans le fuseau
+de l’organisation ; les instantanés actuels restent indépendants de cette fenêtre.
+
+Attribuer explicitement les permissions `reporting.direction`, `reporting.manager`,
+`reporting.coach`, `reporting.player` ou `reporting.administration` via les rôles
+configurables de l’organisation. Elles ne donnent aucun droit métier supplémentaire :
+chaque carte exige aussi les permissions de son module et respecte son audience.
+Aucun rôle ou compte réel n’est modifié automatiquement, même propriétaire.
+
+Sources raccordées : effectif actif, contrats à échéance, livrables sponsors en
+retard, activités, matchs, échéances d’inscription persistées, convocations et
+disponibilités personnelles, calculs statistiques privés déjà enregistrés,
+fiches sans compte et statuts d’import de personnes. Aucun terme financier,
+contact civil, commentaire personnel ou contenu de fichier n’est projeté.
+Les budgets et la progression agrégée restent explicitement indisponibles ;
+les autres indicateurs du CDC attendent leurs sources métier. Aucun calcul,
+import ou envoi n’est lancé depuis ces vues. Les agrégats/cache versionnés,
+la fraîcheur et les recalculs automatiques relèvent de REP-002.
+
+Aucune nouvelle migration, dépendance ou activation de worker. Implémentation
+incluse dans le commit UCG-REP-001 ; à pousser et valider en CI puis en recette avec les droits
+choisis. Contrat HTTP détaillé dans `docs/conventions-api.md`.

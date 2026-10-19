@@ -5,17 +5,19 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 19 octobre 2026.
+- Dernière mise à jour : 20 octobre 2026.
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket livré localement : **UCG-STAT-005** — profils par joueur et jeu,
-  filtres contextuels, historique des observations, fraîcheur et comparaisons.
-  Backend et frontend en lecture seule, sans nouvelle migration.
-  Commit STAT-005 demandé par l’utilisateur ; push et CI distante à suivre.
-  Les profils relisent les observations accessibles ; les calculs enregistrés et
-  workers STAT-004 conservent leur réglage séparé. Aucun worker/.env réel activé.
-  Push/CI distante et recette utilisateur de STAT-005 restent à effectuer.
+- Dernier ticket implémenté localement : **UCG-REP-001** — cinq tableaux de bord
+  backend/frontend, permissions explicites et onze cartes sur sources existantes.
+  Définitions, périodes, périmètres, pagination et reprise par carte. Budgets et
+  progression agrégée indisponibles ; les autres indicateurs cibles restent liés
+  à leurs sources. Aucun nouveau schéma, worker, droit réel ou réglage activé.
+  Livraison incluse dans le commit UCG-REP-001 ; push, CI distante et recette restent à faire.
+- STAT-005 : commit `d656e0c`, présent sur `staging` et `origin/staging` à la
+  reprise. La CI distante n’a pas été explicitement confirmée par l’utilisateur.
+  Aucune nouvelle migration ; les traitements STAT-004 gardent leur réglage séparé.
 - STAT-004 : `4c1b8fe` poussé et synchronisé à la reprise, CI validée par
   l’utilisateur. Migration `2026_10_19_183908` constatée Ran batch 50 en lecture
   seule. Ce constat ne confirme ni sauvegarde ni activation du traitement.
@@ -4275,3 +4277,66 @@ Pint (nouveaux fichiers inclus), PHPStan zéro erreur, build, lint et typage str
 application/tests/navigateur réussis. Dépendances inchangées. La sélection CI
 PostgreSQL inclut le nouveau test ; CI distante et recette utilisateur à faire
 après le commit demandé et le push utilisateur.
+
+## UCG-REP-001 — tableaux de bord par rôle (19 octobre 2026)
+
+Cinq vues de consultation, sélectionnées parmi celles autorisées par le serveur.
+Permissions configurables et privilégiées `reporting.direction`, `reporting.manager`,
+`reporting.coach`, `reporting.player`, `reporting.administration`, limitées à
+l’organisation et cumulées aux droits métier. Aucun droit implicite d’un rôle
+nommé, d’un propriétaire ou d’un administrateur technique. Aucun compte ou rôle
+réel modifié. Attribuer les droits choisis dans l’IAM avant la recette.
+
+Reporting orchestre six contrats publics des modules sources. Ceux-ci gardent
+leurs services, repositories, autorisations et audiences. Pas de stockage propre
+ni de cache privé. Deux GET : catalogue de vues/cartes et lecture individuelle
+paginée ; filtres fermés, fenêtre de 31 jours inclusifs, fuseau du tenant,
+instantanés indépendants des dates clairement identifiés. DTO/Resource dédiés,
+Gate lié à l’acteur, MFA et isolation du tenant communs. Erreurs SQL/déchiffrement
+localisées en REPORTING_SOURCE_UNAVAILABLE, journaux sans contenu privé et
+no-store. Chaque lecture vérifie les droits actuels.
+
+Cartes livrées : effectif actif ; contrats signés/actifs à échéance ; livrables
+sponsors promis en retard ; activités et matchs de l’audience actuelle ; prochaine
+échéance d’inscription déjà persistée dans sa dernière révision ; convocations et
+disponibilités du compte/fiche liés ; calculs privés existants du demandeur,
+sans valeur de génération obsolète ; fiches sans compte et statuts d’import.
+Aucun contact civil, terme financier, commentaire personnel ou contenu de fichier
+projeté. Les présences, résultats sportifs, éligibilités ou complétudes ne sont
+pas inférés à partir d’un simple statut. Zéro accessible distinct d’une source
+indisponible ou en erreur.
+
+Frontend chargé à l’ouverture, filtre de vue autorisée et dates, définitions et
+périmètres visibles. Actualisation/erreur/reprise/pagination propres à chaque
+carte. Les résultats précédents disparaissent au changement de filtre,
+organisation, acteur, révision ou droits ; lectures obsolètes annulées.
+
+Limites explicites : budgets indisponibles jusqu’à la source Finance ; progression
+agrégée indisponible jusqu’à REP-002. Conflits consolidés, objectifs, feedback,
+actions et alertes attendent leurs sources ; ce ticket ne clôt pas la couverture
+de tous les indicateurs cibles du CDC. Les COUNT restent en direct avec les
+paginations des modules ; pas d’agrégats lourds ni de déclenchement de calcul,
+import ou envoi. Agrégats versionnés, fraîcheur, cache/invalidation et recalculs
+ciblés restent REP-002. Profiler les plans SQL réels avant d’élargir les bornes
+ou d’ajouter des index/cache. Aucune migration, dépendance, configuration réelle,
+activation de worker ou modification de la portabilité.
+
+Validation locale :
+- SQLite : 237/237 tests ciblés et d’architecture, 1 846 assertions.
+- PostgreSQL : 233/233 tests ciblés, 1 803 assertions, dans une base isolée
+  créée puis supprimée. Aucune migration sur la base de développement.
+- 19 cas RoleDashboardTest et un cas d’intégration dans StatisticalCalculationTest :
+  droits des cinq vues, absence d’élévation métier, tenant, MFA, révocation,
+  audience des équipes après fin d’appartenance, données personnelles, fenêtres
+  locales/changement d’heure, échéances, projections, dernières révisions,
+  zéro/indisponibilité, calcul périmé, absence de jobs et requêtes constantes.
+- Frontend : 421/421 tests dans 59 fichiers, dont dix cas DashboardPanel.
+  Typage strict application/tests/navigateur, build et lint réussis.
+- Parcours Chrome réel avec API simulée : vues autorisées, filtres, instantané,
+  indisponibilité, erreur indépendante et reprise, ancien résultat masqué,
+  zéro mutation. Captures 375/320 px relues, aucun débordement ni erreur navigateur.
+- Pint nouveaux fichiers et fichiers suivis ; PHPStan zéro erreur.
+  RoleDashboardTest ajouté à la sélection CI PostgreSQL.
+
+Livraison incluse dans le commit UCG-REP-001. Push, CI distante et recette utilisateur
+restent nécessaires. Aucun accès réel attribué automatiquement.
