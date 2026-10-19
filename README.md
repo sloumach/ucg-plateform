@@ -3583,3 +3583,34 @@ chargé en bloc pour les listes. Profiler les verrous tenant/catalogue avant tou
 
 Voir [le contrat API et ses exemples](docs/conventions-api.md) et
 [les résultats de validation](docs/etat-projet.md).
+
+### Agrégats et ratios — UCG-STAT-004
+
+Les observations permettent de sélectionner un échantillon fixe et de demander
+un calcul privé. Somme, moyenne pondérée, minimum, maximum, dernière valeur et
+ratios par composants additifs versionnés ; les formules documentaires ne sont
+pas exécutées. Taille d’échantillon, données absentes/invalidées et dénominateur
+nul sont explicites. Les ratios ne sont jamais moyennés naïvement.
+
+Une correction marque les seuls calculs dépendants obsolètes et déclenche un
+recalcul sous les droits actuels du demandeur initial. L’interface masque l’ancien
+résultat courant, conserve son historique et propose une reprise confirmée.
+Une génération protège contre les jobs concurrents et les callbacks anciens.
+Définitions et sélection restent figées ; nouvelles observations à sélectionner
+dans un nouveau calcul. Les profils et comparaisons contextualisés restent STAT-005.
+
+Migration additive 2026_10_19_183908 après push, CI et sauvegarde.
+STATISTICAL_CALCULATIONS_ENABLED=false par défaut, indépendant du traitement CSV.
+Recetter avant activation, puis recharger configuration/workers ; reports requis
+pour l’exécution asynchrone. Aucun .env réel ni worker activé pour ce lot.
+Ne pas modifier les migrations précédentes ni lancer migrate:fresh.
+
+Limites : 1 000 sources, 100 calculs par demandeur/tenant et 1 000 révisions.
+Valeurs/définitions privées chiffrées, calculs décimaux hors verrou, publication
+courte protégée, dépendances indexées et fanout par pages de 25. Profiler les
+volumes et verrous tenant avant d’augmenter ces limites ou la concurrence.
+
+Voir [le contrat et les exemples API](docs/conventions-api.md) et
+[la validation locale](docs/etat-projet.md). Commit demandé par l’utilisateur ;
+push et CI à suivre. Aucune migration/seed principale ni activation réelle
+effectuée pour STAT-004.

@@ -2,11 +2,13 @@
 
 namespace App\Modules\Performance\Domain\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Query\Builder;
 
-/** @property string $id
+/** @property CarbonImmutable $created_at
+ * @property string $id
  * @property string $organization_id
  * @property string $metric_id
  * @property string $metric_revision_id

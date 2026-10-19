@@ -183,12 +183,15 @@ class ObservationTest extends TestCase
     public function test_empty_schema_roundtrip_and_choices_are_bounded(): void
     {
         $statisticalExecution = require database_path('migrations/2026_10_19_175141_create_statistical_import_executions.php');
+        $statisticalCalculations = require database_path('migrations/2026_10_19_183908_create_statistical_calculations.php');
+        $statisticalCalculations->down();
         $statisticalExecution->down();
         $migration = require database_path('migrations/2026_10_19_113618_create_statistical_observations.php');
         $migration->down();
         $this->assertFalse(Schema::hasTable('statistical_observations'));
         $migration->up();
         $statisticalExecution->up();
+        $statisticalCalculations->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         $s = $this->observationScenario();
         $this->getJson($s['root'].'/choices?kind=people')->assertOk()->assertJsonPath('data.0.id', $s['person']->id);

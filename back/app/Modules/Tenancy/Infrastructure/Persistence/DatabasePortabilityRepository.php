@@ -18,6 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
+        'statistical_calculations' => 'id', 'statistical_calculation_sources' => 'id', 'statistical_calculation_revisions' => 'id',
         'statistical_import_executions' => 'id', 'statistical_import_receipts' => 'id',
         'statistical_imports' => 'id',
         'observation_revisions' => 'id', 'statistical_observations' => 'id',
@@ -69,6 +70,9 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'statistical_calculations' => ['id', 'organization_id', 'actor_user_id', 'metric_id', 'metric_revision_id', 'fingerprint', 'status', 'version', 'source_count', 'definition', 'failure_code', 'created_at', 'updated_at'],
+        'statistical_calculation_sources' => ['id', 'organization_id', 'calculation_id', 'observation_id'],
+        'statistical_calculation_revisions' => ['id', 'organization_id', 'calculation_id', 'number', 'generation', 'engine_version', 'result', 'source_versions', 'request_id', 'created_at'],
         'statistical_import_executions' => ['id', 'organization_id', 'import_id', 'status', 'version', 'processed_count', 'results', 'failure_code', 'created_at', 'updated_at'],
         'statistical_import_receipts' => ['id', 'organization_id', 'import_id', 'observation_id', 'identity_key', 'payload_hash', 'created_at'],
         'statistical_imports' => ['id', 'organization_id', 'actor_user_id', 'artifact_id', 'fingerprint', 'delimiter', 'headers', 'preview', 'row_count', 'valid_count', 'invalid_count', 'request_id', 'created_at'],

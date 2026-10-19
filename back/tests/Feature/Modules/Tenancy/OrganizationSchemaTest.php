@@ -119,6 +119,8 @@ class OrganizationSchemaTest extends TestCase
         $observations = require database_path('migrations/2026_10_19_113618_create_statistical_observations.php');
         $statImports = require database_path('migrations/2026_10_19_143154_create_statistical_import_previews.php');
         $statisticalExecution = require database_path('migrations/2026_10_19_175141_create_statistical_import_executions.php');
+        $statisticalCalculations = require database_path('migrations/2026_10_19_183908_create_statistical_calculations.php');
+        $statisticalCalculations->down();
         $statisticalExecution->down();
         $statImports->down();
         $observations->down();
@@ -245,6 +247,7 @@ class OrganizationSchemaTest extends TestCase
         $observations->up();
         $statImports->up();
         $statisticalExecution->up();
+        $statisticalCalculations->up();
         $this->assertTrue(Schema::hasTable('calendar_feeds'));
         $this->assertTrue(Schema::hasTable('organizations'));
         $this->assertTrue(Schema::hasTable('organization_settings'));

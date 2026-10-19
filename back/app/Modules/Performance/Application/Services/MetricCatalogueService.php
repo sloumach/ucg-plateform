@@ -91,6 +91,14 @@ final readonly class MetricCatalogueService
                 $game = $metric->game_id ?? strtolower($v['game_id']);
                 $scope = $this->games->resolve($game, $values['mode_id'], $values['role_id'], $values['release_id'], $values['status'] === 'active');
                 $scope['aggregation_level'] = $v['aggregation_level'] ?? ($old->scope['aggregation_level'] ?? 'game');
+                $recipeInput = array_key_exists('ratio_components', $v) ? $v['ratio_components'] : ($old->scope['ratio_components'] ?? null);
+                $recipe = $this->ratioComponents($recipeInput, $v, $game, $scope['aggregation_level']);
+                if ($recipe !== null && $values['aggregation'] !== 'ratio') {
+                    throw ValidationException::withMessages(['ratio_components' => __('statistical_calculations.components')]);
+                }
+                if ($recipe !== null) {
+                    $scope['ratio_components'] = $recipe;
+                }
                 if ($old !== null && array_intersect_key($old->getAttributes(), array_flip(Input::FIELDS)) === $values && $old->scope === $scope) {
                     throw ValidationException::withMessages(['record' => __('metric_catalogue.empty')]);
                 }
@@ -110,7 +118,43 @@ final readonly class MetricCatalogueService
         $revision ??= $metric->current;
 
         return ['id' => $metric->id, 'code' => $metric->code, 'game_id' => $metric->game_id, 'version' => $revision?->id, 'number' => $revision?->number, 'scope' => $revision?->scope, 'aggregation_level' => $revision?->scope['aggregation_level'] ?? 'game',
-            ...array_intersect_key($revision?->getAttributes() ?? [], array_flip(Input::FIELDS)), 'reason' => $revision?->getAttribute('reason'), 'occurred_at' => $revision?->created_at->toISOString()];
+            ...array_intersect_key($revision?->getAttributes() ?? [], array_flip(Input::FIELDS)), 'ratio_components' => $revision?->scope['ratio_components'] ?? null,
+            'reason' => $revision?->getAttribute('reason'), 'occurred_at' => $revision?->created_at->toISOString()];
+    }
+
+    /** Resolve additive components while the dictionary lock is held; pin exact versions, never evaluate formula text.
+     * @param  array<string,list<string|array{metric_id:string,version:string}>>|null  $input
+     * @param  array<string,mixed>  $target
+     * @return array<string,list<array{metric_id:string,version:string,code:string}>>|null
+     */
+    private function ratioComponents(?array $input, array $target, string $game, string $level): ?array
+    {
+        if ($input === null) {
+            return null;
+        }
+        $resolved = [];
+        $seen = [];
+        foreach (['numerator', 'denominator'] as $side) {
+            foreach ($input[$side] as $component) {
+                $id = strtolower(is_array($component) ? $component['metric_id'] : $component);
+                $metric = $this->records->find($id);
+                $revision = is_array($component) ? $this->records->revision($metric->id, $component['version']) : $metric->current;
+                if (isset($seen[$id]) || $metric->game_id !== $game || $revision === null || $revision->getAttribute('aggregation') !== 'sum'
+                    || $revision->getAttribute('status') !== 'active' || $revision->getAttribute('availability') === 'unavailable'
+                    || ($revision->scope['aggregation_level'] ?? 'game') !== $level) {
+                    throw ValidationException::withMessages(['ratio_components' => __('statistical_calculations.components')]);
+                }
+                foreach (['mode_id', 'role_id', 'release_id'] as $field) {
+                    if ($revision->getAttribute($field) !== ($target[$field] === null ? null : strtolower($target[$field]))) {
+                        throw ValidationException::withMessages(['ratio_components' => __('statistical_calculations.components')]);
+                    }
+                }
+                $resolved[$side][] = ['metric_id' => $metric->id, 'version' => $revision->id, 'code' => $metric->code];
+                $seen[$id] = true;
+            }
+        }
+
+        return $resolved;
     }
 
     private function conflict(string $key): never

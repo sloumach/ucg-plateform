@@ -9,14 +9,17 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket traité : **UCG-STAT-003B** — confirmation, traitement borné,
-  idempotence par organisation, résultats privés et reprise explicite.
-  Livraison locale sur `staging`, commit demandé par utilisateur ; push et CI à suivre.
-  Migration additive `2026_10_19_175141` après push → CI → sauvegarde.
-  Traitement désactivé par défaut (`STATISTICAL_IMPORT_PROCESSING_ENABLED=false`).
-  Aucune migration/seed principale, donnée privée ou habilitation réelle créée ;
-  aucun worker/fournisseur activé. Recette puis activation supervisée à prévoir.
-  Prochain P0 proposé après validation : **STAT-004**, agrégats et ratios.
+- Dernier ticket livré localement : **UCG-STAT-004** — agrégats, ratios,
+  calculs privés versionnés et recalcul ciblé après correction ; backend et frontend.
+  Migration additive `2026_10_19_183908`, à appliquer après push, CI et sauvegarde.
+  Calculs désactivés par défaut (`STATISTICAL_CALCULATIONS_ENABLED=false`).
+  Commit STAT-004 demandé par l’utilisateur ; push et CI à suivre.
+  Aucune migration/seed principale exécutée ni aucun worker activé pour STAT-004.
+  Recette et activation supervisée restent à prévoir. Prochain P0 : **STAT-005**,
+  profils et comparaisons contextualisés.
+- STAT-003B : `5f24f3f` poussé, CI validée par l’utilisateur. Migration constatée
+  Ran batch 49 en lecture seule à la reprise. Le traitement des imports conserve
+  son réglage séparé, désactivé par défaut ; aucune activation réelle effectuée.
 - STAT-003A et correctif : `3f6f0d9` et `5165aad` présents sur staging et
   origin/staging à la reprise. Migration constatée Ran batch 48 en lecture seule.
   La CI distante et la sauvegarde ne sont pas revalidées par ce constat.
@@ -4146,3 +4149,62 @@ Validation PostgreSQL finale après cet ajustement : 22/22 réussis, couvrant le
 21 cas de traitement et la course entre deux imports. Les bases PostgreSQL jetables
 ont été supprimées après chaque passe. Aucun résultat local ne remplace la CI
 distante ou la recette avec les habilitations réelles.
+
+## UCG-STAT-004 — agrégats, ratios et recalcul ciblé (19 octobre 2026)
+
+Livraison locale backend et frontend sur staging ; commit demandé par l’utilisateur,
+push et CI distante à suivre.
+Le calcul porte sur une sélection explicite de 1 à 1 000 observations existantes,
+privée au demandeur initial dans son tenant. Les sources doivent avoir le même
+joueur, jeu, provenance et contexte ; les versions de métrique sont exactes,
+les origines répétées et périodes period chevauchantes sont refusées.
+
+Le dictionnaire peut définir un ratio par 1 à 4 composants additifs par côté,
+avec versions figées et validation du jeu/niveau/périmètre. Une modification
+documentaire ne remplace pas implicitement ces versions dans le formulaire.
+Aucune formule textuelle évaluée. Le moteur stat-004.v1 traite sommes, moyennes
+pondérées par sample_size, minimum, maximum, dernière valeur et ratios des sommes.
+Décimales exactes, six décimales maximum et arrondi half_up ; absence, invalidation,
+composant manquant, échantillon incohérent et dénominateur réellement nul explicites.
+La politique zero ne transforme jamais un composant absent en zéro.
+
+Une correction/invalidation/réactivation d’observation marque atomiquement les
+seuls calculs dépendants stale, remplace leur génération et masque le résultat
+courant. Le fanout après commit pagine 25 calculs sous les droits du demandeur
+initial, pas ceux du correcteur. Calcul hors verrou puis publication courte avec
+revérification de génération ; doubles jobs et callbacks anciens inertes.
+L’historique immuable conserve résultat, moteur et révisions exactes des sources.
+Panne de queue/fanout : état récupérable, sans fausse fraîcheur ; reprise explicite
+confirmée et sans rejeu automatique sur 409.
+
+API paginée sous statistical-calculations avec Form Requests, Policy, Resources,
+Service/Repository, notifications, MFA, tenant confirmé et audience match actuelle.
+Autre tenant/utilisateur : 404 ; révocation d’audience masque détail/liste/historique.
+Interface : sélection, recette du ratio, confirmation, suivi, sources paginées,
+historique, statut obsolète et recalcul. Chaînes privées échappées ; aucun résultat
+obsolète affiché comme courant. Portabilité du tenant inclut les trois tables.
+
+Migration additive 2026_10_19_183908 ; aucune migration précédente modifiée.
+Les tests de démontage des schémas parents respectent les nouvelles dépendances,
+sans CASCADE. Aucun migrate/seed principal exécuté et aucune donnée réelle créée.
+STATISTICAL_CALCULATIONS_ENABLED=false par défaut ; .env réel, workers, fournisseurs
+et habilitations inchangés. Après push utilisateur : CI, sauvegarde, migration,
+recette isolée puis activation supervisée et worker reports selon procédure.
+
+Limites : 100 calculs par demandeur/tenant, 1 000 sources et 1 000 révisions.
+Définitions et sélection fixes ; une nouvelle observation exige une nouvelle
+sélection. Profils/comparaisons et filtres étendus restent STAT-005. Avant hausse
+des quotas, profiler déchiffrement, index de dépendance et verrous tenant.
+
+Validation : 20 cas unitaires du moteur, 18 cas fonctionnels et deux scénarios de
+concurrence PostgreSQL. Suite SQLite complète : 2 411 cas, 2 368 réussis,
+43 ignorés, aucun échec et 12 870 assertions. Sélection PostgreSQL de ce lot : 234/234 réussis,
+1 619 assertions, base isolée supprimée. Suite frontend complète : 400/400 réussis
+dans 57 fichiers ; après la dernière protection des versions de composants,
+15 cas ciblés dictionnaire/calculs réussis, incluant deux cas ajoutés.
+Parcours Chrome réel avec API simulée réussi : sélection, confirmation tenant,
+ratio, correction, résultat obsolète masqué, historique puis recalcul explicite ;
+trois mutations attendues, échappement et absence de débordement à 375/320 px.
+Captures mobiles relues. PHPStan zéro erreur, Pint (fichiers suivis et nouveaux),
+build, lint, typage application/tests/navigateur et validation Composer réussis.
+Dépendances inchangées ; la CI distante de STAT-004 reste à exécuter après push.

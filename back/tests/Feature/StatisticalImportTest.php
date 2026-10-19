@@ -320,11 +320,14 @@ class StatisticalImportTest extends TestCase
     {
         $this->assertDatabaseCount('statistical_imports', 0);
         $statisticalExecution = require database_path('migrations/2026_10_19_175141_create_statistical_import_executions.php');
+        $statisticalCalculations = require database_path('migrations/2026_10_19_183908_create_statistical_calculations.php');
+        $statisticalCalculations->down();
         $statisticalExecution->down();
         $migration = require database_path('migrations/2026_10_19_143154_create_statistical_import_previews.php');
         $migration->down();
         $migration->up();
         $statisticalExecution->up();
+        $statisticalCalculations->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         app(PortabilityRepository::class)->assertCatalog();
     }

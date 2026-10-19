@@ -23,6 +23,19 @@ beforeEach(() => {
   })
 })
 describe('dictionnaire global des métriques', () => {
+  it.each([false, true])('conserve les versions des composants sauf modification explicite de la recette (%s)', async (changed) => {
+    const numerator = '66666666-6666-4666-8666-666666666666', denominator = '77777777-7777-4777-8777-777777777777'
+    current = [{ ...row, ratio_components: { numerator: [{ metric_id: numerator, version }], denominator: [{ metric_id: denominator, version: gamesVersion }] } }]
+    show(); await open(); await userEvent.click(screen.getByRole('button', { name: 'Modifier cette définition' }))
+    const form = screen.getByRole('form')
+    if (changed) fireEvent.change(within(form).getByLabelText('Métriques du numérateur (identifiants)'), { target: { value: secondGame } })
+    await userEvent.type(within(form).getByLabelText('Motif du changement'), 'Précision sans changement implicite de version.')
+    fireEvent.submit(form); await userEvent.click(screen.getByRole('checkbox')); await userEvent.click(screen.getByRole('button', { name: 'Confirmer la définition globale' }))
+    await waitFor(() => expect(fake.request.mock.calls.filter(([, options]) => options?.method)).toHaveLength(1))
+    const body = fake.request.mock.calls.find(([, options]) => options?.method)![1].body
+    if (changed) expect(body.ratio_components).toEqual({ numerator: [secondGame], denominator: [denominator] })
+    else expect(body).not.toHaveProperty('ratio_components')
+  })
   it('charge à la demande et échappe les formules documentaires sans proposer la saisie de valeurs', async () => {
     const { container } = show(); expect(fake.request).not.toHaveBeenCalled(); await open(); expect(screen.getByText(row.formula, { exact: false })).toBeVisible(); expect(container.querySelector('script,img')).toBeNull(); expect(screen.queryByRole('form')).toBeNull(); expect(fake.request.mock.calls.some(([p]) => p.includes('/history'))).toBe(false)
   })

@@ -943,6 +943,7 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Périmètre** : jobs de calcul, composants des ratios, dénominateur zéro, taille d’échantillon et version de calcul.
 - **Acceptation** : aucun calcul par moyenne naïve de ratios ; recalcul ciblé après correction.
 - **Références CDC** : STAT-06, STAT-07, STAT-09.
+- **Livraison locale** : backend et interface de sélection d’un échantillon fixe ; opérations décimales, ratios par composants additifs versionnés, absence distincte de zéro, historique immuable et invalidation/recalcul ciblé après correction. Résultats privés au demandeur avec droits et audience actuels. Migration additive `2026_10_19_183908`, calculs désactivés par défaut. Push, CI distante, sauvegarde, migration et recette restent nécessaires avant activation ; détails et validations dans etat-projet.md. Les profils/comparaisons et l’extension automatique des échantillons relèvent de STAT-005.
 
 ### UCG-STAT-005 — Livrer profils et comparaisons contextualisés
 

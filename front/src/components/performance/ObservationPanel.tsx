@@ -10,11 +10,16 @@ import { Alert } from '../feedback/Alert'
 import { Pagination } from '../data/Pagination'
 import { StatisticalImportsPanel } from './StatisticalImportsPanel'
 import { ObservationForm } from './ObservationForm'
+import { calculationText } from '../../api/statisticalCalculations'
+import { StatisticalCalculationsPanel } from './StatisticalCalculationsPanel'
 
 type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
 export function ObservationPanel({ active, disabled, onInvalid }: Props) {
   const [open, setOpen] = useState(false), [page, setPage] = useState(1), [source, setSource] = useState(''), [status, setStatus] = useState('active'), [refresh, setRefresh] = useState(0)
   const [editing, setEditing] = useState<StatisticalObservation | 'new' | null>(null), [history, setHistory] = useState<StatisticalObservation | null>(null)
+  const scope = active.context?.organization_id + ':' + active.context?.actor_user_id
+  const [selection, setSelection] = useState<{ scope: string; rows: StatisticalObservation[] }>({ scope, rows: [] })
+  const selected = selection.scope === scope ? selection.rows : []
   const permissions = active.context?.permissions ?? [], allowed = permissions.includes('sports.read') && permissions.includes('sports.statistics.read'), create = permissions.includes('sports.write') && permissions.includes('sports.statistics.write'), correct = permissions.includes('sports.statistics.correct')
   const root = 'tenants/' + active.context?.organization_id + '/observations'
   const { list, loading, error } = usePartnershipList<StatisticalObservation>(root + '?per_page=10&page=' + page + '&status=' + status + (source ? '&source_kind=' + source : ''), active, open && allowed, onInvalid, refresh)
@@ -26,11 +31,14 @@ export function ObservationPanel({ active, disabled, onInvalid }: Props) {
       {loading && <p role="status">{text('loading')}</p>}{error && <Alert tone="error" title={error.message} requestId={error.requestId} />}{list?.data.length === 0 && <p>{text('empty')}</p>}
       {list && create && !editing && <Button disabled={blocked} onClick={() => { setEditing('new'); setHistory(null) }}>{text('create')}</Button>}
       {editing && ((editing === 'new' && create) || (editing !== 'new' && correct)) && <ObservationForm key={editing === 'new' ? 'new' : editing.version} {...{ active, root, onInvalid }} record={editing === 'new' ? null : editing} disabled={blocked} errors={mutation.errors(root + (editing === 'new' ? '' : '/' + editing.id))} onCancel={() => setEditing(null)} onSubmit={(event, body) => mutation.propose(event, text(editing === 'new' ? 'create' : 'correct'), root + (editing === 'new' ? '' : '/' + editing.id), body, editing !== 'new')} />}
-      <ul className="grid min-w-0 gap-3">{list?.data.map((row) => <li key={row.id} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3"><ObservationView row={row} />{correct && <Button disabled={blocked} onClick={() => { setEditing(row); setHistory(null) }}>{text('correct')}</Button>}<Button disabled={blocked} onClick={() => { setEditing(null); setHistory(row) }}>{text('history')}</Button></li>)}</ul>
+      <ul className="grid min-w-0 gap-3">{list?.data.map((row) => <li key={row.id} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3"><ObservationView row={row} />
+        {create && <label className="flex min-w-0 items-start gap-2 [overflow-wrap:anywhere]"><input type="checkbox" aria-label={calculationText('select') + ' · ' + row.id} disabled={blocked || (selected.length >= 1000 && !selected.some((entry) => entry.id === row.id))} checked={selected.some((entry) => entry.id === row.id)} onChange={(event) => setSelection({ scope, rows: event.target.checked ? [...selected, row] : selected.filter((entry) => entry.id !== row.id) })} />{calculationText('select')} · {row.id.slice(-8)}</label>}
+        {correct && <Button disabled={blocked} onClick={() => { setEditing(row); setHistory(null) }}>{text('correct')}</Button>}<Button disabled={blocked} onClick={() => { setEditing(null); setHistory(row) }}>{text('history')}</Button></li>)}</ul>
       {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(n) => { setPage(n); setEditing(null); setHistory(null) }} />}
       {history && <ObservationHistory key={history.id} {...{ active, root, onInvalid }} record={history} disabled={blocked} onClose={() => setHistory(null)} />}
     </>}
     <StatisticalImportsPanel {...{ active, disabled: blocked, onInvalid }} />
+    <StatisticalCalculationsPanel key={scope} {...{ active, disabled: blocked, onInvalid, selected }} onClear={() => setSelection({ scope, rows: [] })} />
   </section>
 }
 function ObservationView({ row }: { row: StatisticalObservation }) {

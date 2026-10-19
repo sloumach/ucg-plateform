@@ -32,7 +32,7 @@ use Illuminate\Validation\ValidationException;
 
 final readonly class ObservationService
 {
-    public function __construct(private ObservationRepository $records, private MetricCatalogueRepository $metrics, private MetricCatalogueService $dictionary, private ObservationMatchDirectory $matches, private SportingPeopleDirectory $people, private MatchReferenceDirectory $games, private MetricGameDirectory $catalogue, private TenantAuthorization $authorization, private TenantBusinessGuard $guard, private TenantAuditJournal $audit, private ConnectionInterface $database, private Factory $validator, private Encrypter $crypt, private StatisticalImportRepository $imports) {}
+    public function __construct(private ObservationRepository $records, private MetricCatalogueRepository $metrics, private MetricCatalogueService $dictionary, private ObservationMatchDirectory $matches, private SportingPeopleDirectory $people, private MatchReferenceDirectory $games, private MetricGameDirectory $catalogue, private TenantAuthorization $authorization, private TenantBusinessGuard $guard, private TenantAuditJournal $audit, private ConnectionInterface $database, private Factory $validator, private Encrypter $crypt, private StatisticalImportRepository $imports, private StatisticalCalculationInvalidator $calculations) {}
 
     public function authorize(TenantContext $context, string $operation = 'read'): void
     {
@@ -125,6 +125,9 @@ final readonly class ObservationService
             }
             $revision = $this->records->append(['id' => (string) Str::uuid(), 'organization_id' => $context->organizationId, 'observation_id' => $record->id, 'number' => ($old->number ?? 0) + 1, 'base_version' => $old?->id, ...$values, 'reason' => trim($v['reason']), 'actor_user_id' => $context->actorUserId, 'request_id' => $context->requestId]);
             $this->audit->record($context->organizationId, new AuditWriteData($context->actorUserId, AuditAction::DomainChanged, AuditTarget::Organization, $context->organizationId, AuditReason::Domain, $context->requestId, $ip, [], ['observation_id' => $record->id, 'observation_action' => $id === null ? 'created' : 'corrected', 'version' => $revision->id]));
+            if ($id !== null) {
+                $this->calculations->changed($context, $record->id);
+            }
 
             return $this->find($context, $record->id);
         });

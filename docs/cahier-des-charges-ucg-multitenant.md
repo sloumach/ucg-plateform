@@ -507,6 +507,21 @@ Un changement de contexte exige invalidation puis nouvelle observation. Les
 valeurs sont chiffrées et ne figurent pas dans le dictionnaire global. Aucun
 calcul ni import automatique dans ce lot.
 
+Livraison locale STAT-004 : calcul d’un échantillon explicite et fixe, avec
+définition de métrique et composants de ratio figés par version. Somme, moyenne
+pondérée par la taille d’échantillon, minimum, maximum et dernière valeur ; les
+ratios divisent les sommes de composants additifs sur des origines et échantillons
+correspondants, jamais une moyenne de ratios. Contexte, provenance et périodes
+sont contrôlés pour éviter les mélanges et doubles comptes. Absence et invalidation
+sont signalées ; dénominateur réellement nul selon la politique du dictionnaire.
+Une correction invalide atomiquement les seuls calculs dépendants puis déclenche
+leur recalcul sous les droits actuels du demandeur initial. Résultats privés,
+historique immuable et version du moteur conservés ; résultat obsolète masqué.
+Limites : 1 000 observations sélectionnées, 100 calculs par demandeur/tenant et
+1 000 révisions par calcul. Les nouvelles observations ne rejoignent pas
+automatiquement un échantillon existant. Profils et comparaisons : STAT-005.
+Calculs désactivés par défaut avant migration, recette et activation supervisée.
+
 ### 10.3 Modes d’acquisition
 
 P0 : saisie manuelle et import CSV validé. P1 : premier connecteur pour chaque jeu prioritaire après confirmation d’accès et de licence. P2 : autres connecteurs, démos ou télémétrie autorisée.

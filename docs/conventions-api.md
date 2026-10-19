@@ -3938,3 +3938,106 @@ if (current.data.can_resume) {
   })
 }
 ```
+
+### STAT-004 — agrégats et ratios versionnés
+
+Session, e-mail vérifié, MFA, contexte tenant et permissions des observations
+obligatoires. Lecture avec les droits de consultation, mutations avec les droits
+de saisie et tenant confirmé/X-Tenant-Revision. Chaque calcul appartient au
+demandeur initial dans son organisation ; autre utilisateur/tenant : 404. Toute
+source liée à un match devenu inaccessible masque le calcul et son historique.
+Réponses Resource privées/no-store, meta.request_id et notification sur mutation.
+
+Racine : /api/v1/tenants/{tenant}/statistical-calculations.
+
+| Méthode | Route relative | Entrée fermée |
+| --- | --- | --- |
+| GET | racine | page facultatif |
+| POST | racine | metric_id UUID, metric_version UUID, observations UUID[] distincts (1–1000), confirm accepté |
+| GET | {calculation} | page facultatif pour les identifiants sources |
+| GET | {calculation}/history | page facultatif |
+| POST | {calculation}/recalculate | version UUID courante, confirm accepté |
+
+Listes, sources et historique : dix éléments par page ; page bornée de 1 à 100000.
+Cent calculs maximum par demandeur/tenant et mille révisions par calcul.
+Les identifiants étrangers/inaccessibles sont refusés sans exposer leurs valeurs.
+Clés inconnues/entrée invalide : 422. Contexte ou version source incompatible :
+422 observations. Conflit de génération : 409 STAT_CALCULATION_STALE, sans rejeu.
+Calculs désactivés : 409 STAT_CALCULATION_DISABLED. Quota : STAT_CALCULATION_LIMIT.
+Panne de mise en file : STAT_CALCULATION_DISPATCH_FAILED, état queued conservé ;
+consulter GET puis décider explicitement d’un recalcul.
+
+Le dictionnaire global accepte ratio_components uniquement pour aggregation=ratio :
+{numerator: UUID[], denominator: UUID[]}, une à quatre métriques par côté,
+distinctes entre les deux côtés. Les composants doivent être actifs, disponibles,
+additifs (sum), du même jeu, niveau et restrictions mode/rôle/version de jeu.
+L’écriture fige leurs versions exactes ; la lecture renvoie pour chaque composant
+metric_id, version et code. Une recette omise conserve ses versions figées et les
+revalide ; une recette fournie résout les versions courantes des composants.
+Les anciennes formules documentaires restent lisibles mais ne sont jamais exécutées ;
+un ratio sans recette explicite ne peut pas être calculé.
+
+Le calcul fige la définition cible et la liste triée des sources existantes.
+La même demande (acteur, tenant, définition/version et sélection) retourne le
+même calcul. Une révision historique active/utilisable peut servir de cible :
+une modification ultérieure du dictionnaire ne rebase pas ce calcul.
+Joueur, jeu, source et contexte doivent correspondre ; les composants de ratio
+sont appariés par origine (match/partie, période, date, manche/session) et taille
+d’échantillon. Origines répétées et périodes qui se chevauchent au niveau period
+sont refusées. Les observations nouvelles ne sont pas ajoutées automatiquement.
+
+Opérations : sum, moyenne pondérée par sample_size, min, max et last.
+manual retourne une indisponibilité explicite. Ratio = somme des composants
+numérateur / somme des composants dénominateur ; aucune moyenne de ratios.
+Calcul décimal exact, restitution à six décimales maximum, arrondi half_up.
+Une donnée absente/invalide reste distincte de zéro ; un ratio incomplet ou des
+échantillons différents retourne unavailable, sans substitution par zéro.
+Un dénominateur réellement nul suit zero_denominator=zero|unavailable.
+
+Résumé/détail : id, status queued|stale|completed|failed, version (génération),
+source_count, metric figée, cohort, failure_code, result nullable, result_version,
+number et can_recalculate (état du réglage opérateur, droits à vérifier séparément).
+result contient engine_version, precision, rounding, availability, value décimale
+en chaîne ou null, sample_size, source_count, included_count, missing_count,
+voided_count, incomplete, numerator, denominator et reason.
+Le détail ajoute sources:{data: UUID[], meta:{current_page,last_page,per_page,total}}.
+L’historique expose id, number, engine_version, result et created_at. Les révisions
+sources exactes sont conservées chiffrées côté serveur, sans valeur dans les jobs.
+
+Une correction/invalidation/réactivation change atomiquement la génération et
+marque les seuls calculs dépendants stale. result reste null jusqu’au nouveau
+calcul ; l’ancien résultat est consultable comme historique daté. Les jobs reports
+relisent les droits du demandeur initial, par lots de 25 calculs dépendants.
+Le calcul se fait hors verrou puis publication courte avec revérification de la
+génération ; anciens jobs/callbacks inertes. Panne finale : failed et code générique
+CALCULATION_INTERRUPTED, reprise explicite par recalculate. Une panne de fanout
+laisse stale, donc ne rend jamais un ancien résultat courant.
+
+Exemple après initialisation CSRF/session et confirmation du tenant :
+
+```ts
+const root = 'tenants/' + organizationId + '/statistical-calculations'
+const created = await tenancyRequest<ApiSuccessResponse<StatisticalCalculation>>(root, {
+  method: 'POST', revision: activeRevision,
+  body: {
+    metric_id: selectedMetric.id,
+    metric_version: selectedMetric.version,
+    observations: selectedObservationIds,
+    confirm: true,
+  },
+})
+// Après consultation puis décision explicite de recalculer :
+const current = await tenancyRequest<ApiSuccessResponse<StatisticalCalculation>>(
+  root + '/' + created.data.id, { revision: activeRevision },
+)
+await tenancyRequest(root + '/' + current.data.id + '/recalculate', {
+  method: 'POST', revision: activeRevision,
+  body: { version: current.data.version, confirm: true },
+})
+```
+
+Migration additive 2026_10_19_183908 après CI/sauvegarde, sans migrate:fresh.
+STATISTICAL_CALCULATIONS_ENABLED=false par défaut, indépendant des imports.
+Activer explicitement après recette ; worker database/Redis sur reports requis.
+Désactiver les calculs n’empêche pas leur invalidation lors d’une correction.
+Aucune activation opérateur ni migration principale effectuée pour ce lot.

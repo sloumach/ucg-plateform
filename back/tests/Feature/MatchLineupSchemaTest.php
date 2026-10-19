@@ -26,6 +26,8 @@ class MatchLineupSchemaTest extends TestCase
         $notebook = require database_path('migrations/2026_10_18_155140_create_match_notebook_revisions.php');
         $observations = require database_path('migrations/2026_10_19_113618_create_statistical_observations.php');
         $statisticalExecution = require database_path('migrations/2026_10_19_175141_create_statistical_import_executions.php');
+        $statisticalCalculations = require database_path('migrations/2026_10_19_183908_create_statistical_calculations.php');
+        $statisticalCalculations->down();
         $statisticalExecution->down();
         $observations->down();
         $notebook->down();
@@ -42,6 +44,7 @@ class MatchLineupSchemaTest extends TestCase
         $notebook->up();
         $observations->up();
         $statisticalExecution->up();
+        $statisticalCalculations->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         app(PortabilityRepository::class)->assertCatalog();
     }

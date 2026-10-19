@@ -34,6 +34,11 @@ final class MetricCatalogueInput
             'title' => ['required', 'string', 'max:160', 'regex:/\S/u'], 'definition' => ['required', 'string', 'max:4000', 'regex:/\S/u'], 'unit' => ['required', 'string', 'max:40', 'regex:/\S/u'],
             'aggregation' => ['required', 'in:sum,mean,min,max,last,ratio,manual'], 'formula' => ['required', 'string', 'max:2000', 'regex:/\S/u'], 'zero_denominator' => ['required', 'in:unavailable,zero,not_applicable'],
             'aggregation_level' => ['sometimes', 'in:round,game,match,session,period'],
+            'ratio_components' => ['sometimes', 'nullable', 'array:numerator,denominator'],
+            'ratio_components.numerator' => ['required_with:ratio_components', 'array', 'min:1', 'max:4'],
+            'ratio_components.denominator' => ['required_with:ratio_components', 'array', 'min:1', 'max:4'],
+            'ratio_components.numerator.*' => ['required', 'uuid', 'distinct:ignore_case'],
+            'ratio_components.denominator.*' => ['required', 'uuid', 'distinct:ignore_case'],
             'measurement_kind' => ['required', 'in:objective,subjective'], 'availability' => ['required', 'in:manual,source_required,unavailable'],
             'availability_note' => ['required', 'string', 'max:2000', 'regex:/\S/u'], 'status' => ['required', 'in:active,retired'], 'reason' => ['required', 'string', 'min:10', 'max:1000', 'regex:/\S/u']];
     }

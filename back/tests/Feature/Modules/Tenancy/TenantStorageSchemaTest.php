@@ -75,6 +75,8 @@ class TenantStorageSchemaTest extends TestCase
         $documents->down();
         $statisticalImports = require database_path('migrations/2026_10_19_143154_create_statistical_import_previews.php');
         $statisticalExecution = require database_path('migrations/2026_10_19_175141_create_statistical_import_executions.php');
+        $statisticalCalculations = require database_path('migrations/2026_10_19_183908_create_statistical_calculations.php');
+        $statisticalCalculations->down();
         $statisticalExecution->down();
         $statisticalImports->down();
         $importMigration->down();
@@ -85,6 +87,7 @@ class TenantStorageSchemaTest extends TestCase
         $importMigration->up();
         $statisticalImports->up();
         $statisticalExecution->up();
+        $statisticalCalculations->up();
         $documents->up();
         $scans->up();
         $governance->up();

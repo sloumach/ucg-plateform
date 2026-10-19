@@ -2766,3 +2766,29 @@ Sélection PostgreSQL complète du workflow CI rejouée localement après correc
 2139 cas, 2137 réussis, deux ignorés, aucun échec et 11794 assertions.
 La base PostgreSQL jetable a été supprimée. La CI distante reste à relancer après
 push du correctif ; aucune nouvelle migration nécessaire pour ce correctif.
+
+### Calculs statistiques — UCG-STAT-004
+
+Le module Performance ajoute un calculateur décimal à opérations fermées, sans
+évaluation de formule textuelle. Le catalogue fige les versions des composants
+additifs des ratios. StatisticalCalculationService valide un échantillon fixe et
+privé ; le Repository charge les observations courantes en bloc et stocke racine,
+liens de dépendance et résultats immuables chiffrés. Les routes utilisent les
+permissions existantes des observations avec MFA et confirmation tenant.
+
+CalculateStatistics travaille sur reports, hors verrou pour le calcul puis dans
+une transaction courte pour publier après contrôle de génération. Les corrections
+d’observation invalident les dépendances dans leur transaction ; après commit,
+RecalculateObservationStatistics pagine 25 dépendances et réenfile chaque calcul
+sous l’identité du demandeur initial. Les droits et audiences actuels sont relus.
+Une panne conserve un état stale/queued/failed récupérable explicitement, sans
+exposer un résultat obsolète comme courant. La liste et l’historique sont paginés ;
+sélections limitées à 1 000 sources, 100 calculs par acteur/tenant, 1 000 révisions.
+
+Migration additive 2026_10_19_183908 après les migrations STAT-003A/B. Les tests de
+réversibilité des schémas parents démontent d’abord les calculs, puis les recréent
+après leurs dépendances ; aucun CASCADE ni modification des migrations historiques.
+Les tables sont inscrites dans l’inventaire fermé de portabilité du tenant.
+Le réglage STATISTICAL_CALCULATIONS_ENABLED est indépendant et false par défaut.
+Le frontend propose sélection, confirmation, suivi, détail, historique et recalcul ;
+les profils/comparaisons de STAT-005 restent distincts.

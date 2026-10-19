@@ -57,6 +57,8 @@ class MatchSchemaTest extends TestCase
         $outcomes->down();
         $observations = require database_path('migrations/2026_10_19_113618_create_statistical_observations.php');
         $statisticalExecution = require database_path('migrations/2026_10_19_175141_create_statistical_import_executions.php');
+        $statisticalCalculations = require database_path('migrations/2026_10_19_183908_create_statistical_calculations.php');
+        $statisticalCalculations->down();
         $statisticalExecution->down();
         $observations->down();
         $notebook->down();
@@ -77,6 +79,7 @@ class MatchSchemaTest extends TestCase
         $notebook->up();
         $observations->up();
         $statisticalExecution->up();
+        $statisticalCalculations->up();
         $outcomes->up();
         [$org, , , $person, $other, $game] = $this->matchScenario();
         $this->postJson($this->matchRoot($org), $this->matchPayload($game, $person, $other))->assertCreated();
@@ -95,6 +98,8 @@ class MatchSchemaTest extends TestCase
         $outcomes->down();
         $observations = require database_path('migrations/2026_10_19_113618_create_statistical_observations.php');
         $statisticalExecution = require database_path('migrations/2026_10_19_175141_create_statistical_import_executions.php');
+        $statisticalCalculations = require database_path('migrations/2026_10_19_183908_create_statistical_calculations.php');
+        $statisticalCalculations->down();
         $statisticalExecution->down();
         $observations->down();
         $notebook->down();

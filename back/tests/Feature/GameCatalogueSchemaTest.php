@@ -141,6 +141,8 @@ class GameCatalogueSchemaTest extends TestCase
         $metrics = require database_path('migrations/2026_10_19_094551_create_metric_dictionary.php');
         $observations = require database_path('migrations/2026_10_19_113618_create_statistical_observations.php');
         $statisticalExecution = require database_path('migrations/2026_10_19_175141_create_statistical_import_executions.php');
+        $statisticalCalculations = require database_path('migrations/2026_10_19_183908_create_statistical_calculations.php');
+        $statisticalCalculations->down();
         $statisticalExecution->down();
         $observations->down();
         $metrics->down();
@@ -194,6 +196,7 @@ class GameCatalogueSchemaTest extends TestCase
         $metrics->up();
         $observations->up();
         $statisticalExecution->up();
+        $statisticalCalculations->up();
         $this->assertDatabaseCount('game_catalogue_entries', 18);
         $this->assertDatabaseCount('organization_games', 0);
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
@@ -244,6 +247,8 @@ class GameCatalogueSchemaTest extends TestCase
         $metrics = require database_path('migrations/2026_10_19_094551_create_metric_dictionary.php');
         $observations = require database_path('migrations/2026_10_19_113618_create_statistical_observations.php');
         $statisticalExecution = require database_path('migrations/2026_10_19_175141_create_statistical_import_executions.php');
+        $statisticalCalculations = require database_path('migrations/2026_10_19_183908_create_statistical_calculations.php');
+        $statisticalCalculations->down();
         $statisticalExecution->down();
         $observations->down();
         $metrics->down();
@@ -305,6 +310,7 @@ class GameCatalogueSchemaTest extends TestCase
         $metrics->up();
         $observations->up();
         $statisticalExecution->up();
+        $statisticalCalculations->up();
         $this->assertDatabaseCount('organization_games', 4);
         $this->assertSame(1, OrganizationGame::query()->where('organization_id', $org->id)->where('enabled', true)->count());
     }
