@@ -14,7 +14,8 @@
   Définitions, périodes, périmètres, pagination et reprise par carte. Budgets et
   progression agrégée indisponibles ; les autres indicateurs cibles restent liés
   à leurs sources. Aucun nouveau schéma, worker, droit réel ou réglage activé.
-  Livraison incluse dans le commit UCG-REP-001 ; push, CI distante et recette restent à faire.
+  Commit `0cfd94b` poussé et synchronisé à la reprise. CI signalée en échec sur
+  le compteur de requêtes du test ; correctif validé inclus dans le commit UCG-REP-001 suivant (voir ci-dessous).
 - STAT-005 : commit `d656e0c`, présent sur `staging` et `origin/staging` à la
   reprise. La CI distante n’a pas été explicitement confirmée par l’utilisateur.
   Aucune nouvelle migration ; les traitements STAT-004 gardent leur réglage séparé.
@@ -4340,3 +4341,28 @@ Validation locale :
 
 Livraison incluse dans le commit UCG-REP-001. Push, CI distante et recette utilisateur
 restent nécessaires. Aucun accès réel attribué automatiquement.
+## UCG-REP-001 — correction du test de requêtes en CI (20 octobre 2026)
+
+La CI du commit `0cfd94b` a signalé un écart 53 → 51 dans RoleDashboardTest.
+Reproduit localement en définissant TENANCY_CACHE_STORE=database uniquement pour
+le processus de test, comme dans .env.example utilisé en CI. Le premier GET
+initialise deux entrées SQL du limiteur de débit (compteur et expiration) ; les
+suivants les réutilisent. Les requêtes métier et d’autorisation sont identiques.
+Le poste local utilisait le cache array pour ce réglage, expliquant pourquoi
+les validations initiales n’avaient pas révélé l’écart.
+
+Correctif limité au test : un GET initialise le limiteur avant les deux mesures.
+L’égalité exacte du nombre total de requêtes entre un et cinq matchs est
+conservée, avec vérification du total et des lignes retournées. Le scénario
+s’exécute explicitement avec les caches array et database ; le journal SQL est
+désactivé et vidé en finally. Aucun seuil élargi, filtrage de requêtes ou mock
+ne masque un éventuel N+1. Le refus de source corrompue est toujours vérifié.
+
+Validation : 20/20 cas et 150 assertions sur SQLite avec le cache database par
+défaut, et 20/20 cas, 150 assertions sur PostgreSQL dans une base isolée supprimée
+après le test. Pint et PHPStan zéro erreur. Suite complète backend avec
+TENANCY_CACHE_STORE=database : 2 407 tests réussis, 43 ignorés, aucun échec
+(2 450 cas, 13 296 assertions). Rapport local reports/rep001-ci-fixed.xml.
+Aucun changement du code métier,
+du frontend, des dépendances, du schéma, de la configuration réelle ou des workers.
+Correctif inclus dans le commit UCG-REP-001 dédié ; push, nouvelle CI distante et recette restent à faire.

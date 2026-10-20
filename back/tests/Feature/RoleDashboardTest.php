@@ -245,20 +245,30 @@ class RoleDashboardTest extends TestCase
         $this->getJson($this->card($s, 'unknown', 'direction'))->assertNotFound();
     }
 
-    public function test_query_count_remains_constant_with_more_matches_and_source_corruption_is_not_reported_as_zero(): void
+    #[TestWith(['array'])]
+    #[TestWith(['database'])]
+    public function test_query_count_remains_constant_with_more_matches_and_source_corruption_is_not_reported_as_zero(string $cacheStore): void
     {
+        config(['tenancy.cache_store' => $cacheStore]);
         $s = $this->scenario(['reporting.manager', 'sports.read']);
         $attributes = ['organization_id' => $s['org']->id, 'visibility' => 'organization', 'sharing_authorized_by' => $s['user']->id, 'sharing_authorized_at' => now()];
         $match = MatchRecord::factory()->create($attributes);
+
+        // Initialize the rate limiter's cache entries before comparing equally warm requests.
+        $this->getJson($this->card($s, 'matches', 'manager'))->assertOk()->assertJsonPath('data.total', 1);
         DB::enableQueryLog();
-        DB::flushQueryLog();
-        $this->getJson($this->card($s, 'matches', 'manager'))->assertOk();
-        $queries = count(DB::getQueryLog());
-        MatchRecord::factory()->count(4)->create($attributes);
-        DB::flushQueryLog();
-        $this->getJson($this->card($s, 'matches', 'manager'))->assertOk()->assertJsonPath('data.total', 5);
-        $this->assertSame($queries, count(DB::getQueryLog()));
-        DB::disableQueryLog();
+        try {
+            DB::flushQueryLog();
+            $this->getJson($this->card($s, 'matches', 'manager'))->assertOk()->assertJsonPath('data.total', 1)->assertJsonCount(1, 'data.items');
+            $queries = count(DB::getQueryLog());
+            MatchRecord::factory()->count(4)->create($attributes);
+            DB::flushQueryLog();
+            $this->getJson($this->card($s, 'matches', 'manager'))->assertOk()->assertJsonPath('data.total', 5)->assertJsonCount(5, 'data.items');
+            $this->assertSame($queries, count(DB::getQueryLog()));
+        } finally {
+            DB::disableQueryLog();
+            DB::flushQueryLog();
+        }
         DB::table('matches')->where('id', $match->id)->update(['title' => 'corrupt ciphertext', 'version' => (string) Str::uuid()]);
         $this->getJson($this->card($s, 'matches', 'manager'))->assertConflict()->assertJsonPath('code', 'REPORTING_SOURCE_UNAVAILABLE');
     }
