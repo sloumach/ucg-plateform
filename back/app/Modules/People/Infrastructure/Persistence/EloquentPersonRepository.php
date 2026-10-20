@@ -5,6 +5,7 @@ namespace App\Modules\People\Infrastructure\Persistence;
 use App\Modules\People\Domain\Contracts\PersonRepository;
 use App\Modules\People\Domain\Models\Person;
 use App\Modules\People\Domain\Models\PersonDeparture;
+use App\Support\Data\SearchPage;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -12,6 +13,17 @@ use Illuminate\Support\Str;
 
 final class EloquentPersonRepository implements PersonRepository
 {
+    public function search(string $org, string $term, ?string $after, int $size): SearchPage
+    {
+        $query = Person::query()->where('organization_id', $org);
+        if ($after !== null) {
+            $query->where('id', '>', $after);
+        }
+
+        return SearchPage::scan($query->orderBy('id')->limit(SearchPage::SCAN_LIMIT + 1)->get(['id', 'pseudonym']), $term, $size,
+            fn (Person $row): array => ['id' => $row->id, 'label' => $row->pseudonym, 'reference' => null, 'parent_id' => null]);
+    }
+
     /** @return array<string,int> */
     public function dashboardCounts(string $org, string $card): array
     {

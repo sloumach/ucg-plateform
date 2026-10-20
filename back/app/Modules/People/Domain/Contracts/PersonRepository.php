@@ -3,10 +3,13 @@
 namespace App\Modules\People\Domain\Contracts;
 
 use App\Modules\People\Domain\Models\Person;
+use App\Support\Data\SearchPage;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 interface PersonRepository
 {
+    public function search(string $org, string $term, ?string $after, int $size): SearchPage;
+
     /** @return array<string,int> */
     public function dashboardCounts(string $org, string $card): array;
 

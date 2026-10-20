@@ -5,10 +5,13 @@ namespace App\Modules\Competition\Domain\Contracts;
 use App\Modules\Competition\Domain\Models\ExternalCompetition;
 use App\Modules\Competition\Domain\Models\ExternalCompetitionDocument;
 use App\Modules\Competition\Domain\Models\ExternalCompetitionRevision;
+use App\Support\Data\SearchPage;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface ExternalCompetitionRepository
 {
+    public function search(string $org, bool $documents, string $term, ?string $after, int $size): SearchPage;
+
     /** @param array<string,mixed> $filters
      * @return LengthAwarePaginator<int,ExternalCompetition> */
     public function paginate(string $org, array $filters): LengthAwarePaginator;

@@ -3696,3 +3696,13 @@ activation réelle effectuée. Les connexions synchrones sont refusées pour ce 
 L’interface conserve l’accès aux détails lorsque le traitement est indisponible.
 Le réglage et les workers STAT-004 restent indépendants. Voir conventions-api.md
 pour les endpoints et etat-projet.md pour les contrôles locaux.
+
+
+La recherche **UCG-REP-003** est disponible dans l’espace organisation pour les
+catégories permises : personnes, équipes, matchs visibles, compétitions et titres
+ou références documentaires autorisés. Elle propose des suggestions et une
+continuation explicite par curseur. Les parties peuvent être vides avec une suite ;
+aucun total exhaustif n’est annoncé. Aucun contenu documentaire, contact privé,
+index en clair ni nouvelle migration. Les droits financiers restreignent aussi les
+métadonnées des documents contractuels. Voir `docs/conventions-api.md` pour les
+filtres, limites, erreurs et exemples.

@@ -4322,3 +4322,45 @@ asynchrone partagée, worker supervisé sur `reports`, puis
 de STAT-004. Une connexion sync/deferred/background n’exécute pas ce calcul dans
 la requête. Le réglage désactivé ne consulte pas les nouvelles tables et conserve
 l’accès explicite aux détails actuels. Aucune activation réelle faite par ce ticket.
+
+
+### UCG-REP-003 — Recherche privée dans l’organisation
+
+`GET /api/v1/tenants/{tenant}/search/types` retourne `data.types`, limité aux
+catégories autorisées. Aucun paramètre accepté. `GET /api/v1/tenants/{tenant}/search`
+accepte uniquement `type` (people, teams, matches, competitions,
+contract_documents, competition_documents), `q` (2–80 caractères utiles sans
+contrôles), `mode` (search par défaut, suggest), `per_page` (1–20, 10 par défaut)
+et `cursor` opaque facultatif. En mode suggest, cinq résultats maximum.
+Les droits sont ceux des sources et sont revérifiés indépendamment des suggestions.
+Tous ces GET sont privés no-store, authentifiés/session/MFA/tenant, et partagent
+60 lectures/minute par organisation et utilisateur.
+
+```bash
+curl --get "$BASE_URL/api/v1/tenants/$TENANT_ID/search" \
+  --cookie "$SESSION_COOKIE" -H 'Accept: application/json' \
+  --data-urlencode 'type=people' --data-urlencode 'q=Cam' \
+  --data-urlencode 'per_page=10'
+```
+
+Réponse : `data.type`, `data.items` avec uniquement id/label/reference/parent_id,
+`data.meta` avec per_page/examined/scan_limit/has_more/next_cursor, puis
+`meta.request_id`. Les valeurs `reference` et `parent_id` peuvent être nulles.
+Les résultats ne comportent aucun contenu ou lien de téléchargement documentaire.
+Utiliser next_cursor avec les mêmes filtres et contexte pour continuer ; les
+curseurs sont chiffrés/authentifiés et expirent après quinze minutes. Ne pas
+modifier/décoder leur contenu. Un curseur invalide, périmé ou lié à d’autres
+filtres/acteur/tenant produit 422 avec errors.cursor ; relancer sans curseur.
+Les droits insuffisants donnent 403, un tenant inaccessible 404, les quotas 429,
+et une erreur de stockage/déchiffrement 409 SEARCH_SOURCE_UNAVAILABLE.
+
+La comparaison est un préfixe littéral du libellé ou de la référence,
+insensible à la casse via mb_strtolower, sans recherche dans le corps des
+fichiers, contacts ou champs administratifs privés. Les caractères % et _ sont
+littéraux. Ordre par identifiant, sans classement de pertinence. Une partie examine
+au plus 100 candidats autorisés (101 chargés avec la sentinelle) et peut être vide
+avec has_more=true : cela ne signifie pas qu’il n’existe aucun résultat ensuite.
+Aucun total exhaustif ; parcours renouvelé pour refléter les modifications.
+Aucun cache/index en clair n’est créé. Les clients doivent annuler/ignorer les
+réponses obsolètes lors d’un changement de filtres ou contexte, et ne pas lancer
+un parcours exhaustif automatique pour l’autocomplétion.

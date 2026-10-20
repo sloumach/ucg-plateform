@@ -6,12 +6,35 @@ use App\Modules\Competition\Domain\Contracts\ExternalCompetitionRepository;
 use App\Modules\Competition\Domain\Models\ExternalCompetition;
 use App\Modules\Competition\Domain\Models\ExternalCompetitionDocument;
 use App\Modules\Competition\Domain\Models\ExternalCompetitionRevision;
+use App\Support\Data\SearchPage;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as Query;
 
 final class EloquentExternalCompetitionRepository implements ExternalCompetitionRepository
 {
+    public function search(string $org, bool $documents, string $term, ?string $after, int $size): SearchPage
+    {
+        if ($documents) {
+            $query = ExternalCompetitionDocument::query()->where('organization_id', $org)
+                ->whereNotExists(fn (Query $q) => $q->selectRaw('1')->from('external_competition_documents as newer')->where('newer.organization_id', $org)
+                    ->whereColumn('newer.document_id', 'external_competition_documents.document_id')->whereColumn('newer.competition_id', 'external_competition_documents.competition_id')->whereColumn('newer.number', '>', 'external_competition_documents.number'));
+            if ($after !== null) {
+                $query->where('document_id', '>', $after);
+            }
+
+            return SearchPage::scan($query->orderBy('document_id')->limit(SearchPage::SCAN_LIMIT + 1)->get(['id', 'document_id', 'competition_id', 'title']), $term, $size,
+                fn (ExternalCompetitionDocument $row): array => ['id' => $row->document_id, 'label' => $row->title, 'reference' => null, 'parent_id' => $row->competition_id], 'document_id');
+        }
+        $query = ExternalCompetition::query()->where('organization_id', $org);
+        if ($after !== null) {
+            $query->where('id', '>', $after);
+        }
+
+        return SearchPage::scan($query->orderBy('id')->limit(SearchPage::SCAN_LIMIT + 1)->get(['id', 'name', 'reference']), $term, $size,
+            fn (ExternalCompetition $row): array => ['id' => $row->id, 'label' => $row->name, 'reference' => $row->reference, 'parent_id' => null]);
+    }
+
     public function paginate(string $org, array $filters): LengthAwarePaginator
     {
         $q = ExternalCompetition::query()->where('organization_id', $org)->where('status', $filters['status'] ?? 'active');

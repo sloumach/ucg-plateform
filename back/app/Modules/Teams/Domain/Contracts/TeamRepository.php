@@ -3,10 +3,13 @@
 namespace App\Modules\Teams\Domain\Contracts;
 
 use App\Modules\Teams\Domain\Models\Team;
+use App\Support\Data\SearchPage;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface TeamRepository
 {
+    public function search(string $org, string $term, ?string $after, int $size): SearchPage;
+
     /** @return LengthAwarePaginator<int, array{id: string, label: string}> */
     public function referencePage(string $org, int $page, int $perPage): LengthAwarePaginator;
 

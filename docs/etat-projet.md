@@ -9,11 +9,16 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket implémenté localement : **UCG-REP-002**, six indicateurs
-  organisationnels différés, versionnés et invalidés avec leurs sources.
-  Backend et frontend, migration additive `2026_10_20_184653`, traitement désactivé
-  par défaut. Aucun .env/worker réel activé, aucune migration sur la base courante.
-  Travail non committé ; validations détaillées dans la section REP-002 ci-dessous.
+- Dernier ticket implémenté localement : **UCG-REP-003**, recherche limitée au tenant,
+  backend et frontend, six catégories (personnes, équipes, matchs, compétitions,
+  documents contractuels et documents de compétition). Aucun index en clair,
+  aucune nouvelle migration, aucun worker. Travail non committé ; validation
+  détaillée en fin de document.
+- REP-002 : commits `fae8c06` et correctif PostgreSQL `4ce0e30` créés sur staging.
+  Le correctif ajoute REP-002 au démontage/rejeu manuel de OrganizationSchemaTest ;
+  27 tests SQLite et 47 PostgreSQL réussis. La CI distante du correctif n’a pas été
+  explicitement confirmée. Migration `2026_10_20_184653` à appliquer avant activation ;
+  aucun .env/worker réel activé ni migration courante appliquée par l’agent.
 - REP-001 : `0cfd94b` et correctif CI `531af55` poussés et synchronisés à la
   reprise. Le succès de la CI distante du correctif n’a pas été explicitement
   confirmé par l’utilisateur ; la synchronisation Git ne vaut pas validation CI.
@@ -4447,3 +4452,85 @@ Aucun commit/push, aucune migration courante ni activation réelle effectuée.
 Après CI et sauvegarde, appliquer la migration, vérifier un worker reports et
 la connexion asynchrone, puis choisir l’activation opérateur
 DASHBOARD_INDICATORS_ENABLED. STAT-004 garde son propre réglage indépendant.
+
+
+## UCG-REP-003 — recherche limitée au tenant (20 octobre 2026)
+
+Objectif : REC-24, recherche et suggestions sans révéler les fiches d’une autre
+organisation ou les données auxquelles le lecteur n’a pas accès. GET search/types
+énumère uniquement les catégories autorisées ; GET search exige type et q.
+Les droits sources suffisent ; aucun droit reporting supplémentaire n’est attribué.
+Les périmètres autorisés sont ceux des listes existantes : sports.read pour les
+pseudonymes/équipes/matchs, sports.competitions.read en plus pour compétitions et
+leurs documents, administrative.read pour les documents contractuels. Les droits
+limités à une équipe ne donnent pas de recherche globale sur cette organisation.
+
+Reporting orchestre les contrats publics PeopleSearch, TeamSearch,
+CompetitionSearch et ContractDocumentSearch. Les services propriétaires
+réautorisent chaque appel, les repositories portent les prédicats tenant/audience
+avant chargement. Les matchs utilisent la même requête visible que leur lecture
+standard, sans vue de gestion implicite. Les documents contractuels dont le contrat
+porte des conditions financières (y compris sur un avenant) sont exclus avant
+déchiffrement en l’absence de financial.read. Seul le titre courant d’un document
+de compétition est recherché ; les anciennes révisions n’apparaissent pas.
+
+Résultats fermés : id, label, reference, parent_id. Aucun corps de document,
+contact, identité administrative, coordonnées, montant, chemin de stockage ou lien
+de téléchargement. La recherche porte sur un préfixe littéral du libellé ou de la
+référence, sans jokers SQL ; comparaison Unicode avec mb_strtolower. Les données
+chiffrées restent dans leur stockage source, aucune copie/index/cache de recherche.
+
+Borne explicite : au plus 101 candidats autorisés chargés (100 examinés et une
+sentinelle), 1–20 résultats par partie, cinq maximum en mode suggest. Tri stable
+par identifiant, curseur sur le dernier candidat examiné et non sur le dernier
+résultat. Une partie vide peut avoir une suite et n’est jamais présentée comme
+une absence globale. Pas de total exhaustif ou de parcours automatique de toutes
+les fiches. Les curseurs chiffrés/authentifiés expirent après quinze minutes,
+sont liés au tenant, acteur, catégorie, préfixe et taille effective. Les permissions
+restent revérifiées à chaque lecture. Reprise après modification du jeu de données
+sans garantie d’instantané historique ; recommencer pour actualiser le parcours.
+
+API privée no-store, FormRequest à filtres fermés et validation dans le service,
+Gate lié à l’acteur, limitation commune search/suggest/types de 60 requêtes/minute
+par organisation et utilisateur, erreurs source localisées sans texte sensible
+dans les logs. Pas de requête HTTP sortante ni nouvelle dépendance.
+
+Interface intégrée au workspace : ouverture explicite, catégories permises,
+suggestions après 350 ms et deux caractères, sélection au clavier, filtre par
+catégorie, pagination par curseur, reprise et erreurs. Effacement immédiat des
+résultats lors d’un changement de saisie/catégorie/tenant/acteur/révision/droits ;
+annulation et rejet des réponses obsolètes. Résultats en texte React échappé,
+affichage mobile 375 et 320 px contrôlé. Les résultats servent de repérage par
+libellé/référence ; aucune ouverture ou lecture automatique du contenu documentaire.
+
+Limite de volumétrie : la borne contrôle mémoire, transport et déchiffrement de
+chaque appel, pas le coût total d’une recherche exhaustive. Sur un gros tenant,
+plusieurs parties peuvent être nécessaires, y compris pour les pseudonymes et
+équipes. Profiler les plans SQL et la distribution des recherches avant de choisir
+un index de préfixes autorisés ou un index chiffré dédié ; ne pas déchiffrer tous
+les enregistrements dans une requête web ou externaliser les champs confidentiels.
+
+Validation : 25 cas TenantSearchTest (isolation, droits, six sources, Unicode,
+jokers littéraux, limites, suite après partie vide, suggestions, curseurs,
+classification financière, version documentaire courante, erreur source,
+compte de requêtes constant avec caches array/database et quotas). Architecture
+incluse : 29/29 cas SQLite, 236 assertions. Sélection PostgreSQL search, REP-001,
+REP-002, OrganizationSchemaTest et architecture : 76/76 cas, 584 assertions,
+base temporaire supprimée. Suite frontend complète : 440/440 cas dans 61 fichiers.
+PHPStan zéro erreur, Pint nouveaux fichiers et dirty passés. Build/lint et typage
+strict des tests React/Playwright passés. Deux parcours Chrome avec API simulée
+réussis : REP-003 et REP-002, suggestions, filtres, suite par curseur, libellés
+échappés, erreurs et 375/320 px sans débordement. Le premier mock d’erreur du
+nouveau test omettait errors ; corrigé pour respecter le contrat API. La fermeture
+des webservers Playwright sous Windows est restée bloquée ; la passe confirmée
+utilise le même test avec serveur Vite géré séparément, arrêté ensuite, et sans
+webservers automatiques. Configuration temporaire de vérification retirée.
+Suite backend complète avec TENANCY_CACHE_STORE=database : 2 451 réussis,
+43 ignorés, zéro erreur/échec (2 494 cas, 13 648 assertions), rapport
+reports/rep003-sqlite.xml. Après harmonisation de la constante de borne, les
+25 cas search sont repassés (193 assertions), Pint et PHPStan restent verts.
+Le test de recherche est ajouté à la sélection CI PostgreSQL. Au bilan Git :
+45 fichiers concernés, 24 modifiés et 21 créés ; aucun fichier d’environnement réel,
+rapport généré ou configuration temporaire n’est ajouté au suivi.
+
+Aucun commit/push, aucune migration sur la base courante ni activation réelle.

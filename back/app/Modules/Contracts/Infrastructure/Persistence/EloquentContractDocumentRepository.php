@@ -6,11 +6,28 @@ use App\Modules\Contracts\Domain\Contracts\ContractDocumentRepository;
 use App\Modules\Contracts\Domain\Models\ContractDocument;
 use App\Modules\Contracts\Domain\Models\ContractDocumentSignature;
 use App\Modules\Contracts\Domain\Models\ContractDocumentVersion;
+use App\Support\Data\SearchPage;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 
 final readonly class EloquentContractDocumentRepository implements ContractDocumentRepository
 {
+    public function search(string $org, string $term, ?string $after, int $size, bool $financial): SearchPage
+    {
+        $query = ContractDocument::query()->where('organization_id', $org);
+        // Any financial terms on the parent contract restrict every document's metadata.
+        if (! $financial) {
+            $query->whereNotExists(fn (\Illuminate\Database\Query\Builder $q) => $q->selectRaw('1')->from('contract_financial_terms as financial')
+                ->where('financial.organization_id', $org)->whereColumn('financial.contract_id', 'contract_documents.contract_id'));
+        }
+        if ($after !== null) {
+            $query->where('id', '>', $after);
+        }
+
+        return SearchPage::scan($query->orderBy('id')->limit(SearchPage::SCAN_LIMIT + 1)->get(['id', 'contract_id', 'title', 'reference']), $term, $size,
+            fn (ContractDocument $row): array => ['id' => $row->id, 'label' => $row->title, 'reference' => $row->reference, 'parent_id' => $row->contract_id]);
+    }
+
     /** @return Builder<ContractDocument> */
     private function query(string $org, string $contract): Builder
     {

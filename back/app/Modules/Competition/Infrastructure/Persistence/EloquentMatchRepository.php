@@ -6,6 +6,7 @@ use App\Modules\Competition\Domain\Contracts\MatchRepository;
 use App\Modules\Competition\Domain\Models\MatchParticipant;
 use App\Modules\Competition\Domain\Models\MatchRecord;
 use App\Modules\Competition\Domain\Models\MatchStatusEvent;
+use App\Support\Data\SearchPage;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as Query;
@@ -13,6 +14,18 @@ use Illuminate\Support\Str;
 
 final readonly class EloquentMatchRepository implements MatchRepository
 {
+    /** @param array{person_id:string|null,team_ids:list<string>} $viewer */
+    public function search(string $org, int $actor, array $viewer, string $term, ?string $after, int $size): SearchPage
+    {
+        $query = $this->visible($org, $actor, $viewer, false);
+        if ($after !== null) {
+            $query->where('id', '>', $after);
+        }
+
+        return SearchPage::scan($query->orderBy('id')->limit(SearchPage::SCAN_LIMIT + 1)->get(['id', 'title']), $term, $size,
+            fn (MatchRecord $row): array => ['id' => $row->id, 'label' => $row->title, 'reference' => null, 'parent_id' => null]);
+    }
+
     public function dashboard(string $org, int $actor, array $viewer, string $from, string $to, int $page): LengthAwarePaginator
     {
         return $this->visible($org, $actor, $viewer, false)->where('starts_at', '<', $to)->where('ends_at', '>', $from)

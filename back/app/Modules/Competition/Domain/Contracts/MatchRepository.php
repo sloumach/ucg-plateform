@@ -4,11 +4,15 @@ namespace App\Modules\Competition\Domain\Contracts;
 
 use App\Modules\Competition\Domain\Models\MatchRecord;
 use App\Modules\Competition\Domain\Models\MatchStatusEvent;
+use App\Support\Data\SearchPage;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Query\Builder;
 
 interface MatchRepository
 {
+    /** @param array{person_id:string|null,team_ids:list<string>} $viewer */
+    public function search(string $org, int $actor, array $viewer, string $term, ?string $after, int $size): SearchPage;
+
     /** @param array{person_id:string|null,team_ids:list<string>} $viewer
      * @return LengthAwarePaginator<int,MatchRecord> */
     public function dashboard(string $org, int $actor, array $viewer, string $from, string $to, int $page): LengthAwarePaginator;

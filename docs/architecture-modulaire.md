@@ -2890,3 +2890,24 @@ workers avec les filtres/index propriétaires existants. Avant hausse de volume,
 mesurer les plans SQL et la contention des versions par tenant/carte ; envisager
 une granularité de versions affinée ou un vrai outbox si le recalcul doit devenir
 automatique. Aucun agrégat de progression sportive ni budget sans source définie.
+
+
+### Recherche tenant REP-003
+
+Reporting ne lit pas directement les modèles des autres modules : contrats publics
+PeopleSearch, TeamSearch, CompetitionSearch et ContractDocumentSearch, services
+propriétaires réautorisant la lecture, repositories existants pour les requêtes.
+SearchPage est un DTO de support commun pour le parcours borné des candidats
+(100 examinés + une sentinelle, au plus 20 correspondances), sans persistance ni
+dépendance inverse vers Reporting. Les prédicats tenant, audience des matchs et
+classification financière des contrats sont appliqués en SQL avant déchiffrement.
+Les titres documentaires courants sont consultables, le contenu documentaire ne
+fait pas partie de cette recherche. Le curseur chiffré est lié à l’organisation,
+acteur, catégorie, préfixe et taille ; il ne remplace pas la réautorisation.
+
+Aucun index central contenant des données chiffrées déchiffrées, aucune migration,
+aucune invalidation/cache différé à exploiter. Les lectures suivent les sources
+courantes, avec les limites d’un parcours sans snapshot. À grand volume, profiler
+les plans des candidats avant de retenir une stratégie d’indexation préservant
+classification/tenants/droits. La borne applicative ne garantit pas un coût constant
+du plan SQL ni d’un parcours exhaustif d’un gros tenant.

@@ -1244,6 +1244,8 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Périmètre** : personnes, équipes, matchs, compétitions et documents autorisés ; filtres et autocomplétion.
 - **Acceptation** : aucune existence d’un autre tenant révélée ; champs confidentiels exclus de l’index non autorisé.
 - **Références CDC** : REC-24.
+- **Livraison locale** : recherche backend/frontend par catégorie et préfixe de libellé/référence ; personnes, équipes, matchs visibles, compétitions et métadonnées documentaires autorisées. Suggestions bornées, pagination par curseur chiffré lié au contexte, filtres fermés et droits revérifiés. Aucun index en clair, aucun corps documentaire ni total exhaustif ; parcours limité à 100 candidats examinés par appel, continuation explicite. Pas de nouvelle migration. Vérifications et limites de volumétrie dans etat-projet.md ; travail non committé, CI/recette restent à confirmer.
+
 
 ### UCG-REP-004 — Générer les exports asynchrones
 

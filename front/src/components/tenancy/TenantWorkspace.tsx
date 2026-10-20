@@ -20,6 +20,7 @@ import { SensitiveAccessPanel } from './SensitiveAccessPanel'
 import { PartnershipsPanel } from '../partnerships/PartnershipsPanel'
 import { ContractsPanel } from '../contracts/ContractsPanel'
 const ObservationPanel = lazy(() => import('../performance/ObservationPanel').then((module) => ({ default: module.ObservationPanel })))
+const TenantSearchPanel = lazy(() => import('../reporting/TenantSearchPanel').then((module) => ({ default: module.TenantSearchPanel })))
 const DashboardPanel = lazy(() => import('../reporting/DashboardPanel').then((module) => ({ default: module.DashboardPanel })))
 const SponsorshipDashboardPanel = lazy(() => import('../partnerships/SponsorshipDashboardPanel').then((module) => ({ default: module.SponsorshipDashboardPanel })))
 const MediaPanel = lazy(() => import('../media/MediaPanel').then((module) => ({ default: module.MediaPanel })))
@@ -245,6 +246,7 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
       {workspace && (
         <>
           {selected && <RoleManagementPanel key={selected.organization_id} active={workspace.active} disabled={disabled} onChanged={() => void reload(pages)} />}
+          {selected?.permissions.some((permission) => ['sports.read', 'administrative.read'].includes(permission)) && <Suspense fallback={<p>{t('search.loading')}</p>}><TenantSearchPanel active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
           {selected?.permissions.some((permission) => permission.startsWith('reporting.')) && <Suspense fallback={<p>{t('dashboards.loading')}</p>}><DashboardPanel active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
           {selected && <PeoplePanel key={selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
           {selected && <OrganizationGamesPanel key={'games:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}

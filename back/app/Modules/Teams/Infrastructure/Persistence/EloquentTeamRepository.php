@@ -4,10 +4,22 @@ namespace App\Modules\Teams\Infrastructure\Persistence;
 
 use App\Modules\Teams\Domain\Contracts\TeamRepository;
 use App\Modules\Teams\Domain\Models\Team;
+use App\Support\Data\SearchPage;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 final readonly class EloquentTeamRepository implements TeamRepository
 {
+    public function search(string $org, string $term, ?string $after, int $size): SearchPage
+    {
+        $query = Team::query()->where('organization_id', $org);
+        if ($after !== null) {
+            $query->where('id', '>', $after);
+        }
+
+        return SearchPage::scan($query->orderBy('id')->limit(SearchPage::SCAN_LIMIT + 1)->get(['id', 'name']), $term, $size,
+            fn (Team $row): array => ['id' => $row->id, 'label' => $row->name, 'reference' => null, 'parent_id' => null]);
+    }
+
     public function referencePage(string $org, int $page, int $perPage): LengthAwarePaginator
     {
         return Team::query()->where('organization_id', $org)->where('status', 'active')->select(['id', 'name'])->orderBy('name')->orderBy('id')
