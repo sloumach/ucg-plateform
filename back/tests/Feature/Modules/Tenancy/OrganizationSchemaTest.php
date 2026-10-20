@@ -120,6 +120,11 @@ class OrganizationSchemaTest extends TestCase
         $statImports = require database_path('migrations/2026_10_19_143154_create_statistical_import_previews.php');
         $statisticalExecution = require database_path('migrations/2026_10_19_175141_create_statistical_import_executions.php');
         $statisticalCalculations = require database_path('migrations/2026_10_19_183908_create_statistical_calculations.php');
+        $dashboardIndicators = require database_path('migrations/2026_10_20_184653_create_dashboard_indicator_snapshots.php');
+        $dashboardIndicators->down();
+        $this->assertFalse(Schema::hasTable('dashboard_source_versions'));
+        $this->assertFalse(Schema::hasTable('dashboard_indicators'));
+        $this->assertFalse(Schema::hasTable('dashboard_indicator_revisions'));
         $statisticalCalculations->down();
         $statisticalExecution->down();
         $statImports->down();
@@ -248,6 +253,10 @@ class OrganizationSchemaTest extends TestCase
         $statImports->up();
         $statisticalExecution->up();
         $statisticalCalculations->up();
+        $dashboardIndicators->up();
+        $this->assertTrue(Schema::hasTable('dashboard_source_versions'));
+        $this->assertTrue(Schema::hasTable('dashboard_indicators'));
+        $this->assertTrue(Schema::hasTable('dashboard_indicator_revisions'));
         $this->assertTrue(Schema::hasTable('calendar_feeds'));
         $this->assertTrue(Schema::hasTable('organizations'));
         $this->assertTrue(Schema::hasTable('organization_settings'));
