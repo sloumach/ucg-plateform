@@ -1,39 +1,21 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { tenancyRequest, type ActiveOrganization } from '../../api/tenancy'
-import type { ApiSuccessResponse } from '../../api/contracts'
+import { useState, type FormEvent } from 'react'
+import { type ActiveOrganization } from '../../api/tenancy'
 import { dashboardViews, dashboardText as text, type DashboardCatalogue, type DashboardCard, type DashboardCardDefinition } from '../../api/dashboards'
-import { isAbortError } from '../../api/errors'
+import { useDashboardRead } from './useDashboardRead'
+import { DashboardIndicatorPanel } from './DashboardIndicatorPanel'
 import { Button } from '../Button'
 import { FormField } from '../FormField'
 import { Alert } from '../feedback/Alert'
 import { Pagination } from '../data/Pagination'
 import { SelectField } from '../people/peopleForms'
-import { apiError, shouldReloadContext } from '../people/peopleFormValues'
 
 type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
 type Query = { view: string; from: string; to: string; revision: number }
-type ReadState<T> = { key: string; data?: T; error?: ReturnType<typeof apiError> }
 
 export function DashboardPanel(props: Props) {
   const context = props.active.context
   if (!dashboardViews.some((view) => context?.permissions.includes('reporting.' + view))) return null
   return <Dashboards key={context?.organization_id + ':' + context?.actor_user_id + ':' + props.active.revision + ':' + context?.permissions.join(',')} {...props} />
-}
-function useDashboardRead<T>(path: string | null, active: ActiveOrganization, onInvalid: () => void, refresh = 0) {
-  const [state, setState] = useState<ReadState<T> | null>(null)
-  const key = path + ':' + active.revision + ':' + refresh
-  useEffect(() => {
-    if (!path) return
-    const controller = new AbortController()
-    void tenancyRequest<ApiSuccessResponse<T>>(path, { revision: active.revision ?? undefined, signal: controller.signal })
-      .then((response) => { if (!controller.signal.aborted) setState({ key, data: response.data }) })
-      .catch((failure: unknown) => {
-        if (controller.signal.aborted || isAbortError(failure)) return
-        const error = apiError(failure); setState({ key, error }); if (shouldReloadContext(error)) onInvalid()
-      })
-    return () => controller.abort()
-  }, [path, active.revision, onInvalid, key])
-  return { data: path && state?.key === key ? state.data : undefined, error: path && state?.key === key ? state.error : undefined, loading: path !== null && state?.key !== key }
 }
 function Dashboards({ active, disabled, onInvalid }: Props) {
   const [open, setOpen] = useState(false), [catalogueRevision, setCatalogueRevision] = useState(0), [view, setView] = useState('')
@@ -69,13 +51,14 @@ function Dashboards({ active, disabled, onInvalid }: Props) {
   </section>
 }
 function Card({ active, disabled, onInvalid, root, card, query }: Props & { root: string; card: DashboardCardDefinition; query: Query }) {
-  const [page, setPage] = useState(1), [refresh, setRefresh] = useState(0)
+  const [page, setPage] = useState(1), [refresh, setRefresh] = useState(0), [details, setDetails] = useState(!card.indicator_supported)
   const params = new URLSearchParams({ view: query.view, from: query.from, to: query.to, page: String(page) })
-  const result = useDashboardRead<DashboardCard>(card.status === 'available' ? root + '/' + card.id + '?' + params.toString() : null, active, onInvalid, refresh)
+  const result = useDashboardRead<DashboardCard>(card.status === 'available' && details ? root + '/' + card.id + '?' + params.toString() : null, active, onInvalid, refresh)
   const blocked = disabled || result.loading
   return <article aria-label={card.label} className="grid min-w-0 content-start gap-3 rounded-xl border border-slate-700 p-4 [overflow-wrap:anywhere]">
     <h4 className="font-bold">{card.label}</h4><p>{card.definition}</p><p>{text('scope')} : {text('scope.' + card.scope)}</p>
-    <p>{card.period_kind === 'window' ? text('window') + ' : ' + query.from + ' → ' + query.to + ' · ' + active.context?.timezone : text('snapshot')}</p>
+    <p>{card.period_kind === 'window' ? text('window') + ' : ' + query.from + ' → ' + query.to + ' · ' + active.context?.timezone : text(card.indicator_supported ? 'indicatorSnapshot' : 'snapshot')}</p>
+    {card.indicator_supported && <><DashboardIndicatorPanel active={active} disabled={disabled} onInvalid={onInvalid} root={root + '/' + card.id + '/indicator'} query={query} /><Button disabled={disabled} onClick={() => setDetails(!details)}>{text(details ? 'hideDetails' : 'showDetails')}</Button></>}
     {card.status === 'unavailable' && <p role="status">{card.reason ?? text('unavailable')}</p>}
     {result.loading && <p role="status">{text('loading')}</p>}
     {result.error && <><Alert tone="error" title={result.error.message} requestId={result.error.requestId} />
@@ -90,7 +73,7 @@ function Card({ active, disabled, onInvalid, root, card, query }: Props & { root
         {result.data.meta && <Pagination currentPage={result.data.meta.current_page} totalPages={result.data.meta.last_page} disabled={blocked} onPageChange={setPage} />}
         {result.data.meta && result.data.meta.current_page > result.data.meta.last_page && <Button disabled={blocked} onClick={() => setPage(1)}>{text('firstPage')}</Button>}
       </>}</>}
-    {card.status === 'available' && <Button disabled={blocked} onClick={() => setRefresh((value) => value + 1)}>{text(result.error ? 'retry' : 'refreshCard')}</Button>}
+    {card.status === 'available' && details && <Button disabled={blocked} onClick={() => setRefresh((value) => value + 1)}>{text(result.error ? 'retry' : 'refreshCard')}</Button>}
   </article>
 }
 function date(value: string, timezone = 'UTC') { return value.length === 10 ? value : new Date(value).toLocaleString('fr-FR', { timeZone: timezone }) }

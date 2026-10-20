@@ -7,6 +7,9 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 interface PersonRepository
 {
+    /** @return array<string,int> */
+    public function dashboardCounts(string $org, string $card): array;
+
     /** @param list<string> $ids
      * @return array<string,array{label:string,version:string}>
      */

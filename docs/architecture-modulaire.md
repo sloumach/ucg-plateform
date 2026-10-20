@@ -2843,3 +2843,50 @@ ou en erreur ne donne aucun zéro de substitution. Projections minimales, logs
 sans charge privée et réponses no-store. Pas de mutation du schéma, des données
 réelles, des workers ou de l’inventaire de portabilité. Les COUNT paginés restent
 en direct : les agrégats coûteux et leur fraîcheur relèvent de REP-002.
+
+### Indicateurs différés — UCG-REP-002
+
+Reporting possède désormais DashboardIndicatorService/Processor, son contrat de
+queue, un TenantJob sur `reports`, et un repository de matérialisation SQL.
+Les endpoints de lecture/demande réutilisent la Policy REP-001 avec FormRequest,
+Resource et confirmation du contexte pour le POST. Les permissions métier sont
+réévaluées via DashboardService et les contrats publics des modules sources.
+Les six agrégats organisationnels ne chargent que des COUNT/GROUP BY dans leurs
+repositories propriétaires, sans déchiffrement de noms ou chargement de collections.
+Les vues à audience individuelle restent sur leurs services de lecture REP-001.
+
+Migration additive `2026_10_20_184653` : dashboard_source_versions (clé tenant/carte),
+dashboard_indicators (sélection privée, génération de demande, état et clé isolée),
+dashboard_indicator_revisions (moteur, version de source, résultat chiffré,
+évaluation/expiration et request_id). FKs composites tenant, unicités tenant/acteur,
+index de consultation et gardes d’identité/historique immuable. L’inventaire de
+portabilité couvre les trois tables et leurs colonnes explicites. La migration
+refuse un rollback destructeur si des sélections existent ; aucun backfill massif.
+
+Les déclencheurs SQL des tables people, person_imports, contracts,
+sponsorship_campaigns, sponsorship_deliverables, external_competitions et
+competition_registration_revisions incrémentent les versions des seules cartes
+concernées dans le tenant source, transactionnellement. Ils couvrent bulk SQL
+et rollback, sans dépendance inversée des modules vers Reporting. Invalidation
+conservatrice par carte, jamais lancement massif de jobs depuis les écritures.
+
+Le calcul agrégé se fait hors verrou ; la publication prend le verrou métier du
+tenant puis celui de la sélection et de sa version de source. Tout changement
+entre lecture et publication empêche la publication. Numéro de révision et
+génération uniques protègent les rejeux/concurrences. Les droits et le réglage
+d’activation sont revérifiés au worker et à la publication. Les demandes et les
+publications écrivent un audit de métadonnées fermé, sans valeurs de comptage.
+
+Les GET ne recalculent pas, ne mettent pas en file et ne recompteront pas les
+sources ; ils lisent le cache SQL et sa génération. Aucun Cache::flexible ni
+fallback synchrone. Frontend : agrégat/fraîcheur au premier plan, détails actuels
+sur action, confirmation du POST, erreurs/reprise, historique paginé, dates et
+validité maximale. L’expiration côté client tient compte de checked_at renvoyé
+par le serveur et masque la valeur même sans nouvelle requête.
+
+Le calcul est désactivé par défaut ; activation réelle réservée à l’opérateur
+après migration et vérification de la queue. Les COUNT/GROUP BY restent sur les
+workers avec les filtres/index propriétaires existants. Avant hausse de volume,
+mesurer les plans SQL et la contention des versions par tenant/carte ; envisager
+une granularité de versions affinée ou un vrai outbox si le recalcul doit devenir
+automatique. Aucun agrégat de progression sportive ni budget sans source définie.

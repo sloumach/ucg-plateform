@@ -3671,3 +3671,28 @@ la fraîcheur et les recalculs automatiques relèvent de REP-002.
 Aucune nouvelle migration, dépendance ou activation de worker. Implémentation
 incluse dans le commit UCG-REP-001 ; à pousser et valider en CI puis en recette avec les droits
 choisis. Contrat HTTP détaillé dans `docs/conventions-api.md`.
+
+### Indicateurs différés — UCG-REP-002
+
+Six cartes disposent d’un comptage versionné par statut, calculé en arrière-plan :
+effectif actif, fiches sans compte, imports de personnes, contrats à échéance,
+livrables sponsors en retard et échéances d’inscription persistées.
+Les cartes utilisent les mêmes droits et périmètres organisationnels que REP-001.
+Les résultats sont privés au demandeur, datés, conservés en révisions immuables
+et masqués dès qu’une source change ou que leur validité maximale de cinq minutes
+expire. Une lecture ne calcule rien et ne lance aucun job. Le recalcul est ciblé
+sur la carte et les filtres explicitement confirmés ; pas de recalcul global automatique.
+
+Dans l’interface, ces cartes affichent l’indicateur différé puis proposent les
+détails actuels à la demande. Les autres cartes conservent leur lecture directe.
+Les budgets, la progression sportive contextualisée et les métriques composites
+sans définition métier ne sont pas estimés par ce comptage de statuts.
+
+Migration additive `2026_10_20_184653_create_dashboard_indicator_snapshots` :
+trois tables tenant et déclencheurs d’invalidation sur les seules sources suivies.
+Sauvegarde, CI, migration et vérification de la file `reports` avant activation
+par un opérateur. `DASHBOARD_INDICATORS_ENABLED=false` par défaut ; aucune
+activation réelle effectuée. Les connexions synchrones sont refusées pour ce calcul.
+L’interface conserve l’accès aux détails lorsque le traitement est indisponible.
+Le réglage et les workers STAT-004 restent indépendants. Voir conventions-api.md
+pour les endpoints et etat-projet.md pour les contrôles locaux.

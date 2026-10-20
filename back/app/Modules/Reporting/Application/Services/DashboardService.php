@@ -98,6 +98,30 @@ final readonly class DashboardService
         return [...$base, 'captured_at' => CarbonImmutable::now()->toISOString(), 'total' => $feed->meta['total'], 'items' => $feed->items, 'meta' => $feed->meta];
     }
 
+    /** @return array<string,mixed> */
+    public function authorizeCard(TenantContext $context, string $id, string $view): array
+    {
+        $this->authorization->authorize($context, 'reporting.'.$view);
+        $card = $this->catalogue->find($id);
+        if (! in_array($view, $card['views'], true) || ! $this->permitted($context, $card['permissions'])) {
+            throw new AuthorizationException;
+        }
+
+        return $card;
+    }
+
+    /** @return array<string,int> */
+    public function summarize(TenantContext $context, string $id, string $view, DashboardWindow $window): array
+    {
+        $card = $this->authorizeCard($context, $id, $view);
+
+        return match ($card['source']) {
+            'people' => $this->people->summarize($context, $id, $window), 'contracts' => $this->contracts->summarize($context, $id, $window),
+            'partnerships' => $this->partnerships->summarize($context, $id, $window), 'competition' => $this->competition->summarize($context, $id, $window),
+            default => throw new LogicException('Unsupported indicator source.'),
+        };
+    }
+
     /** @param list<string> $permissions */
     private function permitted(TenantContext $context, array $permissions): bool
     {
@@ -116,6 +140,6 @@ final readonly class DashboardService
     {
         return ['id' => $id, 'label' => __('dashboards.cards.'.$id.'.label'), 'definition' => __('dashboards.cards.'.$id.'.definition'),
             'period_kind' => $card['period'], 'scope' => $card['scope'], 'status' => $card['reason'] === null ? 'available' : 'unavailable',
-            'reason' => $card['reason'] === null ? null : __('dashboards.'.$card['reason'])];
+            'indicator_supported' => in_array($id, DashboardIndicatorService::CARDS, true), 'reason' => $card['reason'] === null ? null : __('dashboards.'.$card['reason'])];
     }
 }

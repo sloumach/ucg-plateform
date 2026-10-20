@@ -15,6 +15,17 @@ final readonly class ContractsDashboardService implements ContractsDashboard
 {
     public function __construct(private ContractRepository $records, private TenantAuthorization $authorization) {}
 
+    /** @return array<string,int> */
+    public function summarize(TenantContext $context, string $card, DashboardWindow $window): array
+    {
+        $this->authorization->authorize($context, 'administrative.read');
+        if ($card !== 'expiring_contracts') {
+            throw new InvalidArgumentException('Unknown Contracts indicator.');
+        }
+
+        return $this->records->dashboardCounts($context->organizationId, $window->from, $window->exclusiveTo());
+    }
+
     public function read(TenantContext $context, string $card, DashboardWindow $window): DashboardFeed
     {
         $this->authorization->authorize($context, 'administrative.read');

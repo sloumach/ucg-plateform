@@ -12,6 +12,13 @@ use Illuminate\Database\Query\Builder;
 
 final class EloquentCompetitionRegistrationRepository implements CompetitionRegistrationRepository
 {
+    public function dashboardCount(string $org, string $from, string $to): int
+    {
+        return Revision::query()->where('organization_id', $org)->where('next_due_at', '>=', $from)->where('next_due_at', '<', $to)
+            ->whereExists(fn (Builder $q) => $q->selectRaw('1')->from('external_competitions as parent')->where('parent.organization_id', $org)->whereColumn('parent.id', 'competition_registration_revisions.competition_id')->where('parent.status', 'active'))
+            ->whereNotExists(fn (Builder $q) => $q->selectRaw('1')->from('competition_registration_revisions as newer')->where('newer.organization_id', $org)->whereColumn('newer.competition_id', 'competition_registration_revisions.competition_id')->whereColumn('newer.number', '>', 'competition_registration_revisions.number'))->count();
+    }
+
     public function dashboardDue(string $org, string $from, string $to, int $page): LengthAwarePaginator
     {
         return Revision::query()->join('external_competitions as parent', function ($join) use ($org): void {

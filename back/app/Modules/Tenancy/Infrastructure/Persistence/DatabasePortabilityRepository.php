@@ -18,6 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
+        'dashboard_indicator_revisions' => 'id', 'dashboard_indicators' => 'id', 'dashboard_source_versions' => 'card',
         'statistical_calculations' => 'id', 'statistical_calculation_sources' => 'id', 'statistical_calculation_revisions' => 'id',
         'statistical_import_executions' => 'id', 'statistical_import_receipts' => 'id',
         'statistical_imports' => 'id',
@@ -70,6 +71,9 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'dashboard_source_versions' => ['organization_id', 'card', 'generation'],
+        'dashboard_indicators' => ['id', 'organization_id', 'actor_user_id', 'fingerprint', 'cache_key', 'card', 'view', 'timezone', 'from_date', 'to_date', 'status', 'version', 'failure_code', 'created_at', 'updated_at'],
+        'dashboard_indicator_revisions' => ['id', 'organization_id', 'indicator_id', 'number', 'generation', 'source_version', 'engine_version', 'result', 'evaluated_at', 'expires_at', 'request_id', 'created_at'],
         'statistical_calculations' => ['id', 'organization_id', 'actor_user_id', 'metric_id', 'metric_revision_id', 'fingerprint', 'status', 'version', 'source_count', 'definition', 'failure_code', 'created_at', 'updated_at'],
         'statistical_calculation_sources' => ['id', 'organization_id', 'calculation_id', 'observation_id'],
         'statistical_calculation_revisions' => ['id', 'organization_id', 'calculation_id', 'number', 'generation', 'engine_version', 'result', 'source_versions', 'request_id', 'created_at'],

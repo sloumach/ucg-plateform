@@ -12,6 +12,11 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 final readonly class EloquentSponsorshipCampaignRepository implements SponsorshipCampaignRepository
 {
+    public function dashboardCount(string $org, string $now): int
+    {
+        return $this->dashboardQuery($org)->where('sponsorship_deliverables.status', 'promised')->where('due_at', '<', $now)->count();
+    }
+
     public function campaigns(string $org, string $agreement, array $filters): LengthAwarePaginator
     {
         return SponsorshipCampaign::query()->where('organization_id', $org)->where('agreement_id', $agreement)

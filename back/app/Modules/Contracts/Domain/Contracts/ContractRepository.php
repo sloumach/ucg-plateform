@@ -9,6 +9,9 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface ContractRepository
 {
+    /** @return array<string,int> */
+    public function dashboardCounts(string $org, string $from, string $to): array;
+
     /** @return LengthAwarePaginator<int,ContractRecord> */
     public function expiring(string $organizationId, string $from, string $to, int $page): LengthAwarePaginator;
 

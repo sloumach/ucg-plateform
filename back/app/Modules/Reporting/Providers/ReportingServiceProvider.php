@@ -2,6 +2,10 @@
 
 namespace App\Modules\Reporting\Providers;
 
+use App\Modules\Reporting\Application\Contracts\DashboardIndicatorQueue;
+use App\Modules\Reporting\Domain\Contracts\DashboardIndicatorRepository;
+use App\Modules\Reporting\Infrastructure\Persistence\EloquentDashboardIndicatorRepository;
+use App\Modules\Reporting\Infrastructure\Queue\LaravelDashboardIndicatorQueue;
 use App\Modules\Reporting\Presentation\Policies\DashboardPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
@@ -9,6 +13,12 @@ use Illuminate\Support\ServiceProvider;
 
 final class ReportingServiceProvider extends ServiceProvider
 {
+    public function register(): void
+    {
+        $this->app->bind(DashboardIndicatorRepository::class, EloquentDashboardIndicatorRepository::class);
+        $this->app->bind(DashboardIndicatorQueue::class, LaravelDashboardIndicatorQueue::class);
+    }
+
     public function boot(): void
     {
         Gate::define('reporting.viewAny', [DashboardPolicy::class, 'viewAny']);

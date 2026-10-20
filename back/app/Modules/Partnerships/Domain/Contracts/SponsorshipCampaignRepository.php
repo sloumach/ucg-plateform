@@ -10,6 +10,8 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 interface SponsorshipCampaignRepository
 {
+    public function dashboardCount(string $org, string $now): int;
+
     /** @param array<string,mixed> $filters
      * @return LengthAwarePaginator<int,SponsorshipCampaign> */
     public function campaigns(string $org, string $agreement, array $filters): LengthAwarePaginator;

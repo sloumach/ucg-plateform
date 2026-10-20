@@ -13,6 +13,12 @@ use Illuminate\Support\Str;
 
 final readonly class EloquentContractRepository implements ContractRepository
 {
+    /** @return array<string,int> */
+    public function dashboardCounts(string $org, string $from, string $to): array
+    {
+        return ContractRecord::query()->where('organization_id', $org)->whereIn('status', ['signed', 'active'])->where('ends_on', '>=', $from)->where('ends_on', '<', $to)->selectRaw('status, COUNT(*) AS aggregate')->groupBy('status')->orderBy('status')->toBase()->get()->mapWithKeys(fn ($r) => [$r->status => (int) $r->aggregate])->all();
+    }
+
     public function expiring(string $organizationId, string $from, string $to, int $page): LengthAwarePaginator
     {
         return ContractRecord::query()->where('organization_id', $organizationId)->whereIn('status', ['signed', 'active'])

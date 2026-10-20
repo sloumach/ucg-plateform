@@ -754,6 +754,15 @@ livraison ne vaut pas couverture de tous les indicateurs cibles ci-dessus.
 Agrégats versionnés, fraîcheur et recalculs automatiques restent REP-002 ; aucune
 attribution de droits réelle ni activation de traitement.
 
+État local REP-002 (20 octobre 2026) : six comptages organisationnels par statut
+(effectif actif, fiches sans compte, imports, contrats à échéance, livrables en
+retard et échéances d’inscription) sont matérialisés et versionnés via jobs.
+Fraîcheur maximale cinq minutes et invalidation transactionnelle ; valeur périmée
+masquée, recalcul ciblé explicitement confirmé, historique paginé. Les autres
+cartes restent en lecture directe ; budgets et progression sportive contextualisée
+attendent leurs définitions/sources. Pas de recalcul global automatique. Traitement
+désactivé par défaut, migration et vérification opérateur nécessaires avant activation.
+
 ## 16 Architecture et stack recommandée
 
 ### 16.1 Choix principal

@@ -15,6 +15,8 @@ final class AuditState
         $result = [];
         foreach ($state as $key => $value) {
             $valid = match ($key) {
+                'dashboard_indicator_id' => is_string($value) && Str::isUuid($value),
+                'dashboard_indicator_action' => is_string($value) && in_array($value, ['requested', 'calculated'], true),
                 'statistical_calculation_id' => is_string($value) && Str::isUuid($value),
                 'statistical_calculation_action' => is_string($value) && in_array($value, ['requested', 'recalculation_requested', 'calculated'], true),
                 'statistical_import_id', 'observation_id' => is_string($value) && Str::isUuid($value),

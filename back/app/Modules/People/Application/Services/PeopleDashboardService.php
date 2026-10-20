@@ -4,6 +4,9 @@ namespace App\Modules\People\Application\Services;
 
 use App\Modules\People\Application\Contracts\PeopleDashboard;
 use App\Modules\People\Application\Data\PersonListQuery;
+use App\Modules\People\Domain\Contracts\PersonImportRepository;
+use App\Modules\People\Domain\Contracts\PersonRepository;
+use App\Modules\Tenancy\Application\Contracts\TenantAuthorization;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use App\Support\Data\DashboardFeed;
 use App\Support\Data\DashboardWindow;
@@ -11,7 +14,26 @@ use InvalidArgumentException;
 
 final readonly class PeopleDashboardService implements PeopleDashboard
 {
-    public function __construct(private PersonService $people, private PersonImportService $imports) {}
+    public function __construct(private PersonService $people, private PersonImportService $imports,
+        private PersonRepository $peopleRecords,
+        private PersonImportRepository $importRecords,
+        private TenantAuthorization $authorization) {}
+
+    /** @return array<string,int> */
+    public function summarize(TenantContext $context, string $card, DashboardWindow $window): array
+    {
+        if ($card === 'people_imports') {
+            $this->imports->authorize($context);
+
+            return $this->importRecords->dashboardCounts($context->organizationId);
+        }
+        if (! in_array($card, ['active_people', 'unlinked_people'], true)) {
+            throw new InvalidArgumentException('Unknown People indicator.');
+        }
+        $this->authorization->authorize($context, $card === 'active_people' ? 'sports.read' : 'administrative.read');
+
+        return $this->peopleRecords->dashboardCounts($context->organizationId, $card);
+    }
 
     public function read(TenantContext $context, string $card, DashboardWindow $window): DashboardFeed
     {

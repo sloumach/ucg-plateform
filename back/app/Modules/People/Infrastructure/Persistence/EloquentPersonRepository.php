@@ -12,6 +12,14 @@ use Illuminate\Support\Str;
 
 final class EloquentPersonRepository implements PersonRepository
 {
+    /** @return array<string,int> */
+    public function dashboardCounts(string $org, string $card): array
+    {
+        $query = Person::query()->forOrganization($org);
+
+        return $card === 'active_people' ? ['active' => $query->where('status', 'active')->count()] : ['unlinked' => $query->whereNull('user_id')->count()];
+    }
+
     public function sportingSnapshots(string $org, array $ids): array
     {
         $records = Person::query()->forOrganization($org)->whereIn('id', $ids)->whereIn('status', ['active', 'substitute'])

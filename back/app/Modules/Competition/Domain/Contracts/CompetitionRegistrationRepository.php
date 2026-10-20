@@ -9,6 +9,8 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface CompetitionRegistrationRepository
 {
+    public function dashboardCount(string $org, string $from, string $to): int;
+
     /** @return LengthAwarePaginator<int,CompetitionRegistrationRevision> */
     public function dashboardDue(string $org, string $from, string $to, int $page): LengthAwarePaginator;
 

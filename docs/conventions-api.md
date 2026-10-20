@@ -4240,3 +4240,85 @@ du CDC attendent leurs sources. Paginations et bornes évitent la matérialisati
 complète ; les totaux restent des COUNT en direct. Avant une montée en charge,
 profiler les plans SQL réels et matérialiser les agrégats via REP-002 plutôt que
 mettre en cache une audience privée sans mécanisme d’invalidation.
+
+### REP-002 — indicateurs différés, versions et fraîcheur
+
+Les six cartes `active_people`, `unlinked_people`, `people_imports`,
+`expiring_contracts`, `overdue_deliverables` et `registration_due` annoncent
+`indicator_supported=true` dans le catalogue REP-001. Leurs permissions métier
+et de vue restent cumulatives. Aucun nouveau droit implicite ou compte modifié.
+Les autres cartes ne possèdent pas d’agrégat dans cette première version.
+
+- `GET /api/v1/tenants/{tenant}/dashboards/{card}/indicator?view=direction&from=2026-10-20&to=2026-10-25&page=1` :
+  consultation de la matérialisation du demandeur et de l’historique des dates/versions.
+  Aucun calcul, écriture applicative ou mise en file. Paramètres fermés et mêmes
+  dates inclusives/max 31 jours que REP-001 ; page de 1 à 10 000.
+- `POST /api/v1/tenants/{tenant}/dashboards/{card}/indicator` : demande explicite
+  de calcul pour ces filtres. Corps `{view,from,to,confirm:true,version?}`.
+  CSRF/session/MFA et confirmation du contexte actif communs aux mutations.
+  `version` est requise pour renouveler un calcul existant périmé ou échoué ;
+  la version obsolète est refusée. Un calcul frais ou déjà en attente est réutilisé.
+  Notification de prise en compte, sans promesse de résultat déjà disponible.
+
+Réponse `data` : `enabled`, `checked_at`, `engine_version=rep-002.v1`, `id`,
+`version`, `state`, `evaluated_at`, `expires_at`, `revision`, `result`, `history`.
+`state` vaut `missing`, `queued`, `fresh`, `stale` ou `failed`. Une valeur n’est
+retournée que pour `fresh` : `result={total,groups:[{state,count}]}` ; un vrai
+zéro reste zéro, un calcul manquant/périmé/échoué retourne null. Aucun nom,
+identifiant de personne, commentaire, contenu d’import ou montant financier.
+Les groupes sont le petit ensemble des statuts fermés de chaque source, sans
+moyenne ou somme de métriques hétérogènes. Pour les convocations/audiences privées,
+aucune extension de droits ou d’agrégation n’est déduite de ces statuts.
+
+`history={items:[{number,engine_version,evaluated_at,expires_at}],meta}` est paginé
+par dix ; les anciens totaux ne sont pas renvoyés comme résultat courant.
+La date d’évaluation reste distincte de la vérification actuelle. Les cartes de
+type instantané normalisent leurs dates internes, donc un simple changement de
+fenêtre ne multiplie pas leurs calculs ; les fenêtres d’échéance restent distinctes.
+Le fuseau de l’organisation fait partie de l’identité du calcul.
+
+Une version de source par tenant et carte change dans la transaction de chaque
+écriture des tables suivies, y compris les écritures SQL en lot. Les rollbacks
+annulent aussi l’invalidation. Une modification invalide uniquement les cartes
+concernées du tenant ; le recalcul explicite ne traite que les filtres demandés.
+Le worker revalide l’acteur, les droits, le tenant, le fuseau et la génération
+avant publication atomique. Un job ancien/rejoué ne publie pas une seconde révision
+et ne peut pas empoisonner une génération plus récente par son callback d’échec.
+
+La matérialisation SQL tient lieu de cache : identité incluant tenant, acteur,
+vue, carte, période, fuseau et moteur ; clé dérivée avec TenantResourceNamespace.
+Aucun cache Redis secondaire de résultat privé. Réponses `private, no-store` ;
+le navigateur masque les anciennes valeurs à la lecture, en erreur, au changement
+de contexte/filtres et à l’échéance locale de validité. Il ne lance aucun polling
+ni calcul automatique. Le contrôle des droits reste effectué à chaque requête. Le temps de requête et de rendu
+est déduit de la validité côté navigateur pour ne pas prolonger l’échéance avec
+une réponse lente.
+
+Limites fixes : 64 sélections d’indicateur par acteur et tenant, 1 000 révisions
+par sélection, validité maximale 300 secondes. Un job en attente depuis plus de
+300 secondes peut être redemandé avec la version courante pour récupérer un
+transport interrompu. Un défaut de transport marque la génération échouée et
+retourne 409 `DASHBOARD_INDICATOR_DISPATCH_FAILED` sans détail privé.
+409 `DASHBOARD_INDICATOR_DISABLED`, `DASHBOARD_INDICATOR_STALE` et
+`DASHBOARD_INDICATOR_LIMIT` indiquent respectivement indisponibilité, conflit de
+version et quota atteint. 403 pour droits absents, 404 pour tenant/carte hors
+périmètre, 422 pour validation. Historique et sélection restent privés au demandeur.
+
+Exemple de demande après connexion MFA et confirmation de l’organisation :
+
+```bash
+curl --cookie session.cookies \
+  --header 'Accept: application/json' \
+  --header 'Content-Type: application/json' \
+  --header 'X-Tenant-Revision: REVISION_ACTIVE' \
+  --header 'X-XSRF-TOKEN: VALEUR_DU_COOKIE_XSRF_DECODEE' \
+  --data '{"view":"direction","from":"2026-10-20","to":"2026-10-25","confirm":true}' \
+  'http://localhost:8000/api/v1/tenants/UUID_ORGANISATION/dashboards/active_people/indicator'
+```
+
+Activation opérateur : migration additive après sauvegarde/CI, connexion de queue
+asynchrone partagée, worker supervisé sur `reports`, puis
+`DASHBOARD_INDICATORS_ENABLED=true`. Ce réglage est false par défaut, indépendant
+de STAT-004. Une connexion sync/deferred/background n’exécute pas ce calcul dans
+la requête. Le réglage désactivé ne consulte pas les nouvelles tables et conserve
+l’accès explicite aux détails actuels. Aucune activation réelle faite par ce ticket.

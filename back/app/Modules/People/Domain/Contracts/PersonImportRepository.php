@@ -8,6 +8,9 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 interface PersonImportRepository
 {
+    /** @return array<string,int> */
+    public function dashboardCounts(string $org): array;
+
     public function find(string $organizationId, string $id, bool $lock = false): PersonImport;
 
     public function byFingerprint(string $organizationId, string $fingerprint): ?PersonImport;

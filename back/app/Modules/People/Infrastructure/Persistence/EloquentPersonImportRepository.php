@@ -13,6 +13,12 @@ use Illuminate\Support\Str;
 
 final class EloquentPersonImportRepository implements PersonImportRepository
 {
+    /** @return array<string,int> */
+    public function dashboardCounts(string $org): array
+    {
+        return PersonImport::query()->where('organization_id', $org)->selectRaw('status, COUNT(*) AS aggregate')->groupBy('status')->orderBy('status')->toBase()->get()->mapWithKeys(fn ($r) => [$r->status => (int) $r->aggregate])->all();
+    }
+
     public function find(string $organizationId, string $id, bool $lock = false): PersonImport
     {
         if (! Str::isUuid($id)) {

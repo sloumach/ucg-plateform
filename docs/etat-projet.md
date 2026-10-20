@@ -9,13 +9,14 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket implémenté localement : **UCG-REP-001** — cinq tableaux de bord
-  backend/frontend, permissions explicites et onze cartes sur sources existantes.
-  Définitions, périodes, périmètres, pagination et reprise par carte. Budgets et
-  progression agrégée indisponibles ; les autres indicateurs cibles restent liés
-  à leurs sources. Aucun nouveau schéma, worker, droit réel ou réglage activé.
-  Commit `0cfd94b` poussé et synchronisé à la reprise. CI signalée en échec sur
-  le compteur de requêtes du test ; correctif validé inclus dans le commit UCG-REP-001 suivant (voir ci-dessous).
+- Dernier ticket implémenté localement : **UCG-REP-002**, six indicateurs
+  organisationnels différés, versionnés et invalidés avec leurs sources.
+  Backend et frontend, migration additive `2026_10_20_184653`, traitement désactivé
+  par défaut. Aucun .env/worker réel activé, aucune migration sur la base courante.
+  Travail non committé ; validations détaillées dans la section REP-002 ci-dessous.
+- REP-001 : `0cfd94b` et correctif CI `531af55` poussés et synchronisés à la
+  reprise. Le succès de la CI distante du correctif n’a pas été explicitement
+  confirmé par l’utilisateur ; la synchronisation Git ne vaut pas validation CI.
 - STAT-005 : commit `d656e0c`, présent sur `staging` et `origin/staging` à la
   reprise. La CI distante n’a pas été explicitement confirmée par l’utilisateur.
   Aucune nouvelle migration ; les traitements STAT-004 gardent leur réglage séparé.
@@ -4366,3 +4367,83 @@ TENANCY_CACHE_STORE=database : 2 407 tests réussis, 43 ignorés, aucun échec
 Aucun changement du code métier,
 du frontend, des dépendances, du schéma, de la configuration réelle ou des workers.
 Correctif inclus dans le commit UCG-REP-001 dédié ; push, nouvelle CI distante et recette restent à faire.
+
+## UCG-REP-002 — six indicateurs organisationnels différés (20 octobre 2026)
+
+Objectif : déplacer les comptages de six cartes dans des jobs, matérialiser leurs
+versions et dater la fraîcheur sans conserver de snapshot d’audience individuelle.
+Cartes : active_people, unlinked_people, people_imports, expiring_contracts,
+overdue_deliverables, registration_due. Les totaux et répartitions par statut
+réutilisent les permissions et filtres des modules propriétaires, via leurs
+contrats publics et des COUNT/GROUP BY en repositories. Aucun nom, fichier,
+commentaire, montant ou pseudo n’est intégré au résultat agrégé. Aucune moyenne
+de métriques hétérogènes ou progression sportive inventée.
+
+Reporting possède service, processor, contrat de queue, repository, modèles et
+job TenantJob sur reports avec contexte explicite. Deux endpoints supplémentaires
+GET/POST /dashboards/{card}/indicator : lecture sans calcul/écriture/queue et
+demande confirmée, validée et autorisée avec version pour renouveler un résultat.
+Contrôle actuel des droits/tenant/MFA ; sélections et cache privés au demandeur.
+L’activation refuse les queues synchrones et reste désactivée par défaut.
+Une lecture désactivée n’interroge pas les nouvelles tables ; les détails actuels
+restent disponibles pour accompagner le déploiement avant migration/activation.
+
+Migration additive 2026_10_20_184653 : dashboard_source_versions (tenant/carte),
+dashboard_indicators (identité privée, clé tenant et génération de demande),
+dashboard_indicator_revisions (résultats chiffrés immuables, moteur, version de
+source, dates et request_id). Unicités et FKs composites tenant, gardes sur
+identité/état/historique. Invalidation par déclencheurs SQL sur les sept tables
+sources, y compris bulk SQL et rollback, sans importer Reporting dans les modules
+sources. Inventaire de portabilité mis à jour pour les trois tables et colonnes.
+Les demandes et publications ajoutent un audit de métadonnées fermé.
+
+Le worker calcule hors verrou puis recontrôle version, source, droits, fuseau,
+activation et date de validité sous verrou métier du tenant, de la sélection et
+de sa version de source. Il refuse une publication périmée ; un rejeu ne crée pas
+une seconde révision. Callback d’échec limité à la génération encore en attente.
+Les défauts de transport sont localisés et journalisés sans détail privé ; reprise
+possible. Limites : 64 sélections par acteur/tenant, 1 000 révisions par sélection,
+validité maximale 300 secondes. Le cache est la matérialisation SQL, sans double
+cache Redis privé. Aucune lecture ne déclenche de fallback synchrone.
+
+Frontend : cartes concernées sur agrégat/fraîcheur par défaut, détails actuels
+chargés à la demande. Confirmation explicite du calcul, version de concurrence,
+notification, historique paginé des dates et versions, zéro distinct du manquant,
+de l’échec et du périmé. Valeur périmée toujours masquée, y compris à l’expiration
+du délai sur une page ouverte ; changements de filtres/compte/tenant/révision et
+lectures obsolètes gérés comme REP-001. Les GET de contrôle ne sont pas des
+recalculs. Pas de polling ou lancement automatique de jobs dans le navigateur.
+
+Limites de cette livraison : recalcul ciblé à la demande, sans scan/recalcul global
+automatique. Les échéances passant sans écriture se reflètent après un nouveau
+calcul ; l’évaluation et sa durée de validité sont affichées. Les cartes privées
+restent en lecture directe. Budgets et progression d’équipes attendent leurs
+sources/définitions adaptées ; REP-002 ne clôt pas tous les indicateurs du CDC.
+À grande échelle, profiler plans COUNT/GROUP BY et contention des versions avant
+d’affiner leur granularité ou d’ajouter un outbox de recalcul automatique.
+
+Validation locale : 19 cas DashboardIndicatorTest (six sources, droits/acteur,
+fenêtres, zéro, expiration, bulk SQL/rollback, publication concurrente, replay,
+transport, confirmation, quota, historique, schéma et rollback protégé).
+Sélection PostgreSQL avec Reporting, audit, architecture et portabilité :
+106/106 réussis, 634 assertions, base isolée créée puis supprimée.
+Frontend complet : 430/430 tests dans 60 fichiers ; après les derniers ajustements
+de validité réseau et de libellé, 20/20 cas Reporting repassés (dix calculs et
+dix REP-001, dont un nouveau cas de réponse lente). Build, lint et typage strict application/tests/navigateur
+réussis. Deux parcours Chrome réels avec API simulée réussis : REP-001 et REP-002,
+confirmation sans POST automatique, génération/fraîcheur, résultat zéro, périmé
+masqué, erreur, détails à la demande, filtres et mobile 375/320 px sans débordement.
+Pint (nouveaux fichiers inclus) et PHPStan zéro erreur. Suite backend complète
+avec TENANCY_CACHE_STORE=database : 2 426 réussis, 43 ignorés, aucun échec
+(2 469 cas, 13 449 assertions), rapport reports/rep002-sqlite-confirmation.xml.
+Un premier passage avait rencontré une erreur de décodage du pair de test ClamAV
+sur une réponse surdimensionnée ; les dix cas scanner ont ensuite repassé
+isolément, puis la suite entière est passée sans modification du scanner.
+La dernière vérification du typage strict application/tests/navigateur, du build
+et du lint est réussie. Le nouveau test est dans la sélection CI PostgreSQL.
+Dépendances inchangées.
+
+Aucun commit/push, aucune migration courante ni activation réelle effectuée.
+Après CI et sauvegarde, appliquer la migration, vérifier un worker reports et
+la connexion asynchrone, puis choisir l’activation opérateur
+DASHBOARD_INDICATORS_ENABLED. STAT-004 garde son propre réglage indépendant.

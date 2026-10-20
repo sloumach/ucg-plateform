@@ -1,6 +1,13 @@
 <?php
 
 return [
+    'indicator_disabled' => 'Le calcul différé des indicateurs est actuellement indisponible.',
+    'indicator_stale' => 'Cet indicateur a changé. Actualisez-le avant de demander son recalcul.',
+    'indicator_limit' => 'La limite des indicateurs ou de leurs versions est atteinte.',
+    'indicator_input' => 'Les paramètres de cet indicateur sont invalides.',
+    'indicator_dispatch_failed' => 'Le calcul ne peut pas être mis en file actuellement. Réessayez.',
+    'indicator_queued' => 'La demande de calcul de cet indicateur a été prise en compte.',
+
     'closed' => 'Seuls les filtres prévus pour ce tableau de bord sont acceptés.',
     'period' => 'Choisissez une fenêtre de 31 jours inclusifs maximum.',
     'source_unavailable' => 'Cet indicateur est temporairement indisponible. Actualisez sa carte.',
@@ -8,7 +15,7 @@ return [
     'unlinked' => 'Fiche sans compte lié',
     'availability' => 'Disponibilité personnelle',
     'FINANCE_REQUIRED' => 'Le suivi des budgets ne dispose pas encore de source métier. Aucun montant n’est estimé.',
-    'REP_002_REQUIRED' => 'Les indicateurs de progression en arrière-plan seront fournis par REP-002.',
+    'REP_002_REQUIRED' => 'La progression des équipes attend une définition métier contextualisée et une source agrégée adaptée. Aucun résultat n’est estimé.',
     'views' => ['direction' => 'Direction', 'manager' => 'Manager', 'coach' => 'Coach', 'player' => 'Joueur', 'administration' => 'Administration'],
     'cards' => [
         'active_people' => ['label' => 'Effectif actif', 'definition' => 'Nombre actuel de fiches au statut actif dans l’organisation. Ne représente ni un roster ni une éligibilité sportive.'],

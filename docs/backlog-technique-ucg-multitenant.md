@@ -1236,6 +1236,7 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / L
 - **Périmètre** : agrégats versionnés, fraîcheur, invalidation et recalcul ciblé.
 - **Acceptation** : dashboards courants sans calcul lourd synchrone ; tenant inclus dans chaque clé de cache.
+- **Livraison locale** : six comptages organisationnels par statut, jobs asynchrones explicites, matérialisation privée/versionnée, fraîcheur maximale cinq minutes, invalidation transactionnelle et recalcul ciblé à la demande. Lecture sans calcul, détails actuels à la demande, historique paginé. Migration additive `2026_10_20_184653`, traitement désactivé par défaut. Audiences privées, budgets et progression sportive sans définition métier non agrégés ; pas de recalcul global automatique. Vérifications dans etat-projet.md ; commit/push, CI, sauvegarde, migration et recette avant activation.
 
 ### UCG-REP-003 — Construire la recherche limitée au tenant
 

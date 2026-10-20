@@ -19,6 +19,17 @@ final readonly class CompetitionDashboardService implements CompetitionDashboard
     public function __construct(private MatchRepository $matches, private MatchReferenceDirectory $references, private TenantAuthorization $authorization,
         private CompetitionRegistrationService $registrations, private CompetitionRegistrationRepository $registrationRecords) {}
 
+    /** @return array<string,int> */
+    public function summarize(TenantContext $context, string $card, DashboardWindow $window): array
+    {
+        $this->registrations->authorize($context);
+        if ($card !== 'registration_due') {
+            throw new InvalidArgumentException('Unknown Competition indicator.');
+        }
+
+        return ['pending' => $this->registrationRecords->dashboardCount($context->organizationId, $window->start()->toDateTimeString(), $window->end()->toDateTimeString())];
+    }
+
     public function read(TenantContext $context, string $card, DashboardWindow $window): DashboardFeed
     {
         $this->authorization->authorize($context, 'sports.read');
