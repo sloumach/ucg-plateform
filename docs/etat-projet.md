@@ -9,6 +9,12 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
+- Correctif CI ACA-002 validé localement : les deux rejeux GameCatalogue et
+  le rejeu Team retiraient Calendar sans retirer les séances qui le référencent.
+  Les tests retirent maintenant ACA-002 avant Calendar et le restaurent après ses
+  parents, avec vérification des trois tables. Sélection PostgreSQL complète de la
+  CI : 2 358 réussis, 2 ignorés, aucun échec, 13 663 assertions. Aucune migration
+  applicative modifiée ; correctif local, push et CI distante restent à confirmer.
 - Dernier ticket implémenté localement : **UCG-ACA-002**, séances reliées au calendrier,
   exercices, compte rendu et présences avec corrections auditées. Migration additive
   `2026_10_22_172532` préparée, non appliquée à la base courante ; aucune attribution
@@ -4851,3 +4857,34 @@ contrôle PostgreSQL précédent ne comprenait pas PersonSchemaTest, contraireme
 
 Prochain ticket métier : UCG-ACA-003, objectifs et feedback avec séparation du
 feedback partagé et des notes internes ; commencer après validation de livraison.
+
+## Correctif CI UCG-ACA-002 — Rejeux GameCatalogue et Team
+
+La CI PostgreSQL a refusé trois suppressions de calendar_activities, encore
+référencée par academy_sessions. Les deux scénarios de GameCatalogueSchemaTest et
+celui de TeamSchemaTest maintiennent leur propre liste de dépendances. Ces chemins
+indirects de démontage de Calendar n'avaient pas été adaptés pendant ACA-002.
+Les 113 tests PostgreSQL précédents ne comprenaient pas ces deux classes ; la suite
+SQLite complète avait réussi. Ce succès local ne couvrait donc pas la sélection
+PostgreSQL de la CI, qui applique ce contrôle de dépendances même sur des tables vides.
+
+- Les trois scénarios retirent désormais ACA-002 avant Calendar et le recréent
+  après ses parents. Ils vérifient le retrait puis la recréation des trois tables
+  séances/présences/révisions. Les contrôles existants de schéma et de catalogue
+  sont conservés. Aucun DROP CASCADE ni suppression de contrainte.
+- Audit des références à la migration Calendar dans tous les tests : les autres
+  chemins sont CalendarSchemaTest, PersonSchemaTest et OrganizationSchemaTest,
+  déjà adaptés. Le test de refus d'un rollback contenant des activités conserve
+  sa protection avant suppression. AcademyTest démonte également ACA-002 avant ACA-001.
+- Pour éviter une nouvelle validation partielle, la sélection PostgreSQL de cette
+  reprise est extraite du workflow backend-quality.yml (153 chemins), sans liste
+  réduite recopiée. Elle s'exécute sur une base temporaire et seule parmi les suites
+  PHP, afin d'isoler aussi les fichiers de test. Le README décrit désormais cette
+  exigence pour les changements de schéma/FK et la recherche des chemins indirects.
+- SQLite ciblé : 29/29 tests réussis, 82 assertions. Pint dirty appliqué ; PHPStan
+  zéro erreur. Sélection PostgreSQL complète du workflow : 2 360 cas, 2 358 réussis,
+  2 ignorés, 13 663 assertions, aucun échec (environ 20 minutes sur cette machine).
+  La base temporaire a été supprimée après exécution. Ce résultat local ne vaut
+  pas confirmation d'une nouvelle exécution de la CI distante.
+- Aucune migration courante, donnée métier, permission, .env réel ou worker modifié.
+  Le correctif concerne les tests et la documentation ; aucun push effectué.

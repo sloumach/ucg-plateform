@@ -808,6 +808,20 @@ composer test:ci
 
 `composer test:ci` conserve le rapport PHPUnit dans `back/reports/phpunit.xml`.
 
+Pour une modification de schéma ou de clé étrangère, SQLite seul ne valide pas
+la livraison : exécuter aussi **toute la sélection PostgreSQL du workflow
+backend-quality.yml**, sur une base de test temporaire distincte de la base
+courante. Une sélection locale réduite doit être présentée comme telle, même si
+la suite SQLite complète passe. Ne pas lancer deux suites PHP simultanément sans
+isoler également leurs fichiers Storage::fake.
+
+Les tests qui appellent directement `down()` maintiennent des dépendances manuelles.
+Avant de livrer une nouvelle FK, rechercher ses tables parentes dans tous les tests
+(`rg -n -- 'nom_table|nom_migration|->down\(' tests` en adaptant le motif) et vérifier
+les chemins indirects : un rejeu Teams ou GameCatalogue peut aussi démonter Calendar.
+Retirer les enfants avant les parents, les recréer après et vérifier leur présence
+ainsi que le contrôle global du schéma. Ne pas contourner un oubli avec DROP CASCADE.
+
 Exécuter la chaîne frontend et le parcours navigateur :
 
 ```powershell
