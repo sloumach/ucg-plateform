@@ -9,6 +9,9 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
+- Correctif CI ACA-001 : PersonSchemaTest retire puis recrée maintenant Academy
+  autour du rejeu de People. Validé sur PostgreSQL isolé (57/57) ; correctif local,
+  push et nouvelle CI distante à confirmer. Aucun changement de migration.
 - Dernier ticket implémenté localement : **UCG-ACA-001**, cohortes, cycles, programme
   hebdomadaire, mentors et inscriptions privés. Migration additive
   `2026_10_22_100213` préparée, non appliquée à la base courante. Permissions
@@ -4742,3 +4745,27 @@ Livraison réunie dans un seul commit UCG-ACA-001 avec code, tests et docs ; auc
 
 Prochain développement métier : UCG-ACA-002, séances reliées au calendrier,
 présences et exercices ; vérifier d’abord les validations de livraison ci-dessus.
+## Correctif CI UCG-ACA-001 — Rejeu du schéma People
+
+La CI PostgreSQL a signalé le refus de suppression de people, référencée par
+academy_enrollments. Le test de démontage/rejeu PersonSchemaTest avait été oublié
+lors d’ACA-001 ; seul le scénario OrganizationSchemaTest avait été adapté. Le
+contrôle PostgreSQL précédent ne comprenait pas PersonSchemaTest, contrairement
+à la sélection CI. Le succès SQLite ne prouvait pas cet ordre de dépendances.
+
+- PersonSchemaTest charge et retire la migration Academy avant de démonter People,
+  puis la rejoue une fois People et ses autres dépendances restaurés.
+- Deux assertions vérifient le retrait puis la recréation d’academy_enrollments ;
+  le contrôle global TenantSchemaInspector demeure actif après le rejeu.
+- Audit des références à la migration People dans les tests : OrganizationSchemaTest
+  est déjà raccordé ; le scénario de refus d’un rollback contenant des personnes
+  conserve son comportement de protection, avant toute tentative de suppression.
+- Aucun DROP CASCADE, contrainte supprimée ou migration applicative modifiée.
+- SQLite : 57 cas, 56 réussis, un ignoré, 220 assertions. PostgreSQL : même sélection,
+  57/57 réussis, 221 assertions, sur une base temporaire supprimée après validation.
+  Sélection : PersonSchemaTest, AcademyTest, OrganizationSchemaTest et les tests
+  Feature/Architecture/Database. Pint dirty réussi, PHPStan zéro erreur.
+- Code et documentation réunis dans le commit correctif UCG-ACA-001. Aucun push,
+  aucune migration sur la base courante, aucune donnée ou permission réelle modifiée.
+  Prochaine action : pousser le correctif et relancer la CI ; aucune nouvelle
+  migration n’est nécessaire pour ce correctif de test.
