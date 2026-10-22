@@ -9,7 +9,12 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket implémenté localement : **UCG-REP-004**, exports CSV privés
+- Dernier ticket implémenté localement : **UCG-ACA-001**, cohortes, cycles, programme
+  hebdomadaire, mentors et inscriptions privés. Migration additive
+  `2026_10_22_100213` préparée, non appliquée à la base courante. Permissions
+  academy.read/academy.manage explicites, aucune attribution automatique.
+  Détails, validations et limites dans la section ACA-001 en fin de document.
+- REP-004 : exports CSV privés
   asynchrones de six rapports organisationnels, backend et frontend. Migration
   additive `2026_10_21_224633` préparée, jamais appliquée à la base courante.
   Génération et nettoyage planifié désactivés par défaut ; aucun .env réel,
@@ -4642,3 +4647,98 @@ Livraison incluse dans le commit UCG-REP-004 ; push non effectué dans cette ét
 Aucun .env réel ni permission/donnée métier
 réelle modifié, aucun message externe envoyé. Revue du diff, CI distante,
 sauvegarde, migration et recette réelle restent les prochaines étapes.
+
+## UCG-ACA-001 — Cohortes, cycles et inscriptions (22 octobre 2026)
+
+### Livraison et règles
+
+- Reprise sur staging propre ; REP-004 `d00c257`, REP-003 `355f42b` et correctif
+  REP-002 `4ce0e30` constatés dans l’historique local. La référence locale
+  origin/staging pointait sur REP-004 ; aucune nouvelle validation distante de CI.
+- Module Academy raccordé à Laravel et à l’espace tenant React, chargé à la demande.
+  Cohortes nommées, cycles datés, fuseau IANA, programme hebdomadaire de zéro à
+  28 créneaux (jours lundi à dimanche), inscriptions et mentors avec périodes.
+  Créneaux dans la même journée, sans chevauchement ; dates d’inscription incluses
+  dans celles du cycle. Une personne ne peut avoir deux affectations actives qui
+  se chevauchent dans le même cycle, même sous deux rôles différents.
+- academy.read permet la consultation, academy.manage exige également academy.read
+  pour toute mutation et les choix de personnes. Aucun droit implicite propriétaire,
+  administrateur ou mentor ; MFA, contexte serveur, confirmation d’organisation et
+  révision de session suivent les mécanismes existants. Aucun périmètre cohorte IAM
+  n’est activé par ce lot : autorisations à l’échelle de l’organisation.
+- Les personnes sont résolues par le port public AcademyPeopleDirectory de People,
+  sur une projection minimale existante (identifiant et pseudonyme). Personnes parties
+  exclues des nouvelles affectations et pseudonymes historiques devenus indisponibles
+  omis. Pas d’accès au dossier administratif, aux coordonnées ou aux notes internes.
+- Un inscrit peut ne pas avoir de compte. Un mentor doit avoir un compte vérifié
+  effectivement membre ou propriétaire du tenant. Tout compte lié, même pour un
+  inscrit, est revérifié par TenantBusinessGuard ; aucune admission ni permission
+  n’est créée. Résolution avant transaction, verrou compte puis organisation, personne
+  revérifiée sous verrou et refus si son lien au compte a changé entre-temps.
+- Modifications avec version UUID et verrous transactionnels. Archivage définitif
+  d’une cohorte ou d’un cycle ; inscription clôturée par retrait ou fin, sans suppression.
+  Une cohorte archivée ferme les mutations de ses enfants. Les dates d’un cycle ayant
+  déjà des inscriptions sont figées. Les programmes peuvent évoluer avec historique.
+- Historique par révisions chiffrées append-only et journal transverse minimal dans
+  la même transaction. L’API d’historique expose les métadonnées de changements, pas
+  les anciens dossiers ou snapshots déchiffrés. Les affectations restent des données
+  historiques après révocation ou départ ; elles ne prouvent jamais un droit courant.
+
+### Schéma, exploitation et limites
+
+- Migration additive `2026_10_22_100213_create_academy_cohorts_cycles_and_enrollments` :
+  academy_cohorts, academy_cycles, academy_enrollments, academy_revisions.
+  FK composites organisation/cohorte/cycle/personne, index des listes et périodes,
+  gardes SQLite/PostgreSQL sur identité, états clôturés et conservation de l’historique.
+  down() fonctionne sur les tables vides et refuse d’effacer des données existantes.
+- Catalogue fermé des tables/colonnes de portabilité mis à jour ; cycle manuel de
+  démontage/rejeu OrganizationSchemaTest étendu avant les tables People/Tenancy.
+- Listes, historique et sélecteurs paginés (1 à 100), ordre stable, requêtes toujours
+  limitées au tenant. Pseudonymes des inscriptions résolus en bloc, une requête par
+  page. Pas de cache durable de droits, de chargement exhaustif ou de job nécessaire.
+  Les écritures sont sérialisées par organisation ; profiler la contention et les
+  recherches par préfixe avec la volumétrie cible avant toute optimisation.
+- L’emploi du temps est un programme hebdomadaire local au fuseau du cycle, pas des
+  occurrences concrètes. Aucune activité calendrier, présence, notification, séance,
+  objectif ou feedback créé automatiquement. ACA-002 et ACA-003 restent à réaliser.
+- Aucun .env réel, worker, donnée métier, adhésion ou permission réelle modifié.
+  Aucune migration de la base courante appliquée, aucun e-mail envoyé, aucun push.
+  Avant usage : revue/push, CI distante, sauvegarde, migration, attribution explicite
+  des droits par un propriétaire habilité puis recette réelle sur données fictives.
+
+### Vérifications
+
+- API ACA-001 : 29 tests SQLite réussis, 127 assertions ; matrice des Policies,
+  invités, propriétaire sans droits, lecteur, isolation, IDs de cycles hors cohorte,
+  dates/créneaux invalides, mentors, adhésion suspendue, version périmée, archivage,
+  historique chiffré, pagination, query count des pseudonymes et rollback protégé.
+- Sélection finale PostgreSQL Academy, concurrence réelle (deux processus),
+  architecture, contrôleur de schéma, cycle des organisations et portabilité :
+  74/74 réussis, 372 assertions. Les bases de tests et de concurrence ont été
+  supprimées. Deux écritures sur la même version donnent un succès et un conflit ;
+  deux inscriptions simultanées de la même personne ne créent qu’une seule ligne.
+- Le premier passage complet a détecté les trois FK directes organization_id
+  manquantes malgré les FK composites ; elles ont été ajoutées avant la nouvelle
+  validation du contrôleur de schéma. Aucun assouplissement des contrôles existants.
+- La suite complète SQLite (2 560 cas, 45 ignorés car conditions optionnelles ou
+  PostgreSQL) a ensuite rencontré quatre cas documentaires perturbés par une autre
+  suite utilisant le même Storage::fake local. Les bases étaient séparées mais pas
+  ce répertoire. Le contrôle PostgreSQL a été relancé après la suite complète :
+  74/74 ci-dessus. Les quatre classes documentaires ont été rejouées séparément
+  avant clôture : 54/54 réussis, 337 assertions. Aucun échec reproductible restant.
+  Ne pas lancer ces suites simultanément sans isoler aussi les
+  fichiers de test (par exemple TEST_TOKEN).
+- Frontend complet : 457 tests réussis dans 63 fichiers ; après ajustement du hook
+  de lecture, sélection Academy/TenantWorkspace 15/15. Build et lint sans avertissement.
+- Parcours Chrome avec API simulée : création de cohorte, cycle avec créneau,
+  mentor, confirmations de tenant, historique et retour aux cycles ; absence de
+  débordement horizontal à 320, 375 et 1280 px, capture 320 px inspectée visuellement.
+  Cette validation ne remplace pas la recette avec l’API et les comptes réels de recette.
+- PHPStan : zéro erreur. Pint appliqué aux fichiers PHP du lot ; écriture directe
+  initialement refusée sur bootstrap/providers.php, résolue par formatage de copies
+  dans le workspace puis recopie des contenus, sans modifier les ACL.
+
+Livraison réunie dans un seul commit UCG-ACA-001 avec code, tests et docs ; aucune CI distante revendiquée.
+
+Prochain développement métier : UCG-ACA-002, séances reliées au calendrier,
+présences et exercices ; vérifier d’abord les validations de livraison ci-dessus.

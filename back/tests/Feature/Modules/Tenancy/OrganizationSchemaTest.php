@@ -122,6 +122,8 @@ class OrganizationSchemaTest extends TestCase
         $statisticalCalculations = require database_path('migrations/2026_10_19_183908_create_statistical_calculations.php');
         $dashboardIndicators = require database_path('migrations/2026_10_20_184653_create_dashboard_indicator_snapshots.php');
         $reportExports = require database_path('migrations/2026_10_21_224633_create_report_exports_and_artifact_expiry.php');
+        $academy = require database_path('migrations/2026_10_22_100213_create_academy_cohorts_cycles_and_enrollments.php');
+        $academy->down();
         $reportExports->down();
         $dashboardIndicators->down();
         $this->assertFalse(Schema::hasTable('dashboard_source_versions'));
@@ -257,6 +259,7 @@ class OrganizationSchemaTest extends TestCase
         $statisticalCalculations->up();
         $dashboardIndicators->up();
         $reportExports->up();
+        $academy->up();
         $this->assertTrue(Schema::hasTable('dashboard_source_versions'));
         $this->assertTrue(Schema::hasTable('dashboard_indicators'));
         $this->assertTrue(Schema::hasTable('dashboard_indicator_revisions'));

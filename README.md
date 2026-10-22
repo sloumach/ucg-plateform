@@ -3765,3 +3765,53 @@ Un lot examine au plus 100 fichiers et arrête sa boucle après 45 secondes ; le
 erreurs de stockage conservent la réservation et sont réessayables. Ne pas modifier
 la date d'expiration pour contourner un échec. Les règles du stockage et les
 traitements STAT-004/REP-002 restent indépendants.
+
+### Académie — UCG-ACA-001
+
+L’espace « Académie : cohortes et cycles » exige `academy.read`. La gestion
+exige aussi `academy.manage`, sans permission automatiquement accordée aux mentors.
+Après sauvegarde, appliquer la migration additive `2026_10_22_100213` avec le
+parcours de livraison habituel. Elle n’a pas été appliquée à la base courante
+pendant cette tâche. Un retour arrière refuse d’effacer des tables déjà utilisées ;
+préférer une correction en avant. Conserver la clé de chiffrement des révisions.
+
+Routes sous `/api/v1/tenants/{tenant}/academy` :
+
+- `GET/POST cohorts`, `PATCH cohorts/{cohort}` ;
+- `GET/POST cohorts/{cohort}/cycles`, `PATCH cohorts/{cohort}/cycles/{cycle}` ;
+- `GET/POST cohorts/{cohort}/enrollments`, `PATCH cohorts/{cohort}/enrollments/{enrollment}` ;
+- `GET cohorts/{cohort}/history`, `GET people` (sélecteur réservé aux gestionnaires).
+
+Listes paginées par `page` et `per_page` (1 à 100). Les inscriptions peuvent être
+filtrées par `cycle_id`. Les PATCH exigent la `version` UUID courante. Les retraits
+ou fins d’inscription sont définitifs ; leur historique est conservé. Une personne
+peut être inscrite sans compte, mais un mentor doit avoir un compte vérifié
+actuellement membre ou propriétaire de l’organisation. Un compte lié suspendu ou
+révoqué empêche une nouvelle affectation. Une affectation ne vaut jamais permission.
+
+Exemple après connexion SPA avec cookie, CSRF et confirmation d’organisation :
+
+```bash
+# API_BASE et TENANT proviennent de votre environnement ; cookies.txt contient
+# votre session de recette, CSRF_TOKEN et REVISION les valeurs courantes.
+curl -X POST "$API_BASE/tenants/$TENANT/academy/cohorts" \
+  -b cookies.txt -H "Origin: $FRONTEND_URL" -H "Accept: application/json" \
+  -H "Content-Type: application/json" -H "X-XSRF-TOKEN: $CSRF_TOKEN" \
+  -H "X-Tenant-Revision: $REVISION" -d '{"name":"Académie pilote"}'
+```
+
+Pour créer un cycle, envoyer `name`, `starts_on`, `ends_on`, `timezone` et
+`timetable` (éventuellement `[]`). Un créneau contient `day` (1=lundi à 7=dimanche),
+`starts_at` et `ends_at` (`HH:mm`). Jusqu’à 28 créneaux sans chevauchement, terminés
+le même jour. Le programme ne crée aucune séance dans le calendrier : ACA-002
+portera les séances, présences et exercices. Exemple de corps d’inscription :
+
+```json
+{"cycle_id":"UUID_CYCLE","person_id":"UUID_PERSONNE","role":"student","starts_on":"2026-10-01","ends_on":"2026-12-31"}
+```
+
+Les dates d’un cycle ayant des inscriptions sont figées. Les noms et créneaux
+peuvent évoluer avec historique. Les listes n’exposent aucun dossier administratif,
+coordonnée, note interne ou snapshot historique déchiffré. L’historique consultable
+contient les métadonnées des changements ; les instantanés chiffrés sont conservés
+pour maintenance. Les sauvegardes opérateur incluent explicitement les quatre tables.

@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Academy\Providers\AcademyServiceProvider;
 use App\Modules\Competition\Providers\CompetitionServiceProvider;
 use App\Modules\Contracts\Providers\ContractsServiceProvider;
 use App\Modules\Identity\Providers\IdentityServiceProvider;
@@ -15,6 +16,7 @@ use App\Providers\AppServiceProvider;
 use App\Providers\HorizonServiceProvider;
 
 return [
+    AcademyServiceProvider::class,
     ContractsServiceProvider::class,
     IdentityServiceProvider::class,
     MediaServiceProvider::class,

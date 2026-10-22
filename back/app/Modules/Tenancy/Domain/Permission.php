@@ -5,6 +5,8 @@ namespace App\Modules\Tenancy\Domain;
 /** Closed action catalogue: tenant configuration cannot invent platform permissions. */
 enum Permission: string
 {
+    case AcademyRead = 'academy.read';
+    case AcademyManage = 'academy.manage';
     case OrganizationView = 'organization.view';
     case OrganizationUpdate = 'organization.update';
     case MembershipsManage = 'memberships.manage';

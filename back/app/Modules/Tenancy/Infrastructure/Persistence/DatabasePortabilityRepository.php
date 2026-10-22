@@ -18,6 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
+        'academy_revisions' => 'id', 'academy_enrollments' => 'id', 'academy_cycles' => 'id', 'academy_cohorts' => 'id',
         'report_exports' => 'id', 'dashboard_indicator_revisions' => 'id', 'dashboard_indicators' => 'id', 'dashboard_source_versions' => 'card',
         'statistical_calculations' => 'id', 'statistical_calculation_sources' => 'id', 'statistical_calculation_revisions' => 'id',
         'statistical_import_executions' => 'id', 'statistical_import_receipts' => 'id',
@@ -71,6 +72,10 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'academy_cohorts' => ['id', 'organization_id', 'name', 'status', 'version', 'created_at', 'updated_at'],
+        'academy_cycles' => ['id', 'organization_id', 'cohort_id', 'name', 'starts_on', 'ends_on', 'timezone', 'timetable', 'status', 'version', 'created_at', 'updated_at'],
+        'academy_enrollments' => ['id', 'organization_id', 'cohort_id', 'cycle_id', 'person_id', 'role', 'starts_on', 'ends_on', 'status', 'version', 'created_at', 'updated_at'],
+        'academy_revisions' => ['id', 'organization_id', 'cohort_id', 'kind', 'resource_id', 'actor_user_id', 'snapshot', 'recorded_at'],
         'dashboard_source_versions' => ['organization_id', 'card', 'generation'],
         'dashboard_indicators' => ['id', 'organization_id', 'actor_user_id', 'fingerprint', 'cache_key', 'card', 'view', 'timezone', 'from_date', 'to_date', 'status', 'version', 'failure_code', 'created_at', 'updated_at'],
         'report_exports' => ['id', 'organization_id', 'actor_user_id', 'request_key', 'card', 'view', 'timezone', 'from_date', 'to_date', 'status', 'artifact_id', 'source_version', 'row_count', 'digest', 'expires_at', 'generated_at', 'created_at', 'updated_at'],

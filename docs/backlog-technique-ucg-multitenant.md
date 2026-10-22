@@ -615,6 +615,7 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : cohorte, cycle, mentors, inscrits, dates et emploi du temps.
 - **Acceptation** : adhésions et personnes du même tenant uniquement ; listes paginées et historique conservé.
 - **Références CDC** : ACA-01.
+- **Livraison locale** : backend/frontend des cohortes et cycles, programme hebdomadaire borné, mentors et inscriptions datées, permissions academy.read/academy.manage explicites, isolation et versions concurrentes, archivage et révisions chiffrées conservées. Migration additive 2026_10_22_100213 préparée, non appliquée à la base courante. Listes et sélecteurs paginés ; compte membre vérifié obligatoire pour un mentor, aucun droit accordé automatiquement. Les occurrences calendrier et présences restent ACA-002, objectifs et feedback ACA-003. Vérifications et limites dans etat-projet.md ; push, CI, sauvegarde, migration et recette réelle avant usage.
 
 ### UCG-ACA-002 — Gérer séances, présences et exercices
 
