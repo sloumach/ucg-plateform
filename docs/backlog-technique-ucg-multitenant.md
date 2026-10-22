@@ -623,6 +623,7 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : séance reliée au calendrier, présence, exercice, responsable et compte rendu.
 - **Acceptation** : la présence est modifiable uniquement par les rôles autorisés et reste auditée.
 - **Références CDC** : ACA-03.
+- **Livraison locale** : séances rattachées à une activité Académie partagée du calendrier, mentor responsable, exercices et compte rendu chiffrés ; présences paginées avec permission distincte `academy.attendance.manage`, corrections motivées, versionnées et auditées. Aucun droit implicite pour un mentor, aucune absence déduite automatiquement. Contrat public Scheduling, contrôle de fraîcheur du calendrier et isolation tenant/cycle. Migration additive `2026_10_22_172532` préparée, non appliquée à la base courante ; démontages/rejeux People, Tenancy, Calendar et Academy adaptés. Vérifications et limites dans etat-projet.md ; CI distante, sauvegarde, migration et recette réelle restent nécessaires avant usage.
 
 ### UCG-ACA-003 — Gérer objectifs et feedback
 

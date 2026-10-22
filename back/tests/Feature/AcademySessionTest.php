@@ -1,0 +1,246 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Architecture\Database\TenantSchemaInspector;
+use App\Modules\Academy\Domain\Models\AcademyCycle;
+use App\Modules\Academy\Domain\Models\AcademyEnrollment;
+use App\Modules\Academy\Domain\Models\Cohort;
+use App\Modules\Identity\Domain\Models\User;
+use App\Modules\Scheduling\Domain\Models\CalendarActivity;
+use App\Modules\Teams\Domain\Models\Team;
+use App\Modules\Tenancy\Domain\Contracts\PortabilityRepository;
+use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
+use Illuminate\Database\QueryException;
+use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\Fixtures\AuthenticatesWithMfa;
+use Tests\Fixtures\ProvidesAcademySessions;
+use Tests\Fixtures\ProvidesPeopleAccess;
+use Tests\TestCase;
+
+class AcademySessionTest extends TestCase
+{
+    use AuthenticatesWithMfa, LazilyRefreshDatabase, ProvidesAcademySessions, ProvidesPeopleAccess;
+
+    public function test_session_stores_private_content_and_audits_without_granting_mentor_rights(): void
+    {
+        $s = $this->sessionScenario();
+        $created = $this->postJson($s['path'], $s['body'])->assertCreated()->assertJsonPath('data.responsible_label', 'Mentor pilote')
+            ->assertJsonPath('data.schedule_state', 'current')->assertJsonPath('data.starts_at', '2026-10-22T10:00:00+00:00')
+            ->assertJsonPath('notification.message', 'La séance et son suivi ont été enregistrés.')->assertJsonMissingPath('data.organization_id');
+        $raw = DB::table('academy_sessions')->where('id', $created->json('data.id'))->firstOrFail();
+        $this->assertStringNotContainsString('Exercice privé', $raw->exercises);
+        $this->assertStringNotContainsString('Compte rendu', $raw->report);
+        $this->assertDatabaseCount('academy_sessions', 1);
+        $this->assertDatabaseCount('academy_session_revisions', 1);
+        $this->assertDatabaseCount('calendar_activities', 1);
+        $this->assertDatabaseMissing('organization_role_assignments', ['user_id' => $s['mentor_user']->id]);
+        $audit = json_encode(DB::table('organization_audit_events')->get(), JSON_THROW_ON_ERROR);
+        $this->assertStringNotContainsString('Consigne technique', $audit);
+        $this->getJson($s['path'])->assertOk()->assertJsonCount(1, 'data');
+    }
+
+    public function test_guest_and_owner_have_no_implicit_session_access(): void
+    {
+        $org = Organization::factory()->create();
+        $cycle = AcademyCycle::factory()->create(['cohort_id' => Cohort::factory()->create(['organization_id' => $org->id])->id]);
+        $path = '/api/v1/tenants/'.$org->id.'/academy/cohorts/'.$cycle->cohort_id.'/cycles/'.$cycle->id.'/sessions';
+        $this->getJson($path)->assertUnauthorized();
+        $this->actingAsWithMfa(User::query()->findOrFail($org->owner_user_id))->getJson($path)->assertForbidden();
+    }
+
+    public function test_presence_writer_requires_a_distinct_permission_and_calendar_read(): void
+    {
+        $s = $this->sessionScenario(['academy.read', 'academy.manage', 'calendar.read']);
+        $saved = $this->postJson($s['path'], $s['body'])->assertCreated();
+        $this->postJson($s['path'].'/'.$saved->json('data.id').'/attendances', ['enrollment_id' => $s['student']->id, 'status' => 'present'])->assertForbidden();
+        $this->assertDatabaseCount('academy_attendances', 0);
+    }
+
+    /** @return array<string, array{array<string, mixed>}> */
+    public static function unavailableActivities(): array
+    {
+        return ['private' => [['visibility' => 'private', 'sharing_authorized_by' => null, 'sharing_authorized_at' => null]], 'team' => [['visibility' => 'team']], 'wrong kind' => [['kind' => 'training']],
+            'cancelled' => [['cancelled_at' => '2026-10-22 09:00:00', 'archived_at' => '2026-10-22 09:00:00']], 'archived' => [['archived_at' => '2026-10-22 09:00:00']]];
+    }
+
+    /** @param array<string, mixed> $changes */
+    #[DataProvider('unavailableActivities')]
+    public function test_unavailable_calendar_links_return_404_without_partial_records(array $changes): void
+    {
+        $s = $this->sessionScenario();
+        if (($changes['visibility'] ?? null) === 'team') {
+            $changes['team_id'] = Team::factory()->create(['organization_id' => $s['org']->id])->id;
+        }
+        $s['activity']->forceFill($changes)->save();
+        $this->postJson($s['path'], $s['body'])->assertNotFound();
+        $this->assertDatabaseCount('academy_sessions', 0);
+        $this->assertDatabaseCount('academy_session_revisions', 0);
+    }
+
+    public function test_foreign_activity_and_wrong_cycle_mentor_are_refused(): void
+    {
+        $s = $this->sessionScenario();
+        $foreign = CalendarActivity::factory()->shared()->create(['kind' => 'academy']);
+        $this->postJson($s['path'], [...$s['body'], 'activity_id' => $foreign->id, 'activity_version' => $foreign->version])->assertNotFound();
+        $mentor = AcademyEnrollment::factory()->create(['role' => 'mentor']);
+        $this->postJson($s['path'], [...$s['body'], 'responsible_enrollment_id' => $mentor->id])->assertNotFound();
+        $this->assertDatabaseCount('academy_sessions', 0);
+    }
+
+    public function test_calendar_and_session_versions_refuse_lost_updates_and_duplicate_links(): void
+    {
+        $s = $this->sessionScenario();
+        $this->postJson($s['path'], [...$s['body'], 'activity_version' => (string) Str::uuid()])->assertConflict()->assertJsonPath('code', 'ACADEMY_SCHEDULE_STALE');
+        $saved = $this->postJson($s['path'], $s['body'])->assertCreated();
+        $this->postJson($s['path'], $s['body'])->assertConflict()->assertJsonPath('code', 'ACADEMY_SESSION_ALREADY_LINKED');
+        $this->patchJson($s['path'].'/'.$saved->json('data.id'), ['version' => (string) Str::uuid(), 'activity_version' => $s['activity']->version, 'title' => 'Écrasement', 'change_reason' => 'Correction explicite du titre.'])
+            ->assertConflict()->assertJsonPath('code', 'ACADEMY_SESSION_VERSION_STALE');
+        $this->assertDatabaseCount('academy_sessions', 1);
+        $this->assertDatabaseCount('academy_session_revisions', 1);
+    }
+
+    public function test_student_cannot_be_responsible_and_suspended_mentor_is_refused(): void
+    {
+        $s = $this->sessionScenario();
+        $this->postJson($s['path'], [...$s['body'], 'responsible_enrollment_id' => $s['student']->id])->assertConflict();
+        OrganizationMembership::query()->where('organization_id', $s['org']->id)->where('user_id', $s['mentor_user']->id)->update(['status' => 'suspended']);
+        $this->postJson($s['path'], $s['body'])->assertConflict();
+        $this->assertDatabaseCount('academy_sessions', 0);
+    }
+
+    public function test_session_period_must_fit_cycle_and_active_mentor_enrollment(): void
+    {
+        $s = $this->sessionScenario();
+        $s['activity']->forceFill(['starts_at' => '2027-01-10 10:00:00', 'ends_at' => '2027-01-10 11:00:00'])->save();
+        $this->postJson($s['path'], $s['body'])->assertConflict()->assertJsonPath('code', 'ACADEMY_ENROLLMENT_UNAVAILABLE');
+        $this->assertDatabaseCount('academy_sessions', 0);
+    }
+
+    public function test_attendance_is_versioned_unique_and_corrections_require_a_reason(): void
+    {
+        $s = $this->sessionScenario();
+        $saved = $this->postJson($s['path'], $s['body'])->assertCreated();
+        $path = $s['path'].'/'.$saved->json('data.id').'/attendances';
+        $body = ['enrollment_id' => $s['student']->id, 'status' => 'present'];
+        $attendance = $this->postJson($path, $body)->assertCreated()->assertJsonPath('data.status', 'present');
+        $this->postJson($path, $body)->assertConflict()->assertJsonPath('code', 'ACADEMY_ATTENDANCE_ALREADY_EXISTS');
+        $id = $attendance->json('data.id');
+        $this->patchJson($path.'/'.$id, ['version' => $attendance->json('data.version'), 'status' => 'absent'])->assertUnprocessable()->assertJsonValidationErrors('change_reason');
+        $this->patchJson($path.'/'.$id, ['version' => (string) Str::uuid(), 'status' => 'absent', 'change_reason' => 'Correction après vérification.'])
+            ->assertConflict()->assertJsonPath('code', 'ACADEMY_ATTENDANCE_VERSION_STALE');
+        $this->patchJson($path.'/'.$id, ['version' => $attendance->json('data.version'), 'status' => 'late', 'late_minutes' => 15, 'change_reason' => 'Correction après vérification.'])
+            ->assertOk()->assertJsonPath('data.late_minutes', 15)->assertJsonMissingPath('data.change_reason');
+        $this->getJson($path)->assertOk()->assertJsonCount(1, 'data');
+        $this->assertDatabaseCount('academy_attendances', 1);
+        $this->assertDatabaseCount('academy_session_revisions', 3);
+        $this->assertStringNotContainsString('Correction après', DB::table('academy_attendances')->value('change_reason'));
+    }
+
+    public function test_changed_schedule_blocks_attendance_until_explicit_same_period_confirmation(): void
+    {
+        $s = $this->sessionScenario();
+        $saved = $this->postJson($s['path'], $s['body'])->assertCreated();
+        $path = $s['path'].'/'.$saved->json('data.id');
+        $s['activity']->forceFill(['version' => (string) Str::uuid(), 'title' => 'Libellé modifié'])->save();
+        $this->getJson($s['path'])->assertOk()->assertJsonPath('data.0.schedule_state', 'changed');
+        $this->postJson($path.'/attendances', ['enrollment_id' => $s['student']->id, 'status' => 'present'])->assertConflict()->assertJsonPath('code', 'ACADEMY_SCHEDULE_STALE');
+        $this->patchJson($path, ['version' => $saved->json('data.version'), 'activity_version' => $s['activity']->version, 'change_reason' => 'Horaires revérifiés explicitement.'])->assertOk();
+        $this->postJson($path.'/attendances', ['enrollment_id' => $s['student']->id, 'status' => 'present'])->assertCreated();
+    }
+
+    public function test_calendar_became_private_hides_its_reference_and_times(): void
+    {
+        $s = $this->sessionScenario();
+        $this->postJson($s['path'], $s['body'])->assertCreated();
+        $s['activity']->forceFill(['visibility' => 'private', 'sharing_authorized_by' => null, 'sharing_authorized_at' => null, 'title' => 'SECRET_CURRENT_TITLE'])->save();
+        $this->getJson($s['path'])->assertOk()->assertJsonPath('data.0.activity', null)->assertJsonPath('data.0.starts_at', null)
+            ->assertJsonPath('data.0.schedule_state', 'unavailable')->assertJsonMissing(['label' => 'SECRET_CURRENT_TITLE']);
+    }
+
+    public function test_attendance_freezes_period_and_responsible_but_retains_audited_content_edits(): void
+    {
+        $s = $this->sessionScenario();
+        $saved = $this->postJson($s['path'], $s['body'])->assertCreated();
+        $path = $s['path'].'/'.$saved->json('data.id');
+        $this->postJson($path.'/attendances', ['enrollment_id' => $s['student']->id, 'status' => 'present'])->assertCreated();
+        $s['activity']->forceFill(['starts_at' => '2026-10-22 13:00:00', 'ends_at' => '2026-10-22 14:00:00', 'version' => (string) Str::uuid()])->save();
+        $this->patchJson($path, ['version' => $saved->json('data.version'), 'activity_version' => $s['activity']->version, 'change_reason' => 'Changement des horaires proposé.'])
+            ->assertConflict()->assertJsonPath('code', 'ACADEMY_SESSION_ATTENDANCE_FROZEN');
+        $this->assertDatabaseCount('academy_session_revisions', 2);
+        $this->getJson($path.'/history?per_page=1')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('meta.total', 2)->assertJsonMissingPath('data.0.snapshot');
+    }
+
+    public function test_future_attendance_and_premature_completion_are_refused(): void
+    {
+        $s = $this->sessionScenario();
+        $s['activity']->forceFill(['starts_at' => '2026-10-22 13:00:00', 'ends_at' => '2026-10-22 14:00:00'])->save();
+        $saved = $this->postJson($s['path'], $s['body'])->assertCreated();
+        $path = $s['path'].'/'.$saved->json('data.id');
+        $this->postJson($path.'/attendances', ['enrollment_id' => $s['student']->id, 'status' => 'present'])->assertConflict()->assertJsonPath('code', 'ACADEMY_SESSION_NOT_STARTED');
+        $this->patchJson($path, ['version' => $saved->json('data.version'), 'activity_version' => $s['activity']->version, 'status' => 'completed', 'change_reason' => 'Clôture proposée avant la séance.'])
+            ->assertConflict()->assertJsonPath('code', 'ACADEMY_SESSION_COMPLETION_INVALID');
+    }
+
+    public function test_cancellation_is_retained_and_refuses_subsequent_presence_writes(): void
+    {
+        $s = $this->sessionScenario();
+        $saved = $this->postJson($s['path'], $s['body'])->assertCreated();
+        $path = $s['path'].'/'.$saved->json('data.id');
+        $this->patchJson($path, ['version' => $saved->json('data.version'), 'status' => 'cancelled', 'change_reason' => 'Séance annulée explicitement.'])->assertOk();
+        $this->postJson($path.'/attendances', ['enrollment_id' => $s['student']->id, 'status' => 'present'])->assertConflict()->assertJsonPath('code', 'ACADEMY_SESSION_CANCELLED');
+        $this->assertDatabaseHas('academy_sessions', ['id' => $saved->json('data.id'), 'status' => 'cancelled']);
+    }
+
+    /** @return array<string, array{array<string, mixed>, string}> */
+    public static function invalidInputs(): array
+    {
+        return ['extra tenant' => [['organization_id' => 'spoof'], 'organization_id'], 'too many exercises' => [['exercises' => array_fill(0, 21, ['title' => 'Exercice', 'minutes' => 5])], 'exercises'],
+            'hidden note' => [['exercises' => [['title' => 'Exercice', 'minutes' => 5, 'internal_note' => 'secret']]], 'exercises.0'],
+            'missing exercise duration' => [['exercises' => [['title' => 'Exercice']]], 'exercises.0.minutes']];
+    }
+
+    /** @param array<string, mixed> $changes */
+    #[DataProvider('invalidInputs')]
+    public function test_closed_payload_and_exercise_limits_leave_no_partial_data(array $changes, string $error): void
+    {
+        $s = $this->sessionScenario();
+        $this->postJson($s['path'], array_replace($s['body'], $changes))->assertUnprocessable()->assertJsonValidationErrors($error);
+        $this->assertDatabaseCount('academy_sessions', 0);
+    }
+
+    public function test_cycle_and_cross_tenant_attendance_ids_cannot_move_records(): void
+    {
+        $s = $this->sessionScenario();
+        $saved = $this->postJson($s['path'], $s['body'])->assertCreated();
+        $foreign = AcademyEnrollment::factory()->create();
+        $path = $s['path'].'/'.$saved->json('data.id').'/attendances';
+        $this->postJson($path, ['enrollment_id' => $foreign->id, 'status' => 'present'])->assertNotFound();
+        $this->assertDatabaseCount('academy_attendances', 0);
+    }
+
+    public function test_schema_history_and_operator_export_keep_ciphertext_and_refuse_destructive_rollback(): void
+    {
+        $s = $this->sessionScenario();
+        $saved = $this->postJson($s['path'], $s['body'])->assertCreated();
+        $this->postJson($s['path'].'/'.$saved->json('data.id').'/attendances', ['enrollment_id' => $s['student']->id, 'status' => 'present'])->assertCreated();
+        $this->assertSame([], app(TenantSchemaInspector::class)->violations());
+        $rows = iterator_to_array(app(PortabilityRepository::class)->rows($s['org']->id, 100));
+        $sessions = array_values(array_filter($rows, fn (array $row): bool => $row['table'] === 'academy_sessions'));
+        $this->assertCount(1, $sessions);
+        $this->assertStringNotContainsString('Consigne technique', $sessions[0]['data']['exercises']);
+        try {
+            DB::transaction(fn () => DB::table('academy_session_revisions')->delete());
+            $this->fail('Retain academy history.');
+        } catch (QueryException) {
+            $this->assertDatabaseCount('academy_session_revisions', 2);
+        }
+        $migration = require database_path('migrations/2026_10_22_172532_create_academy_sessions_and_attendances.php');
+        $this->expectException(\RuntimeException::class);
+        $migration->down();
+    }
+}

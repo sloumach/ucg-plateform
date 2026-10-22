@@ -5,6 +5,7 @@ namespace App\Modules\Academy\Presentation\Http\Resources\Api\V1;
 use App\Modules\Academy\Domain\Models\AcademyCycle;
 use App\Modules\Academy\Domain\Models\AcademyEnrollment;
 use App\Modules\Academy\Domain\Models\AcademyRevision;
+use App\Modules\Academy\Domain\Models\AcademySessionRevision;
 use App\Modules\Academy\Domain\Models\Cohort;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -16,7 +17,7 @@ final class AcademyResource extends JsonResource
     public function toArray(Request $request): array
     {
         $record = $this->resource;
-        if ($record instanceof AcademyRevision) {
+        if ($record instanceof AcademyRevision || $record instanceof AcademySessionRevision) {
             // The encrypted snapshot is retained for maintenance, never returned as an unfiltered historical dossier.
             return ['id' => $record->id, 'kind' => $record->kind, 'resource_id' => $record->resource_id,
                 'actor_user_id' => $record->actor_user_id, 'recorded_at' => $record->recorded_at->toIso8601String()];

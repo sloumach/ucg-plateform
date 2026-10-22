@@ -18,6 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
+        'academy_session_revisions' => 'id', 'academy_attendances' => 'id', 'academy_sessions' => 'id',
         'academy_revisions' => 'id', 'academy_enrollments' => 'id', 'academy_cycles' => 'id', 'academy_cohorts' => 'id',
         'report_exports' => 'id', 'dashboard_indicator_revisions' => 'id', 'dashboard_indicators' => 'id', 'dashboard_source_versions' => 'card',
         'statistical_calculations' => 'id', 'statistical_calculation_sources' => 'id', 'statistical_calculation_revisions' => 'id',
@@ -72,6 +73,9 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'academy_sessions' => ['id', 'organization_id', 'cohort_id', 'cycle_id', 'activity_id', 'activity_version', 'responsible_enrollment_id', 'title', 'exercises', 'report', 'starts_at', 'ends_at', 'status', 'version', 'created_at', 'updated_at'],
+        'academy_attendances' => ['id', 'organization_id', 'cycle_id', 'session_id', 'enrollment_id', 'status', 'late_minutes', 'change_reason', 'version', 'created_at', 'updated_at'],
+        'academy_session_revisions' => ['id', 'organization_id', 'session_id', 'kind', 'resource_id', 'actor_user_id', 'snapshot', 'recorded_at'],
         'academy_cohorts' => ['id', 'organization_id', 'name', 'status', 'version', 'created_at', 'updated_at'],
         'academy_cycles' => ['id', 'organization_id', 'cohort_id', 'name', 'starts_on', 'ends_on', 'timezone', 'timetable', 'status', 'version', 'created_at', 'updated_at'],
         'academy_enrollments' => ['id', 'organization_id', 'cohort_id', 'cycle_id', 'person_id', 'role', 'starts_on', 'ends_on', 'status', 'version', 'created_at', 'updated_at'],

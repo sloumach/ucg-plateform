@@ -2,7 +2,9 @@
 
 namespace App\Modules\Academy\Domain\Models;
 
+use Database\Factories\AcademyEnrollmentFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -19,7 +21,13 @@ use Illuminate\Database\Eloquent\Model;
  */
 final class AcademyEnrollment extends Model
 {
-    use HasUuids;
+    /** @use HasFactory<AcademyEnrollmentFactory> */
+    use HasFactory, HasUuids;
+
+    protected static function newFactory(): AcademyEnrollmentFactory
+    {
+        return AcademyEnrollmentFactory::new();
+    }
 
     protected $guarded = ['*'];
 

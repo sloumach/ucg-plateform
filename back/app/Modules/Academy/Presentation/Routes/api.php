@@ -19,3 +19,5 @@ Route::prefix('tenants/{tenant}/academy')->whereUuid('tenant')->middleware('tena
     }
     Route::get('cohorts/{cohort}/history', [$controller, 'index'])->whereUuid('cohort')->defaults('academy_kind', 'history')->name('academy.history');
 });
+
+require __DIR__.'/sessions.php';

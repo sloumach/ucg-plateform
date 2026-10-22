@@ -2,10 +2,13 @@
 
 namespace App\Modules\Scheduling\Providers;
 
+use App\Modules\Scheduling\Application\Contracts\AcademySchedule;
 use App\Modules\Scheduling\Application\Contracts\MatchSchedule;
 use App\Modules\Scheduling\Application\Contracts\SchedulingDashboard;
+use App\Modules\Scheduling\Application\Services\AcademyScheduleService;
 use App\Modules\Scheduling\Application\Services\MatchScheduleService;
 use App\Modules\Scheduling\Application\Services\SchedulingDashboardService;
+use App\Modules\Scheduling\Domain\Contracts\AcademyScheduleRepository;
 use App\Modules\Scheduling\Domain\Contracts\AvailabilityRepository;
 use App\Modules\Scheduling\Domain\Contracts\CalendarChangeRepository;
 use App\Modules\Scheduling\Domain\Contracts\CalendarConflictRepository;
@@ -15,6 +18,7 @@ use App\Modules\Scheduling\Domain\Contracts\CalendarRepository;
 use App\Modules\Scheduling\Domain\Contracts\CalendarResourceRepository;
 use App\Modules\Scheduling\Domain\Models\Availability;
 use App\Modules\Scheduling\Domain\Models\CalendarActivity;
+use App\Modules\Scheduling\Infrastructure\Persistence\EloquentAcademyScheduleRepository;
 use App\Modules\Scheduling\Infrastructure\Persistence\EloquentAvailabilityRepository;
 use App\Modules\Scheduling\Infrastructure\Persistence\EloquentCalendarChangeRepository;
 use App\Modules\Scheduling\Infrastructure\Persistence\EloquentCalendarConflictRepository;
@@ -34,6 +38,8 @@ final class SchedulingServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(AcademySchedule::class, AcademyScheduleService::class);
+        $this->app->bind(AcademyScheduleRepository::class, EloquentAcademyScheduleRepository::class);
         $this->app->bind(SchedulingDashboard::class, SchedulingDashboardService::class);
         $this->app->bind(MatchSchedule::class, MatchScheduleService::class);
         $this->app->bind(CalendarChangeRepository::class, EloquentCalendarChangeRepository::class);

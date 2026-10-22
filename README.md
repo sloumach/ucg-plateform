@@ -3803,8 +3803,8 @@ curl -X POST "$API_BASE/tenants/$TENANT/academy/cohorts" \
 Pour créer un cycle, envoyer `name`, `starts_on`, `ends_on`, `timezone` et
 `timetable` (éventuellement `[]`). Un créneau contient `day` (1=lundi à 7=dimanche),
 `starts_at` et `ends_at` (`HH:mm`). Jusqu’à 28 créneaux sans chevauchement, terminés
-le même jour. Le programme ne crée aucune séance dans le calendrier : ACA-002
-portera les séances, présences et exercices. Exemple de corps d’inscription :
+le même jour. Le programme ne crée aucune occurrence dans le calendrier. ACA-002
+permet de rattacher une séance à une activité existante. Exemple de corps d’inscription :
 
 ```json
 {"cycle_id":"UUID_CYCLE","person_id":"UUID_PERSONNE","role":"student","starts_on":"2026-10-01","ends_on":"2026-12-31"}
@@ -3815,3 +3815,65 @@ peuvent évoluer avec historique. Les listes n’exposent aucun dossier administ
 coordonnée, note interne ou snapshot historique déchiffré. L’historique consultable
 contient les métadonnées des changements ; les instantanés chiffrés sont conservés
 pour maintenance. Les sauvegardes opérateur incluent explicitement les quatre tables.
+
+### Académie — UCG-ACA-002
+
+Dans un cycle actif, ouvrir « Séances, présences et exercices ». La lecture exige
+`academy.read`, la gestion des séances `academy.manage` et la saisie/correction des
+présences `academy.attendance.manage`. Ces permissions sont explicites : ni le rôle
+de mentor ni le droit de gérer les séances ne donnent le droit de présence.
+`calendar.read` est nécessaire pour choisir/confirmer une activité et saisir une
+présence. Sans ce droit, le contenu Académie reste lisible selon ses propres droits,
+mais les références et horaires du calendrier sont masqués.
+
+Créer d’abord dans le calendrier une activité de type `academy`, partagée avec
+l’organisation, non annulée et non archivée. La séance référence cette activité
+existante, sa version et ses horaires ; elle ne publie aucune activité privée et
+ne génère pas les occurrences du programme hebdomadaire. Son mentor responsable
+est inscrit dans le même cycle, actif sur toute la période, avec un compte vérifié
+actuellement membre ou propriétaire du tenant. Le cycle doit couvrir la séance.
+
+Routes sous `/api/v1/tenants/{tenant}/academy/cohorts/{cohort}/cycles/{cycle}` :
+
+- `GET session-activities?from_date=2026-10-01&to_date=2026-11-01` : borne finale
+  exclusive, fenêtre de 1 à 93 jours ;
+- `GET/POST sessions`, `PATCH sessions/{session}` ;
+- `GET/POST sessions/{session}/attendances`,
+  `PATCH sessions/{session}/attendances/{attendance}` ;
+- `GET sessions/{session}/history` : métadonnées des modifications.
+
+Listes et sélecteurs paginés par `page`/`per_page` (1 à 100 lignes par page).
+Exemple de création après connexion, CSRF et confirmation du tenant :
+
+```bash
+curl -X POST "$API_BASE/tenants/$TENANT/academy/cohorts/$COHORT/cycles/$CYCLE/sessions" \
+  -b cookies.txt -H "Origin: $FRONTEND_URL" -H "Accept: application/json" \
+  -H "Content-Type: application/json" -H "X-XSRF-TOKEN: $CSRF_TOKEN" \
+  -H "X-Tenant-Revision: $REVISION" \
+  -d '{"title":"Placement collectif","activity_id":"UUID_ACTIVITE","activity_version":"UUID_VERSION_ACTIVITE","responsible_enrollment_id":"UUID_INSCRIPTION_MENTOR","exercises":[{"title":"Communication","instructions":null,"minutes":20}],"report":null}'
+```
+
+Chaque correction PATCH exige la `version` courante et un `change_reason` de
+10 à 1 000 caractères. Une présence est créée avec `enrollment_id` et `status`
+(`present`, `absent`, `excused`, `late`), plus `late_minutes` de 1 à 240 uniquement
+pour `late`. L’inscription doit être active et couvrir toute la séance. Une ligne
+non renseignée ne signifie jamais une absence. Les raisons et instantanés sont
+chiffrés ; l’historique public ne dévoile pas leur contenu. Ne pas saisir de données
+médicales ou psychologiques dans les exercices, comptes rendus ou motifs.
+
+Un changement de version du calendrier bloque les nouvelles saisies jusqu’à
+confirmation explicite par un gestionnaire de séances. Dès qu’une présence existe,
+l’activité, la période et le responsable sont figés ; une modification ultérieure
+de période nécessite une nouvelle séance. L’annulation est définitive et son PATCH
+contient seulement `version`, `status: cancelled` et `change_reason`. Une séance ne
+peut être terminée qu’après sa fin et ne peut ensuite redevenir planifiée.
+
+Migration additive `2026_10_22_172532_create_academy_sessions_and_attendances` :
+`academy_sessions`, `academy_attendances`, `academy_session_revisions`, plus un
+index composite sur les inscriptions. FK tenant/cycle, unicités et gardes SQL
+protègent les rattachements et l’historique sur SQLite/PostgreSQL. Le retour arrière
+refuse les tables utilisées. Conserver la clé de chiffrement et inclure ces tables
+dans les sauvegardes. Aucune migration courante ni permission réelle modifiée dans
+cette livraison. Avant usage : revue/push, CI distante, sauvegarde, migration,
+attribution explicite des droits puis recette avec comptes et API de recette.
+Les objectifs, feedback et notes internes restent du périmètre ACA-003.

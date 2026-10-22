@@ -1,7 +1,9 @@
 <?php
 
 use App\Exceptions\DomainConflictException;
+use App\Modules\Academy\Application\Services\AcademyAttendanceService;
 use App\Modules\Academy\Application\Services\AcademyService;
+use App\Modules\Academy\Application\Services\AcademySessionService;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Str;
@@ -30,7 +32,13 @@ while (! is_file($barrier)) {
     clearstatcache(true, $barrier);
 }
 try {
-    app(AcademyService::class)->save($context, $payload['kind'], $payload['input'], $payload['cohort'], $payload['id']);
+    if ($payload['kind'] === 'session') {
+        app(AcademySessionService::class)->save($context, $payload['cohort'], $payload['cycle'], $payload['input'], $payload['id']);
+    } elseif ($payload['kind'] === 'attendance') {
+        app(AcademyAttendanceService::class)->save($context, $payload['cohort'], $payload['cycle'], $payload['session'], $payload['input']);
+    } else {
+        app(AcademyService::class)->save($context, $payload['kind'], $payload['input'], $payload['cohort'], $payload['id']);
+    }
     $result = ['status' => 200];
 } catch (DomainConflictException $exception) {
     $result = ['status' => 409, 'code' => $exception->errorCode()];

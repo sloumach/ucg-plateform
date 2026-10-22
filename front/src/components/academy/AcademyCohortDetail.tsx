@@ -9,6 +9,7 @@ import { usePeopleMutation } from '../people/usePeopleMutation'
 import { useAcademyPage } from './useAcademyPage'
 import { AcademyCycleForm } from './AcademyCycleForm'
 import { AcademyEnrollments } from './AcademyEnrollments'
+import { AcademySessionsPanel } from './AcademySessionsPanel'
 
 type Props = { active: ActiveOrganization; cohort: Cohort; disabled: boolean; onInvalid: () => void }
 export function AcademyCohortDetail({ active, cohort, disabled, onInvalid }: Props) {
@@ -43,7 +44,7 @@ export function AcademyCohortDetail({ active, cohort, disabled, onInvalid }: Pro
         </>}
       </li> })}</ul>
       {editor && <AcademyCycleForm key={editor === 'new' ? 'new' : editor.id + editor.version} cycle={editor === 'new' ? null : editor} timezone={active.context!.timezone} disabled={blocked} errors={mutation.errors(base + '/cycles' + (editor === 'new' ? '' : '/' + editor.id))} onSubmit={save} onCancel={() => setEditor(null)} />}
-      {cycle && <AcademyEnrollments key={cycle.id + cycle.version} active={active} cohort={cohort} cycle={cycle} disabled={blocked} onInvalid={onInvalid} />}
+      {cycle && <><AcademyEnrollments key={cycle.id + cycle.version} active={active} cohort={cohort} cycle={cycle} disabled={blocked} onInvalid={onInvalid} /><AcademySessionsPanel key={'sessions:' + cycle.id + cycle.version} active={active} cohort={cohort} cycle={cycle} disabled={blocked} onInvalid={onInvalid} /></>}
     </>}
     {tab === 'history' && <ul className="grid min-w-0 gap-2">{read.result?.data.map((item) => { const revision = item as AcademyRevision; return <li key={revision.id} className="[overflow-wrap:anywhere]">{t(revision.kind === 'cohort' ? 'academy.cohort' : revision.kind === 'cycle' ? 'academy.cycle' : 'academy.enrollment')} · {revision.recorded_at} · {revision.resource_id}</li> })}</ul>}
     {read.result && <Pagination currentPage={read.result.meta.current_page} totalPages={read.result.meta.last_page} disabled={blocked} onPageChange={(next) => { setPage(next); setCycle(null); setEditor(null) }} />}

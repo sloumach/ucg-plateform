@@ -109,6 +109,8 @@ class PersonSchemaTest extends TestCase
         $this->assertTrue(Schema::hasTable('people'));
         $migration = require database_path('migrations/2026_10_11_215159_create_people_table.php');
         $academy = require database_path('migrations/2026_10_22_100213_create_academy_cohorts_cycles_and_enrollments.php');
+        $sessions = require database_path('migrations/2026_10_22_172532_create_academy_sessions_and_attendances.php');
+        $sessions->down();
         $academy->down();
         $this->assertFalse(Schema::hasTable('academy_enrollments'));
 
@@ -203,6 +205,7 @@ class PersonSchemaTest extends TestCase
         $statisticalCalculations->up();
         $availability->up();
         $academy->up();
+        $sessions->up();
 
         $this->assertTrue(Schema::hasTable('academy_enrollments'));
         $this->assertTrue(Schema::hasTable('statistical_imports'));

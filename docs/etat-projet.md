@@ -9,10 +9,17 @@
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
+- Dernier ticket implémenté localement : **UCG-ACA-002**, séances reliées au calendrier,
+  exercices, compte rendu et présences avec corrections auditées. Migration additive
+  `2026_10_22_172532` préparée, non appliquée à la base courante ; aucune attribution
+  réelle de permissions. Validation locale complète décrite en fin de document.
+  Avant usage : revue/push, CI distante, sauvegarde, migration puis recette réelle.
+  Prochain ticket métier après validation de livraison : **UCG-ACA-003**.
 - Correctif CI ACA-001 : PersonSchemaTest retire puis recrée maintenant Academy
-  autour du rejeu de People. Validé sur PostgreSQL isolé (57/57) ; correctif local,
-  push et nouvelle CI distante à confirmer. Aucun changement de migration.
-- Dernier ticket implémenté localement : **UCG-ACA-001**, cohortes, cycles, programme
+  autour du rejeu de People. Validé sur PostgreSQL isolé (57/57) ; commit `15bbb3a`
+  présent sur staging et origin/staging à cette reprise, CI distante non confirmée.
+  Aucun changement de migration dans ce correctif.
+- Socle précédent : **UCG-ACA-001**, cohortes, cycles, programme
   hebdomadaire, mentors et inscriptions privés. Migration additive
   `2026_10_22_100213` préparée, non appliquée à la base courante. Permissions
   academy.read/academy.manage explicites, aucune attribution automatique.
@@ -4769,3 +4776,78 @@ contrôle PostgreSQL précédent ne comprenait pas PersonSchemaTest, contraireme
   aucune migration sur la base courante, aucune donnée ou permission réelle modifiée.
   Prochaine action : pousser le correctif et relancer la CI ; aucune nouvelle
   migration n’est nécessaire pour ce correctif de test.
+
+## Livraison locale UCG-ACA-002 — Séances, présences et exercices
+
+### Comportement livré
+
+- Dans le détail d'un cycle : panneau de séances chargé sur ouverture, listes,
+  sélecteurs et historique paginés, création/modification/annulation avec confirmation
+  du tenant, exercices structurés et compte rendu. Pas de présence automatique.
+- Chaque séance référence une activité existante de type Académie, partagée avec
+  l'organisation, ni annulée ni archivée. Le programme hebdomadaire ne génère pas
+  d'occurrences. Le mentor responsable doit être actif sur la période dans le même
+  cycle, avec compte vérifié et adhésion courante ; son affectation ne donne aucun droit.
+- `academy.read` pour consulter ; `academy.manage` pour gérer les séances ; nouvelle
+  permission indépendante `academy.attendance.manage` pour saisir/corriger les
+  présences. `calendar.read` pour choisir/confirmer la source et saisir une présence.
+  Sans ce droit ou si la source devient privée, la référence calendrier et les
+  horaires sont masqués ; les données Académie gardent leur propre autorisation.
+- Présent, absent, excusé ou retard de 1 à 240 minutes. L'inscription doit être
+  active et couvrir la séance. Saisie après le début seulement ; correction avec
+  version et motif obligatoire. Une absence de ligne ne signifie pas absent.
+- Calendrier versionné : changement de source détecté et saisie bloquée jusqu'à
+  confirmation explicite. Une présence fige source, période et responsable.
+  Annulation définitive ; séance terminée seulement après sa fin, sans réouverture.
+- Titres, exercices, comptes rendus, motifs et snapshots chiffrés au repos.
+  Révisions append-only et audit minimal dans la transaction métier ; historique
+  consultable limité aux métadonnées. Aucun dossier médical/psychologique.
+
+### Architecture et migration
+
+- Contrat public `AcademySchedule` et DTO minimal de Scheduling, implémentation et
+  requêtes conservées dans ce module. Academy ajoute Scheduling à ses dépendances,
+  sans accès à ses modèles internes. Services, repository, FormRequest, Policy et
+  Resources dédiés. Réautorisation transactionnelle et versions UUID concurrentes.
+- Migration additive `2026_10_22_172532_create_academy_sessions_and_attendances` :
+  academy_sessions, academy_attendances, academy_session_revisions et index composite
+  des inscriptions. FK directes tenant et composites tenant/cycle, index des listes,
+  unicités activité/présence, gardes SQL SQLite/PostgreSQL et rollback protégé.
+- Inventaire de portabilité et CI PostgreSQL étendus. Les démontages/rejeux
+  PersonSchemaTest, OrganizationSchemaTest, CalendarSchemaTest et AcademyTest
+  retirent le nouveau schéma avant ses parents et le restaurent après eux.
+  Le scénario qui avait échoué en CI ACA-001 est inclus dans la sélection PG.
+- Résolution des pseudonymes et activités en bloc par page, limites de pagination
+  1 à 100 et recherche calendrier sur 93 jours au plus. Pas de cache durable de
+  droits ; écritures sérialisées par organisation. Profiler contention et plans SQL
+  avec la volumétrie cible avant optimisation, sans chargement exhaustif.
+
+### Vérifications et limites de livraison
+
+- Suite backend complète SQLite : 2 590 cas, 2 543 réussis, 47 ignorés selon leurs
+  conditions optionnelles/PostgreSQL, 14 159 assertions, aucun échec. Une seule
+  suite PHP à la fois afin de ne pas partager simultanément Storage::fake.
+- Sélection PostgreSQL isolée : 113/113 réussis, 593 assertions. Inclut les nouveaux
+  tests séances/calendrier, les quatre courses concurrentes Academy à deux processus,
+  les tests Academy existants, PersonSchemaTest, OrganizationSchemaTest,
+  CalendarSchemaTest/CalendarControllerTest, architecture et schéma/portabilité.
+  Les bases temporaires et celles des processus concurrents ont été supprimées.
+- Nouveaux scénarios API : droits, isolation tenant/cohorte/cycle, calendrier privé
+  ou périmé, limites de dates, mentor/inscription, version et doublon concurrents,
+  historique chiffré, gardes SQL, rollback, pagination et lectures groupées.
+- Frontend complet : 467/467 tests dans 64 fichiers. Deux options de requête DOM
+  non typées dans le nouveau test ont été retirées après détection par TypeScript :
+  sélection finale 10/10, build TypeScript/Vite réussi, lint sans avertissement.
+- Parcours Chrome : création séance/exercice/compte rendu, saisie puis correction
+  motivée d'une présence, historique, confirmations et refus avec calendrier périmé.
+  API simulée ; absence de débordement à 320, 375 et 1280 px ; captures 375 et 1280
+  inspectées. Ce contrôle ne remplace pas une recette avec API/comptes de recette.
+- PHPStan : zéro erreur ; Pint dirty réussi. Code, tests et documentation réunis
+  dans un seul commit local UCG-ACA-002. Aucun push ni succès de CI distante affirmé.
+- Migration courante non appliquée, aucun .env réel, worker, donnée métier,
+  adhésion ou permission réelle modifié. Conserver la clé de chiffrement ; inclure
+  les trois tables dans les sauvegardes. Revue/push, CI distante, sauvegarde,
+  migration, attribution explicite des droits et recette isolée avant usage.
+
+Prochain ticket métier : UCG-ACA-003, objectifs et feedback avec séparation du
+feedback partagé et des notes internes ; commencer après validation de livraison.

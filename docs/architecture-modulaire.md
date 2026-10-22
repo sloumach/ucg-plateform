@@ -18,7 +18,7 @@ dépendance signifie que le module de gauche peut consommer l’API publique du 
 | `Tenancy` | `Identity` |
 | `People` | `Identity`, `Tenancy` |
 | `Teams` | `Identity`, `Tenancy`, `People` |
-| `Academy` | `Tenancy`, `People`, `Teams` |
+| `Academy` | `Tenancy`, `People`, `Teams`, `Scheduling` |
 | `Scheduling` | `Tenancy`, `People`, `Teams` |
 | `Competition` | `Tenancy`, `People`, `Teams`, `Scheduling` |
 | `Performance` | `Tenancy`, `People`, `Teams`, `Competition` |
@@ -2911,3 +2911,36 @@ courantes, avec les limites d’un parcours sans snapshot. À grand volume, prof
 les plans des candidats avant de retenir une stratégie d’indexation préservant
 classification/tenants/droits. La borne applicative ne garantit pas un coût constant
 du plan SQL ni d’un parcours exhaustif d’un gros tenant.
+
+### Séances et présences ACA-002
+
+Academy dépend désormais du contrat public `AcademySchedule` de Scheduling, avec
+DTO minimal `AcademyActivity`. Scheduling conserve ses modèles et requêtes dans
+son propre repository ; aucune dépendance inverse vers Academy. Le port ne retourne
+que les activités Académie partagées du tenant, autorisées par `calendar.read`,
+avec identifiant, version, titre, période et fuseau. Choix paginés sur 93 jours au
+plus ; résolution groupée d'au plus 100 identifiants pour une page de séances.
+
+Academy possède `AcademySessionService`, `AcademyAttendanceService`, les gardes
+communes `AcademySessionAccess`, le journal `AcademySessionJournal`, un repository,
+FormRequest, Policy, Resources et contrôleur minces. Chaque commande revalide
+permissions et contexte, verrouille compte/organisation puis les ressources du
+cycle, vérifie les versions et écrit métier, révision chiffrée et audit minimal
+dans la même transaction. Un conflit concurrent produit un refus explicite.
+La présence a sa permission distincte ; aucune autorisation issue d'une affectation.
+
+La migration additive ACA-002 crée trois tables isolées par organisation et cycle,
+avec FK composites et directes tenant, index et unicités. Gardes SQL SQLite/PG :
+identités immuables, annulation définitive, période/source/responsable figés après
+présence, révisions append-only. Le rollback refuse les données existantes.
+Les quatre tests de démontage/rejeu des parents retirent ACA-002 avant Academy,
+People ou Calendar et le restaurent après eux ; aucun DROP CASCADE.
+L'inventaire fermé de portabilité inclut les trois tables et leurs colonnes.
+
+Les titres, exercices, comptes rendus et snapshots sont chiffrés au repos. Les
+lectures résolvent calendrier et pseudonymes en bloc par page et masquent les sources
+indisponibles. Pas de cache durable de droits ni de génération asynchrone à activer.
+Le verrou organisation sérialise les écritures : profiler sa contention et les
+plans des index avec la volumétrie cible avant d'envisager une granularité plus fine.
+Le frontend charge le panneau sur ouverture, pagine les listes, confirme les
+mutations et traite les versions du calendrier périmées avant la saisie.

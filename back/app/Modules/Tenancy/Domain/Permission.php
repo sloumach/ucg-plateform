@@ -7,6 +7,7 @@ enum Permission: string
 {
     case AcademyRead = 'academy.read';
     case AcademyManage = 'academy.manage';
+    case AcademyAttendanceManage = 'academy.attendance.manage';
     case OrganizationView = 'organization.view';
     case OrganizationUpdate = 'organization.update';
     case MembershipsManage = 'memberships.manage';
