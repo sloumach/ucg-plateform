@@ -18,7 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
-        'academy_session_revisions' => 'id', 'academy_attendances' => 'id', 'academy_sessions' => 'id',
+        'academy_session_revisions' => 'id', 'academy_attendances' => 'id', 'academy_objectives' => 'id', 'academy_feedback' => 'id', 'academy_coaching_revisions' => 'id', 'academy_sessions' => 'id',
         'academy_revisions' => 'id', 'academy_enrollments' => 'id', 'academy_cycles' => 'id', 'academy_cohorts' => 'id',
         'report_exports' => 'id', 'dashboard_indicator_revisions' => 'id', 'dashboard_indicators' => 'id', 'dashboard_source_versions' => 'card',
         'statistical_calculations' => 'id', 'statistical_calculation_sources' => 'id', 'statistical_calculation_revisions' => 'id',
@@ -73,6 +73,9 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'academy_objectives' => ['id', 'organization_id', 'cohort_id', 'cycle_id', 'target_enrollment_id', 'responsible_enrollment_id', 'title', 'description', 'due_on', 'status', 'version', 'created_at', 'updated_at'],
+        'academy_feedback' => ['id', 'organization_id', 'cycle_id', 'objective_id', 'audience', 'content', 'justification', 'author_user_id', 'status', 'version', 'created_at', 'updated_at'],
+        'academy_coaching_revisions' => ['id', 'organization_id', 'objective_id', 'kind', 'resource_id', 'audience', 'actor_user_id', 'snapshot', 'recorded_at'],
         'academy_sessions' => ['id', 'organization_id', 'cohort_id', 'cycle_id', 'activity_id', 'activity_version', 'responsible_enrollment_id', 'title', 'exercises', 'report', 'starts_at', 'ends_at', 'status', 'version', 'created_at', 'updated_at'],
         'academy_attendances' => ['id', 'organization_id', 'cycle_id', 'session_id', 'enrollment_id', 'status', 'late_minutes', 'change_reason', 'version', 'created_at', 'updated_at'],
         'academy_session_revisions' => ['id', 'organization_id', 'session_id', 'kind', 'resource_id', 'actor_user_id', 'snapshot', 'recorded_at'],

@@ -23,6 +23,13 @@ final readonly class AcademyPeopleService implements AcademyPeopleDirectory
         return $this->people->choices($context->organizationId, max(1, min(100000, $page)), max(1, min(100, $perPage)));
     }
 
+    public function viewer(TenantContext $context): ?string
+    {
+        $this->authorization->authorize($context, 'academy.self.read');
+
+        return $this->people->viewer($context->organizationId, $context->actorUserId)['person_id'];
+    }
+
     public function account(TenantContext $context, string $personId, bool $lock = false): ?int
     {
         $this->authorization->authorize($context, 'academy.read');

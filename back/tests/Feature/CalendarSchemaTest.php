@@ -85,6 +85,8 @@ class CalendarSchemaTest extends TestCase
 
     public function test_empty_migration_round_trip_and_nonempty_rollback_guard(): void
     {
+        $coaching = require database_path('migrations/2026_10_22_224821_create_academy_objectives_and_feedback.php');
+        $coaching->down();
         $sessions = require database_path('migrations/2026_10_22_172532_create_academy_sessions_and_attendances.php');
         $sessions->down();
         $migration = require database_path('migrations/2026_10_17_094942_create_calendar_activities_and_participants.php');
@@ -98,6 +100,7 @@ class CalendarSchemaTest extends TestCase
         $this->assertFalse(Schema::hasTable('calendar_activities'));
         $migration->up();
         $sessions->up();
+        $coaching->up();
         $bookings->up();
         $invitations->up();
         $changes->up();

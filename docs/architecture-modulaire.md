@@ -2944,3 +2944,48 @@ Le verrou organisation sérialise les écritures : profiler sa contention et les
 plans des index avec la volumétrie cible avant d'envisager une granularité plus fine.
 Le frontend charge le panneau sur ouverture, pagine les listes, confirme les
 mutations et traite les versions du calendrier périmées avant la saisie.
+
+### Objectifs et feedback ACA-003
+
+Academy possède AcademyObjective, AcademyFeedback et AcademyCoachingRevision,
+un repository de persistance, AcademyCoachingService, FormRequest, Policy et
+Resources distincts. Le contrat public existant AcademyPeopleDirectory s’étend
+avec viewer(), autorisé par academy.self.read, qui résout seulement la personne
+active liée à l’acteur dans le tenant. People garde les requêtes et ses modèles ;
+aucune nouvelle dépendance intermodule ni accès à ses données administratives.
+
+Les mutations prennent le verrou métier compte/organisation puis les ressources du
+cycle. Responsable vérifié avant transaction et revérifié sous verrou ; validations
+et droits réévalués, version UUID obligatoire en correction. Écriture métier,
+révision chiffrée et audit minimal sont atomiques. Les conflits de version sont
+explicites. Une clôture limitée au statut et au motif n’exige pas une affectation
+encore active et n’autorise ni changement de destinataire ni modification de contenu.
+
+La visibilité est imposée par les requêtes du repository, avant déchiffrement et
+pagination. Un objectif est individuel (inscription destinataire immuable) ou
+collectif (étudiants courants du cycle). Les consultations personnelles résolvent
+au plus 100 inscriptions candidates plus sentinelle, bornées en UTC puis évaluées
+dans le fuseau du cycle ; dépassement refusé. Le filtre corrèle organisation,
+cycle et inscription avec EXISTS. Les pages staff eager-loadent destinataire et
+responsable et résolvent leurs pseudonymes par lots de 100.
+
+Le feedback partagé et les notes ont des routes et permissions distinctes ; la
+classification est immuable, les notes demandent une justification chiffrée.
+Les historiques filtrent les révisions internes en SQL sans en exposer le nombre.
+La projection personnelle est en lecture seule, limitée aux retours partagés
+actifs ; elle ne possède pas de route d’historique ou de notes et ne charge pas
+les identifiants d’inscription dans sa réponse. Aucun cache durable d’autorisations.
+
+Migration additive : trois tables avec FK directes tenant et composites cycle,
+index des pages, gardes SQL d’identité, de classification, d’états terminaux et
+d’historique append-only. Rollback protégé et inventaire de portabilité étendu.
+Rejeux Academy, Calendar, People, Tenancy, GameCatalogue (deux chemins) et Team
+adaptés ensemble avant validation PostgreSQL complète. La CI inclut les trois
+classes ACA-003 et les deux nouvelles courses à processus indépendants.
+
+Frontend : panneau staff dans le cycle et panneau personnel indépendant, chargés
+sur ouverture, sélecteurs paginés avec sélection conservée, confirmations explicites
+de publication, erreurs/reprises et historique borné. Aucun traitement planifié,
+notification ou métrique automatique. Les écritures restent sérialisées par tenant :
+mesurer contention et plans SQL à la volumétrie cible avant de modifier ce verrou.
+ACA-004 conserve ressources pédagogiques, évaluations et progression sportive.

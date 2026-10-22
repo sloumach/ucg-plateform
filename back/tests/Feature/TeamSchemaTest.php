@@ -88,6 +88,8 @@ class TeamSchemaTest extends TestCase
         $campaigns = require database_path('migrations/2026_10_16_013526_create_sponsorship_campaigns_and_deliverables.php');
         $media = require database_path('migrations/2026_10_16_192806_create_media_items_table.php');
         $communication = require database_path('migrations/2026_10_16_210818_create_communication_tables.php');
+        $coaching = require database_path('migrations/2026_10_22_224821_create_academy_objectives_and_feedback.php');
+        $coaching->down();
         $sessions = require database_path('migrations/2026_10_22_172532_create_academy_sessions_and_attendances.php');
         $calendar = require database_path('migrations/2026_10_17_094942_create_calendar_activities_and_participants.php');
         $bookings = require database_path('migrations/2026_10_17_112802_create_calendar_resources_reservations_and_conflict_overrides.php');
@@ -150,6 +152,7 @@ class TeamSchemaTest extends TestCase
         $statisticalExecution->up();
         $statisticalCalculations->up();
         $sessions->up();
+        $coaching->up();
         $this->assertDatabaseCount('academy_sessions', 0);
         $this->assertDatabaseCount('academy_attendances', 0);
         $this->assertDatabaseCount('academy_session_revisions', 0);

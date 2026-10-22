@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Modules\Academy\Application\Services\AcademyCoachingService;
 use App\Modules\Academy\Application\Services\AcademySessionService;
 use App\Modules\Academy\Domain\Models\AcademyCycle;
 use App\Modules\Academy\Domain\Models\AcademyEnrollment;
@@ -25,7 +26,7 @@ class AcademyConcurrencyTest extends TestCase
     /** @return array<string, array{string}> */
     public static function races(): array
     {
-        return ['same cohort version' => ['cohort'], 'duplicate enrollment' => ['enrollment'], 'same session version' => ['session'], 'duplicate presence' => ['attendance']];
+        return ['same cohort version' => ['cohort'], 'duplicate enrollment' => ['enrollment'], 'same session version' => ['session'], 'duplicate presence' => ['attendance'], 'same objective version' => ['objective'], 'same feedback version' => ['feedback']];
     }
 
     #[DataProvider('races')]
@@ -47,7 +48,7 @@ class AcademyConcurrencyTest extends TestCase
             $this->assertSame(0, Artisan::call('migrate', ['--force' => true, '--no-interaction' => true]));
             $org = Organization::factory()->create();
             $actor = User::factory()->withMfa()->create();
-            $this->grantPeopleAccess($org, $actor, ['academy.read', 'academy.manage', 'academy.attendance.manage', 'calendar.read']);
+            $this->grantPeopleAccess($org, $actor, ['academy.read', 'academy.manage', 'academy.attendance.manage', 'academy.feedback.manage', 'calendar.read']);
             $cohort = Cohort::factory()->create(['organization_id' => $org->id]);
             $cycle = AcademyCycle::factory()->create(['cohort_id' => $cohort->id]);
             $person = Person::factory()->create(['organization_id' => $org->id, 'status' => 'active']);
@@ -68,6 +69,18 @@ class AcademyConcurrencyTest extends TestCase
                     'id' => $kind === 'session' ? $session->id : null, 'input' => $kind === 'session'
                         ? ['version' => $session->version, 'activity_version' => $activity->version, 'title' => 'Correction concurrente', 'change_reason' => 'Correction de titre motivée.']
                         : ['enrollment_id' => $student->id, 'status' => 'present']];
+            }
+            if (in_array($kind, ['objective', 'feedback'], true)) {
+                $mentorUser = User::factory()->create();
+                OrganizationMembership::factory()->create(['organization_id' => $org->id, 'user_id' => $mentorUser->id]);
+                $mentorPerson = Person::factory()->create(['organization_id' => $org->id, 'user_id' => $mentorUser->id]);
+                $mentor = AcademyEnrollment::factory()->create(['cycle_id' => $cycle->id, 'person_id' => $mentorPerson->id, 'role' => 'mentor']);
+                $service = app(AcademyCoachingService::class);
+                $objective = $service->save($this->personContext($org, $actor), 'objective', $cohort->id, $cycle->id, null, null,
+                    ['title' => 'Objectif concurrent', 'target_enrollment_id' => null, 'responsible_enrollment_id' => $mentor->id, 'due_on' => '2026-11-01'], null);
+                $feedback = $kind === 'feedback' ? $service->save($this->personContext($org, $actor), 'shared', $cohort->id, $cycle->id, $objective->id, null, ['content' => 'Retour initial'], null) : null;
+                $payload = ['kind' => $kind, 'org' => $org->id, 'actor' => $actor->id, 'cohort' => $cohort->id, 'cycle' => $cycle->id, 'objective' => $objective->id,
+                    'feedback' => $feedback?->id, 'input' => ['version' => $feedback->version ?? $objective->version, 'change_reason' => 'Correction concurrente motivée.', ...($kind === 'objective' ? ['title' => 'Titre corrigé'] : ['content' => 'Retour corrigé'])]];
             }
             $environment = ['APP_ENV' => 'testing', 'APP_KEY' => config('app.key'), 'DB_CONNECTION' => 'pgsql', 'DB_DATABASE' => $database, 'DB_URL' => '',
                 'DB_HOST' => $config['host'], 'DB_PORT' => (string) $config['port'], 'DB_USERNAME' => $config['username'], 'DB_PASSWORD' => $config['password'],
@@ -109,6 +122,15 @@ class AcademyConcurrencyTest extends TestCase
             sort($statuses);
             $this->assertSame([200, 409], $statuses);
             $conflict = array_values(array_filter($results, fn (array $result): bool => $result['status'] === 409));
+            if (in_array($kind, ['objective', 'feedback'], true)) {
+                $this->assertSame('ACADEMY_COACHING_VERSION_STALE', $conflict[0]['code']);
+                $this->assertDatabaseCount('academy_objectives', 1);
+                $this->assertDatabaseCount('academy_feedback', $kind === 'feedback' ? 1 : 0);
+                $this->assertDatabaseCount('academy_coaching_revisions', $kind === 'feedback' ? 3 : 2);
+                $this->assertDatabaseCount('organization_audit_events', $kind === 'feedback' ? 3 : 2);
+
+                return;
+            }
             if (in_array($kind, ['session', 'attendance'], true)) {
                 $this->assertSame($kind === 'session' ? 'ACADEMY_SESSION_VERSION_STALE' : 'ACADEMY_ATTENDANCE_ALREADY_EXISTS', $conflict[0]['code']);
                 $this->assertDatabaseCount('academy_sessions', 1);

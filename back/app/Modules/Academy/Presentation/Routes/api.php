@@ -21,3 +21,4 @@ Route::prefix('tenants/{tenant}/academy')->whereUuid('tenant')->middleware('tena
 });
 
 require __DIR__.'/sessions.php';
+require __DIR__.'/coaching.php';

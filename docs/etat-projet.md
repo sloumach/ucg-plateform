@@ -5,29 +5,40 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 22 octobre 2026.
+- Dernière mise à jour : 23 octobre 2026.
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
+- Dernier ticket implémenté localement : **UCG-ACA-003**, objectifs individuels/collectifs et feedback,
+  notes internes justifiées avec permission distincte, accès personnel en lecture seule.
+  Migration `2026_10_22_224821` préparée, constatée Pending en lecture seule ;
+  aucune migration courante appliquée par l’agent. PostgreSQL CI complet :
+  2 385 réussis, 2 ignorés, aucun échec ; frontend 479/479, PHPStan/Pint/build/lint verts.
+  Vérifications et limites en fin de document. Avant usage : revue/push, CI distante,
+  sauvegarde, migration, droits explicites et recette avec comptes/API de recette.
+- Reprise ACA-003 : arbre propre et staging synchronisé avec origin/staging au commit
+  `4eaf848`. Migration ACA-001 constatée Ran batch 53 et ACA-002 Ran batch 54,
+  en lecture seule le 23 octobre. L’utilisateur a validé la poursuite vers ACA-003 ;
+  ce constat Git/base ne remplace pas une nouvelle vérification de la CI distante.
 - Correctif CI ACA-002 validé localement : les deux rejeux GameCatalogue et
   le rejeu Team retiraient Calendar sans retirer les séances qui le référencent.
   Les tests retirent maintenant ACA-002 avant Calendar et le restaurent après ses
   parents, avec vérification des trois tables. Sélection PostgreSQL complète de la
   CI : 2 358 réussis, 2 ignorés, aucun échec, 13 663 assertions. Aucune migration
-  applicative modifiée ; correctif local, push et CI distante restent à confirmer.
-- Dernier ticket implémenté localement : **UCG-ACA-002**, séances reliées au calendrier,
+  applicative modifiée ; commit `4eaf848` présent sur staging et la référence locale
+  origin/staging à la reprise ACA-003. La CI distante n’a pas été revérifiée ici.
+- Socle précédent : **UCG-ACA-002**, séances reliées au calendrier,
   exercices, compte rendu et présences avec corrections auditées. Migration additive
-  `2026_10_22_172532` préparée, non appliquée à la base courante ; aucune attribution
-  réelle de permissions. Validation locale complète décrite en fin de document.
-  Avant usage : revue/push, CI distante, sauvegarde, migration puis recette réelle.
-  Prochain ticket métier après validation de livraison : **UCG-ACA-003**.
+  `2026_10_22_172532` constatée Ran batch 54 à cette reprise ; aucune attribution
+  réelle de permissions par l’agent. Validation locale et limites décrites dans
+  la section ACA-002 ; la livraison ACA-003 figure ci-dessus et en fin de document.
 - Correctif CI ACA-001 : PersonSchemaTest retire puis recrée maintenant Academy
   autour du rejeu de People. Validé sur PostgreSQL isolé (57/57) ; commit `15bbb3a`
   présent sur staging et origin/staging à cette reprise, CI distante non confirmée.
   Aucun changement de migration dans ce correctif.
 - Socle précédent : **UCG-ACA-001**, cohortes, cycles, programme
   hebdomadaire, mentors et inscriptions privés. Migration additive
-  `2026_10_22_100213` préparée, non appliquée à la base courante. Permissions
+  `2026_10_22_100213` constatée Ran batch 53 à cette reprise. Permissions
   academy.read/academy.manage explicites, aucune attribution automatique.
   Détails, validations et limites dans la section ACA-001 en fin de document.
 - REP-004 : exports CSV privés
@@ -4888,3 +4899,95 @@ PostgreSQL de la CI, qui applique ce contrôle de dépendances même sur des tab
   pas confirmation d'une nouvelle exécution de la CI distante.
 - Aucune migration courante, donnée métier, permission, .env réel ou worker modifié.
   Le correctif concerne les tests et la documentation ; aucun push effectué.
+
+## Livraison locale UCG-ACA-003 — Objectifs et feedback
+
+### Périmètre et accès
+
+- Objectifs individuels ou collectifs d’un cycle, échéance, mentor responsable,
+  description pédagogique et statut en cours/atteint/annulé. Le destinataire
+  individuel ne change plus après création ; le collectif conserve cette audience.
+  Responsable et destinataire actifs dans le même cycle et couvrant l’échéance.
+  Le responsable a un compte vérifié et une adhésion courante ; aucun droit implicite.
+- Staff : academy.read pour la lecture, academy.manage pour les objectifs,
+  academy.feedback.manage pour publier/corriger/retirer les retours partagés,
+  academy.notes.manage pour consulter/gérer les notes internes justifiées. Les trois
+  permissions de gestion exigent aussi academy.read et restent indépendantes.
+- Joueur : nouveau panneau « Mes objectifs et retours », autorisé uniquement par
+  academy.self.read, sans besoin d’accès aux écrans staff, séances ou calendrier.
+  La personne liée au compte est résolue par le contrat public People ; jamais par
+  un identifiant de personne du client. Seules ses inscriptions étudiant actives à
+  la date locale du cycle permettent de lire ses objectifs individuels et ceux du
+  collectif. Retrait/expiration, départ ou révocation réévalués à chaque requête.
+- Feedback partagé actif seulement dans la projection personnelle. Aucune note,
+  justification, ancienne valeur, version de commande, inscription ou auteur de
+  feedback exposé au joueur. Pas de mutation ou d’historique personnel.
+- Les notes internes ont un parcours distinct, une justification obligatoire et une
+  classification immuable, sans conversion directe vers le partagé. Le lecteur staff
+  sans permission interne ne voit ni les notes ni leurs révisions ou leur nombre.
+  Le filtrage s’effectue en SQL avant pagination et déchiffrement.
+- Corrections avec version UUID et motif ; clôture des objectifs et retrait des
+  retours définitifs. La commande de clôture accepte seulement version/statut/motif,
+  même après retrait d’inscription ; elle ne peut réaffecter ni modifier le contenu.
+  Un objectif annulé ou des parents archivés bloque les nouvelles commandes enfants.
+  Les lectures historiques staff restent disponibles selon les droits courants.
+
+### Persistance, confidentialité et exploitation
+
+- Migration additive `2026_10_22_224821_create_academy_objectives_and_feedback` :
+  academy_objectives, academy_feedback, academy_coaching_revisions. FK directes tenant
+  et composites cycle/inscription, index de pagination, gardes SQL SQLite/PostgreSQL
+  sur audience, identités, états terminaux et historique append-only. L’index composite
+  des inscriptions vient d’ACA-002, qui doit donc précéder cette migration.
+- Chiffrement des titres, descriptions, contenus, justifications et snapshots.
+  Verrous métier puis ressources, réautorisation et validation transactionnelles,
+  révision et audit minimal atomiques ; aucun texte ou motif dans l’audit transverse.
+  Historique public limité aux métadonnées autorisées, sans snapshot déchiffré.
+- Inventaire fermé de portabilité étendu aux trois tables. Rejeux Academy, Calendar,
+  People, Tenancy, GameCatalogue (deux chemins) et Team adaptés ensemble, sans DROP
+  CASCADE. Les trois classes ACA-003 sont ajoutées à la sélection PostgreSQL CI.
+- Listes et sélecteurs paginés de 1 à 100 ; destinataire/responsable eager-loadés,
+  pseudonymes en lots de 100. Le sélecteur conserve les choix entre pages.
+  Résolution personnelle bornée à 100 inscriptions candidates plus sentinelle ;
+  comparaison finale dans chaque fuseau IANA, dépassement refusé sans troncature.
+- Pas de cache durable de permissions, de worker, de notification ou de calcul à
+  activer. Le verrou par organisation sérialise les commandes ; profiler contention
+  et plans de lecture/COUNT avec la volumétrie cible avant optimisation. Pas de
+  progression statistique ou d’évaluation automatique implicite ; ACA-004 reste P1.
+- Aucune migration courante ni donnée, adhésion, permission ou .env réel modifié.
+  Migration ACA-003 constatée Pending en lecture seule, ACA-001/002 Ran batches 53/54.
+  Conserver la clé de chiffrement et inclure les trois tables dans les sauvegardes.
+  Avant usage : revue/push, CI distante, sauvegarde, migration puis attribution
+  explicite des droits et recette sur comptes/données de recette. Éviter de donner
+  academy.read aux joueurs quand seul leur espace personnel est souhaité.
+
+### Vérifications
+
+- Suite backend SQLite complète avant les derniers ajustements de clôture/lecture : 2 616 cas,
+  2 567 réussis, 49 ignorés, 14 321 assertions, aucun échec. Après cet ajustement,
+  les trois classes ACA-003 ont été rejouées : 25/25 réussis, 154 assertions.
+- Scénarios : droits distincts, invité/propriétaire sans accès implicite, audience
+  individuelle/collective, personne non liée/partie, révocation/retrait, fuseau du
+  cycle, version périmée, champs inattendus, dates/affectations incohérentes,
+  historique chiffré, SQL d’identité/audience, rollback protégé, pagination et
+  résolution groupée des noms. Deux nouvelles courses à processus indépendants
+  couvrent les versions concurrentes des objectifs et du feedback.
+- Frontend complet final : 479/479 tests dans 65 fichiers ; sélection ACA-003
+  12/12 (pagination avec sélection conservée et retrait motivé/versionné inclus).
+  TypeScript/Vite et lint réussis.
+- Chrome avec API simulée : création d’un objectif individuel, publication explicite,
+  note justifiée puis passage au joueur, qui consulte le partagé sans requête de
+  notes ou écran staff. Confirmations de tenant vérifiées ; pas de débordement à
+  320, 375 et 1280 px ; captures personnelles 320 et staff 1280 inspectées.
+  Cette validation ne remplace pas la recette avec API et comptes de recette.
+- Sélection PostgreSQL complète du workflow (156 chemins, sans liste locale
+  réduite) : 2 387 cas, 2 385 réussis, 2 ignorés, 13 837 assertions, aucun échec.
+  Inclut les six courses concurrentes Academy, les trois classes ACA-003, les
+  rejeux People/Tenancy/Calendar/GameCatalogue/Team et les tests des autres modules
+  sélectionnés en CI. La base temporaire et celles des workers ont été supprimées.
+  Une seule suite PHP à la fois pour isoler aussi les fichiers Storage::fake.
+- Pint dirty réussi, PHPStan zéro erreur. Code/tests/docs réunis dans un seul
+  commit UCG-ACA-003, sans push ni succès de CI distante revendiqué.
+
+Après validation de livraison, réévaluer les P0 restants du backlog ; ACA-004
+conserve les ressources, évaluations et progression dans son périmètre P1.

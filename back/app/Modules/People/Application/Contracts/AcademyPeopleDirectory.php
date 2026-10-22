@@ -7,6 +7,9 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface AcademyPeopleDirectory
 {
+    /** Current tenant person linked to the actor; never accepts a client person ID. */
+    public function viewer(TenantContext $context): ?string;
+
     /** @return LengthAwarePaginator<int, array{id: string, label: string}> */
     public function choices(TenantContext $context, int $page, int $perPage): LengthAwarePaginator;
 

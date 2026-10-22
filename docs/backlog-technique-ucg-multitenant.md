@@ -631,6 +631,7 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : objectifs individuels/collectifs, échéances, responsable, feedback partagé et notes internes.
 - **Acceptation** : le joueur voit seulement le feedback partagé ; les notes internes suivent une permission distincte.
 - **Références CDC** : ACA-02, ACA-04.
+- **Livraison locale** : objectifs individuels ou collectifs par cycle, échéance et mentor responsable ; feedback partagé et notes internes justifiées via parcours et permissions distincts. Accès joueur en lecture seule par `academy.self.read`, personne liée au compte et inscription étudiant courante, filtrage avant pagination ; aucune exposition des notes ni de leurs révisions/comptages. Destinataire et classification immuables, corrections motivées/versionnées, clôture/retrait définitifs, révisions chiffrées et audit minimal. Migration additive `2026_10_22_224821` préparée, non appliquée à la base courante. Tous les rejeux des parents et l’inventaire de portabilité adaptés. Résultats et limites dans etat-projet.md ; CI, sauvegarde, migration et recette réelle avant usage.
 
 ### UCG-ACA-004 — Ajouter ressources, évaluations et progression
 

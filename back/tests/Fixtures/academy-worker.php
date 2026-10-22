@@ -2,6 +2,7 @@
 
 use App\Exceptions\DomainConflictException;
 use App\Modules\Academy\Application\Services\AcademyAttendanceService;
+use App\Modules\Academy\Application\Services\AcademyCoachingService;
 use App\Modules\Academy\Application\Services\AcademyService;
 use App\Modules\Academy\Application\Services\AcademySessionService;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
@@ -32,7 +33,9 @@ while (! is_file($barrier)) {
     clearstatcache(true, $barrier);
 }
 try {
-    if ($payload['kind'] === 'session') {
+    if (in_array($payload['kind'], ['objective', 'feedback'], true)) {
+        app(AcademyCoachingService::class)->save($context, $payload['kind'] === 'objective' ? 'objective' : 'shared', $payload['cohort'], $payload['cycle'], $payload['objective'], $payload['feedback'], $payload['input'], null);
+    } elseif ($payload['kind'] === 'session') {
         app(AcademySessionService::class)->save($context, $payload['cohort'], $payload['cycle'], $payload['input'], $payload['id']);
     } elseif ($payload['kind'] === 'attendance') {
         app(AcademyAttendanceService::class)->save($context, $payload['cohort'], $payload['cycle'], $payload['session'], $payload['input']);

@@ -3891,3 +3891,94 @@ dans les sauvegardes. Aucune migration courante ni permission réelle modifiée 
 cette livraison. Avant usage : revue/push, CI distante, sauvegarde, migration,
 attribution explicite des droits puis recette avec comptes et API de recette.
 Les objectifs, feedback et notes internes restent du périmètre ACA-003.
+
+### Académie — UCG-ACA-003
+
+Le suivi pédagogique se trouve dans « Objectifs et feedback » du cycle. L’espace
+« Mes objectifs et retours » est indépendant des écrans de gestion du staff.
+Les droits sont explicites, sans attribution automatique liée à une inscription :
+
+| Permission | Accès |
+| --- | --- |
+| `academy.read` | Lecture staff des objectifs, retours partagés et historique filtré |
+| `academy.manage` + `academy.read` | Création, modification et clôture des objectifs |
+| `academy.feedback.manage` + `academy.read` | Publication, correction et retrait du feedback partagé |
+| `academy.notes.manage` + `academy.read` | Lecture, rédaction, correction et retrait des notes internes justifiées |
+| `academy.self.read` | Lecture personnelle des objectifs accessibles et retours partagés actifs |
+
+Pour un objectif individuel, choisir une inscription étudiant du cycle ; `null`
+signifie collectif. Le destinataire reste fixe après création, afin d’éviter de
+partager d’anciens retours avec une nouvelle personne. Le mentor responsable doit
+avoir un compte vérifié actuellement membre/propriétaire du tenant. Responsable
+et destinataire doivent avoir une inscription active couvrant l’échéance, située
+dans le cycle. Le destinataire peut ne pas encore avoir de compte.
+
+La lecture personnelle résout la personne liée au compte courant côté People ;
+aucun person_id fourni par le client. Elle exige une inscription étudiant active
+à la date courante dans le fuseau du cycle. Les objectifs individuels d’autrui,
+notes internes et retours retirés sont exclus avant pagination. Une personne partie,
+une inscription clôturée/expirée, ou un compte sans personne liée ne reçoit aucun
+objectif. Une adhésion révoquée perd aussi l’accès au tenant. Les mentors consultent
+le suivi par les permissions staff ; leur affectation ne leur donne aucun droit.
+
+La limite est de 100 inscriptions personnelles candidates simultanées, avec une
+sentinelle de dépassement et un refus explicite, sans réponse tronquée. Les dates
+candidates sont bornées en UTC puis comparées dans chaque fuseau IANA. Les listes
+et sélecteurs sont paginés par `page` et `per_page` (1 à 100). Le sélecteur conserve
+ses choix entre les pages sans charger l’ensemble des inscrits.
+
+Routes staff sous `/api/v1/tenants/{tenant}/academy/cohorts/{cohort}/cycles/{cycle}` :
+
+- `GET/POST objectives`, `PATCH objectives/{objective}` ;
+- `GET/POST objectives/{objective}/feedback`,
+  `PATCH objectives/{objective}/feedback/{feedback}` ;
+- `GET/POST objectives/{objective}/notes`,
+  `PATCH objectives/{objective}/notes/{feedback}` ;
+- `GET objectives/{objective}/history` : métadonnées des révisions autorisées.
+
+Routes personnelles sous `/api/v1/tenants/{tenant}/academy` :
+`GET my-objectives`, `GET my-objectives/{objective}/feedback`. Aucun endpoint de
+mutation ni d’historique personnel. Ces projections ne retournent pas les versions
+de commande, identifiants des inscriptions, auteur du feedback ou justifications.
+
+Exemple après connexion SPA, CSRF et confirmation de l’organisation :
+
+```bash
+curl -X POST "$API_BASE/tenants/$TENANT/academy/cohorts/$COHORT/cycles/$CYCLE/objectives" \
+  -b cookies.txt -H "Origin: $FRONTEND_URL" -H "Accept: application/json" \
+  -H "Content-Type: application/json" -H "X-XSRF-TOKEN: $CSRF_TOKEN" \
+  -H "X-Tenant-Revision: $REVISION" \
+  -d '{"title":"Améliorer les placements","description":"Préparer les rotations collectives","due_on":"2026-12-01","target_enrollment_id":"UUID_INSCRIPTION_ETUDIANT","responsible_enrollment_id":"UUID_INSCRIPTION_MENTOR"}'
+```
+
+Pour publier un feedback, POST sur `/objectives/{objective}/feedback` avec
+`{"content":"Retour pédagogique partagé"}`. Pour une note interne, POST sur
+`/objectives/{objective}/notes` avec `content` et `justification` (10 à 1 000
+caractères). Ne pas envoyer de champ `audience` : la route fixe la classification,
+qui reste immuable. Aucun passage direct d’une note interne vers le partagé.
+Les titres/descriptions des objectifs et le feedback partagé doivent être rédigés
+pour leurs destinataires. Ne pas saisir de données médicales ou psychologiques.
+
+Chaque PATCH exige la version UUID courante et `change_reason` (10 à 1 000
+caractères). Statuts d’objectif : active/completed/cancelled. Une clôture envoie
+seulement version, status et change_reason ; elle demeure possible après retrait
+d’une inscription sans réaffecter l’objectif. Elle est définitive. Un objectif
+annulé ou un cycle/cohorte archivé bloque les nouvelles commandes de feedback.
+Le retrait d’un retour (`status: withdrawn`) est définitif ; le staff conserve
+son contenu et l’historique, tandis que la projection personnelle le masque.
+
+Les textes, justifications et instantanés sont chiffrés au repos. L’historique
+consultable expose seulement auteur, date, type et identifiant de ressource ; les
+révisions internes sont exclues en SQL pour les lecteurs sans permission de notes,
+y compris du total paginé. L’audit transverse ne contient pas les textes ou motifs.
+Les anciennes valeurs ne sont pas exposées via l’API. Les sauvegardes et exports
+opérateur autorisés restent des données privées, avec leur propre gouvernance.
+
+Migration additive `2026_10_22_224821_create_academy_objectives_and_feedback` :
+`academy_objectives`, `academy_feedback`, `academy_coaching_revisions`. Appliquer
+après ACA-001/002 (l’index composite des inscriptions vient d’ACA-002), sauvegarde
+et CI verte. FK tenant/cycle, index, gardes d’audience et historique append-only
+sur PostgreSQL/SQLite. Le retour arrière refuse les tables utilisées. Inclure
+les trois tables dans les sauvegardes et conserver la clé de chiffrement.
+Aucune migration de la base courante ni attribution réelle de permissions effectuée
+par cette livraison ; recette avec comptes et API de recette avant usage.
