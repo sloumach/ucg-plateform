@@ -25,9 +25,12 @@ final readonly class TenantArtifactService implements TenantArtifacts
         private TenantTechnicalLimits $limits, private TenantResolver $resolver,
     ) {}
 
-    public function store(TenantContext $context, string $name, string $contents): TenantArtifactData
+    public function store(TenantContext $context, string $name, string $contents, ?\DateTimeImmutable $expiresAt = null): TenantArtifactData
     {
         $this->authorize($context);
+        if ($expiresAt !== null && $expiresAt <= now()) {
+            throw new InvalidArgumentException('Artifact expiration must be in the future.');
+        }
         if ($name === '' || mb_strlen($name) > 255 || basename($name) !== $name
             || preg_match('/[\x00-\x1f\x7f\\\\:%]/', $name) || in_array($name, ['.', '..'], true)) {
             throw new InvalidArgumentException('An artifact requires a safe display filename.');
@@ -40,7 +43,7 @@ final readonly class TenantArtifactService implements TenantArtifacts
         }
         $this->privateDisk($disk);
         $organizationId = strtolower($context->organizationId);
-        $record = $this->ledger->reserve($organizationId, $name, $bytes, $disk, $this->limits->value($context, 'storage_bytes'));
+        $record = $this->ledger->reserve($organizationId, $name, $bytes, $disk, $this->limits->value($context, 'storage_bytes'), $expiresAt);
         $path = $this->path($context, $record['id']);
         try {
             $this->ledger->locked($organizationId, $record['id'], function () use ($context, $disk, $path, $contents, $organizationId, $record): void {
@@ -67,7 +70,7 @@ final readonly class TenantArtifactService implements TenantArtifacts
     {
         $this->authorize($context);
         $record = $this->record($context, $artifactId);
-        if (! $record['ready']) {
+        if (! $record['ready'] || $this->ledger->expired($context->organizationId, $artifactId)) {
             throw new ModelNotFoundException;
         }
         try {
@@ -107,6 +110,41 @@ final readonly class TenantArtifactService implements TenantArtifacts
         $this->authorize($context);
 
         return $this->ledger->usedBytes(strtolower($context->organizationId));
+    }
+
+    /** Server maintenance only. It can remove expired artifacts, never read them or shorten a lifetime.
+     * @phpstan-impure */
+    public function expireBatch(): int
+    {
+        $failures = 0;
+        $started = hrtime(true);
+        foreach ($this->ledger->expiredBatch(100) as $candidate) {
+            if (hrtime(true) - $started > 45_000_000_000) {
+                break;
+            }
+            try {
+                $this->ledger->locked($candidate['organization_id'], $candidate['id'], function (array $record) use ($candidate): void {
+                    if (! $this->ledger->expired($candidate['organization_id'], $candidate['id'])) {
+                        return;
+                    }
+                    $disk = $this->privateDisk($record['disk']);
+                    $path = TenantResourceNamespace::path($candidate['organization_id'], 'artifacts/'.$candidate['id']);
+                    if ($disk->exists($path) && ! $disk->delete($path)) {
+                        throw new ArtifactStorageException('Unable to expire tenant artifact.');
+                    }
+                    $this->ledger->release($candidate['organization_id'], $candidate['id']);
+                });
+            } catch (ModelNotFoundException) {
+                // Another cleanup process already removed this candidate.
+            } catch (Throwable $exception) {
+                $failures++;
+                report($exception);
+                // Rotate failed storage attempts so one tenant cannot starve the next batch.
+                $this->ledger->deferExpiry($candidate['organization_id'], $candidate['id']);
+            }
+        }
+
+        return $failures;
     }
 
     private function authorize(TenantContext $context): void

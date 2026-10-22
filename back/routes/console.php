@@ -37,3 +37,10 @@ if (config('tenancy.portability.expire_exports_scheduled') === true) {
     Schedule::command('organizations:expire-exports')->everyTenMinutes()
         ->name('tenant-export-expiry')->onOneServer()->withoutOverlapping(2);
 }
+
+if (config('report_exports.expire_artifacts_scheduled') === true) {
+    app(TenantCacheStore::class)->repository();
+    Schedule::useCache((string) config('tenancy.cache_store'));
+    Schedule::command('tenancy:expire-artifacts')->everyTenMinutes()
+        ->name('tenant-artifact-expiry')->onOneServer()->withoutOverlapping(2);
+}

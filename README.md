@@ -3706,3 +3706,62 @@ aucun total exhaustif n’est annoncé. Aucun contenu documentaire, contact priv
 index en clair ni nouvelle migration. Les droits financiers restreignent aussi les
 métadonnées des documents contractuels. Voir `docs/conventions-api.md` pour les
 filtres, limites, erreurs et exemples.
+
+## Exports privés de pilotage — UCG-REP-004
+
+Les utilisateurs habilités peuvent demander un CSV depuis les tableaux de bord,
+puis consulter et télécharger leurs propres exports. La permission explicite
+`reporting.export` s'ajoute aux permissions de la vue et du rapport. Elle est
+privilégiée, limitée à l'organisation et n'est attribuée à personne automatiquement.
+
+Six projections organisationnelles sont proposées : effectif actif, personnes sans
+compte, qualité des imports de personnes, contrats à échéance, livrables en retard
+et échéances de participation. Les vues à audience individuelle, les corps des
+documents et les montants financiers détaillés ne sont pas exportés par ce parcours.
+Les rapports datés acceptent une fenêtre inclusive de 31 jours ; les autres sont
+des instantanés des données actuelles, sans filtre de période effectif.
+
+La génération s'exécute sur la file persistante `reports` sous le contexte tenant
+restauré par TEN-006. Limites : 500 lignes, 8 Mio de CSV, dix demandes non expirées
+par tenant et une heure de disponibilité à partir de la demande. Les quotas
+tenant peuvent être plus restrictifs ; aucun fichier partiel n'est publié.
+Le CSV utilise UTF-8, le séparateur point-virgule et neutralise les formules.
+Il est chiffré au repos, stocké via `TenantArtifacts`, sans URL publique,
+et ses téléchargements sont réautorisés et audités.
+
+Une modification transactionnelle de la source invalide le fichier. Le téléchargement
+ne relance aucun calcul ; demander un nouvel export après un refus de fraîcheur.
+Le nettoyage serveur supprime uniquement les artefacts dont la date d'expiration
+est atteinte, même après révocation de l'utilisateur. Il libère le quota et laisse
+les fichiers permanents et l'historique des demandes intacts. Les artefacts orphelins
+d'une interruption de génération portent aussi cette expiration.
+
+Migration additive :
+`2026_10_21_224633_create_report_exports_and_artifact_expiry`.
+Elle crée `report_exports` et ajoute une expiration nullable aux artefacts existants,
+sans backfill ni modification de leur durée de conservation. Appliquer cette
+migration après sauvegarde et validation CI, avant de déployer les nouveaux accès
+aux artefacts. Son retour arrière refuse de supprimer un historique ou une
+expiration déjà utilisée.
+
+Valeurs par défaut dans `.env.example` :
+
+```dotenv
+REPORT_EXPORTS_ENABLED=false
+EXPIRE_TENANT_ARTIFACTS_ENABLED=false
+```
+
+La recette doit vérifier dans un environnement isolé la migration, les permissions,
+TEN-006, le cache partagé database/Redis, le worker reports et le nettoyage.
+Les queues sync/null sont refusées. Après cette recette, l'opérateur peut activer
+les deux réglages et le scheduler ; aucune activation réelle n'est effectuée
+dans cette livraison. Le nettoyage borné peut aussi être exécuté par un opérateur :
+
+```bash
+php artisan tenancy:expire-artifacts
+```
+
+Un lot examine au plus 100 fichiers et arrête sa boucle après 45 secondes ; les
+erreurs de stockage conservent la réservation et sont réessayables. Ne pas modifier
+la date d'expiration pour contourner un échec. Les règles du stockage et les
+traitements STAT-004/REP-002 restent indépendants.

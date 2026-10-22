@@ -13,6 +13,7 @@ enum Permission: string
     case RolesAssign = 'roles.assign';
     case AuditView = 'audit.view';
     case ReportingDirection = 'reporting.direction';
+    case ReportingExport = 'reporting.export';
     case ReportingManager = 'reporting.manager';
     case ReportingCoach = 'reporting.coach';
     case ReportingPlayer = 'reporting.player';

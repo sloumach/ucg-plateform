@@ -15,7 +15,7 @@ final readonly class DatabaseArtifactLedger implements ArtifactLedger
 {
     public function __construct(private DatabaseManager $database) {}
 
-    public function reserve(string $organizationId, string $name, int $bytes, string $disk, int $limit): array
+    public function reserve(string $organizationId, string $name, int $bytes, string $disk, int $limit, ?\DateTimeImmutable $expiresAt = null): array
     {
         $connection = $this->database->connection();
         // A durable reservation must commit before external I/O; never join a caller's transaction.
@@ -23,7 +23,7 @@ final readonly class DatabaseArtifactLedger implements ArtifactLedger
             throw new LogicException('Artifact writes must run outside an enclosing database transaction.');
         }
 
-        return $connection->transaction(function () use ($organizationId, $name, $bytes, $disk, $limit, $connection): array {
+        return $connection->transaction(function () use ($organizationId, $name, $bytes, $disk, $limit, $connection, $expiresAt): array {
             $this->lockOrganization($organizationId);
             $connection->table('tenant_storage_usage')->insertOrIgnore(['organization_id' => $organizationId, 'bytes' => 0]);
             $used = $this->usedBytes($organizationId);
@@ -35,6 +35,7 @@ final readonly class DatabaseArtifactLedger implements ArtifactLedger
             $connection->table('tenant_artifacts')->insert([
                 'id' => $id, 'organization_id' => $organizationId, 'name' => $name, 'bytes' => $bytes,
                 'disk' => $disk, 'ready' => false, 'created_at' => now(), 'updated_at' => now(),
+                ...($expiresAt === null ? [] : ['expires_at' => $expiresAt]),
             ]);
 
             return ['id' => $id, 'name' => $name, 'bytes' => $bytes, 'disk' => $disk, 'ready' => false];
@@ -51,6 +52,25 @@ final readonly class DatabaseArtifactLedger implements ArtifactLedger
 
         return ['id' => (string) $record->id, 'name' => (string) $record->name,
             'bytes' => (int) $record->bytes, 'disk' => (string) $record->disk, 'ready' => (bool) $record->ready];
+    }
+
+    public function expired(string $organizationId, string $artifactId): bool
+    {
+        return $this->database->connection()->table('tenant_artifacts')->where('organization_id', $organizationId)->where('id', $artifactId)
+            ->whereNotNull('expires_at')->where('expires_at', '<=', now())->exists();
+    }
+
+    public function expiredBatch(int $limit): array
+    {
+        return array_values($this->database->connection()->table('tenant_artifacts')->whereNotNull('expires_at')->where('expires_at', '<=', now())
+            ->orderBy('updated_at')->orderBy('id')->limit(min(100, max(1, $limit)))->get(['organization_id', 'id'])
+            ->map(fn ($row) => ['organization_id' => (string) $row->organization_id, 'id' => (string) $row->id])->all());
+    }
+
+    public function deferExpiry(string $organizationId, string $artifactId): void
+    {
+        $this->database->connection()->table('tenant_artifacts')->where('organization_id', $organizationId)->where('id', $artifactId)
+            ->where('expires_at', '<=', now())->update(['updated_at' => now()]);
     }
 
     public function locked(string $organizationId, string $artifactId, Closure $operation): mixed

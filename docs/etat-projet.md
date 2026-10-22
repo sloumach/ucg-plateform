@@ -5,15 +5,21 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 20 octobre 2026.
+- Dernière mise à jour : 22 octobre 2026.
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket implémenté localement : **UCG-REP-003**, recherche limitée au tenant,
-  backend et frontend, six catégories (personnes, équipes, matchs, compétitions,
-  documents contractuels et documents de compétition). Aucun index en clair,
-  aucune nouvelle migration, aucun worker. Travail non committé ; validation
-  détaillée en fin de document.
+- Dernier ticket implémenté localement : **UCG-REP-004**, exports CSV privés
+  asynchrones de six rapports organisationnels, backend et frontend. Migration
+  additive `2026_10_21_224633` préparée, jamais appliquée à la base courante.
+  Génération et nettoyage planifié désactivés par défaut ; aucun .env réel,
+  worker, permission réelle ou donnée métier réelle modifié. Livraison incluse
+  dans le commit UCG-REP-004 ; push et CI distante restent à confirmer.
+  Validation et limites détaillées en fin de document ; revue/push, CI distante,
+  sauvegarde, migration puis recette isolée avant activation.
+- REP-003 : commit `355f42b` constaté au démarrage sur `staging` et la référence
+  locale `origin/staging`, arbre propre. Cela remplace les mentions historiques
+  « non committé » ; CI distante non vérifiée dans cette étape.
 - REP-002 : commits `fae8c06` et correctif PostgreSQL `4ce0e30` créés sur staging.
   Le correctif ajoute REP-002 au démontage/rejeu manuel de OrganizationSchemaTest ;
   27 tests SQLite et 47 PostgreSQL réussis. La CI distante du correctif n’a pas été
@@ -177,7 +183,7 @@
 - TEAM-004 (`59023ce`) poussé ; CI et migration validées par l’utilisateur avant
   TEAM-005. Branche propre et synchronisée au démarrage ; migration confirmée
   en lecture seule : Ran, batch 17.
-- Prochaine action : revue/push de STAT-001, CI vertes, sauvegarde puis
+- Ancienne consigne STAT-001 (historique) : revue/push de STAT-001, CI vertes, sauvegarde puis
   `php artisan migrate` depuis back/. Recetter un lecteur vérifié et un superadmin
   plateforme avec MFA, correction de formule, historique, révocation et concurrence.
   Aucune métrique ni attribution de rôle automatique. Le catalogue reste vide à
@@ -4534,3 +4540,105 @@ Le test de recherche est ajouté à la sélection CI PostgreSQL. Au bilan Git :
 rapport généré ou configuration temporaire n’est ajouté au suivi.
 
 Aucun commit/push, aucune migration sur la base courante ni activation réelle.
+
+## UCG-REP-004 — Exports privés asynchrones de pilotage
+
+Reprise de REP-003 : commit `355f42b` présent sur staging et la référence locale
+origin/staging ; arbre propre au démarrage, CI distante non vérifiée. L'ancienne
+mention REP-003 non committé dans le point de reprise est corrigée.
+
+Livraison locale backend/frontend :
+
+- Demande fermée et idempotente par UUID client, tenant et acteur ; permissions
+  explicites `reporting.export`, vue et droits métier actuels. Pas de permission
+  automatiquement attribuée, même aux propriétaires.
+- Six rapports fondés sur les projections publiques existantes : active_people,
+  unlinked_people, people_imports, expiring_contracts, overdue_deliverables,
+  registration_due. Aucun accès direct aux modèles d'un autre module.
+- File persistante `reports`, TEN-006, restauration du contexte et MFA, droits
+  revérifiés, verrou tenant/export de 120 secondes pour un job limité à 60 secondes.
+  Une livraison en double sous verrou est ignorée sans invalider le travail actif.
+  Les erreurs permanentes terminent la demande ; les erreurs de transport/stockage
+  restent réessayables selon le contrat TenantJob.
+- CSV UTF-8 à point-virgule, colonnes fermées, sans identité administrative brute,
+  contenu documentaire ni montant supplémentaire. Formules neutralisées et
+  guillemets échappés. Une source vide donne uniquement l'en-tête.
+- Fenêtre datée inclusive de 31 jours maximum, instantanés explicitement signalés,
+  500 lignes, 8 Mio, dix demandes non expirées/tenant, quotas techniques applicables.
+  Les pages sont traitées en worker, avec contrôle du total, des doublons, du temps
+  écoulé et de la version de source ; aucun résultat partiel n'est publié.
+- Fichier chiffré au repos, stockage privé TenantArtifacts et quota existant,
+  durée d'une heure depuis la demande, accès réservé au demandeur.
+  Chaque téléchargement revérifie droits, acteur, tenant, fuseau, expiration,
+  intégrité et génération transactionnelle de la source, puis écrit les journaux
+  transverse et sensible. Une modification de source refuse l'ancien fichier ;
+  aucun calcul lourd n'est relancé dans HTTP. Cache HTTP private/no-store,
+  pas d'URL publique ni signée.
+- Métadonnées paginées et filtrées selon les droits source avant comptage.
+  Interface avec confirmation explicite, toasts, téléchargement Blob, expiration
+  calculée depuis l'heure serveur, annulation des réponses obsolètes et suppression
+  des résultats lors d'une erreur/révocation/changement de contexte.
+- Expiration optionnelle des artefacts intégrée à Tenancy sans raccourcir les
+  fichiers existants. Nettoyage opérateur `tenancy:expire-artifacts`, au plus
+  100 candidats et boucle de 45 secondes, libération du quota seulement après
+  suppression réussie. Les échecs de stockage restent réservés, sont décalés
+  derrière les autres candidats et peuvent être réessayés. Les fichiers expirés
+  sont illisibles avant même le nettoyage ; le départ de l'acteur ne l'empêche pas.
+  Les fichiers non expirables et les historiques sont conservés.
+
+Migration additive `2026_10_21_224633_create_report_exports_and_artifact_expiry` :
+table report_exports tenant, index, gardes SQL d'identité/état terminal et
+expiration nullable dans tenant_artifacts. Retour arrière refusé si les nouvelles
+données ou des expirations sont utilisées. Catalogue opérateur de portabilité
+mis à jour explicitement pour la nouvelle table/colonne ; OrganizationSchemaTest
+démonte/rejoue ce lot avant les tables antérieures. Aucun migrate sur la base
+courante, backfill, activation d'environnement ou worker réel. Déployer la migration
+après sauvegarde/CI et avant le nouveau code d'accès aux artefacts.
+
+Réglages séparés et désactivés par défaut :
+`REPORT_EXPORTS_ENABLED=false`, `EXPIRE_TENANT_ARTIFACTS_ENABLED=false`.
+Les queues sync/null sont refusées ; database/Redis persistants et cache partagé
+sont requis pour la recette. Le scheduler de nettoyage est opt-in. Une recette
+avec plusieurs comptes/organisations, révocation, source modifiée, échec stockage,
+reprise et expiration doit précéder l'activation supervisée.
+
+Limites de périmètre assumées : aucune exportation des cinq cartes à audience
+individuelle ou contextuelle, ni des cartes sans source ; pas d'export exhaustif
+des données métier, de rapports financiers détaillés ou de documents bruts.
+Les gros rapports dépassant 500 lignes sont refusés ; augmenter cette capacité
+nécessite de profiler les sources et d'ajouter des parcours de lecture dédiés
+plutôt que d'élargir aveuglément les pages et délais. TEN-007 reste un parcours
+opérateur indépendant.
+
+Validation :
+
+- REP-004 final : 35/35 cas SQLite, 241 assertions ; même sélection 35/35 sur une
+  base PostgreSQL temporaire supprimée après le test. Couverture des six rapports,
+  CSV, formule/espaces/tabulation, source vide, permissions, tenant/acteur, droits
+  révoqués en worker, limites, changement source pendant/après génération,
+  intégrité, expiration sans scheduler, nettoyage après départ, échec/reprise
+  stockage, concurrence par verrou et livraison en double.
+- Suite backend complète : 2 482 réussis, 43 ignorés, zéro erreur/échec
+  (2 525 cas, 13 861 assertions), rapport reports/rep004-sqlite.xml.
+  Cette passe précède les quatre derniers cas de robustesse, validés ensuite
+  dans la sélection finale de 35 cas.
+- Sélection PostgreSQL élargie Tenancy, REP-001/REP-002/REP-004 et architecture :
+  368 réussis, deux ignorés (370 cas, 1 886 assertions). Bases temporaires
+  supprimées. Les 35 cas REP-004 finaux ont été repassés séparément sur PostgreSQL.
+  REP-004 est ajouté à la sélection PostgreSQL de CI.
+- Frontend complet : 448/448 dans 62 fichiers, avant le dernier cas d'expiration
+  locale ; sélection finale ReportExportPanel : 9/9. Build, lint sans avertissement,
+  typage strict React/Playwright validés.
+- Parcours Chrome avec API simulée : confirmation, absence de génération automatique,
+  file, téléchargement CSV réel, refus après changement source, rendu 375/320 px
+  sans débordement. Captures examinées visuellement. Cette recette simulée ne
+  remplace pas l'activation du worker/stockage réel en environnement isolé.
+- PHPStan zéro erreur ; Pint fichiers nouveaux et dirty passés, diff sans erreurs
+  d'espacement. Les premiers contrôles ont révélé le catalogue opérateur oublié,
+  corrigé puis les tests de portabilité/maintenance ont été repassés. Le problème
+  d'écriture initial de Pint sur le provider Tenancy est résolu et dirty repasse.
+
+Livraison incluse dans le commit UCG-REP-004 ; push non effectué dans cette étape.
+Aucun .env réel ni permission/donnée métier
+réelle modifié, aucun message externe envoyé. Revue du diff, CI distante,
+sauvegarde, migration et recette réelle restent les prochaines étapes.

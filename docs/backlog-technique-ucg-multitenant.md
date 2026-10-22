@@ -1244,7 +1244,7 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Périmètre** : personnes, équipes, matchs, compétitions et documents autorisés ; filtres et autocomplétion.
 - **Acceptation** : aucune existence d’un autre tenant révélée ; champs confidentiels exclus de l’index non autorisé.
 - **Références CDC** : REC-24.
-- **Livraison locale** : recherche backend/frontend par catégorie et préfixe de libellé/référence ; personnes, équipes, matchs visibles, compétitions et métadonnées documentaires autorisées. Suggestions bornées, pagination par curseur chiffré lié au contexte, filtres fermés et droits revérifiés. Aucun index en clair, aucun corps documentaire ni total exhaustif ; parcours limité à 100 candidats examinés par appel, continuation explicite. Pas de nouvelle migration. Vérifications et limites de volumétrie dans etat-projet.md ; travail non committé, CI/recette restent à confirmer.
+- **Livraison locale** : recherche backend/frontend par catégorie et préfixe de libellé/référence ; personnes, équipes, matchs visibles, compétitions et métadonnées documentaires autorisées. Suggestions bornées, pagination par curseur chiffré lié au contexte, filtres fermés et droits revérifiés. Aucun index en clair, aucun corps documentaire ni total exhaustif ; parcours limité à 100 candidats examinés par appel, continuation explicite. Pas de nouvelle migration. Vérifications et limites de volumétrie dans etat-projet.md ; commit 355f42b constaté au démarrage de REP-004, CI/recette restent à confirmer.
 
 
 ### UCG-REP-004 — Générer les exports asynchrones
@@ -1253,6 +1253,7 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Périmètre** : demande, permission figée ou revérifiée selon politique, job, fichier privé, expiration et audit.
 - **Acceptation** : période et volume bornés ; téléchargement réautorisé ; cache et stockage isolés.
 - **Références CDC** : REC-27.
+- **Livraison locale** : demande idempotente, file persistante reports, CSV chiffré au repos réservé au demandeur, permission explicite reporting.export plus droits métier et vue courants, journal transverse et sensible, expiration une heure et nettoyage des artefacts expirés avec libération du quota. Catalogue fermé : active_people, unlinked_people, people_imports, expiring_contracts, overdue_deliverables, registration_due. Périodes bornées à 31 jours pour les rapports datés ; instantanés signalés comme tels. Limites 500 lignes, 8 Mio et dix demandes non expirées par tenant ; aucun résultat tronqué. Source modifiée pendant/après génération : export refusé, pas de recalcul HTTP. Audiences individuelles, contenus documentaires, finances détaillées et exports exhaustifs ne sont pas couverts. Migration additive 2026_10_21_224633 préparée ; traitements désactivés par défaut et aucune migration courante appliquée. Validation dans etat-projet.md ; revue/push, CI et recette restent à faire.
 
 ## 19 Module API, webhooks et intégrations
 

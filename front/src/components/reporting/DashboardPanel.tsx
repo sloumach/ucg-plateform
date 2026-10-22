@@ -3,6 +3,7 @@ import { type ActiveOrganization } from '../../api/tenancy'
 import { dashboardViews, dashboardText as text, type DashboardCatalogue, type DashboardCard, type DashboardCardDefinition } from '../../api/dashboards'
 import { useDashboardRead } from './useDashboardRead'
 import { DashboardIndicatorPanel } from './DashboardIndicatorPanel'
+import { ReportExportPanel } from './ReportExportPanel'
 import { Button } from '../Button'
 import { FormField } from '../FormField'
 import { Alert } from '../feedback/Alert'
@@ -46,6 +47,7 @@ function Dashboards({ active, disabled, onInvalid }: Props) {
       {query && query.view === selected?.id && <section aria-label={text('results')} className="grid min-w-0 gap-4">
         <h3 className="font-bold">{selected.label}</h3><Button disabled={disabled} onClick={() => setQuery({ ...query, revision: query.revision + 1 })}>{text('refresh')}</Button>
         <div className="grid min-w-0 gap-4 xl:grid-cols-2">{selected.cards.map((card) => <Card key={card.id + ':' + JSON.stringify(query)} {...{ active, disabled, onInvalid, root, card, query }} />)}</div>
+        <ReportExportPanel active={active} disabled={disabled} onInvalid={onInvalid} cards={selected.cards} query={query} />
       </section>}</>}
     </>}
   </section>

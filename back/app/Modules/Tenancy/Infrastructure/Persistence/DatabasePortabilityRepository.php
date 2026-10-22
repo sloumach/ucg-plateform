@@ -18,7 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
-        'dashboard_indicator_revisions' => 'id', 'dashboard_indicators' => 'id', 'dashboard_source_versions' => 'card',
+        'report_exports' => 'id', 'dashboard_indicator_revisions' => 'id', 'dashboard_indicators' => 'id', 'dashboard_source_versions' => 'card',
         'statistical_calculations' => 'id', 'statistical_calculation_sources' => 'id', 'statistical_calculation_revisions' => 'id',
         'statistical_import_executions' => 'id', 'statistical_import_receipts' => 'id',
         'statistical_imports' => 'id',
@@ -73,6 +73,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
     private const array COLUMNS = [
         'dashboard_source_versions' => ['organization_id', 'card', 'generation'],
         'dashboard_indicators' => ['id', 'organization_id', 'actor_user_id', 'fingerprint', 'cache_key', 'card', 'view', 'timezone', 'from_date', 'to_date', 'status', 'version', 'failure_code', 'created_at', 'updated_at'],
+        'report_exports' => ['id', 'organization_id', 'actor_user_id', 'request_key', 'card', 'view', 'timezone', 'from_date', 'to_date', 'status', 'artifact_id', 'source_version', 'row_count', 'digest', 'expires_at', 'generated_at', 'created_at', 'updated_at'],
         'dashboard_indicator_revisions' => ['id', 'organization_id', 'indicator_id', 'number', 'generation', 'source_version', 'engine_version', 'result', 'evaluated_at', 'expires_at', 'request_id', 'created_at'],
         'statistical_calculations' => ['id', 'organization_id', 'actor_user_id', 'metric_id', 'metric_revision_id', 'fingerprint', 'status', 'version', 'source_count', 'definition', 'failure_code', 'created_at', 'updated_at'],
         'statistical_calculation_sources' => ['id', 'organization_id', 'calculation_id', 'observation_id'],
@@ -174,7 +175,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
         'person_game_profiles' => ['id', 'organization_id', 'person_id', 'game_key', 'platform_key', 'region_key', 'rank', 'game_role', 'observed_at', 'status', 'version', 'created_at', 'updated_at'],
         'person_external_accounts' => ['id', 'organization_id', 'game_profile_id', 'game_key', 'platform_key', 'region_key', 'provider_key', 'external_id', 'display_name', 'observed_at', 'status', 'version', 'created_at', 'updated_at'],
         'tenant_storage_usage' => ['organization_id', 'bytes'],
-        'tenant_artifacts' => ['id', 'organization_id', 'name', 'disk', 'bytes', 'ready', 'created_at', 'updated_at'],
+        'tenant_artifacts' => ['id', 'organization_id', 'name', 'disk', 'bytes', 'ready', 'created_at', 'updated_at', 'expires_at'],
         'tenant_portability_operations' => ['id', 'organization_id', 'actor_user_id', 'request_id', 'kind', 'status', 'reason', 'disk', 'bytes', 'sha256', 'expires_at', 'details', 'created_at', 'updated_at'],
     ];
 

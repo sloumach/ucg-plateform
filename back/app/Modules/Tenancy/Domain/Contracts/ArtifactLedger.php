@@ -8,7 +8,14 @@ use Closure;
 interface ArtifactLedger
 {
     /** @return ArtifactRecord */
-    public function reserve(string $organizationId, string $name, int $bytes, string $disk, int $limit): array;
+    public function reserve(string $organizationId, string $name, int $bytes, string $disk, int $limit, ?\DateTimeImmutable $expiresAt = null): array;
+
+    public function expired(string $organizationId, string $artifactId): bool;
+
+    /** @return list<array{organization_id:string,id:string}> */
+    public function expiredBatch(int $limit): array;
+
+    public function deferExpiry(string $organizationId, string $artifactId): void;
 
     /** @return ArtifactRecord */
     public function find(string $organizationId, string $artifactId): array;

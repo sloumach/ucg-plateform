@@ -4364,3 +4364,74 @@ Aucun total exhaustif ; parcours renouvelé pour refléter les modifications.
 Aucun cache/index en clair n’est créé. Les clients doivent annuler/ignorer les
 réponses obsolètes lors d’un changement de filtres ou contexte, et ne pas lancer
 un parcours exhaustif automatique pour l’autocomplétion.
+
+### UCG-REP-004 — Exports CSV privés asynchrones
+
+Routes authentifiées/MFA sous `tenants/{tenant}/exports`. `reporting.export`
+est nécessaire pour chaque action, en plus des droits actuels du rapport et de sa
+vue. L'acteur et le tenant sont résolus côté serveur. Un autre acteur, même habilité
+dans la même organisation, ne peut pas lire le fichier ou l'identifiant d'une demande
+qui ne lui appartient pas. Les métadonnées sans droits source sont filtrées avant
+le comptage et la pagination.
+
+- `POST /api/v1/tenants/{tenant}/exports` : confirmation tenant et
+  `X-Tenant-Revision`, CSRF, objet fermé
+  `{card,view,from,to,confirm:true,request_key:UUID}`.
+  La même clé pour le même acteur/tenant/filtre renvoie la même demande sans
+  redispatch ; des paramètres différents donnent `REPORT_EXPORT_INPUT`.
+  Aucun calcul ni fichier ne sont produits dans la requête.
+- `GET /api/v1/tenants/{tenant}/exports?page=1` : dix demandes par page,
+  métadonnées du traitement (`enabled,max_rows,lifetime_minutes,checked_at`),
+  `items[]` et `meta {current_page,last_page,total}`.
+- `GET /api/v1/tenants/{tenant}/exports/{export}` : état et métadonnées
+  autorisées du demandeur. Identité de stockage, empreinte et version source exclues.
+- `GET /api/v1/tenants/{tenant}/exports/{export}/download` :
+  `text/csv; charset=UTF-8`, attachment, nosniff, private/no-store.
+  Pas de redirection ni d'URL signée. Le fichier ne sort qu'après contrôle
+  d'intégrité, droits, expiration, fuseau et version transactionnelle de la source,
+  puis audit sensible et transverse.
+
+Catalogue : `active_people,unlinked_people,people_imports,expiring_contracts,
+overdue_deliverables,registration_due`, avec vues et permissions de REP-001.
+Les autres cartes sont refusées, notamment les audiences individuelles et les
+indicateurs sans source métier. Les dates sont validées (format ISO, ordre,
+31 jours inclusifs au maximum), mais les cartes snapshot exportent leur état
+actuel ; les colonnes de période de ces CSV sont vides.
+
+Colonnes fermées du CSV, séparateur point-virgule : `organization_id,report,view,
+period_from,period_to,timezone,generated_at,id,label,state,at,value`.
+Les lignes viennent des seules projections publiques des modules, jamais des
+modèles bruts, corps documentaires ou valeurs financières supplémentaires.
+Une source vide donne un CSV complet contenant uniquement l'en-tête.
+Les champs textuels commençant par une formule, même après un espace/tabulation,
+sont préfixés d'une apostrophe ; les guillemets/séparateurs sont échappés par CSV.
+
+États : `queued,completed,failed,expired`. L'expiration est effective après une
+heure depuis la demande, y compris si le scheduler est arrêté. Une génération
+échouée nécessite une nouvelle clé de demande ; pas de relance implicite.
+Limites : 500 lignes, 8 Mio, dix demandes non expirées par organisation,
+et quotas techniques tenant. La génération traite les pages existantes en worker,
+contrôle les doublons, le total et les versions source ; elle refuse la troncature.
+Les demandes et téléchargements sont limités à douze appels/minute par tenant/acteur.
+
+Erreurs usuelles : 401/403 pour authentification/droits, 404 pour un export
+d'un autre tenant/acteur, 422 pour les paramètres, 429 pour quotas/throttling,
+409 avec `REPORT_EXPORT_DISABLED,LIMIT,EXPIRED,UNAVAILABLE,STALE,INPUT,
+DISPATCH_FAILED` pour les refus métier. Les échecs de stockage/déchiffrement au
+téléchargement ne dévoilent aucun chemin ni détail de transport.
+
+Exemple pour une session déjà authentifiée avec MFA et tenant confirmé
+(`API_BASE_URL` inclut `/api/v1`, `XSRF_TOKEN` est le cookie décodé) :
+
+```bash
+curl -X POST "$API_BASE_URL/tenants/$TENANT_ID/exports" \
+  -b cookies.txt -H "Accept: application/json" -H "Content-Type: application/json" \
+  -H "X-XSRF-TOKEN: $XSRF_TOKEN" -H "X-Tenant-Revision: $TENANT_REVISION" \
+  --data '{"card":"active_people","view":"direction","from":"2026-10-21","to":"2026-10-25","confirm":true,"request_key":"44444444-4444-4444-8444-444444444444"}'
+```
+
+Après traitement, consulter l'état par GET puis appeler le téléchargement avec
+les mêmes cookies/contexte. Les événements `tenant.export_requested,
+tenant.export_generated,tenant.export_read` ciblent l'UUID de cette demande
+avec le motif `operational`. Les anciens exports opérateur TEN-007 conservent
+leur parcours distinct et leur motif `operator_portability`.

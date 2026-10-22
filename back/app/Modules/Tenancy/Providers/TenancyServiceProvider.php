@@ -76,6 +76,7 @@ use App\Modules\Tenancy\Infrastructure\Resources\PrivatePortabilityArchive;
 use App\Modules\Tenancy\Presentation\Console\CheckTenantSchemaCommand;
 use App\Modules\Tenancy\Presentation\Console\DispatchTenantSchedulesCommand;
 use App\Modules\Tenancy\Presentation\Console\ExpireOrganizationExportsCommand;
+use App\Modules\Tenancy\Presentation\Console\ExpireTenantArtifactsCommand;
 use App\Modules\Tenancy\Presentation\Console\OrganizationPortabilityCommand;
 use App\Modules\Tenancy\Presentation\Console\ProvisionOrganizationCommand;
 use App\Modules\Tenancy\Presentation\Console\TransitionOrganizationCommand;
@@ -172,7 +173,7 @@ final class TenancyServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([ProvisionOrganizationCommand::class, TransitionOrganizationCommand::class,
                 CheckTenantSchemaCommand::class, DispatchTenantSchedulesCommand::class]);
-            $this->commands([OrganizationPortabilityCommand::class, ExpireOrganizationExportsCommand::class]);
+            $this->commands([OrganizationPortabilityCommand::class, ExpireOrganizationExportsCommand::class, ExpireTenantArtifactsCommand::class]);
         }
     }
 }
