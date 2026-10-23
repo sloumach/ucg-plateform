@@ -3024,3 +3024,10 @@ désormais des attributs simples sous `game-catalogue:v2:{revision}` et réhydra
 les modèles sans requête supplémentaire. La révision, la durée de cinq minutes,
 la lecture directe en transaction et les restrictions d'organisation sont conservées.
 Le refus de désérialiser des classes reste actif ; les caches v1 expirent normalement.
+
+Le deuxième parcours réel couvre personne, équipes et roster : transfert avec
+changement de rôle puis clôture, historique et persistance, données étrangères et
+droits en lecture seule. Chaque scénario dispose d'un compte MFA et de deux
+organisations propres ; un cinquième tenant reste inaccessible aux deux comptes.
+Le générateur TOTP et la restriction des origines sont partagés comme utilitaires
+de test. Aucun service, endpoint, permission réelle ou schéma métier modifié.

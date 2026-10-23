@@ -4101,17 +4101,25 @@ Elle demande PHP avec SQLite/PDO SQLite et les dépendances Composer de dévelop
 Ne pas lancer directement la configuration `playwright.real-api.config.ts` : le
 lanceur prépare et nettoie les ressources dont elle dépend.
 
-Ce premier scénario exerce le navigateur et Laravel sans réponse API simulée :
+La suite exerce le navigateur et Laravel sans réponse API simulée :
 identifiants incorrects, connexion, MFA TOTP réel, sélection d'organisation,
 confirmation, création d'une personne, rechargement, changement de tenant et
 déconnexion. Il contrôle aussi les refus CSRF, MFA, ressource étrangère, ancien
 contexte et écriture sans permission, ainsi que les largeurs 375 et 320 px.
 
+Le second scénario crée une personne active et deux équipes par l'interface,
+ajoute une appartenance puis transfère la personne avec changement de fonction
+sportive et clôture la période de destination. Il vérifie la persistance et
+l'historique après rechargement, le chevauchement, les identifiants étrangers,
+la version périmée et la clôture définitive. Les écritures dans l'organisation
+en lecture seule sont refusées. Les formulaires et actions sont exercés à 320 px.
+
 Chaque lancement crée un dossier temporaire propre, une SQLite vide, une clé de
 chiffrement éphémère et des sessions/fichiers/caches isolés. Il applique les
-migrations uniquement à cette nouvelle base et peuple trois organisations
-fictives : accès lecture/écriture à Alpha, lecture seule à Beta et aucun accès
-au troisième tenant. Les identifiants de ces fixtures sont publics et réservés
+migrations uniquement à cette nouvelle base et peuple cinq organisations
+fictives : deux comptes de scénario distincts, chacun avec son organisation de
+travail et son organisation en lecture seule, plus un tenant inaccessible.
+Les scénarios n'utilisent pas les écritures de l'autre. Les identifiants de ces fixtures sont publics et réservés
 aux tests ; ne pas les employer en recette ou production. Aucun contournement
 de connexion, MFA, CSRF ou autorisation n'est installé dans l'application.
 
@@ -4137,6 +4145,6 @@ clés `v1` expirent selon leur durée existante de cinq minutes ; aucune purge
 globale ni modification du réglage `cache.serializable_classes=false` nécessaire.
 
 QA-003 reste ouvert pour les invitations, l'enrôlement/récupération MFA, les
-rosters, calendriers, matchs, contrats et exports avec API réelle. Cette première
+calendriers, matchs, contrats et exports avec API réelle. Cette
 suite locale/CI utilise SQLite ; elle ne remplace pas une recette PostgreSQL ni
 la validation des workers et du temps réel.

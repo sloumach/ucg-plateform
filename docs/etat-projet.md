@@ -5073,3 +5073,36 @@ différés. QA-003 avance d'abord en local et en CI avec données fictives isol�
 QA-003 reste ouvert pour les autres parcours : invitations, enrôlement/récupération
 MFA, rosters, calendrier, matchs, contrats et exports. SQLite locale/CI ne remplace
 pas PostgreSQL, les workers, Reverb réel ni la recette sur future infrastructure.
+
+## UCG-QA-003 — Deuxième parcours réel : personne, équipes et roster (23 octobre 2026)
+
+- Création par l'interface d'une personne active et de deux équipes actives ;
+  ajout au roster source, transfert vers la seconde équipe en tant que remplaçant,
+  puis clôture de la période. Rechargement complet et relecture de la persistance
+  et des mouvements. La source finit exactement au début de la destination ;
+  les deux périodes restent consultables et ne sont plus effectives après clôture.
+- Refus vérifiés : chevauchement, personne/équipe/appartenance étrangères,
+  ancienne version, nouvelle clôture d'une période terminale, création d'équipe
+  et ajout au roster sans permission. Les refus n'ajoutent pas de période ni
+  de mouvement ; aucune donnée Alpha ne reste affichée après passage à Beta.
+  Le sélecteur de personnes n'affiche pas les personnes des tenants étrangers.
+- Formulaires d'équipe contrôlés à 375 et 320 px, suite des créations/transfert/
+  clôture à 320 px, historique sans débordement aux deux largeurs. API Laravel,
+  MFA, confirmations et autorisations réels ; aucun résultat API simulé.
+- Fixtures étendues à cinq organisations et deux comptes de scénario : les
+  écritures du premier test ne servent pas au second. Tenant tiers inaccessible,
+  équipe/personne/appartenance de lecture seule et catalogue global existant.
+  TOTP et filtrage des origines partagés dans un utilitaire de test.
+- Vérification : deux parcours réels sous Chrome réussis ; sélection backend
+  équipes/appartenances : 54/54 tests, 306 assertions ; composants équipes/roster :
+  18/18 ; trois contrôles du lanceur réussis. Lint, typage strict des deux scénarios,
+  Pint dirty et PHPStan (zéro erreur) validés. Pas de suite complète backend ou
+  PostgreSQL rejouée pour ces changements de tests et fixtures uniquement.
+- Aucun code métier, migration applicative, `.env` réel, base de développement
+  ou permission réelle modifié. Ressources temporaires nettoyées après arrêt des
+  serveurs. Livraison dans un commit local UCG-QA-003, sans push ni nouvelle CI
+  distante revendiquée. Le workflow existant découvre automatiquement le scénario.
+
+QA-003 reste ouvert pour les invitations et les parcours MFA avancés, calendrier,
+matchs, contrats et exports ; les promotions et annulations futures du roster
+restent des cas à approfondir. L'hébergement demeure différé selon la décision du responsable.

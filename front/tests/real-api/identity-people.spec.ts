@@ -1,33 +1,13 @@
-import { createHmac } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
+import { api, constrainOrigins, fixtureCode, frontend } from './support'
 
-const api = process.env.UCG_BROWSER_API_URL!
-const frontend = process.env.UCG_BROWSER_FRONT_URL!
 const fixture = JSON.parse(readFileSync(`${process.env.UCG_BROWSER_ROOT}/fixture.json`, 'utf8')) as {
   alpha: string; beta: string; foreign: string; betaPerson: string; foreignPerson: string
 }
 
-function fixtureCode(): string {
-  // Independent RFC 6238 client, using the existing UserFactory test secret.
-  const counter = Buffer.alloc(8)
-  counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30_000)))
-  const digest = createHmac('sha1', '12345678901234567890').update(counter).digest()
-  const offset = digest[digest.length - 1] & 15
-  return String((digest.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).padStart(6, '0')
-}
-
 test('connexion réelle, MFA, création persistée et isolation lors du changement de tenant', async ({ page, context }) => {
-  const unexpectedOrigins: string[] = []
-  await context.route('**/*', async (route) => {
-    const origin = new URL(route.request().url()).origin
-    if (![api, frontend].includes(origin)) {
-      unexpectedOrigins.push(origin)
-      await route.abort()
-      return
-    }
-    await route.continue()
-  })
+  const unexpectedOrigins = await constrainOrigins(context)
   const headers = { Accept: 'application/json', Origin: frontend }
   const guest = await context.request.get(`${api}/api/v1/tenants/${fixture.alpha}/people`, { headers })
   expect(guest.status()).toBe(401)

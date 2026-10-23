@@ -1399,6 +1399,12 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   distincts et suite simulée conservée. Correction du cache persistant du catalogue
   détectée par le rechargement. Ticket ouvert pour les autres parcours et moteurs
   de recette ; détails et commande d'exécution dans le README.
+- **Deuxième lot local (23/10/2026)** : personne active, création de deux équipes,
+  appartenance, transfert avec changement de rôle et clôture avec API réelle.
+  Persistance/historique, refus de chevauchement/identifiants étrangers/version
+  périmée/clôture répétée et écritures sans droit ; formulaires à 320 px.
+  Compte et organisations distincts du premier scénario, cinq tenants fictifs
+  au total. Aucun changement métier ni migration ; les autres parcours restent ouverts.
 
 ### UCG-QA-004 — Tester concurrence et idempotence
 
