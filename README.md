@@ -4142,20 +4142,33 @@ résilie le contrat. L'archivage reste bloqué tant que l'obligation est ouverte
 son accomplissement permet l'archivage définitif. Versions périmées, gel des
 conditions, historique, rechargements, isolation et mobile sont vérifiés.
 
+Le sixième scénario demande un export d'effectif actif, attend sa génération par
+le worker et télécharge le CSV. Il vérifie les lignes attendues, l'absence d'identité
+administrative et de données étrangères, ainsi que la neutralisation d'une formule.
+Un même identifiant de demande retourne le même export. Un autre compte disposant
+des mêmes permissions ne peut pas le lire ; un lecteur sans reporting.export ne
+peut pas le demander. Une donnée d'export déjà échue vérifie le refus d'expiration,
+sans avancer l'horloge des sessions. Une modification de personne invalide le CSV
+précédent. Un second export dans Beta confirme la séparation des contenus.
+
+Le panneau réutilise la confirmation explicite d'organisation des autres modules :
+une session nouvellement ouverte peut confirmer sa première demande depuis les
+exports, sans devoir écrire dans un autre module au préalable.
+
 Chaque lancement crée un dossier temporaire propre, une SQLite vide, une clé de
 chiffrement éphémère et des sessions/fichiers/caches isolés. Il applique les
-migrations uniquement à cette nouvelle base et peuple onze organisations
-fictives : cinq comptes de scénario distincts, chacun avec son organisation de
+migrations uniquement à cette nouvelle base et peuple treize organisations
+fictives : six comptes de scénario distincts, chacun avec son organisation de
 travail et son organisation en lecture seule, un approbateur pour les matchs,
-un approbateur et un gestionnaire administratif pour les contrats, et un tenant
-inaccessible.
+un approbateur et un gestionnaire administratif pour les contrats, deux comptes
+de contrôle des droits d'export, et un tenant inaccessible.
 Les scénarios n'utilisent pas les écritures de l'autre. Les identifiants de ces fixtures sont publics et réservés
 aux tests ; ne pas les employer en recette ou production. Aucun contournement
 de connexion, MFA, CSRF ou autorisation n'est installé dans l'application.
 
 Les deux serveurs de test démarrent sur des ports locaux disponibles, sans
-réutilisation de serveurs existants. Un worker de test consomme uniquement la file
-`default` de cette même SQLite, avec une durée maximale de dix minutes. Son entrée
+réutilisation de serveurs existants. Un worker de test consomme uniquement les files
+`default,reports` de cette même SQLite, avec une durée maximale de dix minutes. Son entrée
 PHP refuse une file synchrone ou une connexion de file externe. Tous ces processus sont lancés directement
 puis arrêtés avant suppression du dossier temporaire, y compris en cas d'échec.
 Les paramètres applicatifs hérités et les `.env` de développement sont exclus.
@@ -4177,7 +4190,7 @@ clés `v1` expirent selon leur durée existante de cinq minutes ; aucune purge
 globale ni modification du réglage `cache.serializable_classes=false` nécessaire.
 
 QA-003 reste ouvert pour les invitations, l'enrôlement/récupération MFA, les
-exports avec API réelle, les documents/avenants/rappels des contrats et les cas avancés des matchs, ainsi que les cas de
+rapports exportables autres que l'effectif actif, les documents/avenants/rappels des contrats et les cas avancés des matchs, ainsi que les cas de
 réservation, récurrence et notifications du calendrier. Cette
 suite locale/CI utilise SQLite ; elle ne remplace pas une recette PostgreSQL ni
 la validation des workers de recette/production et du temps réel Reverb.

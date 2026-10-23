@@ -3075,3 +3075,21 @@ par un compte habilité après rechargement et archivage, sans formulaire d'écr
 Les onze tenants et huit comptes de scénario/intervenants restent dans la même
 SQLite et le stockage temporaires. Aucun changement de schéma ou de code métier ;
 documents, analyse antivirus, avenants et rappels ne sont pas exercés par ce parcours.
+
+Le sixième parcours ajoute deux tenants propres aux exports, un demandeur, un
+collègue avec les mêmes permissions et un lecteur sans reporting.export. La
+génération est activée uniquement dans l'environnement fermé du lanceur ; le
+worker consomme désormais default et reports sur la même SQLite temporaire.
+L'expiration planifiée reste désactivée. Aucun paramètre de déploiement ne change.
+
+La demande depuis ReportExportPanel réutilise usePeopleMutation : confirmation
+nommée du tenant, puis POST de confirmation de session si nécessaire avant le POST
+d'export. La clé d'idempotence est conservée en cas d'échec et renouvelée au succès.
+Le téléchargement conserve son contrôleur d'annulation et ses protections de
+fichier CSV et d'URL locale. Le test attend le job par lecture de l'API, télécharge
+le fichier dans le navigateur et contrôle ses lignes et exclusions. Une entrée
+de fixture déjà échue exerce le refus d'expiration sans modifier l'horloge HTTP ;
+la durée réelle et le nettoyage restent couverts par les tests backend dédiés.
+Le parcours modifie ensuite une personne via l'API publique pour vérifier le refus
+du snapshot périmé. Treize tenants et onze comptes de scénario/intervenants sont
+isolés dans les ressources temporaires.

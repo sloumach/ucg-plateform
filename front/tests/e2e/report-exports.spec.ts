@@ -51,6 +51,7 @@ test('exports privés : confirmation, téléchargement, source modifiée et lect
   await expect(panel.getByText('Aucun export accessible.')).toBeVisible(); expect(writes).toBe(0)
   await panel.getByRole('button', { name: 'Demander l’export CSV' }).click(); expect(writes).toBe(0)
   await panel.getByRole('checkbox').check(); await panel.getByRole('button', { name: 'Demander l’export CSV' }).click()
+  await panel.getByRole('button', { name: 'Confirmer et continuer' }).click()
   await expect(panel.getByText(/En attente de génération/)).toBeVisible(); expect(writes).toBe(1)
   await page.getByRole('button', { name: 'Fermer la notification' }).click()
   ready = true; await panel.getByRole('button', { name: 'Actualiser mes exports' }).click()

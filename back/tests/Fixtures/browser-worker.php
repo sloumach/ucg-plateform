@@ -16,6 +16,6 @@ if (config('queue.default') !== 'database' || config('queue.connections.database
 }
 file_put_contents($application->storagePath('framework/browser-worker-ready'), 'ready', LOCK_EX);
 exit($kernel->call('queue:work', [
-    'connection' => 'database', '--queue' => 'default', '--sleep' => 1,
+    'connection' => 'database', '--queue' => 'default,reports', '--sleep' => 1,
     '--max-time' => 600, '--no-interaction' => true,
 ]));

@@ -39,6 +39,7 @@ export function isolatedEnvironment(root, token, apiPort, frontPort, source = pr
     SANCTUM_STATEFUL_DOMAINS: `127.0.0.1:${frontPort},127.0.0.1:${apiPort}`,
     MAIL_MAILER: 'array', BROADCAST_CONNECTION: 'log', LOG_CHANNEL: 'single', LOG_LEVEL: 'warning',
     FILESYSTEM_DISK: 'local', ARTIFACTS_DISK: 'local',
+    REPORT_EXPORTS_ENABLED: 'true', EXPIRE_TENANT_ARTIFACTS_ENABLED: 'false',
     VITE_DEPLOYMENT_ENV: 'local', VITE_API_BASE_URL: `${api}/api/v1`,
     VITE_REVERB_APP_KEY: 'browser-public-key', VITE_REVERB_HOST: '127.0.0.1',
     VITE_REVERB_PORT: '8080', VITE_REVERB_SCHEME: 'http',

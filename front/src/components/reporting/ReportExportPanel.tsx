@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { tenancyRequest, type ActiveOrganization } from '../../api/tenancy'
-import type { ApiSuccessResponse } from '../../api/contracts'
 import { isAbortError } from '../../api/errors'
 import { exportText as text, type ReportExport, type ReportExportPage } from '../../api/reportExports'
 import type { DashboardCardDefinition } from '../../api/dashboards'
@@ -11,6 +10,7 @@ import { useNotifications } from '../feedback/notificationContext'
 import { apiError, shouldReloadContext } from '../people/peopleFormValues'
 import { SelectField } from '../people/peopleForms'
 import { useDashboardRead } from './useDashboardRead'
+import { usePeopleMutation } from '../people/usePeopleMutation'
 
 type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void; cards: DashboardCardDefinition[]; query: { view: string; from: string; to: string } }
 export function ReportExportPanel(props: Props) {
@@ -27,6 +27,10 @@ function Exports({ active, disabled, onInvalid, cards, query }: Props) {
   const mutation = useRef<AbortController | null>(null), requestKey = useRef(crypto.randomUUID())
   useEffect(() => () => mutation.current?.abort(), [])
   const root = 'tenants/' + active.context?.organization_id + '/exports'
+  const requestMutation = usePeopleMutation<ReportExport>(active, () => {
+    requestKey.current = crypto.randomUUID()
+    setPage(1); setRefresh((value) => value + 1)
+  }, onInvalid)
   const read = useDashboardRead<ReportExportPage>(open ? root + '?page=' + page : null, active, onInvalid, refresh)
   useEffect(() => {
     if (!read.data) return
@@ -39,25 +43,17 @@ function Exports({ active, disabled, onInvalid, cards, query }: Props) {
   }, [read.data, read.startedAt])
   const choices = cards.filter((card) => card.indicator_supported && card.scope === 'organization' && card.status === 'available')
   const card = choices.find((entry) => entry.id === selected) ?? choices[0]
-  const blocked = disabled || pending || read.loading
+  const blocked = disabled || pending || read.loading || requestMutation.blocked
   function failed(error: unknown) {
     const parsed = apiError(error); setFailure(parsed)
     notify({ type: 'error', message: parsed.message, requestId: parsed.requestId })
     if (shouldReloadContext(parsed)) onInvalid()
   }
-  async function submit(event: FormEvent<HTMLFormElement>) {
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (blocked || !active.confirmed || !read.data?.enabled || !card || !new FormData(event.currentTarget).has('confirm')) return
-    const controller = new AbortController(); mutation.current = controller; setPending(true); setFailure(null)
-    try {
-      const response = await tenancyRequest<ApiSuccessResponse<ReportExport>>(root, { method: 'POST', revision: active.revision ?? undefined, signal: controller.signal,
-        body: { card: card.id, view: query.view, from: query.from, to: query.to, confirm: true, request_key: requestKey.current } })
-      if (controller.signal.aborted) return
-      requestKey.current = crypto.randomUUID()
-      if (response.notification) notify({ ...response.notification, requestId: response.meta.request_id })
-      setPage(1); setRefresh((value) => value + 1)
-    } catch (error: unknown) { if (!controller.signal.aborted && !isAbortError(error)) failed(error) }
-    finally { if (!controller.signal.aborted) setPending(false) }
+    if (blocked || !read.data?.enabled || !card || !new FormData(event.currentTarget).has('confirm')) return
+    setFailure(null)
+    requestMutation.propose(event, text('request'), root, { card: card.id, view: query.view, from: query.from, to: query.to, confirm: true, request_key: requestKey.current })
   }
   async function download(row: ReportExport) {
     if (blocked || row.state !== 'completed' || expired.includes(row.id)) return
@@ -78,7 +74,9 @@ function Exports({ active, disabled, onInvalid, cards, query }: Props) {
   const error = failure ?? read.error
   return <section aria-label={text('title')} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-4 [overflow-wrap:anywhere]">
     <h3 className="font-bold">{text('title')}</h3><p>{text('hint')}</p>
-    <Button disabled={disabled || pending} onClick={() => { setOpen(!open); setFailure(null) }}>{text(open ? 'close' : 'open')}</Button>
+    <Button disabled={disabled || pending || requestMutation.blocked} onClick={() => { setOpen(!open); setFailure(null) }}>{text(open ? 'close' : 'open')}</Button>
+    {requestMutation.feedback}
+    {Object.entries(requestMutation.errors(root)).map(([field, messages]) => <p key={field} role="alert">{messages.join(' ')}</p>)}
     {open && <>{read.loading && <p role="status">{text('loading')}</p>}
       {error && <><Alert tone="error" title={error.message} requestId={error.requestId} />{Object.entries(error.fieldErrors).map(([field, messages]) => <p key={field} role="alert">{messages.join(' ')}</p>)}</>}
       {!error && read.data && <><p>{text('limit')} : {read.data.max_rows} · {text('lifetime')} : {read.data.lifetime_minutes} min</p>
@@ -89,8 +87,8 @@ function Exports({ active, disabled, onInvalid, cards, query }: Props) {
             {choices.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}
           </SelectField>
           <p>{card.period_kind === 'snapshot' ? text('snapshot') : query.from + ' → ' + query.to + ' · ' + active.context?.timezone}</p>
-          <label className="flex items-start gap-2"><input type="checkbox" name="confirm" required disabled={blocked || !active.confirmed} className="mt-1" />{text('confirm')}</label>
-          <Button type="submit" disabled={blocked || !active.confirmed}>{text('request')}</Button>
+          <label className="flex items-start gap-2"><input type="checkbox" name="confirm" required disabled={blocked} className="mt-1" />{text('confirm')}</label>
+          <Button type="submit" disabled={blocked}>{text('request')}</Button>
         </form>}
         {!card && <p>{text('noReports')}</p>}
         {read.data.items.length === 0 && <p>{text('empty')}</p>}

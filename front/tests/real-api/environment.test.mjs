@@ -25,6 +25,8 @@ test('the harness discards inherited application settings and refuses foreign pa
     assert.equal(environment.DB_CONNECTION, 'sqlite')
     assert.equal(environment.DB_DATABASE, `${root}/browser.sqlite`)
     assert.equal(environment.QUEUE_CONNECTION, 'database')
+    assert.equal(environment.REPORT_EXPORTS_ENABLED, 'true')
+    assert.equal(environment.EXPIRE_TENANT_ARTIFACTS_ENABLED, 'false')
     assert.equal(environment.CI, 'true')
     assert.equal(JSON.stringify(environment).includes('production-sentinel'), false)
     assert.throws(() => assertHarnessRoot(resolve(root, '..')))

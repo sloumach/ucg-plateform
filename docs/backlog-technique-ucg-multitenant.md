@@ -1427,6 +1427,13 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   accomplissement. Rechargements, historique, isolation et mobile contrôlés.
   Onze tenants fictifs et huit comptes de scénario/intervenants ; aucun changement
   métier ou migration. Documents/avenants/rappels et exports réels restent ouverts.
+- **Sixième lot local (24/10/2026)** : export réel active_people, génération par
+  worker database/reports, téléchargement CSV, confidentialité et formule neutralisée.
+  Confirmation de tenant rendue accessible depuis le panneau, demande idempotente,
+  refus pour autre demandeur ou sans permission, export déjà échu et source modifiée.
+  Second CSV Beta distinct, rechargement et mobile 375/320. Treize tenants et onze
+  comptes de scénario/intervenants. Les cinq autres rapports exportables et les cas
+  avancés de révocation/nettoyage en environnement hébergé restent à approfondir.
 
 ### UCG-QA-004 — Tester concurrence et idempotence
 

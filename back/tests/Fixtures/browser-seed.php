@@ -4,6 +4,7 @@ use App\Modules\Competition\Domain\Models\MatchRecord;
 use App\Modules\Contracts\Domain\Models\ContractRecord;
 use App\Modules\Identity\Domain\Models\User;
 use App\Modules\People\Domain\Models\Person;
+use App\Modules\Reporting\Domain\Models\ReportExport;
 use App\Modules\Scheduling\Domain\Models\Availability;
 use App\Modules\Scheduling\Domain\Models\CalendarActivity;
 use App\Modules\Teams\Domain\Models\GameCatalogueEntry;
@@ -70,6 +71,11 @@ $contractAdministrator = User::factory()->withMfa()->create([
 ]);
 $contractAlpha = Organization::factory()->create(['name' => 'Contract Alpha', 'slug' => 'contract-alpha']);
 $contractBeta = Organization::factory()->create(['name' => 'Contract Beta', 'slug' => 'contract-beta']);
+$exportUser = User::factory()->withMfa()->create(['name' => 'Browser export staff', 'email' => 'browser-export@example.test', 'password' => 'Browser-fixture-only-2026!']);
+$exportColleague = User::factory()->withMfa()->create(['name' => 'Browser export colleague', 'email' => 'browser-export-colleague@example.test', 'password' => 'Browser-fixture-only-2026!']);
+$exportReader = User::factory()->withMfa()->create(['name' => 'Browser export reader', 'email' => 'browser-export-reader@example.test', 'password' => 'Browser-fixture-only-2026!']);
+$exportAlpha = Organization::factory()->create(['name' => 'Export Alpha', 'slug' => 'export-alpha', 'timezone' => 'UTC']);
+$exportBeta = Organization::factory()->create(['name' => 'Export Beta', 'slug' => 'export-beta', 'timezone' => 'UTC']);
 foreach ([
     [$user, $alpha, ['sports.read', 'sports.write']], [$user, $beta, ['sports.read']],
     [$rosterUser, $rosterAlpha, ['sports.read', 'sports.write', 'teams.manage']], [$rosterUser, $rosterBeta, ['sports.read']],
@@ -80,6 +86,10 @@ foreach ([
     [$contractUser, $contractBeta, ['administrative.read']],
     [$contractReviewer, $contractAlpha, ['administrative.read', 'administrative.write', 'administrative.validate', 'financial.read', 'financial.validate']],
     [$contractAdministrator, $contractAlpha, ['administrative.read', 'administrative.write', 'administrative.validate']],
+    [$exportUser, $exportAlpha, ['reporting.export', 'reporting.direction', 'sports.read', 'sports.write']],
+    [$exportUser, $exportBeta, ['reporting.export', 'reporting.direction', 'sports.read']],
+    [$exportColleague, $exportAlpha, ['reporting.export', 'reporting.direction', 'sports.read', 'sports.write']],
+    [$exportReader, $exportAlpha, ['reporting.direction', 'sports.read']],
 ] as [$account, $organization, $permissions]) {
     $membership = OrganizationMembership::factory()->create(['organization_id' => $organization->id, 'user_id' => $account->id]);
     $role = OrganizationRole::factory()->create([
@@ -132,6 +142,14 @@ $contractResponsible = Person::factory()->withAdministrativeIdentity()->create([
 $contractBetaPerson = Person::factory()->withAdministrativeIdentity()->create(['organization_id' => $contractBeta->id]);
 $contractBetaRecord = ContractRecord::factory()->create(['organization_id' => $contractBeta->id, 'responsible_person_id' => $contractBetaPerson->id, 'title' => 'Beta contrat privé']);
 $contractForeignRecord = ContractRecord::factory()->create(['organization_id' => $foreign->id, 'responsible_person_id' => $foreignPerson->id, 'title' => 'Foreign contrat privé']);
+$exportPerson = Person::factory()->withAdministrativeIdentity()->create(['organization_id' => $exportAlpha->id, 'status' => 'active', 'pseudonym' => 'Export Alpha player', 'contact_email' => 'PRIVATE_EXPORT_IDENTITY@example.test']);
+$exportFormulaPerson = Person::factory()->create(['organization_id' => $exportAlpha->id, 'status' => 'active', 'pseudonym' => '=1+1']);
+$exportBetaPerson = Person::factory()->create(['organization_id' => $exportBeta->id, 'status' => 'active', 'pseudonym' => 'Export Beta player']);
+$expiredExport = new ReportExport;
+$expiredExport->forceFill(['organization_id' => $exportAlpha->id, 'actor_user_id' => $exportUser->id,
+    'request_key' => (string) Str::uuid(), 'card' => 'active_people', 'view' => 'direction', 'timezone' => 'UTC',
+    'from_date' => now()->toDateString(), 'to_date' => now()->addDay()->toDateString(), 'status' => 'queued',
+    'created_at' => now()->subHours(2), 'expires_at' => now()->subHour()])->save();
 echo json_encode([
     'alpha' => $alpha->id, 'beta' => $beta->id, 'foreign' => $foreign->id,
     'betaPerson' => $betaPerson->id, 'foreignPerson' => $foreignPerson->id,
@@ -149,4 +167,7 @@ echo json_encode([
     'contract' => ['alpha' => $contractAlpha->id, 'beta' => $contractBeta->id,
         'responsible' => $contractResponsible->id, 'today' => now()->utc()->toDateString(),
         'betaContract' => $contractBetaRecord->id, 'foreignContract' => $contractForeignRecord->id],
+    'export' => ['alpha' => $exportAlpha->id, 'beta' => $exportBeta->id, 'from' => now()->toDateString(), 'to' => now()->addDay()->toDateString(),
+        'person' => $exportPerson->id, 'personVersion' => $exportPerson->version, 'formulaPerson' => $exportFormulaPerson->id,
+        'betaPerson' => $exportBetaPerson->id, 'expired' => $expiredExport->id],
 ], JSON_THROW_ON_ERROR);

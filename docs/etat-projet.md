@@ -5226,3 +5226,49 @@ contrats avec API réelle. Hébergement et configuration fournisseur restent dif
 QA-003 reste ouvert pour invitations/MFA avancé, exports, documents/avenants/rappels
 des contrats et cas avancés du calendrier et des matchs. Le prochain parcours
 proposé est celui des exports avec API réelle. Hébergement toujours différé.
+
+## UCG-QA-003 — Sixième parcours réel : exports (24 octobre 2026)
+
+- Deux organisations propres aux exports, un demandeur habilité dans les deux,
+  un collègue avec les mêmes droits dans Alpha et un lecteur sans reporting.export.
+  Treize tenants et onze comptes de scénario/intervenants au total. Personnes de
+  test distinctes dans Alpha/Beta, identité administrative sentinelle et pseudonyme
+  commençant par une formule. Un export de fixture déjà échu, sans artefact, teste
+  l'expiration sans avancer l'horloge des sessions ni attendre une heure.
+- Blocage d'interface découvert : ReportExportPanel exigeait active.confirmed mais
+  ne proposait pas de confirmation. La première demande était inaccessible après
+  sélection d'organisation. Réutilisation de usePeopleMutation : confirmation
+  explicite nommant le tenant, confirmation HTTP de session si nécessaire, puis
+  demande avec clé d'idempotence conservée en cas d'échec et renouvelée au succès.
+  Tests de composants et scénario simulé adaptés ; pas de contournement serveur.
+- Génération activée seulement dans l'environnement fermé du lanceur, avec le
+  worker existant étendu à default,reports sur la même SQLite temporaire. Nettoyage
+  planifié désactivé ; aucune configuration réelle de worker ou de déploiement modifiée.
+- Demande active_people par l'interface, état queued reçu, job réel puis état
+  completed lu par API. Même demande rejouée : même identifiant, une seule nouvelle
+  entrée. Rapport de contrats refusé faute de permission métier. Métadonnées sans
+  artefact, empreinte, version de source ni clé de demande.
+- Après rechargement, téléchargement réel du CSV par le navigateur : deux lignes
+  Alpha, en-tête attendu, formule neutralisée et aucune identité administrative ou
+  donnée Beta. Collègue pourtant habilité : liste vide, accès direct et téléchargement
+  refusés ; lecteur sans permission : panneau absent, demande et accès refusés.
+- Modification d'une personne par API publique : ancien téléchargement refusé avec
+  REPORT_EXPORT_STALE, sans régénération HTTP. Passage à Beta : liste vide et accès
+  à l'identifiant Alpha refusé. Second export généré et téléchargé : une seule ligne
+  Beta, sans identifiant ni contenu Alpha. Formulaires et téléchargements à 320 px,
+  contrôle de débordement à 375 et 320 ; pas d'erreur JavaScript ni origine externe.
+- Validation : six parcours réels sous Chrome ; ReportExportTest : 35 tests et
+  241 assertions ; composants exports/tableaux de bord : 19 tests ; quatre contrôles
+  du lanceur. Build, lint, typage strict des six scénarios, Pint dirty et PHPStan
+  sans erreur. Scénario Playwright simulé réussi avec vidéo désactivée (binaire vidéo
+  absent localement) ; lanceur standard interrompu après son résultat, son arrêt des
+  serveurs restant bloqué sous Windows. Le lanceur isolé réel termine normalement.
+- Tests et stockage fictifs uniquement, pas de migration applicative ni de `.env`
+  réel modifié. Commit local UCG-QA-003 sans push. Aucune CI distante ou nouvelle
+  suite complète PostgreSQL revendiquée. Les délais réels d'expiration, le nettoyage
+  et les autres rapports restent distincts du scénario navigateur livré.
+
+QA-003 reste ouvert pour invitations et MFA avancé, cinq autres rapports exportables,
+documents/avenants/rappels des contrats et cas avancés des autres modules. Le prochain
+lot proposé couvre les invitations avec API réelle, puis l'enrôlement/récupération
+MFA. L'hébergement reste différé selon la décision du responsable.
