@@ -49,8 +49,12 @@ async function startServer(command, args, environment, cwd, url, name) {
       throw new Error(`${name} server stopped before readiness.`)
     }
     try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(1000) })
-      if (response.ok) return
+      if (url === null) {
+        if (existsSync(`${root}/storage/framework/browser-worker-ready`)) return
+      } else {
+        const response = await fetch(url, { signal: AbortSignal.timeout(1000) })
+        if (response.ok) return
+      }
     } catch { /* The process is still starting. */ }
     await new Promise((done) => setTimeout(done, 100))
   }
@@ -83,6 +87,7 @@ try {
   const fixture = await execute('php', ['tests/Fixtures/browser-seed.php'], environment, resolve(front, '../back'), true)
   JSON.parse(fixture)
   writeFileSync(`${root}/fixture.json`, fixture, { flag: 'wx', mode: 0o600 })
+  await startServer('php', ['tests/Fixtures/browser-worker.php'], environment, resolve(front, '../back'), null, 'worker')
   await startServer('php', ['-S', `127.0.0.1:${apiPort}`, 'tests/Fixtures/browser-server.php'], environment, resolve(front, '../back'), `${environment.UCG_BROWSER_API_URL}/api/v1/system/status`, 'api')
   await startServer(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(frontPort), '--strictPort'], environment, front, environment.UCG_BROWSER_FRONT_URL, 'vite')
   await execute(process.execPath, ['node_modules/@playwright/test/cli.js', 'test', '--config=playwright.real-api.config.ts', ...arguments_], environment, front)

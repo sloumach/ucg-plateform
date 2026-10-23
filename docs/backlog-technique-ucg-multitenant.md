@@ -1411,6 +1411,14 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   historique après rechargement. UTC/Asia-Tokyo, mobile 375/320, versions et accès
   étrangers/en lecture seule contrôlés. Trois comptes de scénario et sept tenants
   fictifs. Pas de changement métier, migration, notification réelle ou worker activé.
+- **Quatrième lot local (23/10/2026)** : match privé BO1 créé par l'interface,
+  deux compositions affectées, règles et scores saisis, preuve soumise et résultat
+  approuvé par un second compte. Auto-approbation refusée, correction motivée
+  recalculée par un worker sur la SQLite temporaire, résultat contesté puis
+  nouvelle preuve et nouvelle approbation indépendante. Persistance/historique,
+  mobile 375/320, version périmée et refus inter-tenant/en lecture seule vérifiés.
+  Neuf tenants fictifs ; quatre comptes de scénario et un approbateur. Aucun
+  changement métier ou migration. Reverb et workers hébergés restent à valider.
 
 ### UCG-QA-004 — Tester concurrence et idempotence
 

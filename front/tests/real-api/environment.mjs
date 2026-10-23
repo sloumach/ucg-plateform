@@ -33,7 +33,7 @@ export function isolatedEnvironment(root, token, apiPort, frontPort, source = pr
     APP_EVENTS_CACHE: `${root}/events.php`, LARAVEL_STORAGE_PATH: `${root}/storage`,
     APP_LOCALE: 'fr', APP_FALLBACK_LOCALE: 'fr', BCRYPT_ROUNDS: '4',
     DB_CONNECTION: 'sqlite', DB_DATABASE: `${root}/browser.sqlite`, DB_URL: '', DB_FOREIGN_KEYS: 'true',
-    CACHE_STORE: 'database', TENANCY_CACHE_STORE: 'database', QUEUE_CONNECTION: 'sync',
+    CACHE_STORE: 'database', TENANCY_CACHE_STORE: 'database', QUEUE_CONNECTION: 'database',
     SESSION_DRIVER: 'file', SESSION_COOKIE: 'ucg_browser_session', SESSION_DOMAIN: '',
     SESSION_SECURE_COOKIE: 'false', SESSION_HTTP_ONLY: 'true', SESSION_SAME_SITE: 'lax',
     SANCTUM_STATEFUL_DOMAINS: `127.0.0.1:${frontPort},127.0.0.1:${apiPort}`,

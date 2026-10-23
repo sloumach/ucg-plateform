@@ -1,11 +1,14 @@
 <?php
 
+use App\Modules\Competition\Domain\Models\MatchRecord;
 use App\Modules\Identity\Domain\Models\User;
 use App\Modules\People\Domain\Models\Person;
 use App\Modules\Scheduling\Domain\Models\Availability;
 use App\Modules\Scheduling\Domain\Models\CalendarActivity;
 use App\Modules\Teams\Domain\Models\GameCatalogueEntry;
 use App\Modules\Teams\Domain\Models\Team;
+use App\Modules\Teams\Domain\Models\TeamLineup;
+use App\Modules\Teams\Domain\Models\TeamLineupEntry;
 use App\Modules\Teams\Domain\Models\TeamMembership;
 use App\Modules\Tenancy\Domain\Models\Organization;
 use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
@@ -13,6 +16,7 @@ use App\Modules\Tenancy\Domain\Models\OrganizationRole;
 use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Application;
+use Illuminate\Support\Str;
 
 $application = require __DIR__.'/browser-application.php';
 if (! $application instanceof Application) {
@@ -46,10 +50,20 @@ $calendarUser = User::factory()->withMfa()->create([
 ]);
 $calendarAlpha = Organization::factory()->create(['name' => 'Calendar Alpha', 'slug' => 'calendar-alpha']);
 $calendarBeta = Organization::factory()->create(['name' => 'Calendar Beta', 'slug' => 'calendar-beta']);
+$matchUser = User::factory()->withMfa()->create([
+    'name' => 'Browser match staff', 'email' => 'browser-match@example.test', 'password' => 'Browser-fixture-only-2026!',
+]);
+$matchReviewer = User::factory()->withMfa()->create([
+    'name' => 'Browser match reviewer', 'email' => 'browser-reviewer@example.test', 'password' => 'Browser-fixture-only-2026!',
+]);
+$matchAlpha = Organization::factory()->create(['name' => 'Match Alpha', 'slug' => 'match-alpha']);
+$matchBeta = Organization::factory()->create(['name' => 'Match Beta', 'slug' => 'match-beta']);
 foreach ([
     [$user, $alpha, ['sports.read', 'sports.write']], [$user, $beta, ['sports.read']],
     [$rosterUser, $rosterAlpha, ['sports.read', 'sports.write', 'teams.manage']], [$rosterUser, $rosterBeta, ['sports.read']],
     [$calendarUser, $calendarAlpha, ['calendar.read', 'calendar.write', 'availability.read']], [$calendarUser, $calendarBeta, ['calendar.read']],
+    [$matchUser, $matchAlpha, ['sports.read', 'sports.write', 'sports.correct', 'sports.validate']], [$matchUser, $matchBeta, ['sports.read']],
+    [$matchReviewer, $matchAlpha, ['sports.read', 'sports.validate']],
 ] as [$account, $organization, $permissions]) {
     $membership = OrganizationMembership::factory()->create(['organization_id' => $organization->id, 'user_id' => $account->id]);
     $role = OrganizationRole::factory()->create([
@@ -84,6 +98,20 @@ $calendarForeignActivity = CalendarActivity::factory()->create([
     'organization_id' => $foreign->id, 'created_by' => $foreign->owner_user_id, 'title' => 'Foreign calendrier privé',
     'starts_at' => $calendarDay.' 12:00:00', 'ends_at' => $calendarDay.' 13:00:00',
 ]);
+$matchDay = now()->addDays(3)->toDateString();
+$matchResponsible = Person::factory()->create(['organization_id' => $matchAlpha->id, 'user_id' => $matchReviewer->id, 'pseudonym' => 'Match reviewer', 'status' => 'active']);
+$matchTeams = [];
+foreach (['A', 'B'] as $index => $suffix) {
+    $team = Team::factory()->create(['organization_id' => $matchAlpha->id, 'name' => 'Match team '.$suffix]);
+    $person = $index === 0 ? $matchResponsible : Person::factory()->create(['organization_id' => $matchAlpha->id, 'pseudonym' => 'Match player B', 'status' => 'active']);
+    $period = TeamMembership::factory()->create(['team_id' => $team->id, 'person_id' => $person->id, 'starts_at' => now()->subDay()->startOfDay()]);
+    $lineup = TeamLineup::factory()->create(['team_id' => $team->id, 'label' => 'Match lineup '.$suffix, 'effective_at' => $matchDay.' 10:00:00']);
+    TeamLineupEntry::factory()->create(['lineup_id' => $lineup->id, 'membership_id' => $period->id, 'pseudonym' => $person->pseudonym]);
+    $lineup->forceFill(['status' => 'finalized', 'version' => (string) Str::uuid(), 'finalized_at' => now(), 'finalized_by' => $matchUser->id])->save();
+    $matchTeams[] = ['team' => $team->id, 'lineup' => $lineup->id];
+}
+$matchBetaRecord = MatchRecord::factory()->create(['organization_id' => $matchBeta->id, 'created_by' => $matchUser->id, 'title' => 'Beta match privé']);
+$matchForeignRecord = MatchRecord::factory()->create(['organization_id' => $foreign->id, 'title' => 'Foreign match privé']);
 echo json_encode([
     'alpha' => $alpha->id, 'beta' => $beta->id, 'foreign' => $foreign->id,
     'betaPerson' => $betaPerson->id, 'foreignPerson' => $foreignPerson->id,
@@ -94,4 +122,8 @@ echo json_encode([
     'calendar' => ['alpha' => $calendarAlpha->id, 'beta' => $calendarBeta->id, 'day' => $calendarDay,
         'person' => $calendarPerson->id, 'secondPerson' => $calendarSecondPerson->id, 'team' => $calendarTeam->id,
         'betaActivity' => $calendarBetaActivity->id, 'foreignActivity' => $calendarForeignActivity->id],
+    'match' => ['alpha' => $matchAlpha->id, 'beta' => $matchBeta->id, 'day' => $matchDay,
+        'responsible' => $matchResponsible->id, 'teams' => $matchTeams,
+        'betaMatch' => $matchBetaRecord->id, 'foreignMatch' => $matchForeignRecord->id,
+        'game' => GameCatalogueEntry::query()->where('kind', 'game')->where('key', 'valorant')->firstOrFail()->id],
 ], JSON_THROW_ON_ERROR);

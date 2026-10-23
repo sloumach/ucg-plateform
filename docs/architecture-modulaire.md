@@ -3040,3 +3040,22 @@ rapport. Le scénario déplace le créneau, ajoute un participant puis annule
 l'activité, vérifie les versions, l'historique et l'affichage UTC/Asia-Tokyo.
 Le lanceur conserve ses mêmes garde-fous pour les sept tenants et trois comptes
 de scénario ; aucun worker ni notification externe activé.
+
+Le quatrième parcours ajoute deux tenants propres aux matchs et un approbateur
+indépendant. Le match privé appartient au compte créateur et reste accessible à
+l'approbateur en tant que responsable explicitement lié à une personne. Les deux
+équipes et leurs compositions finalisées sont des prérequis de fixture ; création
+du match, affectations, transitions, scores, soumissions et décisions passent par
+les formulaires et les endpoints publics réels.
+
+La file du lanceur utilise désormais le driver database et la même SQLite
+temporaire. Une entrée `tests/Fixtures/browser-worker.php` réutilise le bootstrap
+gardé, refuse une connexion de file externe et exécute `queue:work database`
+uniquement sur `default`, pendant dix minutes au maximum. Le lanceur attend son
+marqueur de disponibilité, conserve son processus enfant et l'arrête avant le
+nettoyage, aussi en cas d'échec. Aucun processus du poste n'est réutilisé. Le test
+attend la correction appliquée via l'API, puis vérifie l'inversion du vainqueur,
+la contestation du résultat et la nouvelle validation indépendante. Les scores
+sources restent scellés ; les valeurs corrigées et les décisions sont conservées.
+Le broadcast reste journalisé ; ce parcours ne valide pas Reverb ni les workers
+de recette ou de production.

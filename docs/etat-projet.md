@@ -5141,3 +5141,47 @@ restent des cas à approfondir. L'hébergement demeure différé selon la décis
 QA-003 reste ouvert pour invitations/MFA avancé, matchs, contrats et exports,
 ainsi que ressources/récurrences/notifications avancées du calendrier. Le prochain
 parcours métier proposé est celui des matchs avec API réelle.
+
+## UCG-QA-003 — Quatrième parcours réel : matchs (23 octobre 2026)
+
+- Deux organisations dédiées aux matchs, compte créateur avec sports.read/write/
+  correct/validate et approbateur distinct avec sports.read/validate. Le créateur
+  dispose uniquement de sports.read dans Beta. Neuf tenants fictifs au total,
+  quatre comptes de scénario et un compte d'approbation, sans dépendance aux
+  écritures des autres scénarios.
+- Match privé BO1 créé par le navigateur : jeu, responsable, horaires UTC et deux
+  équipes. Le responsable est une personne liée à l'approbateur, ce qui lui donne
+  accès au dossier privé sans publication. Les deux compositions finalisées sont
+  des prérequis fictifs ; leurs affectations passent par les formulaires réels.
+- Transitions proposé → confirmé → en cours, fixation des règles, partie à 13–7
+  et soumission d'une preuve fictive. L'auteur ne peut pas approuver son résultat,
+  même avec sports.validate. Un second contexte navigateur authentifié et MFA
+  approuve ; ses actions d'écriture sportive restent absentes et la correction
+  forcée par API est refusée.
+- Correction motivée à 7–13, statut pending reçu puis applied constaté via API.
+  Le vrai job est consommé par un worker dédié à la file database/default dans
+  la même SQLite temporaire. Anciennes et nouvelles valeurs conservées, vainqueur
+  inversé et résultat remis en contestation. Les parties sources restent figées ;
+  nouvelle preuve et nouvelle approbation indépendante requises et vérifiées.
+- Rechargements complets, journal des deux approbations et correction terminée
+  contrôlés. Version périmée, référence de personne étrangère et identifiants de
+  matchs étrangers refusés ; aucune création partielle après refus. Passage à
+  Beta : dossier Alpha absent, création refusée et liste Beta inchangée. Actions
+  et formulaires à 320 px ; absence de débordement contrôlée à 375 et 320 px.
+- Lanceur : worker démarré comme processus enfant, attente de disponibilité,
+  arrêt avant suppression du dossier temporaire et durée maximale de dix minutes.
+  Entrée PHP gardée, refus d'une file synchrone ou d'une connexion de file externe.
+  Les paramètres applicatifs hérités et les `.env` réels restent exclus.
+- Validation : quatre parcours réels sous Chrome ; 85 tests backend ciblés
+  (compositions, scores, résultats, corrections et worker), 1 000 assertions ;
+  36 tests de composants matchs ; quatre contrôles du lanceur. Lint, typage strict
+  des quatre scénarios, Pint dirty et PHPStan sans erreur. Pas de suite complète
+  PostgreSQL ni de nouvelle CI distante revendiquée.
+- Aucun code métier, migration, `.env` réel, base de développement ou permission
+  réelle modifié. Le broadcast reste journalisé ; aucune validation Reverb ou
+  activation de worker hébergé. Documentation et tests réunis dans un commit
+  local UCG-QA-003, sans push.
+
+QA-003 reste ouvert pour invitations/MFA avancé, contrats, exports et cas avancés
+du calendrier et des matchs. Le prochain parcours métier proposé est celui des
+contrats avec API réelle. Hébergement et configuration fournisseur restent différés.

@@ -4120,19 +4120,32 @@ libre, activité privée avec équipe et participants, changement d'horaires et 
 participants puis annulation. Horaires stockés en UTC et affichés en Asia/Tokyo,
 persistance après rechargement, historique, refus de versions périmées et accès
 inter-tenant sont contrôlés. Les formulaires sont utilisés à 320 px, sans envoi
-réel de notification ni activation de worker.
+réel de notification.
+
+Le quatrième scénario crée un match privé BO1 entre deux équipes, affecte leurs
+compositions finalisées puis confirme et démarre le match. Il fixe les règles,
+saisit une partie et soumet une preuve fictive. Un second compte habilité approuve
+le résultat ; l'auto-approbation reste refusée même avec le droit de validation.
+Une correction inverse les scores, déclenche un vrai job de recalcul dans la
+SQLite temporaire et invalide l'approbation. Les valeurs d'origine restent figées,
+une nouvelle preuve et une seconde validation indépendante sont nécessaires.
+Historique avant/après, persistance, version périmée, références étrangères,
+lecture seule et formulaires à 320 px sont contrôlés.
 
 Chaque lancement crée un dossier temporaire propre, une SQLite vide, une clé de
 chiffrement éphémère et des sessions/fichiers/caches isolés. Il applique les
-migrations uniquement à cette nouvelle base et peuple sept organisations
-fictives : trois comptes de scénario distincts, chacun avec son organisation de
-travail et son organisation en lecture seule, plus un tenant inaccessible.
+migrations uniquement à cette nouvelle base et peuple neuf organisations
+fictives : quatre comptes de scénario distincts, chacun avec son organisation de
+travail et son organisation en lecture seule, un compte approbateur pour les
+matchs et un tenant inaccessible.
 Les scénarios n'utilisent pas les écritures de l'autre. Les identifiants de ces fixtures sont publics et réservés
 aux tests ; ne pas les employer en recette ou production. Aucun contournement
 de connexion, MFA, CSRF ou autorisation n'est installé dans l'application.
 
 Les deux serveurs de test démarrent sur des ports locaux disponibles, sans
-réutilisation de serveurs existants. Leurs processus sont lancés directement
+réutilisation de serveurs existants. Un worker de test consomme uniquement la file
+`default` de cette même SQLite, avec une durée maximale de dix minutes. Son entrée
+PHP refuse une file synchrone ou une connexion de file externe. Tous ces processus sont lancés directement
 puis arrêtés avant suppression du dossier temporaire, y compris en cas d'échec.
 Les paramètres applicatifs hérités et les `.env` de développement sont exclus.
 Les requêtes du navigateur vers des origines autres que ces deux serveurs sont
@@ -4153,7 +4166,7 @@ clés `v1` expirent selon leur durée existante de cinq minutes ; aucune purge
 globale ni modification du réglage `cache.serializable_classes=false` nécessaire.
 
 QA-003 reste ouvert pour les invitations, l'enrôlement/récupération MFA, les
-matchs, contrats et exports avec API réelle, ainsi que les cas avancés de
+contrats et exports avec API réelle, les cas avancés des matchs, ainsi que les cas de
 réservation, récurrence et notifications du calendrier. Cette
 suite locale/CI utilise SQLite ; elle ne remplace pas une recette PostgreSQL ni
-la validation des workers et du temps réel.
+la validation des workers de recette/production et du temps réel Reverb.
