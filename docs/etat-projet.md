@@ -5028,3 +5028,48 @@ OPS-001 reste ouvert : provisionner l'infrastructure après choix du fournisseur
 injecter les secrets distincts, créer les données fictives, vérifier les accès et
 la séparation effective, puis effectuer la recette avec comptes/API réels.
 OPS-002 (déploiement), OPS-003 (supervision), OPS-004 (restauration) restent distincts.
+
+## UCG-QA-003 — Premier parcours navigateur avec API réelle (23 octobre 2026)
+
+Le responsable reporte l'hébergement à la fin du développement. OPS-001 conserve
+son socle préparé ; son provisionnement et sa validation sur infrastructure sont
+différés. QA-003 avance d'abord en local et en CI avec données fictives isolées.
+
+- Suite Playwright distincte : identifiants incorrects, connexion, MFA TOTP réel,
+  choix d'Alpha, confirmation et création d'une personne, persistance après
+  rechargement, passage à Beta en lecture seule puis retour et déconnexion.
+  Vérification des refus invité, MFA non terminé, jeton CSRF absent, tenant non
+  accessible, ressource étrangère, ancienne révision et écriture sans droit.
+  Largeurs 375 et 320 px sans débordement.
+- Lanceur Node avec environnement fermé : SQLite neuve, `.env` vide, APP_KEY
+  éphémère, cache/verrous en base et stockage/sessions temporaires. Fixtures de
+  trois tenants. Aucune réponse API simulée ; routes navigateur limitées aux
+  deux origines locales de test. Pas de nouvelle route de fixture ou dérogation
+  d'authentification dans l'application publique.
+- Refus avant bootstrap de production/DB externe/mauvais nonce/cache existant.
+  Ports disponibles sans réutilisation d'un serveur existant ; démarrage direct
+  des processus PHP/Vite et nettoyage après leur arrêt sous Windows. Lecture
+  des variables Vite dans le dossier temporaire et rapports exclus du watcher.
+  Rapports/trace/capture/journal fictif sur échec conservés séparément en CI.
+- Défaut détecté : le catalogue global cachait des modèles Eloquent alors que la
+  désérialisation de classes est refusée. Au cache chaud, la lecture échouait avec
+  `__PHP_Incomplete_Class`. Correction par cache d'attributs simples et réhydratation,
+  format de clé v2, sans purge globale ni assouplissement de la désérialisation.
+  TTL/révision/contournement du cache en transaction conservés. Régression backend
+  hors transaction pour exercer un vrai cache en base entre deux lectures HTTP.
+- Premiers essais Windows : chemin absolu de cache puis stockage HTTP explicités,
+  cache fichier remplacé par le cache en base requis pour les verrous tenant.
+  Les trois sessions temporaires initialement créées dans le stockage local ont
+  été identifiées par leurs ports de test et supprimées ; les lignes de journal
+  techniques de ces essais ont été conservées. Aucun `.env` réel ni base de
+  développement modifié, aucun compte réel ni permission réelle attribué.
+- Validation : scénario réel complet réussi sous Chrome ; trois tests du lanceur
+  réussis ; sélection backend catalogue/profils/cache : 97/97, 451 assertions.
+  Frontend complet : 493/493, 66 fichiers. Build, lint, typage strict du nouveau
+  scénario, Pint dirty et PHPStan (zéro erreur) réussis. Workflow frontend étendu ;
+  pas de succès de CI distante revendiqué. Pas de nouvelle migration applicative.
+  Code, tests et documentation réunis dans un commit local UCG-QA-003, sans push.
+
+QA-003 reste ouvert pour les autres parcours : invitations, enrôlement/récupération
+MFA, rosters, calendrier, matchs, contrats et exports. SQLite locale/CI ne remplace
+pas PostgreSQL, les workers, Reverb réel ni la recette sur future infrastructure.

@@ -6,10 +6,13 @@ import { validateBuildEnvironment } from './buildEnvironment.ts'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  validateBuildEnvironment(loadEnv(mode, process.cwd(), 'VITE_'))
+  const environmentDirectory = process.env.UCG_BROWSER_ROOT || process.cwd()
+  validateBuildEnvironment(loadEnv(mode, environmentDirectory, 'VITE_'))
 
   return {
+    envDir: environmentDirectory,
     plugins: [react(), tailwindcss()],
+    server: { watch: { ignored: ['**/reports/**'] } },
     test: {
       environment: 'jsdom',
       include: ['src/**/*.test.{ts,tsx}'],

@@ -95,6 +95,11 @@ jobs:
       - name: Run Playwright tests
         run: npm run test:e2e
 
+      - name: Run isolated browser journey against real Laravel API
+        run: |
+          npm run test:e2e:harness
+          npm run test:e2e:real
+
       - name: Upload Playwright reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -104,5 +109,9 @@ jobs:
             front/reports/playwright.xml
             front/reports/playwright-html
             front/reports/playwright-results
+            front/reports/playwright-real.xml
+            front/reports/playwright-real-html
+            front/reports/playwright-real-results
+            front/reports/playwright-real-application.log
           if-no-files-found: ignore
           retention-days: 14

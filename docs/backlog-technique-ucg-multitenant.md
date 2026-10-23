@@ -1392,6 +1392,13 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / L
 - **Périmètre** : invitation, MFA, changement de tenant, personne, roster, calendrier, match, contrat et export.
 - **Acceptation** : parcours stables sur tailles d’écran convenues et erreurs exploitables.
+- **Premier lot local (23/10/2026)** : connexion/MFA TOTP, sélection et changement
+  de tenant, confirmation et création persistée d'une personne, déconnexion,
+  contrôles CSRF/isolation/droits et mobile 375/320 avec API Laravel réelle.
+  Lanceur SQLite et stockage temporaires, fixtures de trois tenants, rapports CI
+  distincts et suite simulée conservée. Correction du cache persistant du catalogue
+  détectée par le rechargement. Ticket ouvert pour les autres parcours et moteurs
+  de recette ; détails et commande d'exécution dans le README.
 
 ### UCG-QA-004 — Tester concurrence et idempotence
 

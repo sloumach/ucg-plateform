@@ -3006,3 +3006,21 @@ Vite s'applique lors du chargement de sa configuration, avec liste fermée des n
 de variables publiques et contrôles HTTPS/Reverb pour les profils distants explicites.
 Les procédures de provisioning et rotation sont dans le README. OPS-001 reste ouvert
 jusqu'à la vérification des ressources réelles ; aucun déploiement n'est effectué.
+
+### UCG-QA-003 — Premier parcours avec API réelle
+
+Une suite Playwright distincte utilise un lanceur Node qui crée une base SQLite
+et un stockage temporaires, fournit un environnement fermé puis démarre PHP et
+Vite directement sur des ports locaux disponibles. Les entrées PHP résident dans
+`tests/Fixtures`, vérifient profil/base/nonce/cache avant tout bootstrap et utilisent
+un `.env` vide et un chemin de stockage explicite. Aucune route de fixture ni
+exception d'authentification n'est ajoutée au runtime public. Les sessions sont
+persistantes, le cache et les verrous utilisent la base temporaire ; MFA et CSRF
+restent actifs dans le serveur HTTP. Le dossier est supprimé après arrêt des processus.
+
+Le premier parcours détecte aussi la désérialisation interdite des modèles du
+catalogue global dans le cache persistant. `EffectiveGameCatalogue` conserve
+désormais des attributs simples sous `game-catalogue:v2:{revision}` et réhydrate
+les modèles sans requête supplémentaire. La révision, la durée de cinq minutes,
+la lecture directe en transaction et les restrictions d'organisation sont conservées.
+Le refus de désérialiser des classes reste actif ; les caches v1 expirent normalement.

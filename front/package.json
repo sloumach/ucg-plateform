@@ -13,6 +13,8 @@
     "test": "vitest run",
     "test:ci": "vitest run --reporter=default --reporter=junit --outputFile.junit=reports/vitest.xml",
     "test:e2e": "playwright test",
+    "test:e2e:real": "node tests/real-api/run.mjs",
+    "test:e2e:harness": "node --test tests/real-api/environment.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

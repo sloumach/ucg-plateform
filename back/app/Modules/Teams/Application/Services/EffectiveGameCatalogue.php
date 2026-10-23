@@ -22,10 +22,15 @@ final readonly class EffectiveGameCatalogue implements OrganizationGameCatalogue
             return $this->repository->snapshot();
         }
         $revision = $this->repository->revision();
-        /** @var list<GameCatalogueEntry> $entries */
-        $entries = $this->cache->remember('game-catalogue:v1:'.$revision, 300, fn (): array => $this->repository->snapshot());
+        // Persistent caches refuse class deserialization; cache raw scalar attributes instead.
+        // A new key format also leaves previously cached model objects unused until expiry.
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $this->cache->remember('game-catalogue:v2:'.$revision, 300, fn (): array => array_map(
+            static fn (GameCatalogueEntry $entry): array => $entry->getAttributes(),
+            $this->repository->snapshot(),
+        ));
 
-        return $entries;
+        return array_map(static fn (array $attributes): GameCatalogueEntry => (new GameCatalogueEntry)->newFromBuilder($attributes), $rows);
     }
 
     /** @param list<GameCatalogueEntry>|null $snapshot

@@ -4083,3 +4083,60 @@ OPS-001 dispose ainsi d'un socle de préparation local. Son acceptation complèt
 attend le choix de l'hébergement/gestionnaire, les ressources de recette, le
 peuplement fictif et la vérification effective de leur séparation. OPS-002/003/004
 restent des tâches distinctes.
+
+## Parcours navigateur avec API réelle — UCG-QA-003
+
+Depuis `front`, après installation des dépendances frontend/backend et d'un
+navigateur pris en charge par Playwright :
+
+```bash
+npm run test:e2e:harness
+npm run test:e2e:real
+# Facultatif, navigateur visible : npm run test:e2e:real -- --headed
+```
+
+Pour utiliser Chrome déjà installé, définir `PLAYWRIGHT_BROWSER_CHANNEL=chrome`
+dans le shell. Sinon la suite utilise le Chromium installé pour Playwright.
+Elle demande PHP avec SQLite/PDO SQLite et les dépendances Composer de développement.
+Ne pas lancer directement la configuration `playwright.real-api.config.ts` : le
+lanceur prépare et nettoie les ressources dont elle dépend.
+
+Ce premier scénario exerce le navigateur et Laravel sans réponse API simulée :
+identifiants incorrects, connexion, MFA TOTP réel, sélection d'organisation,
+confirmation, création d'une personne, rechargement, changement de tenant et
+déconnexion. Il contrôle aussi les refus CSRF, MFA, ressource étrangère, ancien
+contexte et écriture sans permission, ainsi que les largeurs 375 et 320 px.
+
+Chaque lancement crée un dossier temporaire propre, une SQLite vide, une clé de
+chiffrement éphémère et des sessions/fichiers/caches isolés. Il applique les
+migrations uniquement à cette nouvelle base et peuple trois organisations
+fictives : accès lecture/écriture à Alpha, lecture seule à Beta et aucun accès
+au troisième tenant. Les identifiants de ces fixtures sont publics et réservés
+aux tests ; ne pas les employer en recette ou production. Aucun contournement
+de connexion, MFA, CSRF ou autorisation n'est installé dans l'application.
+
+Les deux serveurs de test démarrent sur des ports locaux disponibles, sans
+réutilisation de serveurs existants. Leurs processus sont lancés directement
+puis arrêtés avant suppression du dossier temporaire, y compris en cas d'échec.
+Les paramètres applicatifs hérités et les `.env` de développement sont exclus.
+Les requêtes du navigateur vers des origines autres que ces deux serveurs sont
+bloquées. Seul `--headed` peut être ajouté ; une autre configuration ne peut pas
+être substituée au lanceur par argument CLI.
+
+La CI frontend exécute ce scénario après la suite Playwright existante. Rapports :
+`front/reports/playwright-real.xml`, `playwright-real-html` et
+`playwright-real-results`. En cas d'échec, une trace, une capture et, s'il existe,
+le journal applicatif fictif `playwright-real-application.log` sont conservés.
+Les rapports CI ont une rétention de 14 jours ; ils ne doivent contenir que des
+données de test. Les données et la clé temporaires sont supprimées.
+
+Le scénario a révélé un cache du catalogue global incompatible avec le refus de
+désérialiser des classes. Le cache utilise désormais des attributs simples sous
+une clé de format `v2`, puis reconstruit les modèles en mémoire. Les anciennes
+clés `v1` expirent selon leur durée existante de cinq minutes ; aucune purge
+globale ni modification du réglage `cache.serializable_classes=false` nécessaire.
+
+QA-003 reste ouvert pour les invitations, l'enrôlement/récupération MFA, les
+rosters, calendriers, matchs, contrats et exports avec API réelle. Cette première
+suite locale/CI utilise SQLite ; elle ne remplace pas une recette PostgreSQL ni
+la validation des workers et du temps réel.
