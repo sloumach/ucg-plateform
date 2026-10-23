@@ -5185,3 +5185,44 @@ parcours métier proposé est celui des matchs avec API réelle.
 QA-003 reste ouvert pour invitations/MFA avancé, contrats, exports et cas avancés
 du calendrier et des matchs. Le prochain parcours métier proposé est celui des
 contrats avec API réelle. Hébergement et configuration fournisseur restent différés.
+
+## UCG-QA-003 — Cinquième parcours réel : contrats (24 octobre 2026)
+
+- Deux organisations propres aux contrats et trois comptes MFA : préparateur avec
+  droits administratifs et financiers, approbateur avec lecture/validation financière
+  sans écriture financière, gestionnaire administratif sans droit financier. Le
+  préparateur dispose uniquement d'administrative.read dans Beta. Onze tenants et
+  huit comptes de scénario/intervenants au total, dans la SQLite temporaire.
+- Création et modification d'un dossier joueur par les formulaires : responsable
+  avec identité administrative, partie interne, dates et obligation de suivi.
+  Références étrangères et versions périmées refusées ; aucune création partielle.
+- Conditions financières de test à 1 234,56 EUR mensuels et modalités sentinelles.
+  Versions du dossier et des conditions contrôlées séparément. Réponses ordinaires
+  et interface du gestionnaire administratif sans montant ni modalité sensible ;
+  lectures/écritures financières directes et approbation du dossier refusées.
+- Passage en revue, auto-approbation refusée même avec les permissions explicites.
+  Le second compte lit les conditions et approuve depuis le navigateur ; son
+  formulaire d'écriture financière reste absent. Modification des conditions après
+  approbation refusée. Signature externe déclarée puis activation : in_force vrai,
+  sporting_eligibility conservée à not_assessed, sans autorisation sportive déduite.
+- Résiliation puis tentative d'archivage refusée tant que l'obligation reste ouverte.
+  Accomplissement via le formulaire, archivage puis modification refusée. Après
+  rechargement : dossier archivé, signature et conditions conservées, pas d'écriture
+  financière proposée. Historique limité aux huit statuts attendus. Passage à Beta :
+  dossier Alpha absent, création refusée et liste Beta inchangée.
+- Formulaire contrôlé à 375 et 320 px, actions des trois comptes à 320 px ; absence
+  de débordement vérifiée. Scénario ajouté à la suite réelle automatiquement
+  découverte par la CI existante. Aucune réponse API métier simulée.
+- Validation : cinq parcours réels sous Chrome ; sélection backend contrats,
+  gouvernance financière, service et audit : 89 tests, 587 assertions ; composants
+  contrats/finances : 18 tests ; quatre contrôles du lanceur. Lint, typage strict,
+  Pint dirty et PHPStan sans erreur. Pas de nouvelle suite complète PostgreSQL ni
+  de CI distante revendiquée.
+- Aucun code métier, migration applicative, `.env` réel, base de développement ou
+  permission réelle modifié. Pas d'envoi réel, d'activation de service hébergé ou
+  de validation d'antivirus. Documentation et tests dans un commit local UCG-QA-003,
+  sans push.
+
+QA-003 reste ouvert pour invitations/MFA avancé, exports, documents/avenants/rappels
+des contrats et cas avancés du calendrier et des matchs. Le prochain parcours
+proposé est celui des exports avec API réelle. Hébergement toujours différé.

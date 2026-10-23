@@ -4132,12 +4132,23 @@ une nouvelle preuve et une seconde validation indépendante sont nécessaires.
 Historique avant/après, persistance, version périmée, références étrangères,
 lecture seule et formulaires à 320 px sont contrôlés.
 
+Le cinquième scénario crée et modifie un contrat avec partie interne et obligation,
+enregistre ses conditions financières puis le passe en revue. L'auto-approbation
+est refusée. Un compte administratif sans accès financier ne reçoit ni montant ni
+modalité sensible, ne peut pas modifier les conditions ni approuver ce dossier.
+Un approbateur indépendant peut les consulter et approuver, sans les modifier.
+Le parcours déclare ensuite une signature reçue hors plateforme, active puis
+résilie le contrat. L'archivage reste bloqué tant que l'obligation est ouverte ;
+son accomplissement permet l'archivage définitif. Versions périmées, gel des
+conditions, historique, rechargements, isolation et mobile sont vérifiés.
+
 Chaque lancement crée un dossier temporaire propre, une SQLite vide, une clé de
 chiffrement éphémère et des sessions/fichiers/caches isolés. Il applique les
-migrations uniquement à cette nouvelle base et peuple neuf organisations
-fictives : quatre comptes de scénario distincts, chacun avec son organisation de
-travail et son organisation en lecture seule, un compte approbateur pour les
-matchs et un tenant inaccessible.
+migrations uniquement à cette nouvelle base et peuple onze organisations
+fictives : cinq comptes de scénario distincts, chacun avec son organisation de
+travail et son organisation en lecture seule, un approbateur pour les matchs,
+un approbateur et un gestionnaire administratif pour les contrats, et un tenant
+inaccessible.
 Les scénarios n'utilisent pas les écritures de l'autre. Les identifiants de ces fixtures sont publics et réservés
 aux tests ; ne pas les employer en recette ou production. Aucun contournement
 de connexion, MFA, CSRF ou autorisation n'est installé dans l'application.
@@ -4166,7 +4177,7 @@ clés `v1` expirent selon leur durée existante de cinq minutes ; aucune purge
 globale ni modification du réglage `cache.serializable_classes=false` nécessaire.
 
 QA-003 reste ouvert pour les invitations, l'enrôlement/récupération MFA, les
-contrats et exports avec API réelle, les cas avancés des matchs, ainsi que les cas de
+exports avec API réelle, les documents/avenants/rappels des contrats et les cas avancés des matchs, ainsi que les cas de
 réservation, récurrence et notifications du calendrier. Cette
 suite locale/CI utilise SQLite ; elle ne remplace pas une recette PostgreSQL ni
 la validation des workers de recette/production et du temps réel Reverb.

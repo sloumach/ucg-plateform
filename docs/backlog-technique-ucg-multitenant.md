@@ -1419,6 +1419,14 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   mobile 375/320, version périmée et refus inter-tenant/en lecture seule vérifiés.
   Neuf tenants fictifs ; quatre comptes de scénario et un approbateur. Aucun
   changement métier ou migration. Reverb et workers hébergés restent à valider.
+- **Cinquième lot local (24/10/2026)** : création/modification d'un contrat avec
+  partie et obligation, conditions financières, revue et approbation indépendante.
+  Refus d'auto-approbation et d'accès financier pour l'administratif non habilité,
+  versions périmées et gel après approbation. Signature externe déclarée, activation,
+  résiliation, archivage bloqué par l'obligation ouverte puis autorisé après son
+  accomplissement. Rechargements, historique, isolation et mobile contrôlés.
+  Onze tenants fictifs et huit comptes de scénario/intervenants ; aucun changement
+  métier ou migration. Documents/avenants/rappels et exports réels restent ouverts.
 
 ### UCG-QA-004 — Tester concurrence et idempotence
 

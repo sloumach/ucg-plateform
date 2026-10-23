@@ -3059,3 +3059,19 @@ la contestation du résultat et la nouvelle validation indépendante. Les scores
 sources restent scellés ; les valeurs corrigées et les décisions sont conservées.
 Le broadcast reste journalisé ; ce parcours ne valide pas Reverb ni les workers
 de recette ou de production.
+
+Le cinquième parcours réel ajoute les contrats : deux tenants propres, un
+préparateur, un approbateur sans financial.write et un gestionnaire administratif
+sans aucun droit financier. Chaque compte passe par une connexion et un MFA
+réels dans un contexte navigateur distinct. La fixture fournit uniquement les
+personnes et les dossiers étrangers ; le contrat testé, sa partie, son obligation,
+ses conditions financières et ses décisions sont créés via les endpoints publics.
+
+Le test vérifie le gel après approbation, les versions du contrat et des conditions,
+la confidentialité des réponses ordinaires et les refus d'accès direct aux finances.
+Le cycle continue jusqu'à la signature déclarée, l'activation, la résiliation et
+l'archivage après accomplissement de l'obligation. Les conditions restent lisibles
+par un compte habilité après rechargement et archivage, sans formulaire d'écriture.
+Les onze tenants et huit comptes de scénario/intervenants restent dans la même
+SQLite et le stockage temporaires. Aucun changement de schéma ou de code métier ;
+documents, analyse antivirus, avenants et rappels ne sont pas exercés par ce parcours.

@@ -1,6 +1,7 @@
 <?php
 
 use App\Modules\Competition\Domain\Models\MatchRecord;
+use App\Modules\Contracts\Domain\Models\ContractRecord;
 use App\Modules\Identity\Domain\Models\User;
 use App\Modules\People\Domain\Models\Person;
 use App\Modules\Scheduling\Domain\Models\Availability;
@@ -58,12 +59,27 @@ $matchReviewer = User::factory()->withMfa()->create([
 ]);
 $matchAlpha = Organization::factory()->create(['name' => 'Match Alpha', 'slug' => 'match-alpha']);
 $matchBeta = Organization::factory()->create(['name' => 'Match Beta', 'slug' => 'match-beta']);
+$contractUser = User::factory()->withMfa()->create([
+    'name' => 'Browser contract staff', 'email' => 'browser-contract@example.test', 'password' => 'Browser-fixture-only-2026!',
+]);
+$contractReviewer = User::factory()->withMfa()->create([
+    'name' => 'Browser contract approver', 'email' => 'browser-contract-reviewer@example.test', 'password' => 'Browser-fixture-only-2026!',
+]);
+$contractAdministrator = User::factory()->withMfa()->create([
+    'name' => 'Browser contract administrator', 'email' => 'browser-contract-admin@example.test', 'password' => 'Browser-fixture-only-2026!',
+]);
+$contractAlpha = Organization::factory()->create(['name' => 'Contract Alpha', 'slug' => 'contract-alpha']);
+$contractBeta = Organization::factory()->create(['name' => 'Contract Beta', 'slug' => 'contract-beta']);
 foreach ([
     [$user, $alpha, ['sports.read', 'sports.write']], [$user, $beta, ['sports.read']],
     [$rosterUser, $rosterAlpha, ['sports.read', 'sports.write', 'teams.manage']], [$rosterUser, $rosterBeta, ['sports.read']],
     [$calendarUser, $calendarAlpha, ['calendar.read', 'calendar.write', 'availability.read']], [$calendarUser, $calendarBeta, ['calendar.read']],
     [$matchUser, $matchAlpha, ['sports.read', 'sports.write', 'sports.correct', 'sports.validate']], [$matchUser, $matchBeta, ['sports.read']],
     [$matchReviewer, $matchAlpha, ['sports.read', 'sports.validate']],
+    [$contractUser, $contractAlpha, ['administrative.read', 'administrative.write', 'administrative.validate', 'financial.read', 'financial.write', 'financial.validate']],
+    [$contractUser, $contractBeta, ['administrative.read']],
+    [$contractReviewer, $contractAlpha, ['administrative.read', 'administrative.write', 'administrative.validate', 'financial.read', 'financial.validate']],
+    [$contractAdministrator, $contractAlpha, ['administrative.read', 'administrative.write', 'administrative.validate']],
 ] as [$account, $organization, $permissions]) {
     $membership = OrganizationMembership::factory()->create(['organization_id' => $organization->id, 'user_id' => $account->id]);
     $role = OrganizationRole::factory()->create([
@@ -112,6 +128,10 @@ foreach (['A', 'B'] as $index => $suffix) {
 }
 $matchBetaRecord = MatchRecord::factory()->create(['organization_id' => $matchBeta->id, 'created_by' => $matchUser->id, 'title' => 'Beta match privé']);
 $matchForeignRecord = MatchRecord::factory()->create(['organization_id' => $foreign->id, 'title' => 'Foreign match privé']);
+$contractResponsible = Person::factory()->withAdministrativeIdentity()->create(['organization_id' => $contractAlpha->id, 'status' => 'active']);
+$contractBetaPerson = Person::factory()->withAdministrativeIdentity()->create(['organization_id' => $contractBeta->id]);
+$contractBetaRecord = ContractRecord::factory()->create(['organization_id' => $contractBeta->id, 'responsible_person_id' => $contractBetaPerson->id, 'title' => 'Beta contrat privé']);
+$contractForeignRecord = ContractRecord::factory()->create(['organization_id' => $foreign->id, 'responsible_person_id' => $foreignPerson->id, 'title' => 'Foreign contrat privé']);
 echo json_encode([
     'alpha' => $alpha->id, 'beta' => $beta->id, 'foreign' => $foreign->id,
     'betaPerson' => $betaPerson->id, 'foreignPerson' => $foreignPerson->id,
@@ -126,4 +146,7 @@ echo json_encode([
         'responsible' => $matchResponsible->id, 'teams' => $matchTeams,
         'betaMatch' => $matchBetaRecord->id, 'foreignMatch' => $matchForeignRecord->id,
         'game' => GameCatalogueEntry::query()->where('kind', 'game')->where('key', 'valorant')->firstOrFail()->id],
+    'contract' => ['alpha' => $contractAlpha->id, 'beta' => $contractBeta->id,
+        'responsible' => $contractResponsible->id, 'today' => now()->utc()->toDateString(),
+        'betaContract' => $contractBetaRecord->id, 'foreignContract' => $contractForeignRecord->id],
 ], JSON_THROW_ON_ERROR);
