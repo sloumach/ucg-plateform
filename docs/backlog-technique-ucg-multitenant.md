@@ -1324,6 +1324,11 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / M
 - **Périmètre** : développement, recette, production, variables, gestionnaire de secrets et données fictives.
 - **Acceptation** : séparation vérifiée, rotation documentée et aucun secret ou fichier de production dans les environnements inférieurs.
+- **État au 23/10/2026** : socle de préparation indépendant du fournisseur en cours
+  de livraison : gabarits sans secrets, diagnostic de configuration en lecture
+  seule, contrôle des variables publiques Vite et procédure de rotation dans le
+  README. Acceptation ouverte jusqu'au provisionnement, peuplement fictif et
+  contrôle effectif de séparation ; hébergeur/gestionnaire non encore choisis.
 
 ### UCG-OPS-002 — Automatiser les déploiements
 

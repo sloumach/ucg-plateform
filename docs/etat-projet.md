@@ -4991,3 +4991,40 @@ PostgreSQL de la CI, qui applique ce contrôle de dépendances même sur des tab
 
 Après validation de livraison, réévaluer les P0 restants du backlog ; ACA-004
 conserve les ressources, évaluations et progression dans son périmètre P1.
+
+## UCG-OPS-001 — Socle de préparation des environnements (23 octobre 2026)
+
+Le responsable confirme la migration ACA-003 et sa CI distante verte. Il valide
+une préparation indépendante du fournisseur : hébergement et gestionnaire de
+secrets ne sont pas encore choisis.
+
+- Gabarits staging/production backend et frontend, sans secrets et avec domaines
+  `.invalid`. Traitements métier désactivés ; transport mail log. Exclusion Git
+  étendue aux `.env*` backend, avec exceptions limitées aux trois gabarits.
+- Commande `ops:check-environment --expect=staging|production [--json]` en lecture
+  seule, fondée sur la configuration effective. Messages fixes, aucune valeur
+  ni secret dans le rapport. Contrôles du profil, namespaces, PostgreSQL, Redis,
+  cache/queues, cookies, CORS/Sanctum, Reverb, volume privé et mail de recette.
+  Aucun contrôle réseau ni preuve d'isolation des ressources réelles revendiqué.
+- Profil Horizon staging borné, sans démarrage de processus. Vite refuse les noms
+  de variables publiques non documentés et les configurations distantes HTTP,
+  URL avec identifiants, domaines `.invalid` ou Reverb incohérent. Le profil
+  distant doit être explicite ; les builds locaux conservent leur fonctionnement.
+- Procédures dans le README : ressources dédiées, injection runtime/fichier monté,
+  données fictives et comptes de recette, rotation par service, conservation des
+  anciennes clés de chiffrement et dépendance à la restauration OPS-004.
+- Validation finale du nouveau diagnostic et des gabarits : 30/30 tests backend,
+  157 assertions. Sélection diagnostic/cache/queue avant le dernier test des
+  gabarits : 35 réussis, 1 intégration Redis ignorée, 133 assertions. Aucune suite
+  PostgreSQL complète rejouée : aucune migration ni requête métier modifiée.
+  Frontend complet : 493/493 tests, 66 fichiers ; TypeScript/Vite, lint, Pint dirty
+  et PHPStan (zéro erreur) réussis. Exclusions Git et diff sans erreurs vérifiés.
+- Aucun `.env` réel, secret, base courante, donnée ou permission modifié ; aucune
+  migration appliquée, rotation exécutée, service activé ou infrastructure créée.
+  Livraison prévue en un commit local UCG-OPS-001, sans push ni nouvelle CI distante
+  revendiquée.
+
+OPS-001 reste ouvert : provisionner l'infrastructure après choix du fournisseur,
+injecter les secrets distincts, créer les données fictives, vérifier les accès et
+la séparation effective, puis effectuer la recette avec comptes/API réels.
+OPS-002 (déploiement), OPS-003 (supervision), OPS-004 (restauration) restent distincts.

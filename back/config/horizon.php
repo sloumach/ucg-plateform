@@ -278,6 +278,12 @@ return [
             ],
         ],
 
+        'staging' => [
+            'supervisor-critical' => ['maxProcesses' => 1],
+            'supervisor-default' => ['maxProcesses' => 2],
+            'supervisor-reports' => ['maxProcesses' => 1],
+        ],
+
         'local' => [
             'supervisor-critical' => [
                 'maxProcesses' => 1,

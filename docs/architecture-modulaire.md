@@ -2989,3 +2989,20 @@ de publication, erreurs/reprises et historique borné. Aucun traitement planifi�
 notification ou métrique automatique. Les écritures restent sérialisées par tenant :
 mesurer contention et plans SQL à la volumétrie cible avant de modifier ce verrou.
 ACA-004 conserve ressources pédagogiques, évaluations et progression sportive.
+
+### UCG-OPS-001 — Configuration des environnements
+
+Le diagnostic console `ops:check-environment` délègue à `EnvironmentReadiness`,
+qui dépend uniquement du contrat de configuration Laravel. Il lit la configuration
+effective, y compris si elle est cachée, sans accès DB, Redis ou stockage. Les
+messages sont fixes et ne reflètent aucune valeur, même dans le rapport JSON.
+Les déclarations `operations.*` n'attestent pas une provenance ni une isolation.
+Le socle documenté cible PostgreSQL, Redis et un volume privé local par profil ;
+un stockage objet ou des URL de connexion demanderont une adaptation explicite.
+
+Les gabarits staging/production restent inertes, sans clés ni domaines résolvables.
+Horizon possède un profil staging borné, sans lancement de processus. La validation
+Vite s'applique lors du chargement de sa configuration, avec liste fermée des noms
+de variables publiques et contrôles HTTPS/Reverb pour les profils distants explicites.
+Les procédures de provisioning et rotation sont dans le README. OPS-001 reste ouvert
+jusqu'à la vérification des ressources réelles ; aucun déploiement n'est effectué.

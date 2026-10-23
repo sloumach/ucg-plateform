@@ -11,6 +11,8 @@ back/vendor/
 back/storage/*.key
 front/.env*
 !front/.env.example
+!front/.env.staging.example
+!front/.env.production.example
 front/node_modules/
 front/dist/
 

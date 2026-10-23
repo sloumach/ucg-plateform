@@ -3982,3 +3982,104 @@ sur PostgreSQL/SQLite. Le retour arrière refuse les tables utilisées. Inclure
 les trois tables dans les sauvegardes et conserver la clé de chiffrement.
 Aucune migration de la base courante ni attribution réelle de permissions effectuée
 par cette livraison ; recette avec comptes et API de recette avant usage.
+
+## Préparation des environnements — UCG-OPS-001
+
+La migration ACA-003 et sa CI distante sont confirmées par le responsable du projet
+le 23 octobre 2026. Les exemples locaux restent dans `back/.env.example` et
+`front/.env.example`. Les nouveaux profils `back/.env.staging.example`,
+`back/.env.production.example`, `front/.env.staging.example` et
+`front/.env.production.example` sont des gabarits sans secrets, indépendants du
+fournisseur. Ils utilisent des domaines `.invalid`, des secrets vides et gardent
+les traitements métier désactivés. Ils ne sont pas directement exécutables.
+
+### Préparer une recette isolée
+
+1. Provisionner des ressources distinctes : PostgreSQL/base/rôle, Redis et ACL,
+   volumes privés, domaines, identifiants Reverb, secrets et comptes opérateur.
+   Les préfixes `ucg_staging` et `ucg_production` facilitent les contrôles ; ils
+   ne remplacent pas les ACL ni la séparation réseau. Utiliser deux domaines
+   de cookies disjoints : la recette ne doit pas être sous le domaine de cookie
+   de production. Adapter les `.invalid` aux domaines réellement choisis.
+2. Fournir les paramètres côté serveur par injection runtime ou fichier monté
+   hors du dépôt, avec accès réservé au compte applicatif. Ne pas envoyer de
+   secrets dans les arguments shell, logs CI ou artefacts. Injecter `APP_KEY`,
+   mots de passe DB/Redis et `REVERB_APP_SECRET` depuis le futur gestionnaire.
+   Le diagnostic suppose des variables DB/Redis séparées, sans `DB_URL` ni
+   `REDIS_URL`, un disque local privé et Redis pour cache/queues.
+3. Monter un volume persistant propre au profil, hors de `public`, et exporter
+   `LARAVEL_STORAGE_PATH` avant le démarrage de PHP (y compris avant le chargement
+   de `.env`). Créer ses sous-dossiers Laravel et droits d'accès dans le futur
+   déploiement. Les noms d'exemple `/srv/ucg_staging/storage` et
+   `/srv/ucg_production/storage` doivent être adaptés sur Windows. Les sessions,
+   logs et fichiers privés ne doivent jamais partager un volume entre profils.
+4. Partir d'une base vide et de scénarios fictifs : organisation de recette,
+   propriétaire, staff, joueur et utilisateur d'un autre tenant, sans données
+   personnelles réelles. Créer les comptes par le parcours d'inscription et
+   attribuer les droits explicitement. Ne pas exécuter `DatabaseSeeder` en recette
+   (réservé au local, mot de passe de démonstration connu), ni importer une base,
+   un export, une sauvegarde, des fichiers, logs ou clés de production. Les
+   factories des tests fournissent des données synthétiques pour la CI ; elles
+   ne constituent pas un peuplement de l'environnement de recette.
+5. Après injection et construction du cache de configuration dans la release
+   cible, lancer le contrôle depuis `back` :
+
+   ```bash
+   php artisan ops:check-environment --expect=staging --json --no-interaction
+   # Sur la release de production : --expect=production
+   ```
+
+   Code 0 : contrôles locaux conformes ; 1 : configuration incomplète ; 2 : profil
+   attendu absent/invalide. Le rapport ne contient aucune valeur de configuration.
+   Il ne contacte ni base, ni Redis, ni fichiers distants, et ne valide pas les
+   ACL, la connectivité, la provenance des données, la qualité ou la non-réutilisation
+   des secrets. `OPS_SECRETS_SOURCE` et `OPS_DATA_CLASSIFICATION` sont déclaratifs.
+   Vérifier ces points sur l'infrastructure avant de clôturer OPS-001.
+6. Pour le frontend, injecter uniquement les variables publiques du gabarit et
+   sélectionner explicitement `VITE_DEPLOYMENT_ENV=staging` ou `production` avant
+   `npm run build`. Le contrôle Vite refuse les noms `VITE_` non documentés et,
+   pour un profil distant, les URL HTTP, domaines `.invalid`, identifiants dans
+   l'URL et paramètres Reverb incohérents. La clé `VITE_REVERB_APP_KEY` est publique ;
+   `REVERB_APP_SECRET`, `APP_KEY`, jetons et mots de passe restent côté serveur.
+   Une valeur secrète placée sous un nom public autorisé reste exposée : la revue
+   des variables reste nécessaire. Le mode Vite `production` seul ne sélectionne
+   pas le profil distant ; sans `VITE_DEPLOYMENT_ENV`, le profil reste local.
+
+Les fichiers `.env*` réels sont exclus de Git dans les deux applications ; seuls
+les trois gabarits par application sont autorisés. Ne jamais réutiliser un cache
+de configuration Laravel ou un build frontend provenant d'un autre environnement.
+La recette utilise le transport mail `log` ; les corps de messages et logs restent
+privés et soumis à rétention. Le gabarit production conserve également `log` en
+attendant le choix explicite du transport. Aucun worker, scheduler, serveur Reverb
+ou traitement métier n'est activé par cette préparation.
+
+### Gestion et rotation des secrets
+
+- Inventorier par profil le responsable, usage, emplacement dans le gestionnaire,
+  droits d'accès, date de rotation et procédure de révocation, sans inscrire les
+  valeurs dans les tickets. Accorder au runtime uniquement les secrets de son
+  profil et au CI uniquement les droits nécessaires. Les fichiers temporaires,
+  caches de configuration et sauvegardes contenant des secrets restent privés.
+- Pour DB/Redis/mail/intégrations : créer le nouvel identifiant dans le service,
+  injecter sa version dans la release, reconstruire sa configuration, redémarrer
+  les processus longs concernés, vérifier les accès puis révoquer l'ancien.
+  Préparer un retour à la version précédente avant révocation. Les redémarrages
+  et déploiements automatisés relèvent d'OPS-002 ; rien n'est exécuté ici.
+- Pour Reverb : coordonner serveur, diffuseur et frontend ; rebâtir le frontend
+  si la clé publique change, vérifier connexion et autorisation des canaux privés
+  avant de retirer les anciens identifiants. Le secret ne passe jamais dans Vite.
+- `APP_KEY` protège des données persistées : ne jamais lancer `key:generate` sur
+  un environnement peuplé pour effectuer une rotation. Préparer une sauvegarde
+  restaurable (OPS-004), conserver les anciennes clés dans `APP_PREVIOUS_KEYS`,
+  injecter la nouvelle clé puis vérifier lecture des données historiques et
+  nouvelles écritures. L'ancienne clé ne peut être supprimée qu'après réchiffrement
+  contrôlé de toutes les données concernées et traitement des sauvegardes selon
+  leur rétention. Cette livraison ne fournit pas ce réchiffrement et ne tourne
+  aucune clé. Générer les clés initiales uniquement pour des environnements vides.
+- En cas d'exposition : révoquer, remplacer et rechercher les usages ; retirer
+  le fichier de Git ne suffit pas à rendre un secret publié confidentiel.
+
+OPS-001 dispose ainsi d'un socle de préparation local. Son acceptation complète
+attend le choix de l'hébergement/gestionnaire, les ressources de recette, le
+peuplement fictif et la vérification effective de leur séparation. OPS-002/003/004
+restent des tâches distinctes.
