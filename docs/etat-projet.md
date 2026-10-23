@@ -5106,3 +5106,38 @@ pas PostgreSQL, les workers, Reverb réel ni la recette sur future infrastructur
 QA-003 reste ouvert pour les invitations et les parcours MFA avancés, calendrier,
 matchs, contrats et exports ; les promotions et annulations futures du roster
 restent des cas à approfondir. L'hébergement demeure différé selon la décision du responsable.
+
+## UCG-QA-003 — Troisième parcours réel : calendrier (23 octobre 2026)
+
+- Compte et deux organisations propres au calendrier, dans la SQLite temporaire.
+  Sept tenants fictifs et trois comptes de scénario distincts au total. Droits
+  explicites calendar.read/write et availability.read dans Alpha, calendar.read
+  seulement dans Beta ; ni publication ni exception de conflit autorisée.
+- Indisponibilité fictive de 10 à 11 h UTC : détectée dans le formulaire et le
+  rapport réel sans commentaire privé. Écriture sans confirmation de tenant,
+  sans revue de conflit ou avec exception non autorisée refusée ; aucune activité
+  partielle créée. Créneau libre choisi ensuite de 12 à 13 h UTC.
+- Création d'une activité privée avec équipe et participant, puis déplacement de
+  14 à 15 h UTC et ajout d'un second participant avec motif opérationnel. Affichage
+  Asia/Tokyo contrôlé (21 h puis 23 h), versions périmées refusées. Participants
+  et nouvelle version conservés après rechargement complet.
+- Annulation motivée, refus de modifier l'activité archivée, disparition du
+  calendrier courant même après rechargement et consultation en archives de gestion.
+  Historique limité aux deux changements attendus : rescheduled et cancelled.
+- Identifiants d'activité étrangers et participant étranger refusés sans révéler
+  les titres privés. Passage à Beta en lecture seule, création refusée et liste
+  inchangée. Formulaire et actions à 320 px, contrôle de débordement à 375 et 320.
+- Validation : trois parcours réels sous Chrome ; sélection backend calendrier,
+  conflits, changements et disponibilités : 53/53, 513 assertions ; composants
+  calendrier/changements et conversions de dates : 26/26 ; trois contrôles du
+  lanceur réussis. Lint, typage strict (avec les types Vite du contrat calendrier),
+  Pint dirty et PHPStan zéro erreur. Pas de nouvelle suite complète PostgreSQL
+  pour ces changements de tests et fixtures uniquement.
+- Aucun code métier, migration applicative, `.env` réel, base de développement
+  ou permission réelle modifié. Pas de notification réelle, d'activation de
+  scheduler ou de worker ; ressources temporaires supprimées après arrêt des
+  serveurs. Commit local UCG-QA-003, sans push ni nouvelle CI distante revendiquée.
+
+QA-003 reste ouvert pour invitations/MFA avancé, matchs, contrats et exports,
+ainsi que ressources/récurrences/notifications avancées du calendrier. Le prochain
+parcours métier proposé est celui des matchs avec API réelle.

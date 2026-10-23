@@ -3031,3 +3031,12 @@ droits en lecture seule. Chaque scénario dispose d'un compte MFA et de deux
 organisations propres ; un cinquième tenant reste inaccessible aux deux comptes.
 Le générateur TOTP et la restriction des origines sont partagés comme utilitaires
 de test. Aucun service, endpoint, permission réelle ou schéma métier modifié.
+
+Le troisième parcours réel couvre le calendrier et les disponibilités : compte
+calendar.read/write et availability.read dans une organisation dédiée, lecture
+seule dans une autre, sans calendar.publish ni droit d'exception de conflit.
+L'indisponibilité fictive bloque l'écriture ; son commentaire reste exclu du
+rapport. Le scénario déplace le créneau, ajoute un participant puis annule
+l'activité, vérifie les versions, l'historique et l'affichage UTC/Asia-Tokyo.
+Le lanceur conserve ses mêmes garde-fous pour les sept tenants et trois comptes
+de scénario ; aucun worker ni notification externe activé.

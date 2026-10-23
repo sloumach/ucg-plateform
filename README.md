@@ -4104,7 +4104,7 @@ lanceur prépare et nettoie les ressources dont elle dépend.
 La suite exerce le navigateur et Laravel sans réponse API simulée :
 identifiants incorrects, connexion, MFA TOTP réel, sélection d'organisation,
 confirmation, création d'une personne, rechargement, changement de tenant et
-déconnexion. Il contrôle aussi les refus CSRF, MFA, ressource étrangère, ancien
+déconnexion. Elle contrôle aussi les refus CSRF, MFA, ressource étrangère, ancien
 contexte et écriture sans permission, ainsi que les largeurs 375 et 320 px.
 
 Le second scénario crée une personne active et deux équipes par l'interface,
@@ -4114,10 +4114,18 @@ l'historique après rechargement, le chevauchement, les identifiants étrangers,
 la version périmée et la clôture définitive. Les écritures dans l'organisation
 en lecture seule sont refusées. Les formulaires et actions sont exercés à 320 px.
 
+Le troisième scénario vérifie le calendrier : indisponibilité signalée sans
+exposer son commentaire, exception refusée sans habilitation, choix d'un créneau
+libre, activité privée avec équipe et participants, changement d'horaires et de
+participants puis annulation. Horaires stockés en UTC et affichés en Asia/Tokyo,
+persistance après rechargement, historique, refus de versions périmées et accès
+inter-tenant sont contrôlés. Les formulaires sont utilisés à 320 px, sans envoi
+réel de notification ni activation de worker.
+
 Chaque lancement crée un dossier temporaire propre, une SQLite vide, une clé de
 chiffrement éphémère et des sessions/fichiers/caches isolés. Il applique les
-migrations uniquement à cette nouvelle base et peuple cinq organisations
-fictives : deux comptes de scénario distincts, chacun avec son organisation de
+migrations uniquement à cette nouvelle base et peuple sept organisations
+fictives : trois comptes de scénario distincts, chacun avec son organisation de
 travail et son organisation en lecture seule, plus un tenant inaccessible.
 Les scénarios n'utilisent pas les écritures de l'autre. Les identifiants de ces fixtures sont publics et réservés
 aux tests ; ne pas les employer en recette ou production. Aucun contournement
@@ -4131,7 +4139,7 @@ Les requêtes du navigateur vers des origines autres que ces deux serveurs sont
 bloquées. Seul `--headed` peut être ajouté ; une autre configuration ne peut pas
 être substituée au lanceur par argument CLI.
 
-La CI frontend exécute ce scénario après la suite Playwright existante. Rapports :
+La CI frontend exécute ces scénarios après la suite Playwright existante. Rapports :
 `front/reports/playwright-real.xml`, `playwright-real-html` et
 `playwright-real-results`. En cas d'échec, une trace, une capture et, s'il existe,
 le journal applicatif fictif `playwright-real-application.log` sont conservés.
@@ -4145,6 +4153,7 @@ clés `v1` expirent selon leur durée existante de cinq minutes ; aucune purge
 globale ni modification du réglage `cache.serializable_classes=false` nécessaire.
 
 QA-003 reste ouvert pour les invitations, l'enrôlement/récupération MFA, les
-calendriers, matchs, contrats et exports avec API réelle. Cette
+matchs, contrats et exports avec API réelle, ainsi que les cas avancés de
+réservation, récurrence et notifications du calendrier. Cette
 suite locale/CI utilise SQLite ; elle ne remplace pas une recette PostgreSQL ni
 la validation des workers et du temps réel.

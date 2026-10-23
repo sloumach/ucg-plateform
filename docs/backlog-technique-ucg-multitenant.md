@@ -1405,6 +1405,12 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   périmée/clôture répétée et écritures sans droit ; formulaires à 320 px.
   Compte et organisations distincts du premier scénario, cinq tenants fictifs
   au total. Aucun changement métier ni migration ; les autres parcours restent ouverts.
+- **Troisième lot local (23/10/2026)** : calendrier avec API réelle, détection
+  d'indisponibilité et refus d'exception non autorisée, création avec équipe et
+  participants, déplacement du créneau/ajout d'un participant, annulation et
+  historique après rechargement. UTC/Asia-Tokyo, mobile 375/320, versions et accès
+  étrangers/en lecture seule contrôlés. Trois comptes de scénario et sept tenants
+  fictifs. Pas de changement métier, migration, notification réelle ou worker activé.
 
 ### UCG-QA-004 — Tester concurrence et idempotence
 
