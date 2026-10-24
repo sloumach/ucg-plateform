@@ -4476,7 +4476,7 @@ Rapports et limites dans `docs/etat-projet.md`.
 
 ### Isolation des observations — neuvième lot UCG-QA-002
 
-Le groupe `tenant-isolation` compte désormais **95 cas, 1 921 assertions**. Huit
+À la fin du neuvième lot, le groupe `tenant-isolation` comptait **95 cas, 1 921 assertions**. Huit
 cas ajoutés couvrent les observations et versions étrangères, les révocations
 après lecture, la séparation création/correction et un match devenu privé.
 Les refus préservent les observations, révisions et audits ; les droits Beta
@@ -4488,3 +4488,18 @@ Pint/PHPStan verts, cluster arrêté et supprimé ; aucun changement métier ou 
 migration. CI de `a581415` annoncée en lancement, résultat encore à confirmer ;
 CI du nouveau lot à obtenir après livraison. QA-002 reste ouvert. Rapports et
 limites dans `docs/etat-projet.md`.
+
+### Isolation des séances Académie et présences — dixième lot UCG-QA-002
+
+Le groupe `tenant-isolation` compte désormais **105 cas, 2 131 assertions**. Neuf
+cas ajoutés couvrent les identifiants étrangers ou sous le mauvais parent, les
+révocations après lecture et les droits distincts de gestion des séances et
+présences. Sans accès au calendrier, les horaires sont masqués et les mutations
+liées refusées ; les lectures Académie encore autorisées restent disponibles.
+
+Quatre suites liées passent sur SQLite en mémoire et PostgreSQL 17 temporaire :
+**77 tests, 607 assertions par moteur**, sans échec, erreur ou exclusion.
+Pint/PHPStan verts, cluster arrêté et supprimé ; aucun changement métier ou de
+migration. CI de `5172f83` validée par l'utilisateur ; dixième lot réuni dans un
+commit dédié, sans push, sa CI reste à obtenir après livraison. QA-002 reste ouvert. Rapports
+et limites dans `docs/etat-projet.md`.

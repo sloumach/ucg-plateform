@@ -6,7 +6,17 @@
 ## Point de reprise
 
 - Dernière mise à jour : 24 octobre 2026.
-- Lot courant : **UCG-QA-002, neuvième lot observations statistiques**.
+- Lot courant : **UCG-QA-002, dixième lot séances Académie et présences**.
+  Neuf cas ajoutés et un scénario étranger existant intégré au groupe critique :
+  105 tests, 2 131 assertions sur SQLite. Quatre suites liées : 77 tests,
+  607 assertions par moteur SQLite/PostgreSQL 17 temporaire, sans échec,
+  erreur ou exclusion. Pint/PHPStan verts, cluster arrêté et supprimé.
+  Livraison réunie dans un commit dédié, sans push ; détails en fin de document.
+- Reprise du dixième lot : l'utilisateur valide la CI de `5172f83`, puis
+  autorise le démarrage prudent. Confirmation utilisateur, sans nouvelle lecture
+  distante ; arbre propre sur `staging` et référence locale origin/staging
+  concordante au départ.
+- Livraison précédente : **UCG-QA-002, neuvième lot observations statistiques**.
   Huit cas ajoutés et un scénario étranger existant intégré au groupe critique :
   95 tests, 1 921 assertions. Quatre suites : 112 tests, 1 459 assertions sur
   SQLite et PostgreSQL 17 temporaire, sans échec, erreur ou exclusion.
@@ -6249,3 +6259,55 @@ est préparé dans la fixture pour tester sa prise en compte par les routes
 d'observation ; il ne rejoue pas le partage dans le navigateur. La concurrence
 réelle d'ObservationConcurrencyTest n'est pas réexécutée par ces quatre suites.
 QA-002 reste ouvert pour les autres CRUD/jobs et les limites REC-29/30/34/35/36.
+
+## UCG-QA-002 — Dixième lot séances Académie et présences (24 octobre 2026)
+
+### Objectif et couverture
+
+Renforcer les frontières HTTP des séances et présences sans modifier le code
+métier. Neuf cas ajoutés dans AcademySessionTest et un scénario étranger
+préexistant intégré au groupe critique. Les assertions de versions et d'historique
+existantes restent conservées.
+
+- Un gestionnaire autorisé dans Alpha et Beta peut consulter les deux tenants,
+  mais les identifiants de séance, activité, inscription et présence étrangers
+  sont refusés sous Alpha. Les séances, présences, révisions et audits restent
+  identiques après refus.
+- Dans le même tenant, les séances restent liées à leur cycle/cohorte et les
+  présences à leur séance ; une inscription d'un autre cycle est refusée.
+- Après lectures réussies, révocation de l'adhésion, du rôle ou de academy.read :
+  lectures et mutations Alpha refusées en 404/403, sans données privées ni
+  écritures partielles. Les lectures et corrections Beta autorisées fonctionnent
+  encore ; les données Alpha restent intactes.
+- Retrait de academy.manage : séances non modifiables, lectures et correction
+  des présences autorisées conservées. Retrait de academy.attendance.manage :
+  présences non modifiables, correction du contenu de séance encore autorisée.
+- Retrait de calendar.read ou activité devenue privée : références et horaires
+  du calendrier masqués, choix retirés/refusés et mutations liées refusées.
+  Le compte rendu et les présences restent lisibles avec academy.read ; le titre
+  privé de l'activité n'est pas divulgué. Aucun audit de mutation ni révision
+  supplémentaire après les refus.
+
+### Validation
+
+- Groupe critique complet sur SQLite en mémoire : **105 tests, 2 131 assertions**.
+- Quatre suites : AcademySessionTest, AcademyScheduleTest, AcademyTest et
+  CalendarControllerTest. **77 tests, 607 assertions par moteur**, SQLite en
+  mémoire et PostgreSQL 17 neuf. Rapports XML relus : zéro échec, erreur ou exclusion.
+- Rapports : `back/reports/phpunit-qa002-lot10-critical.xml`,
+  `back/reports/phpunit-qa002-lot10-sqlite.xml`,
+  `back/reports/phpunit-qa002-lot10-postgresql.xml`.
+- Pint/PHPStan verts. Ces suites sont déjà sélectionnées dans le workflow
+  backend PostgreSQL et dans Feature ; aucune dépendance ni workflow modifié.
+- Commandes SQLite successives, stockage PostgreSQL temporaire distinct.
+  Cluster arrêté et supprimé ; aucune base existante, donnée réelle, migration,
+  configuration d'environnement ou logique métier modifiée.
+
+### Limites et reprise
+
+La CI de `5172f83` est validée par l'utilisateur, sans nouvelle lecture distante.
+Ce dixième lot est réuni dans un commit dédié demandé par l'utilisateur, sans
+push ; sa CI reste à obtenir après livraison distante. Le passage du calendrier à privé est préparé dans une
+fixture serveur : le parcours navigateur de partage n'est pas rejoué ici.
+AcademyConcurrencyTest n'est pas réexécuté par ces quatre suites. QA-002 reste
+ouvert pour les autres CRUD/jobs et les limites REC-29/30/34/35/36.

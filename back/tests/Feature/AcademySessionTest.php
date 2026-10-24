@@ -12,11 +12,14 @@ use App\Modules\Teams\Domain\Models\Team;
 use App\Modules\Tenancy\Domain\Contracts\PortabilityRepository;
 use App\Modules\Tenancy\Domain\Models\Organization;
 use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
+use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesAcademySessions;
 use Tests\Fixtures\ProvidesPeopleAccess;
@@ -213,6 +216,7 @@ class AcademySessionTest extends TestCase
         $this->assertDatabaseCount('academy_sessions', 0);
     }
 
+    #[Group('tenant-isolation')]
     public function test_cycle_and_cross_tenant_attendance_ids_cannot_move_records(): void
     {
         $s = $this->sessionScenario();
@@ -221,6 +225,217 @@ class AcademySessionTest extends TestCase
         $path = $s['path'].'/'.$saved->json('data.id').'/attendances';
         $this->postJson($path, ['enrollment_id' => $foreign->id, 'status' => 'present'])->assertNotFound();
         $this->assertDatabaseCount('academy_attendances', 0);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_multi_tenant_manager_cannot_use_foreign_session_activity_or_attendance_ids(): void
+    {
+        $s = $this->savedSessionScenario();
+        $other = $this->savedSessionScenario();
+        $this->grantPeopleAccess($other['org'], $s['actor'], ['academy.read', 'academy.manage', 'academy.attendance.manage', 'calendar.read']);
+        $this->actingAsWithMfa($s['actor']);
+        $this->getJson($other['path'])->assertOk()->assertJsonPath('data.0.id', $other['saved']['id']);
+        $this->getJson($other['path'].'/'.$other['saved']['id'].'/attendances')->assertOk()->assertJsonPath('data.0.id', $other['attendance']['id']);
+        $before = $this->sessionSnapshot();
+        $auditCount = DB::table('organization_audit_events')->count();
+        $path = $s['path'].'/'.$s['saved']['id'];
+        $foreignPath = $s['path'].'/'.$other['saved']['id'];
+
+        $this->getJson($foreignPath.'/history')->assertNotFound();
+        $this->getJson($foreignPath.'/attendances')->assertNotFound();
+        $this->patchJson($foreignPath, ['version' => $other['saved']['version'], 'activity_version' => $other['activity']->version, 'title' => 'Modification interdite', 'change_reason' => 'Correction sous le mauvais tenant.'])->assertNotFound();
+        $this->postJson($path.'/attendances', ['enrollment_id' => $other['student']->id, 'status' => 'present'])->assertNotFound();
+        $this->patchJson($path.'/attendances/'.$other['attendance']['id'], ['version' => $other['attendance']['version'], 'status' => 'absent', 'change_reason' => 'Correction sous le mauvais tenant.'])->assertNotFound();
+        $this->postJson($s['path'], [...$s['body'], 'activity_id' => $other['activity']->id, 'activity_version' => $other['activity']->version])->assertNotFound();
+
+        $this->assertSame($before, $this->sessionSnapshot());
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->assertDatabaseCount('academy_sessions', 2);
+        $this->assertDatabaseCount('academy_attendances', 2);
+        $this->assertDatabaseCount('academy_session_revisions', 4);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_same_tenant_attendance_session_cycle_and_cohort_ids_remain_bound_to_their_parents(): void
+    {
+        $s = $this->savedSessionScenario();
+        $activity = CalendarActivity::factory()->shared()->create(['organization_id' => $s['org']->id, 'kind' => 'academy',
+            'starts_at' => '2026-10-22 10:00:00', 'ends_at' => '2026-10-22 11:00:00']);
+        $second = $this->postJson($s['path'], [...$s['body'], 'activity_id' => $activity->id, 'activity_version' => $activity->version])->assertCreated()->json('data');
+        $secondAttendance = $this->postJson($s['path'].'/'.$second['id'].'/attendances', ['enrollment_id' => $s['student']->id, 'status' => 'present'])->assertCreated()->json('data');
+        $cycle = AcademyCycle::factory()->create(['cohort_id' => $s['cohort']->id]);
+        $enrollment = AcademyEnrollment::factory()->create(['cycle_id' => $cycle->id]);
+        $cohort = Cohort::factory()->create(['organization_id' => $s['org']->id]);
+        $before = $this->sessionSnapshot();
+        $auditCount = DB::table('organization_audit_events')->count();
+        $path = $s['path'].'/'.$s['saved']['id'];
+        $wrongCycle = str_replace($s['cycle']->id, $cycle->id, $s['path']);
+
+        $this->getJson($wrongCycle)->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson($wrongCycle.'/'.$s['saved']['id'].'/history')->assertNotFound();
+        $this->getJson($wrongCycle.'/'.$s['saved']['id'].'/attendances')->assertNotFound();
+        $this->getJson(str_replace($s['cohort']->id, $cohort->id, $s['path']))->assertNotFound();
+        $this->postJson($path.'/attendances', ['enrollment_id' => $enrollment->id, 'status' => 'present'])->assertNotFound();
+        $this->patchJson($path.'/attendances/'.$secondAttendance['id'], ['version' => $secondAttendance['version'], 'status' => 'absent', 'change_reason' => 'Correction sous la mauvaise séance.'])->assertNotFound();
+        $this->patchJson($s['path'].'/'.$second['id'].'/attendances/'.$s['attendance']['id'], ['version' => $s['attendance']['version'], 'status' => 'absent', 'change_reason' => 'Correction sous la mauvaise séance.'])->assertNotFound();
+
+        $this->assertSame($before, $this->sessionSnapshot());
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->assertDatabaseCount('academy_sessions', 2);
+        $this->assertDatabaseCount('academy_attendances', 2);
+        $this->assertDatabaseCount('academy_session_revisions', 4);
+    }
+
+    #[Group('tenant-isolation')]
+    #[TestWith(['membership', 404])]
+    #[TestWith(['role', 403])]
+    #[TestWith(['read', 403])]
+    public function test_revocation_blocks_warmed_session_and_attendance_routes_without_revoking_beta(string $revocation, int $status): void
+    {
+        $s = $this->savedSessionScenario();
+        $other = $this->savedSessionScenario();
+        $this->grantPeopleAccess($other['org'], $s['actor'], ['academy.read', 'academy.manage', 'academy.attendance.manage', 'calendar.read']);
+        $this->actingAsWithMfa($s['actor']);
+        $path = $s['path'].'/'.$s['saved']['id'];
+        foreach ([$s['path'], $path.'/history', $path.'/attendances', $this->activityChoices($s)] as $url) {
+            $this->getJson($url)->assertOk();
+        }
+        $before = $this->sessionSnapshot($s['org']->id);
+        $auditCount = DB::table('organization_audit_events')->count();
+        $assignment = OrganizationRoleAssignment::query()->where('organization_id', $s['org']->id)->where('user_id', $s['actor']->id)->firstOrFail();
+        if ($revocation === 'membership') {
+            OrganizationMembership::query()->whereKey($assignment->membership_id)->firstOrFail()->forceFill(['status' => 'revoked'])->save();
+        } elseif ($revocation === 'role') {
+            $assignment->forceFill(['status' => 'revoked'])->save();
+        } else {
+            $assignment->role->forceFill(['permissions' => ['academy.manage', 'academy.attendance.manage', 'calendar.read']])->save();
+        }
+
+        foreach ([$s['path'], $path.'/history', $path.'/attendances', $this->activityChoices($s)] as $url) {
+            $this->getJson($url)->assertStatus($status)->assertJsonMissingPath('data')->assertDontSee('Compte rendu');
+        }
+        $this->postJson($s['path'], $s['body'])->assertStatus($status);
+        $this->patchJson($path, ['version' => $s['saved']['version'], 'activity_version' => $s['activity']->version, 'title' => 'Modification interdite', 'change_reason' => 'Correction après retrait des droits.'])->assertStatus($status);
+        $this->postJson($path.'/attendances', ['enrollment_id' => $s['student']->id, 'status' => 'present'])->assertStatus($status);
+        $this->patchJson($path.'/attendances/'.$s['attendance']['id'], ['version' => $s['attendance']['version'], 'status' => 'absent', 'change_reason' => 'Correction après retrait des droits.'])->assertStatus($status);
+        $this->assertSame($before, $this->sessionSnapshot($s['org']->id));
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->getJson($other['path'])->assertOk()->assertJsonPath('data.0.id', $other['saved']['id']);
+        $this->patchJson($other['path'].'/'.$other['saved']['id'].'/attendances/'.$other['attendance']['id'],
+            ['version' => $other['attendance']['version'], 'status' => 'absent', 'change_reason' => 'Correction autorisée dans Beta.'])->assertOk()->assertJsonPath('data.status', 'absent');
+        $this->assertSame($before, $this->sessionSnapshot($s['org']->id));
+        $this->assertDatabaseCount('academy_session_revisions', 5);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_removing_session_management_preserves_attendance_management_and_read_access(): void
+    {
+        $s = $this->savedSessionScenario();
+        $path = $s['path'].'/'.$s['saved']['id'];
+        $this->getJson($s['path'])->assertOk();
+        $before = $this->sessionSnapshot();
+        $auditCount = DB::table('organization_audit_events')->count();
+        $this->sessionRole($s)->role->forceFill(['permissions' => ['academy.read', 'academy.attendance.manage', 'calendar.read']])->save();
+
+        $this->getJson($path.'/history')->assertOk();
+        $this->getJson($path.'/attendances')->assertOk()->assertJsonCount(1, 'data');
+        $this->postJson($s['path'], $s['body'])->assertForbidden();
+        $this->patchJson($path, ['version' => $s['saved']['version'], 'activity_version' => $s['activity']->version, 'title' => 'Modification interdite', 'change_reason' => 'Correction après retrait des droits.'])->assertForbidden();
+        $this->assertSame($before, $this->sessionSnapshot());
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->patchJson($path.'/attendances/'.$s['attendance']['id'], ['version' => $s['attendance']['version'], 'status' => 'absent', 'change_reason' => 'Correction des présences autorisée.'])->assertOk()->assertJsonPath('data.status', 'absent');
+        $this->assertDatabaseCount('academy_sessions', 1);
+        $this->assertDatabaseCount('academy_attendances', 1);
+        $this->assertDatabaseCount('academy_session_revisions', 3);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_removing_attendance_management_preserves_session_edits_without_changing_presences(): void
+    {
+        $s = $this->savedSessionScenario();
+        $path = $s['path'].'/'.$s['saved']['id'];
+        $this->getJson($path.'/attendances')->assertOk();
+        $before = $this->sessionSnapshot();
+        $auditCount = DB::table('organization_audit_events')->count();
+        $this->sessionRole($s)->role->forceFill(['permissions' => ['academy.read', 'academy.manage', 'calendar.read']])->save();
+
+        $this->getJson($path.'/attendances')->assertOk()->assertJsonPath('data.0.status', 'present');
+        $this->postJson($path.'/attendances', ['enrollment_id' => $s['student']->id, 'status' => 'present'])->assertForbidden();
+        $this->patchJson($path.'/attendances/'.$s['attendance']['id'], ['version' => $s['attendance']['version'], 'status' => 'absent', 'change_reason' => 'Correction interdite des présences.'])->assertForbidden();
+        $this->assertSame($before, $this->sessionSnapshot());
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->patchJson($path, ['version' => $s['saved']['version'], 'activity_version' => $s['activity']->version, 'title' => 'Titre corrigé', 'change_reason' => 'Correction du contenu autorisée.'])->assertOk()->assertJsonPath('data.title', 'Titre corrigé');
+        $this->getJson($path.'/attendances')->assertOk()->assertJsonPath('data.0.version', $s['attendance']['version'])->assertJsonPath('data.0.status', 'present');
+        $this->assertDatabaseCount('academy_session_revisions', 3);
+    }
+
+    #[Group('tenant-isolation')]
+    #[TestWith([false])]
+    #[TestWith([true])]
+    public function test_calendar_read_revocation_or_private_activity_hides_schedule_and_blocks_mutations(bool $privateActivity): void
+    {
+        $s = $this->savedSessionScenario();
+        $path = $s['path'].'/'.$s['saved']['id'];
+        $this->getJson($s['path'])->assertOk()->assertJsonPath('data.0.schedule_state', 'current');
+        $this->getJson($this->activityChoices($s))->assertOk()->assertJsonCount(1, 'data');
+        $before = $this->sessionSnapshot();
+        $auditCount = DB::table('organization_audit_events')->count();
+        if ($privateActivity) {
+            $s['activity']->forceFill(['visibility' => 'private', 'sharing_authorized_by' => null, 'sharing_authorized_at' => null,
+                'title' => 'SECRET_CURRENT_TITLE', 'version' => (string) Str::uuid()])->save();
+        } else {
+            $this->sessionRole($s)->role->forceFill(['permissions' => ['academy.read', 'academy.manage', 'academy.attendance.manage']])->save();
+        }
+
+        $this->getJson($s['path'])->assertOk()->assertJsonPath('data.0.activity', null)->assertJsonPath('data.0.starts_at', null)
+            ->assertJsonPath('data.0.schedule_state', 'unavailable')->assertJsonPath('data.0.report', 'Compte rendu de séance')->assertDontSee('SECRET_CURRENT_TITLE');
+        $this->getJson($path.'/history')->assertOk()->assertJsonMissingPath('data.0.snapshot');
+        $this->getJson($path.'/attendances')->assertOk()->assertJsonPath('data.0.status', 'present');
+        if ($privateActivity) {
+            $this->getJson($this->activityChoices($s))->assertOk()->assertJsonCount(0, 'data');
+        } else {
+            $this->getJson($this->activityChoices($s))->assertForbidden();
+        }
+        $status = $privateActivity ? 404 : 403;
+        $this->patchJson($path, ['version' => $s['saved']['version'], 'activity_version' => $s['activity']->version, 'title' => 'Modification interdite', 'change_reason' => 'Correction interdite sans calendrier.'])->assertStatus($status);
+        $this->postJson($path.'/attendances', ['enrollment_id' => $s['student']->id, 'status' => 'present'])->assertStatus($status);
+        $this->patchJson($path.'/attendances/'.$s['attendance']['id'], ['version' => $s['attendance']['version'], 'status' => 'absent', 'change_reason' => 'Correction interdite sans calendrier.'])->assertStatus($status);
+        $this->assertSame($before, $this->sessionSnapshot());
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+    }
+
+    /** @return array<string, mixed> */
+    private function savedSessionScenario(): array
+    {
+        $s = $this->sessionScenario();
+        $saved = $this->postJson($s['path'], $s['body'])->assertCreated()->json('data');
+        $attendance = $this->postJson($s['path'].'/'.$saved['id'].'/attendances', ['enrollment_id' => $s['student']->id, 'status' => 'present'])->assertCreated()->json('data');
+
+        return [...$s, 'saved' => $saved, 'attendance' => $attendance];
+    }
+
+    /** @param array<string, mixed> $s */
+    private function sessionRole(array $s): OrganizationRoleAssignment
+    {
+        return OrganizationRoleAssignment::query()->where('organization_id', $s['org']->id)->where('user_id', $s['actor']->id)->firstOrFail();
+    }
+
+    /** @param array<string, mixed> $s */
+    private function activityChoices(array $s): string
+    {
+        return str_replace('/sessions', '/session-activities', $s['path']).'?from_date=2026-10-01&to_date=2026-11-01';
+    }
+
+    /** @return array<string, list<array<string, mixed>>> */
+    private function sessionSnapshot(?string $organization = null): array
+    {
+        $snapshot = [];
+        foreach (['academy_sessions', 'academy_attendances', 'academy_session_revisions'] as $table) {
+            $snapshot[$table] = array_values(DB::table($table)->when($organization !== null, fn ($query) => $query->where('organization_id', $organization))
+                ->orderBy('id')->get()->map(fn (object $row): array => get_object_vars($row))->all());
+        }
+
+        return $snapshot;
     }
 
     public function test_schema_history_and_operator_export_keep_ciphertext_and_refuse_destructive_rollback(): void

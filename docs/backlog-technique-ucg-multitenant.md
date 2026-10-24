@@ -1488,6 +1488,19 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   Limites dans etat-projet.md ; autres
   CRUD/jobs et REC-29/30/34/35/36 restent ouverts.
 
+- **Dixième lot local (24/10/2026)** : séances Académie et présences. Neuf cas
+  ajoutés, un scénario étranger existant intégré au groupe critique : 105 tests,
+  2 131 assertions sur SQLite. Identifiants liés au tenant/cycle/cohorte/séance,
+  révocations après lecture et droits de gestion des séances/présences distincts.
+  Calendrier devenu privé ou droit calendrier retiré : créneau masqué et écritures
+  refusées, lectures Académie encore autorisées conservées. Quatre suites :
+  77 tests, 607 assertions par moteur SQLite/PostgreSQL 17 temporaire, sans
+  échec, erreur ou exclusion. Pint/PHPStan verts, cluster arrêté et supprimé ;
+  aucun changement métier ou migration. CI de `5172f83`
+  validée par l'utilisateur ; dixième lot réuni dans un commit dédié, sans push,
+  CI à obtenir après livraison distante.
+  Autres CRUD/jobs et REC-29/30/34/35/36 restent ouverts.
+
 ### UCG-QA-003 — Tester les parcours navigateur critiques
 
 - **Priorité / taille** : P0 / L
