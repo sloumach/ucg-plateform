@@ -4447,7 +4447,7 @@ reste ouvert. Rapports et limites dans `docs/etat-projet.md`.
 
 ### Isolation des inscriptions aux compétitions — septième lot UCG-QA-002
 
-Le groupe `tenant-isolation` compte désormais **76 cas, 1 395 assertions**. Dix
+À la fin du septième lot, le groupe `tenant-isolation` comptait **76 cas, 1 395 assertions**. Dix
 cas ajoutés couvrent les rappels planifiés sérialisés/rejoués pour deux tenants,
 les révocations avant génération ou après consultation, le retrait de l'écriture
 et les références documentaires d'une autre compétition ou d'un autre tenant.
@@ -4459,3 +4459,17 @@ Pint/PHPStan verts, cluster arrêté et supprimé ; aucun changement métier ou 
 migration. Les documents sont les versions de texte privées existantes. CI du
 nouveau lot à confirmer après livraison ; QA-002 reste ouvert. Rapports et limites
 dans `docs/etat-projet.md`.
+
+### Isolation des imports statistiques — huitième lot UCG-QA-002
+
+Le groupe `tenant-isolation` compte désormais **86 cas, 1 695 assertions**. Neuf
+cas ajoutés couvrent le job confirmé par HTTP, sérialisé après bascule de tenant,
+les révocations avant traitement ou entre blocs, les anciennes générations et les
+résultats privés. Les observations, révisions et reçus déjà validés sont conservés ;
+les imports Beta autorisés restent utilisables sans autoriser Alpha après révocation.
+
+Quatre suites liées passent sur SQLite en mémoire et PostgreSQL 17 temporaire :
+**104 tests, 1 082 assertions par moteur**, sans échec, erreur ou exclusion.
+Pint/PHPStan verts, cluster arrêté et supprimé ; aucun changement métier ou de
+migration. CI du nouveau lot à confirmer après livraison ; QA-002 reste ouvert.
+Rapports et limites dans `docs/etat-projet.md`.

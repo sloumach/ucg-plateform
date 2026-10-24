@@ -19,16 +19,22 @@ use App\Modules\Teams\Domain\Models\OrganizationGame;
 use App\Modules\Tenancy\Application\Services\TenantExecutionScope;
 use App\Modules\Tenancy\Domain\Contracts\PortabilityRepository;
 use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
 use App\Modules\Tenancy\Presentation\Support\ActiveOrganizationSession;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Testing\Fakes\QueueFake;
 use Illuminate\Validation\ValidationException;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesMetricCatalogue;
 use Tests\Fixtures\ProvidesObservations;
@@ -264,6 +270,7 @@ class StatisticalImportProcessingTest extends TestCase
         $this->assertDatabaseCount('statistical_import_receipts', 2);
     }
 
+    #[Group('tenant-isolation')]
     public function test_cross_actor_cross_tenant_and_reader_cannot_confirm_or_resume(): void
     {
         $s = $this->scenario();
@@ -278,6 +285,226 @@ class StatisticalImportProcessingTest extends TestCase
         $this->actingAsWithMfa($s['reader']);
         $this->postJson($s['imports'].'/'.$id.'/confirm', ['version' => $id, 'confirm' => true])->assertForbidden();
         $this->assertDatabaseCount('statistical_import_executions', 0);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_serialized_http_import_and_replay_keep_the_original_tenant_after_http_switch(): void
+    {
+        $s = $this->scenario();
+        $other = $this->otherTenantScenario($s);
+        $id = $this->preview($s, [$s['input'], [...$s['input'], 'source_label' => 'Source Alpha B']]);
+        $betaId = $this->preview($other);
+        $this->postJson($s['imports'].'/'.$id.'/confirm', ['version' => $id, 'confirm' => true])->assertOk();
+        $this->postJson($other['imports'].'/'.$betaId.'/confirm', ['version' => $betaId, 'confirm' => true])->assertOk();
+        $transport = $this->serializedImport($id);
+        $betaTransport = $this->serializedImport($betaId);
+        $beta = StatisticalImportExecution::query()->where('import_id', $betaId)->firstOrFail();
+        $betaBefore = $beta->getRawOriginal();
+        $files = $this->importFiles();
+        $this->selectImportOrganization($other['org']->id);
+
+        Queue::fake()->except([ProcessStatisticalImport::class]);
+        Bus::dispatchSync(unserialize($transport));
+        $before = $this->importWrites($s['org']->id);
+        $auditCount = DB::table('organization_audit_events')->count();
+        Bus::dispatchSync(unserialize($transport));
+
+        $this->assertSame($before, $this->importWrites($s['org']->id));
+        $this->assertSame($betaBefore, $beta->refresh()->getRawOriginal());
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->assertDatabaseHas('statistical_import_executions', ['import_id' => $id, 'status' => 'completed', 'processed_count' => 2]);
+        $this->assertSame(0, StatisticalObservation::query()->where('organization_id', $other['org']->id)->count());
+        $this->assertSame(['0', '0'], ObservationRevision::query()->where('organization_id', $s['org']->id)->get()->map(fn (ObservationRevision $revision): ?string => $revision->value)->all());
+        Bus::dispatchSync(unserialize($betaTransport));
+        $this->assertDatabaseCount('statistical_observations', 3);
+        $this->assertDatabaseCount('observation_revisions', 3);
+        $this->assertDatabaseCount('statistical_import_receipts', 3);
+        $this->assertSame($before, $this->importWrites($s['org']->id));
+        $this->assertSame($files, $this->importFiles());
+        $this->assertFalse(app(TenantExecutionScope::class)->active());
+        $this->assertSame($other['org']->id, session()->get(ActiveOrganizationSession::KEY.'.organization_id'));
+        $this->getJson($other['imports'])->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $betaId);
+        $this->getJson($other['imports'].'/'.$id)->assertNotFound();
+        $this->postJson($other['imports'].'/'.$id.'/resume', ['version' => $id, 'confirm' => true])->assertNotFound();
+        $this->selectImportOrganization($s['org']->id);
+        $this->getJson($s['imports'].'/'.$id)->assertOk()->assertJsonPath('data.counts.created', 2)->assertJsonPath('data.processed_count', 2);
+    }
+
+    #[Group('tenant-isolation')]
+    #[TestWith(['membership', false])]
+    #[TestWith(['role', false])]
+    #[TestWith(['permission', false])]
+    #[TestWith(['membership', true])]
+    #[TestWith(['role', true])]
+    #[TestWith(['permission', true])]
+    public function test_beta_permissions_cannot_rescue_a_serialized_alpha_import_revoked_before_or_between_chunks(string $revocation, bool $afterChunk): void
+    {
+        $s = $this->scenario();
+        $other = $this->otherTenantScenario($s);
+        $id = $this->preview($s, array_map(fn (int $n): array => [...$s['input'], 'source_label' => 'Source Alpha '.$n], range(1, 12)));
+        $betaId = $this->preview($other);
+        $this->postJson($s['imports'].'/'.$id.'/confirm', ['version' => $id, 'confirm' => true])->assertOk();
+        $this->postJson($other['imports'].'/'.$betaId.'/confirm', ['version' => $betaId, 'confirm' => true])->assertOk();
+        $transport = $this->serializedImport($id);
+        $betaTransport = $this->serializedImport($betaId);
+        $execution = StatisticalImportExecution::query()->where('import_id', $id)->firstOrFail();
+        if ($afterChunk) {
+            $this->assertTrue($this->process($s, $id, $execution->version));
+        }
+        $this->getJson($s['imports'].'/'.$id)->assertOk();
+        $before = $this->importWrites($s['org']->id);
+        $results = $execution->refresh()->getRawOriginal('results');
+        $files = $this->importFiles();
+        $auditCount = DB::table('organization_audit_events')->count();
+        if ($revocation === 'membership') {
+            OrganizationMembership::query()->whereKey($s['assignment']->membership_id)->firstOrFail()->forceFill(['status' => 'revoked'])->save();
+        } elseif ($revocation === 'role') {
+            $s['assignment']->forceFill(['status' => 'revoked'])->save();
+        } else {
+            $s['assignment']->role->forceFill(['permissions' => ['sports.read', 'sports.write', 'sports.statistics.read', 'sports.statistics.write', 'sports.statistics.correct']])->save();
+        }
+
+        Queue::fake()->except([ProcessStatisticalImport::class]);
+        Bus::dispatchSync(unserialize($transport));
+        Bus::dispatchSync(unserialize($transport));
+
+        $this->assertSame($before, $this->importWrites($s['org']->id));
+        $this->assertSame($results, $execution->refresh()->getRawOriginal('results'));
+        $this->assertDatabaseHas('statistical_import_executions', ['import_id' => $id, 'status' => 'failed', 'failure_code' => 'PROCESSING_INTERRUPTED', 'processed_count' => $afterChunk ? 10 : 0]);
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $status = $revocation === 'membership' ? 404 : 403;
+        $this->getJson($s['imports'])->assertStatus($status)->assertJsonMissingPath('data');
+        $this->getJson($s['imports'].'/'.$id)->assertStatus($status)->assertJsonMissingPath('data')->assertDontSee('Note privée');
+        $this->postJson($s['imports'].'/'.$id.'/resume', ['version' => $execution->version, 'confirm' => true])->assertStatus($status);
+        Bus::dispatchSync(unserialize($betaTransport));
+        $this->assertDatabaseHas('statistical_import_executions', ['import_id' => $betaId, 'status' => 'completed', 'processed_count' => 1]);
+        $this->getJson($other['imports'].'/'.$betaId)->assertOk()->assertJsonPath('data.counts.created', 1);
+        $this->assertSame($before, $this->importWrites($s['org']->id));
+        $this->assertDatabaseCount('statistical_observations', $afterChunk ? 11 : 1);
+        $this->assertDatabaseCount('statistical_import_receipts', $afterChunk ? 11 : 1);
+        $this->assertSame($files, $this->importFiles());
+        $this->assertFalse(app(TenantExecutionScope::class)->active());
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_serialized_old_generation_and_its_failure_callback_cannot_change_a_resumed_import(): void
+    {
+        $s = $this->scenario();
+        $id = $this->preview($s, array_map(fn (int $n): array => [...$s['input'], 'source_label' => 'Source '.$n], range(1, 12)));
+        $this->postJson($s['imports'].'/'.$id.'/confirm', ['version' => $id, 'confirm' => true])->assertOk();
+        $old = $this->serializedImport($id);
+        $execution = StatisticalImportExecution::query()->where('import_id', $id)->firstOrFail();
+        $version = $execution->version;
+        $this->assertTrue($this->process($s, $id, $version));
+        $committed = $this->importWrites($s['org']->id);
+        app(StatisticalImportProcessor::class)->failed($s['org']->id, $s['writer']->id, $id, $version);
+        $next = $this->postJson($s['imports'].'/'.$id.'/resume', ['version' => $version, 'confirm' => true])->assertOk()->json('data.version');
+        $this->assertIsString($next);
+        $this->assertNotSame($version, $next);
+        $current = $this->serializedImport($id, $next);
+        $resumed = $execution->refresh()->getRawOriginal();
+
+        Queue::fake()->except([ProcessStatisticalImport::class]);
+        Bus::dispatchSync(unserialize($old));
+        $oldJob = unserialize($old);
+        $this->assertInstanceOf(ProcessStatisticalImport::class, $oldJob);
+        $oldJob->failed(new \RuntimeException('Old generation interrupted'));
+        $this->assertSame($resumed, $execution->refresh()->getRawOriginal());
+        $this->assertSame($committed, $this->importWrites($s['org']->id));
+        Bus::dispatchSync(unserialize($current));
+        foreach ($committed as $table => $rows) {
+            foreach ($rows as $row) {
+                $this->assertDatabaseHas($table, $row);
+            }
+        }
+        $completed = $this->importWrites($s['org']->id);
+        Bus::dispatchSync(unserialize($old));
+        Bus::dispatchSync(unserialize($current));
+        $this->assertSame($completed, $this->importWrites($s['org']->id));
+        $this->assertDatabaseHas('statistical_import_executions', ['import_id' => $id, 'status' => 'completed', 'version' => $next, 'processed_count' => 12]);
+        $this->assertDatabaseCount('statistical_observations', 12);
+        $this->assertDatabaseCount('observation_revisions', 12);
+        $this->assertDatabaseCount('statistical_import_receipts', 12);
+        $this->assertFalse(app(TenantExecutionScope::class)->active());
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_serialized_beta_transport_cannot_process_an_alpha_import_identifier(): void
+    {
+        $s = $this->scenario();
+        $other = $this->otherTenantScenario($s);
+        $id = $this->preview($s);
+        $version = $this->confirm($s, $id);
+        $execution = StatisticalImportExecution::query()->where('import_id', $id)->firstOrFail();
+        $before = $execution->getRawOriginal();
+        $transport = serialize(new ProcessStatisticalImport($this->personContext($other['org'], $s['writer'])->toJobContext(), $id, $version));
+        Queue::assertPushed(ProcessStatisticalImport::class, 1);
+        Queue::fake()->except([ProcessStatisticalImport::class]);
+        try {
+            Bus::dispatchSync(unserialize($transport));
+            $this->fail('A valid Beta transport must not process an Alpha import identifier.');
+        } catch (ModelNotFoundException) {
+            $this->assertSame($before, $execution->refresh()->getRawOriginal());
+        }
+        $this->assertDatabaseCount('statistical_observations', 0);
+        $this->assertDatabaseCount('observation_revisions', 0);
+        $this->assertDatabaseCount('statistical_import_receipts', 0);
+        $this->assertFalse(app(TenantExecutionScope::class)->active());
+    }
+
+    /** @param array<string, mixed> $s
+     * @return array<string, mixed> */
+    private function otherTenantScenario(array $s): array
+    {
+        $org = Organization::factory()->create();
+        OrganizationGame::factory()->create(['organization_id' => $org->id, 'game_id' => $s['game']->id, 'enabled' => true]);
+        $assignment = $this->grantPeopleAccess($org, $s['writer'], $s['assignment']->role->permissions);
+        $person = Person::factory()->create(['organization_id' => $org->id]);
+
+        return [...$s, 'org' => $org, 'assignment' => $assignment, 'person' => $person,
+            'input' => [...$s['input'], 'person_id' => $person->id], 'imports' => '/api/v1/tenants/'.$org->id.'/statistical-imports'];
+    }
+
+    private function serializedImport(string $id, ?string $version = null): string
+    {
+        $queue = Queue::getFacadeRoot();
+        $this->assertInstanceOf(QueueFake::class, $queue);
+        $job = $queue->pushed(ProcessStatisticalImport::class)->filter(fn (ProcessStatisticalImport $job): bool => $job->importId === $id && ($version === null || $job->version === $version))->sole();
+        $this->assertInstanceOf(ProcessStatisticalImport::class, $job);
+
+        return serialize($job);
+    }
+
+    /** @return array<string, list<array<string, mixed>>> */
+    private function importWrites(string $organization): array
+    {
+        $snapshot = [];
+        foreach (['statistical_observations', 'observation_revisions', 'statistical_import_receipts'] as $table) {
+            $snapshot[$table] = array_values(DB::table($table)->where('organization_id', $organization)->orderBy('id')->get()->map(fn (object $row): array => get_object_vars($row))->all());
+        }
+
+        return $snapshot;
+    }
+
+    /** @return array<string, string> */
+    private function importFiles(): array
+    {
+        $files = [];
+        foreach (Storage::disk('local')->allFiles('/') as $path) {
+            $contents = Storage::disk('local')->get($path);
+            $this->assertIsString($contents);
+            $files[$path] = hash('sha256', $contents);
+        }
+        ksort($files);
+
+        return $files;
+    }
+
+    private function selectImportOrganization(string $organization): void
+    {
+        $revision = $this->postJson('/api/v1/active-organization', ['organization_id' => $organization])->assertOk()->json('data.revision');
+        $this->withHeader('X-Tenant-Revision', $revision);
+        $this->postJson('/api/v1/active-organization/confirmation', ['organization_id' => $organization, 'revision' => $revision, 'confirm' => true])->assertOk();
     }
 
     public function test_dispatch_failure_keeps_a_resumable_confirmation_without_csv_in_failure(): void

@@ -1465,6 +1465,17 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   Autres CRUD/jobs et limites
   REC-29/30/34/35/36 restent ouverts.
 
+- **Huitième lot local (24/10/2026)** : imports statistiques. Neuf cas ajoutés,
+  un scénario étranger existant intégré au groupe critique : 86 tests,
+  1 695 assertions. Jobs confirmés par HTTP puis sérialisés/rejoués après bascule,
+  révocations avant traitement/entre blocs, anciennes générations et résultats
+  privés ; observations/révisions/reçus validés conservés. Quatre suites :
+  104 tests, 1 082 assertions par moteur SQLite/PostgreSQL 17 temporaire, aucun
+  échec ou test ignoré. Pint/PHPStan verts, cluster supprimé ; aucun changement
+  métier ou migration. CI de `53d3c4e` validée par l'utilisateur ; huitième lot
+  livré dans un commit dédié demandé explicitement, sans push, CI à confirmer
+  après livraison distante. Autres CRUD/jobs et REC-29/30/34/35/36 ouverts.
+
 ### UCG-QA-003 — Tester les parcours navigateur critiques
 
 - **Priorité / taille** : P0 / L

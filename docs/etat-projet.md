@@ -6,7 +6,17 @@
 ## Point de reprise
 
 - Dernière mise à jour : 24 octobre 2026.
-- Lot courant : **UCG-QA-002, septième lot inscriptions aux compétitions**.
+- Lot courant : **UCG-QA-002, huitième lot imports statistiques**.
+  Neuf cas ajoutés et un scénario étranger existant intégré au groupe critique :
+  86 tests, 1 695 assertions. Quatre suites : 104 tests, 1 082 assertions sur
+  SQLite et PostgreSQL 17 temporaire, sans échec, erreur ou exclusion.
+  Pint/PHPStan verts, cluster arrêté/supprimé. Livraison réunie dans un commit
+  UCG-QA-002 dédié au huitième lot, sans push ; détails et limites en fin de document.
+- Reprise du huitième lot : l'utilisateur valide la CI du commit `53d3c4e` et
+  demande explicitement le commit du nouveau lot après vérification.
+  Arbre propre sur `staging` et référence locale origin/staging concordante au
+  départ ; confirmation utilisateur, sans nouvelle lecture des CI distantes.
+- Livraison précédente : **UCG-QA-002, septième lot inscriptions aux compétitions**.
   Dix cas ajoutés et un scénario étranger existant intégré au groupe critique :
   76 tests, 1 395 assertions. Six suites : 66 tests, 531 assertions sur SQLite
   et PostgreSQL 17 temporaire, sans échec, erreur ou exclusion. Pint/PHPStan
@@ -6107,3 +6117,63 @@ la file synchrone : aucun worker Redis d'exploitation validé. Les documents li�
 sont les versions de texte privées déjà livrées ; aucun fichier binaire ni service
 externe ajouté ou sollicité. QA-002 reste ouvert pour les autres CRUD/jobs et les
 limites REC-29/30/34/35/36.
+
+## UCG-QA-002 — Huitième lot imports statistiques (24 octobre 2026)
+
+### Objectif et couverture
+
+Compléter REC-23/28 pour les imports statistiques livrés. Neuf cas ajoutés dans
+StatisticalImportProcessingTest ; scénario HTTP multi-acteur/tenant préexistant
+ajouté au groupe critique. Les tests existants de références étrangères, reprise
+transactionnelle, déduplication et générations sont conservés.
+
+- Deux imports Alpha/Beta du même acteur, confirmés par HTTP : capture et
+  sérialisation des véritables ProcessStatisticalImport puis bascule HTTP dans
+  Beta. Exécution et rejeu via Bus::dispatchSync et les middlewares tenant réels :
+  les deux observations Alpha gardent leurs valeurs zéro, révisions et reçus,
+  sans modifier l'exécution Beta en attente. Son propre job crée ensuite uniquement
+  l'observation Beta. Fichiers chiffrés inchangés, session Beta préservée et portée
+  d'exécution nettoyée. Liste Beta limitée à son import ; résultat Alpha et reprise
+  sous une URL Beta refusés, résultat Alpha lisible après retour dans son contexte.
+- Révocation Alpha d'adhésion, de rôle ou de sports.statistics.import, avant
+  exécution ou après dix lignes validées sur douze. Job sérialisé puis rejoué :
+  exécution marquée failed/PROCESSING_INTERRUPTED, compteurs et résultats déjà
+  validés préservés, aucune observation/révision/reçu supplémentaire ni audit de
+  mutation. Liste, résultats et reprise Alpha refusés en 404/403. Droits Beta
+  conservés : son import termine normalement, sans modifier les écritures Alpha.
+- Reprise HTTP d'un import après son premier bloc : nouvelle génération capturée
+  et sérialisée. L'ancien job et son callback d'échec ne modifient ni la génération
+  reprise ni les dix lignes validées. La nouvelle génération termine les deux
+  lignes restantes ; vérification des enregistrements initiaux et rejeu des deux
+  générations sans doublon ni écrasement, douze observations/révisions/reçus.
+- Transport valide pour Beta portant l'identifiant d'import Alpha : refus avant
+  création d'observation ou de reçu, exécution Alpha conservée, portée nettoyée,
+  même avec les permissions complètes du même acteur dans les deux tenants.
+
+### Validation
+
+- Groupe critique complet sur SQLite en mémoire : **86 tests, 1 695 assertions**.
+- Quatre suites : StatisticalImportProcessingTest, StatisticalImportTest,
+  ObservationTest, Modules/Tenancy/TenantJobRunnerTest.
+  **104 tests, 1 082 assertions par moteur**, SQLite en mémoire et PostgreSQL 17 neuf.
+  Rapports XML relus : zéro échec, erreur ou exclusion.
+- Rapports : `back/reports/phpunit-qa002-lot8-critical.xml`,
+  `back/reports/phpunit-qa002-lot8-sqlite.xml`,
+  `back/reports/phpunit-qa002-lot8-postgresql.xml`.
+- Pint/PHPStan verts. Les quatre suites sont déjà incluses dans la sélection
+  PostgreSQL du workflow backend, directement ou via Modules/Tenancy, et dans
+  Feature. Aucun changement de workflow ou dépendance.
+- Commandes SQLite exécutées successivement. PostgreSQL avec stockage temporaire
+  distinct, arrêté et supprimé ; aucun répertoire du lanceur restant au contrôle
+  final. Aucune base existante, donnée réelle, migration, `.env`, frontend ou
+  logique métier modifiée.
+
+### Limites et reprise
+
+La CI validée par l'utilisateur concerne `53d3c4e` ; celle de ce huitième lot
+reste à confirmer après livraison distante. Lot livré dans un commit dédié,
+sans push, conformément à la demande. Le premier bloc des scénarios entre blocs
+est exécuté par le service réel ; le job sérialisé est ensuite exécuté après
+révocation ou reprise. Stockage local simulé et transport via la file synchrone :
+aucun worker Redis d'exploitation validé ici. QA-002 reste ouvert pour les autres
+CRUD/jobs et les limites REC-29/30/34/35/36.
