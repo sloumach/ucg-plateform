@@ -87,9 +87,24 @@ test('communications : brouillon ciblé, publication confirmée, réponse, préf
   form = panel.getByRole('form', { name: 'Ajouter le commentaire' })
   await form.getByLabel('Message', { exact: true }).fill('<script>Réponse</script>')
   await form.getByRole('button', { name: 'Ajouter le commentaire' }).click()
+  // A temporarily hidden form can mean loading, not a completed mutation.
+  const commentPath = '/api/v1/' + root + '/announcements/' + id + '/comments'
+  const commentSaved = page.waitForResponse((response) => new URL(response.url()).pathname === commentPath && response.request().method() === 'POST')
+  const feedReloaded = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/v1/' + root + '/announcements' && response.request().method() === 'GET')
   await panel.getByRole('button', { name: 'Confirmer et continuer' }).click()
+  const saved = await commentSaved
+  expect(saved.status()).toBe(201)
+  expect((await saved.json()).data.body).toBe('<script>Réponse</script>')
+  const refreshed = await feedReloaded
+  expect(refreshed.status()).toBe(200)
+  await refreshed.finished()
   await expect(form).toHaveCount(0)
+  await expect(panel.getByRole('heading', { name: title, exact: true })).toBeVisible()
+  const commentsReloaded = page.waitForResponse((response) => new URL(response.url()).pathname === commentPath && response.request().method() === 'GET')
   await panel.getByRole('button', { name: 'Commentaires', exact: true }).click()
+  const thread = await commentsReloaded
+  expect(thread.status()).toBe(200)
+  expect((await thread.json()).data).toEqual([expect.objectContaining({ body: '<script>Réponse</script>' })])
   await expect(panel.getByText('<script>Réponse</script>', { exact: true })).toBeVisible()
   await expect(panel.locator('script,iframe,img')).toHaveCount(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)

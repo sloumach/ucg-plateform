@@ -6,14 +6,23 @@
 ## Point de reprise
 
 - Dernière mise à jour : 24 octobre 2026.
+- Correctif CI QA-002 en cours de livraison locale : le journal fourni signale
+  l'échec de `communication.spec.ts` sur la visibilité du commentaire après
+  confirmation, trois tentatives échouées. Attente explicite du POST, du
+  rechargement des annonces et de la relecture des commentaires ajoutée au test.
+  Dix répétitions locales réussies sans retry, tests unitaires communication
+  10/10, lint et typage verts. Suite complète : 52/53, communications réussies ;
+  échec temps réel avec le Vite local qui ne fournit pas la clé publique de test.
+  Détails et limites dans la dernière section.
 - Lot courant : **UCG-QA-002**, premier lot de la matrice d'isolation. Huit cas
   ajoutés et comparaison renforcée des refus d'URL d'équipe étrangère/inexistante.
   Groupe `tenant-isolation` : 9 cas, 111 assertions. Validation : 312 tests SQLite
   (1 650 assertions) pour les suites auditées, 120 tests PostgreSQL temporaire
   (767 assertions) pour les cinq suites modifiées, aucun échec ni exclusion.
   Pint/PHPStan verts. Matrice REC-23–36 et limites en fin de document.
-  Livraison réunie dans le commit UCG-QA-002 dédié à ce premier lot, sans push ;
-  QA-002 reste ouvert et la nouvelle CI reste à confirmer après push.
+  Livraison incluse dans `2ee4f25`, observé sur staging et la référence locale
+  origin/staging à la reprise du correctif CI. QA-002 reste ouvert ; la CI
+  frontend signalée en échec fait l'objet du correctif décrit ci-dessus.
 - Reprise après QA-003 : l'utilisateur a validé les CI du lot `c3fb614` avant
   le démarrage de QA-002. Arbre propre et références locales staging/origin/staging
   concordantes à ce démarrage ; pas de nouvelle lecture des CI distantes ici.
@@ -5620,3 +5629,40 @@ sur PostgreSQL. Une preuve ciblée n'est pas une certification globale du critè
 - Prochaine étape : revue/push et CI du lot, puis poursuivre l'inventaire
   CRUD et jobs par module. REC-29/30/34/35/36 conservent les limites ci-dessus ;
   QA-002 ne doit pas être fermé depuis la seule réussite du groupe critique.
+
+## Correctif CI QA-002 — Synchronisation du test de commentaires COM-001 (24 octobre 2026)
+
+- Journal utilisateur : `test:e2e`, 53 scénarios annoncés, échec de
+  `tests/e2e/communication.spec.ts` sur le texte littéral
+  `<script>Réponse</script>` après ajout et réouverture des commentaires.
+  Les trois tentatives CI échouent au même endroit. Le journal ne donne ni SHA
+  ni URL de run ; aucune conclusion sur les autres jobs à partir de cet extrait.
+- Lecture du code : la disparition du formulaire ne constitue pas à elle seule
+  une preuve d'enregistrement, car le formulaire est aussi absent pendant le
+  chargement des commentaires. Une course de synchronisation est plausible,
+  mais l'échec CI n'a pas été reproduit localement : cinq répétitions du scénario
+  initial ont réussi. Aucune perte de commentaire ou anomalie backend démontrée.
+- Le test attend maintenant le POST de commentaire et vérifie son statut 201
+  et le contenu enregistré, puis le GET de rechargement des annonces et son statut
+  200 avant réouverture. Le GET des commentaires doit à son tour répondre 200
+  et contenir exactement le commentaire attendu avant l'assertion de visibilité.
+  Ces attentes sont enregistrées avant les clics correspondants.
+- Aucun timeout, délai artificiel ou retry supplémentaire ; les assertions XSS,
+  mobile, notifications, préférences et retrait sont conservées. Aucun code de
+  l'application, backend, migration ou `.env` modifié.
+- Validation locale : dix répétitions du scénario corrigé, un worker, zéro retry,
+  toutes réussies. Les dix tests unitaires CommunicationPanel, le lint et le
+  typage TypeScript passent. Suite complète : 52 réussites sur 53, un worker,
+  zéro retry ; communications réussies dans l'ordre de la CI.
+- Le démarrage avec `CI=true` a refusé le port 8000 déjà utilisé ; aucun serveur
+  existant arrêté. Les vérifications locales réutilisent les serveurs présents
+  et les API entièrement simulées du scénario, avec un worker et sans retries.
+  Elles ne reproduisent pas exactement l'environnement Linux/Chromium de GitHub.
+  L'échec local restant concerne `match-realtime.spec.ts` attendant « Direct
+  connecté. » : il intercepte seulement `/app/test-key`, alors que le module Echo
+  servi par le Vite réutilisé ne contient pas cette configuration publique de test.
+  La configuration du serveur existant est conservée, sans modification de ce test
+  distinct. La suite complète n'est donc pas déclarée verte sur ce poste.
+  Nouvelle CI distante requise après revue/push pour confirmer la résolution.
+  Correctif limité au test de communications et au suivi, réuni dans un commit
+  UCG-QA-002 dédié ; aucun push effectué à cette étape.
