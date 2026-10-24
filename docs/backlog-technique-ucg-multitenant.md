@@ -1450,6 +1450,14 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   Limitation 429 et délai Retry-After respectés sans désactiver la protection.
   Remplacement d'authentificateur, désactivation d'un compte ordinaire, limitation
   multi-comptes par IP et expiration d'enrôlement restent des cas à approfondir.
+- **Bilan local (24/10/2026)** : les neuf thèmes du périmètre sont couverts par
+  huit parcours réels, exécutés sous Chrome à 375/320 px avec SQLite. QA-003 reste
+  en qualification, sans extension implicite à toute la matrice QA-002/REC-23–36.
+  Preuves et écarts détaillés dans etat-projet.md ; critères et procédure PostgreSQL
+  dans le README. CI PostgreSQL existante complétée par les quatre fichiers Contrats
+  d'audit/gouvernance financière/rappels/e-mails. Exécution locale de ces ajouts sous
+  SQLite : 82 tests, 489 assertions ; exécution PostgreSQL/CI du SHA à obtenir.
+  Lanceur navigateur PostgreSQL encore absent, moteur Docker local inaccessible.
 
 ### UCG-QA-004 — Tester concurrence et idempotence
 

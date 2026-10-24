@@ -4224,3 +4224,54 @@ rapports exportables autres que l'effectif actif, les documents/avenants/rappels
 réservation, récurrence et notifications du calendrier. Cette
 suite locale/CI utilise SQLite ; elle ne remplace pas une recette PostgreSQL ni
 la validation des workers de recette/production et du temps réel Reverb.
+
+### Bilan QA-003 et recette PostgreSQL préparée — 24 octobre 2026
+
+Les huit parcours couvrent le périmètre principal de QA-003, à 375/320 px sous
+Chrome avec API Laravel réelle. La matrice et les limites de couverture figurent
+dans `docs/etat-projet.md`, section « Bilan de couverture QA-003 ». La matrice
+REC-23 à REC-36 appartient à QA-002 ; concurrence et performances relèvent aussi
+de QA-004/005. Les huit parcours ne constituent pas une validation globale de ces
+tickets ni une autorisation de mise en production.
+
+La CI backend possède déjà PostgreSQL 17 et une sélection de tests, y compris les
+tests de schéma et de concurrence. Cette sélection inclut désormais les quatre
+fichiers Contrats auparavant exécutés seulement dans la suite SQLite : audit des
+accès, gouvernance financière, rappels et e-mails de rappel. Le rapport est
+`back/reports/phpunit-postgresql.xml`, conservé 14 jours. La CI frontend exécute
+les huit parcours avec SQLite ; son lanceur refuse volontairement PostgreSQL.
+
+Ordre de recette à appliquer **dans le job CI et sa base PostgreSQL jetable**,
+depuis `back`, avec les variables du step PostgreSQL déjà positionnées :
+
+```bash
+# Régressions des démontages de parents et refus de perte d'historique.
+php artisan test --compact tests/Feature/PersonSchemaTest.php tests/Feature/GameCatalogueSchemaTest.php tests/Feature/TeamSchemaTest.php --log-junit=reports/phpunit-postgresql-schema.xml
+# Droits financiers, audit, rappels et déduplication.
+php artisan test --compact tests/Feature/ContractAccessAuditTest.php tests/Feature/ContractFinancialGovernanceTest.php tests/Feature/ContractReminderTest.php tests/Feature/ContractReminderMailTest.php --log-junit=reports/phpunit-postgresql-contracts.xml
+# Collisions entre processus ; aucune exclusion SQLite ne doit masquer ces courses.
+php artisan test --compact tests/Feature/CalendarConflictConcurrencyTest.php tests/Feature/MatchResultConcurrencyTest.php tests/Feature/MatchCorrectionConcurrencyTest.php --log-junit=reports/phpunit-postgresql-concurrency.xml
+```
+
+Ces groupes sont déjà inclus dans le step complet du workflow backend ; les
+commandes ciblées servent au diagnostic d'un échec. Leurs noms de rapports sont
+compatibles avec l'upload existant `phpunit*.xml` lors d'un diagnostic CI.
+
+Préconditions : service PostgreSQL 17 neuf, base dédiée `ucg_platform_test`, rôle
+de test pouvant créer les bases temporaires des courses, `DB_CONNECTION=pgsql`,
+`DB_URL` vide, profil testing et clé applicative de CI. Ces tests peuvent reconstruire
+leur schéma : ne pas réutiliser une base de développement ou de recette partagée.
+Les rollbacks sont exercés par les tests de schéma : aller-retour à vide et refus
+de supprimer un historique peuplé, sans rollback global d'une base réelle.
+
+La validation attend zéro échec, des exclusions expliquées (notamment Redis dans
+la sélection PostgreSQL), et l'exécution effective des courses PostgreSQL. Relever
+le SHA, les versions et les JUnit. Les parcours navigateur sur PostgreSQL demandent
+un futur lanceur distinct, qui devra créer et vérifier sa base propre, isoler ses
+sessions/fichiers/caches et la supprimer après arrêt des processus ; remplacer
+simplement DB_CONNECTION est refusé par les garde-fous actuels.
+
+Lors de ce bilan, PDO PostgreSQL et psql sont présents, mais le moteur Docker n'a
+pas répondu. Aucun test PostgreSQL local ni nouvelle CI distante n'est donc déclaré
+réussi. La qualification hébergée, SMTP, antivirus, Reverb et restauration restent
+des validations séparées ; l'hébergement reste différé.

@@ -5359,3 +5359,82 @@ remplacement d'authentificateur, désactivation d'un compte ordinaire, expiratio
 autres rapports, documents/avenants/rappels et cas avancés des modules. Prochaine
 étape proposée : bilan de couverture QA-003 et préparation de la recette PostgreSQL.
 L'hébergement reste différé selon la décision du responsable.
+
+## Bilan de couverture QA-003 et préparation PostgreSQL (24 octobre 2026)
+
+Référentiel : QA-003 exige les parcours invitation, MFA, changement de tenant,
+personne, roster, calendrier, match, contrat et export, stables aux tailles convenues
+avec des erreurs exploitables. REC-23 à REC-36 est le critère de QA-002, et non un
+critère supplémentaire créé pour QA-003. QA-004/005 couvrent concurrence et charge.
+
+| Parcours réel | Preuve dans front/tests/real-api | Couverture principale | Limites navigateur restantes |
+| --- | --- | --- | --- |
+| Identité, personne et contexte | identity-people.spec.ts | Connexion, challenge MFA, confirmation, création, persistance, déconnexion, CSRF et refus d'accès | Inscription, vérification d'adresse, reset de mot de passe |
+| Équipes et roster | teams-roster.spec.ts | Création, appartenance, transfert, clôture, conflits et isolation | Promotions/annulations futures, départ conservant un ancien lineup |
+| Calendrier | calendar.spec.ts | Indisponibilité, création, déplacement, participants, annulation, UTC/Asia-Tokyo | Récurrences/DST, réservations, notifications et abonnements |
+| Match | matches.spec.ts | Compositions, scores BO1, preuve, validation distincte, correction et vrai job | BO3 incohérent, substitution, carnet, Reverb réel |
+| Contrat | contracts.spec.ts | Préparation, finances restreintes, approbation, signature déclarée, résiliation et archivage | Documents/avenants, antivirus, rappels et liens temporaires |
+| Export | exports.spec.ts | Job, CSV, demande idempotente, demandeur, tenants, expiration de fixture et source périmée | Cinq autres rapports, expiration réelle/nettoyage et droits révoqués |
+| Invitation | invitations.spec.ts | Rôle/période, refus, expiration, révocation/réémission, admission unique | Inscription du destinataire, courrier livré, invitation administrateur par propriétaire |
+| MFA | mfa.spec.ts | Activation, TOTP, secours/renouvellement, sessions révoquées, limite réelle 429 | Remplacement d'authentificateur, désactivation ordinaire, expiration d'enrôlement, limite IP multi-comptes |
+
+Les neuf thèmes du ticket sont donc représentés par huit scénarios. Les scénarios
+utilisent 375/320 px et vérifient l'absence de débordement à leurs étapes ciblées.
+Les réponses d'erreur, codes métier et refus d'actions sont contrôlés ; ceci ne
+constitue pas un audit exhaustif de navigation clavier, lecteurs d'écran ou de tous
+les navigateurs. Les tests restent sous Chrome/Chromium, avec retries=0.
+
+### Décision de qualification
+
+- Couverture fonctionnelle principale atteinte localement. Ne pas déclarer tout le
+  ticket validé en CI depuis ces seuls résultats locaux : obtenir les artefacts du
+  SHA contenant les derniers scénarios et vérifier les exclusions/échecs.
+- Les écarts du tableau sont des suites à prioriser, pas des anomalies critiques
+  découvertes dans le runtime. Leur absence au navigateur ne signifie pas absence
+  de tests backend : les fichiers Feature dédiés couvrent notamment schémas,
+  autorisations, expiration et concurrence.
+- QA-003 ne vaut pas validation de QA-002, QA-004, QA-005 ni de la release. REC-23,
+  REC-25 et la séparation des fichiers de REC-27 ont une preuve navigateur ciblée.
+  REC-24 reste partiel (sélecteurs, sans parcours de recherche globale) ; les caches
+  de REC-27 et le rejeu après changement de contexte de REC-28 ne sont pas clos par
+  ce smoke test. REC-26/29/30/32–36 nécessitent leurs preuves dédiées. Le CDC ne liste
+  pas REC-31 ; aucune exigence correspondante n'est inventée.
+- Les validations de Reverb, SMTP, antivirus, restauration et exploitation restent
+  séparées et à réaliser avant une mise en production selon leurs tickets. Aucun
+  choix d'hébergement n'est imposé par ce bilan.
+
+### Préparation de la recette PostgreSQL
+
+Le workflow backend dispose déjà de PostgreSQL 17 et de tests de contraintes,
+rollbacks protégés et courses sur bases filles temporaires. Le workflow frontend
+reste en SQLite : environment.mjs, browser-application.php et browser-seed.php
+refusent un remplacement arbitraire par PostgreSQL. Une réussite PostgreSQL au
+backend ne prouve donc pas l'exécution des huit parcours navigateur sur ce moteur.
+
+L'audit de la liste manuelle PostgreSQL a identifié quatre omissions Contrats :
+ContractAccessAuditTest, ContractFinancialGovernanceTest, ContractReminderTest et
+ContractReminderMailTest. Elles sont ajoutées au step existant. Les autres tests
+hors sélection PostgreSQL ne sont pas déclarés couverts par cette correction.
+Syntaxe YAML vérifiée avec Symfony YAML et les 160 chemins sélectionnés existent.
+
+Ordre de recette préparé dans le README : schémas parents (People, catalogue, Teams),
+contrats sensibles et rappels, courses calendrier/résultats/corrections, puis sélection
+complète du workflow. Attendus : aller-retour de migration à vide, refus de perte
+d'historique, aucune FK orpheline, un résultat concurrent accepté et l'autre refusé
+selon le contrat testé, aucune écriture ou notification dupliquée. Lire les exclusions
+au lieu de les compter comme réussites. Les tests de concurrence ont besoin d'un rôle
+de test autorisé à créer/supprimer leurs seules bases filles, dans un serveur jetable.
+
+Contrôles locaux de ce lot : les quatre fichiers ajoutés passent sous SQLite
+(82 tests, 489 assertions). Ce résultat ne vaut pas exécution PostgreSQL. PDO pgsql
+et psql 17 sont disponibles ; le moteur Docker n'est pas joignable (pipe absent).
+Aucun service n'a été démarré et aucune base locale existante n'a été modifiée.
+Nouvelle CI distante et recette PostgreSQL restent à exécuter et à rattacher au SHA.
+
+La suite réelle complète a été répétée pour ce bilan : 8 réussites, aucun échec,
+erreur ou scénario exclu, environ 4,1 minutes ; nettoyage des ressources confirmé.
+Résultats dans le rapport local front/reports/playwright-real.xml. Sources, tests, configuration
+métier et migrations restent inchangés ; seules la sélection CI et la documentation
+évoluent. Livraison locale sans push. Prochaine action : obtenir une exécution de la
+CI PostgreSQL complétée, puis traiter ses éventuels échecs avant d'étendre le lanceur
+navigateur à PostgreSQL. Hébergement toujours différé.
