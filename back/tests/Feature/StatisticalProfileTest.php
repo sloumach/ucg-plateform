@@ -14,6 +14,7 @@ use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesMetricCatalogue;
 use Tests\Fixtures\ProvidesObservations;
@@ -202,6 +203,7 @@ class StatisticalProfileTest extends TestCase
         $this->getJson($this->url($s))->assertOk()->assertJsonPath('data.profiles.0.source_count', 0);
     }
 
+    #[Group('tenant-isolation')]
     public function test_foreign_people_and_metric_versions_are_not_disclosed(): void
     {
         $s = $this->scenario();

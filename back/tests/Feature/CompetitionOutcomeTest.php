@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesCompetitionOutcomes;
 use Tests\Fixtures\ProvidesExternalCompetitions;
@@ -84,6 +85,7 @@ class CompetitionOutcomeTest extends TestCase
         $this->assertDatabaseCount('competition_outcome_matches', 1);
     }
 
+    #[Group('tenant-isolation')]
     public function test_match_ids_references_game_and_tenant_are_scoped(): void
     {
         $s = $this->outcomeScenario();
@@ -190,6 +192,7 @@ class CompetitionOutcomeTest extends TestCase
         $this->assertDatabaseCount('competition_outcome_revisions', 0);
     }
 
+    #[Group('tenant-isolation')]
     public function test_export_is_encrypted_and_bounded_to_its_tenant_and_match_projection_is_batched(): void
     {
         $s = $this->outcomeScenario('sport', true);

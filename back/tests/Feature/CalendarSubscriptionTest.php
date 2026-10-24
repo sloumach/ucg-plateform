@@ -22,6 +22,7 @@ use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
 
@@ -78,6 +79,7 @@ class CalendarSubscriptionTest extends TestCase
     }
 
     #[DataProvider('revokedAccess')]
+    #[Group('tenant-isolation')]
     public function test_current_account_and_tenant_eligibility_is_required_without_a_session(string $change): void
     {
         [$org, $user, , $url] = $this->scenario();
@@ -94,6 +96,7 @@ class CalendarSubscriptionTest extends TestCase
         $this->get($url)->assertNotFound()->assertHeader('Cache-Control', 'no-store, private');
     }
 
+    #[Group('tenant-isolation')]
     public function test_rotation_expiry_revocation_and_cross_tenant_tokens_cannot_reuse_cached_access(): void
     {
         [$org, $user, $feed, $url] = $this->scenario();
@@ -166,6 +169,7 @@ class CalendarSubscriptionTest extends TestCase
         return str_replace("\r\n ", '', $body);
     }
 
+    #[Group('tenant-isolation')]
     public function test_revocation_between_capability_resolution_and_rendering_is_rechecked(): void
     {
         [$org, $user, $feed, $url] = $this->scenario();

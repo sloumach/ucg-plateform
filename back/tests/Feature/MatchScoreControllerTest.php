@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesMatchScores;
 use Tests\Fixtures\ProvidesPeopleAccess;
@@ -135,6 +136,7 @@ class MatchScoreControllerTest extends TestCase
         $this->assertDatabaseHas('matches', ['id' => $s['record']['id'], 'version' => $s['record']['version']]);
     }
 
+    #[Group('tenant-isolation')]
     public function test_audience_permissions_foreign_tenants_and_pagination_are_enforced(): void
     {
         $s = $this->scoreScenario();
@@ -203,6 +205,7 @@ class MatchScoreControllerTest extends TestCase
         $this->postJson($root.'/games', [...$body, 'confirm_sharing' => true])->assertCreated();
     }
 
+    #[Group('tenant-isolation')]
     public function test_guests_mfa_revalidation_and_revoked_permissions_cannot_write_scores(): void
     {
         $s = $this->scoreScenario();

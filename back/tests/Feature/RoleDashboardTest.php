@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesContractDocuments;
@@ -218,6 +219,7 @@ class RoleDashboardTest extends TestCase
         $this->getJson($this->card($s, 'matches', 'coach'))->assertOk()->assertJsonPath('data.total', 0);
     }
 
+    #[Group('tenant-isolation')]
     public function test_revocation_tenant_boundaries_authentication_and_mfa_are_rechecked(): void
     {
         $s = $this->scenario(['reporting.direction', 'sports.read']);

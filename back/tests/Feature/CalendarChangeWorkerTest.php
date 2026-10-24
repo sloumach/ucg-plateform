@@ -12,6 +12,7 @@ use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesCalendarChanges;
 use Tests\Fixtures\ProvidesPeopleAccess;
@@ -49,6 +50,7 @@ class CalendarChangeWorkerTest extends TestCase
     }
 
     #[DataProvider('unavailableRecipients')]
+    #[Group('tenant-isolation')]
     public function test_recipient_eligibility_is_rechecked_before_delivery(string $change): void
     {
         [$org, , $reader, $person, $activity] = $this->changeScenario();
@@ -96,6 +98,7 @@ class CalendarChangeWorkerTest extends TestCase
         $this->assertDatabaseCount('calendar_change_recipients', 1);
     }
 
+    #[Group('tenant-isolation')]
     public function test_hidden_scope_is_rechecked_before_delivery_and_notifications_do_not_cross_tenants(): void
     {
         [$org, , , , $activity] = $this->changeScenario();

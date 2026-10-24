@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -66,6 +67,7 @@ class PartnershipControllerTest extends TestCase
         Http::assertNothingSent();
     }
 
+    #[Group('tenant-isolation')]
     public function test_search_is_tenant_scoped_paginated_and_wildcards_are_literal(): void
     {
         $org = $this->editor();
@@ -105,6 +107,7 @@ class PartnershipControllerTest extends TestCase
         $this->postJson($this->path($org), ['name' => 'Denied'])->assertForbidden();
     }
 
+    #[Group('tenant-isolation')]
     public function test_cross_tenant_and_cross_sponsor_references_return_404_even_with_access_to_both_tenants(): void
     {
         $org = $this->editor();

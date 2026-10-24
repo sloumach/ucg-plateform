@@ -9,6 +9,7 @@ use App\Modules\Tenancy\Infrastructure\Queue\RunTenantScheduledTask;
 use App\Support\Queue\JobContext;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesCalendarInvitations;
 use Tests\Fixtures\ProvidesPeopleAccess;
@@ -63,6 +64,7 @@ class CalendarInvitationWorkerTest extends TestCase
         $this->assertDatabaseCount('calendar_invitation_deliveries', 1);
     }
 
+    #[Group('tenant-isolation')]
     public function test_revoked_issuer_or_recipient_rights_block_delivery_and_recovery_does_not_duplicate(): void
     {
         [$org, $editor, $recipient, , $activity] = $this->invitationScenario();
@@ -99,6 +101,7 @@ class CalendarInvitationWorkerTest extends TestCase
         $this->assertDatabaseHas('calendar_invitations', ['id' => $record->id]);
     }
 
+    #[Group('tenant-isolation')]
     public function test_system_job_uses_tenant_registry_and_replay_keeps_delivery_idempotent(): void
     {
         [$org, $editor, , , $activity] = $this->invitationScenario();

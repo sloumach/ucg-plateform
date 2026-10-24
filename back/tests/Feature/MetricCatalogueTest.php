@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesMetricCatalogue;
 use Tests\TestCase;
@@ -161,6 +162,7 @@ class MetricCatalogueTest extends TestCase
         (require database_path('migrations/2026_10_19_094551_create_metric_dictionary.php'))->down();
     }
 
+    #[Group('tenant-isolation')]
     public function test_global_definitions_are_excluded_from_private_tenant_exports(): void
     {
         $s = $this->metricScenario(true);

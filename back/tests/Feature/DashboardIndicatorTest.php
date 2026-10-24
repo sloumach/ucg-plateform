@@ -27,6 +27,7 @@ use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -136,6 +137,7 @@ class DashboardIndicatorTest extends TestCase
         Queue::assertPushed(CalculateDashboardIndicator::class, 1);
     }
 
+    #[Group('tenant-isolation')]
     public function test_source_invalidation_isolated_by_card_and_tenant(): void
     {
         $s = $this->scenario();
@@ -146,6 +148,7 @@ class DashboardIndicatorTest extends TestCase
         $this->getJson($this->url($s))->assertOk()->assertJsonPath('data.state', 'fresh');
     }
 
+    #[Group('tenant-isolation')]
     public function test_worker_and_reads_recheck_permissions_and_actor_isolation(): void
     {
         $s = $this->scenario();

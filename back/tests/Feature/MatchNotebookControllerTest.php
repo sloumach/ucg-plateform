@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesMatchResults;
 use Tests\Fixtures\ProvidesPeopleAccess;
@@ -208,6 +209,7 @@ class MatchNotebookControllerTest extends TestCase
 
     }
 
+    #[Group('tenant-isolation')]
     public function test_other_tenant_match_and_foreign_entry_are_not_disclosed(): void
     {
 

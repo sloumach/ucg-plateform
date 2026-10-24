@@ -15,6 +15,7 @@ use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -155,6 +156,7 @@ class SponsorshipCampaignControllerTest extends TestCase
         $this->assertDatabaseCount('sponsorship_campaigns', 0);
     }
 
+    #[Group('tenant-isolation')]
     public function test_cross_tenant_cross_agreement_and_cross_campaign_identifiers_never_resolve(): void
     {
         [$org,$author,$sponsor,$agreement,$scope] = $this->scenario();
@@ -231,6 +233,7 @@ class SponsorshipCampaignControllerTest extends TestCase
         $this->assertDatabaseHas('sponsorship_deliverables', ['id' => $promise['id'], 'status' => 'cancelled']);
     }
 
+    #[Group('tenant-isolation')]
     public function test_dashboard_is_paginated_scoped_and_excludes_evidence_and_finances(): void
     {
         [$org,$author,$sponsor,$agreement,$scope] = $this->scenario();

@@ -15,6 +15,7 @@ use App\Modules\Tenancy\Domain\Models\OrganizationRole;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesMatches;
 use Tests\Fixtures\ProvidesPeopleAccess;
@@ -48,6 +49,7 @@ class MatchControllerTest extends TestCase
         $this->getJson($this->matchRoot($org).'/'.$data['id'].'/history')->assertOk()->assertJsonPath('data.0.to_status', 'proposed')->assertJsonMissingPath('data.0.actor_user_id');
     }
 
+    #[Group('tenant-isolation')]
     public function test_reader_write_and_foreign_tenant_requests_are_refused(): void
     {
         [$org, $writer, $reader, $person, $other, $game] = $this->matchScenario();

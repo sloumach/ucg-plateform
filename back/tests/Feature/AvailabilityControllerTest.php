@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -58,6 +59,7 @@ class AvailabilityControllerTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    #[Group('tenant-isolation')]
     public function test_self_scope_filters_before_pagination_and_returns_404_for_other_people(): void
     {
         [$org,$user,$person] = $this->selfEditor();
@@ -158,6 +160,7 @@ class AvailabilityControllerTest extends TestCase
         $this->patchJson($this->path($org, $mine['id']), ['version' => $mine['version'], 'cancel' => true])->assertOk();
     }
 
+    #[Group('tenant-isolation')]
     public function test_revocation_is_rechecked_after_initial_read(): void
     {
         [$org,$user,$person,$grant] = $this->selfEditor();

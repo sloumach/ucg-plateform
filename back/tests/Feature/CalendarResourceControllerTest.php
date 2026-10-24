@@ -8,6 +8,7 @@ use App\Modules\Tenancy\Domain\Models\Organization;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -48,6 +49,7 @@ class CalendarResourceControllerTest extends TestCase
         $this->assertDatabaseCount('organization_audit_events', 3);
     }
 
+    #[Group('tenant-isolation')]
     public function test_resource_mutations_reject_foreign_identity_and_closed_payloads(): void
     {
         $org = Organization::factory()->create();

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesExternalCompetitions;
 use Tests\Fixtures\ProvidesPeopleAccess;
@@ -40,6 +41,7 @@ class ExternalCompetitionControllerTest extends TestCase
         $this->assertSame([], array_intersect(['contacts', 'name', 'organizer'], array_keys(ExternalCompetition::query()->firstOrFail()->toArray())));
     }
 
+    #[Group('tenant-isolation')]
     public function test_cross_tenant_record_and_history_are_not_disclosed(): void
     {
         $s = $this->competitionScenario();

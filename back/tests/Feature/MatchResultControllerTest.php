@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesMatchResults;
 use Tests\Fixtures\ProvidesPeopleAccess;
@@ -114,6 +115,7 @@ class MatchResultControllerTest extends TestCase
         $this->assertDatabaseCount('match_result_events', 0);
     }
 
+    #[Group('tenant-isolation')]
     public function test_audience_permissions_revocation_mfa_and_guests_cannot_bypass_the_workflow(): void
     {
         $s = $this->resultScenario();

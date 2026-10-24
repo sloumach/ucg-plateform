@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -53,6 +54,7 @@ class ExternalOpponentControllerTest extends TestCase
         Http::assertNothingSent();
     }
 
+    #[Group('tenant-isolation')]
     public function test_foreign_ids_return_404_for_read_update_capture_and_history_even_for_a_member_of_both_tenants(): void
     {
         $org = $this->editor();

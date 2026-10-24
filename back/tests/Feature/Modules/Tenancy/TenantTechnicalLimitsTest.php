@@ -7,6 +7,7 @@ use App\Modules\Tenancy\Application\Contracts\TenantResourceLimits;
 use App\Modules\Tenancy\Domain\Exceptions\TenantLimitExceededException;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 class TenantTechnicalLimitsTest extends TestCase
@@ -19,6 +20,7 @@ class TenantTechnicalLimitsTest extends TestCase
     }
 
     #[DataProvider('limits')]
+    #[Group('tenant-isolation')]
     public function test_overrides_and_exhaustion_affect_only_the_named_tenant(string $name): void
     {
         $first = $this->context();

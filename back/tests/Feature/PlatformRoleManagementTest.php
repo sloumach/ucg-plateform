@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 class PlatformRoleManagementTest extends TestCase
@@ -82,6 +83,7 @@ class PlatformRoleManagementTest extends TestCase
         $this->assertDatabaseCount('platform_role_events', 1);
     }
 
+    #[Group('tenant-isolation')]
     public function test_tenant_owner_cannot_assign_platform_privileges_even_from_application_service(): void
     {
         $this->bootstrap();

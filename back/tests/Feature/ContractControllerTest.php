@@ -12,6 +12,7 @@ use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -50,6 +51,7 @@ class ContractControllerTest extends TestCase
         $this->assertStringNotContainsString('Dossier confidentiel', json_encode(DB::table('organization_audit_events')->first(), JSON_THROW_ON_ERROR));
     }
 
+    #[Group('tenant-isolation')]
     public function test_foreign_contracts_and_foreign_parties_return_404_without_partial_writes(): void
     {
         [$org, $person] = $this->editor();
@@ -132,6 +134,7 @@ class ContractControllerTest extends TestCase
         $this->postJson($this->path($org, $record['id']).'/transitions', ['version' => $record['version'], 'status' => 'active'])->assertConflict()->assertJsonPath('code', 'CONTRACT_NOT_EFFECTIVE');
     }
 
+    #[Group('tenant-isolation')]
     public function test_options_and_lists_are_paginated_and_do_not_expose_other_tenants_or_private_contact_fields(): void
     {
         [$org, $person] = $this->editor();

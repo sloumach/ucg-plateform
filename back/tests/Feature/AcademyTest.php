@@ -14,6 +14,7 @@ use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -75,6 +76,7 @@ class AcademyTest extends TestCase
         $this->getJson($this->path($org).'/'.$cohort->id.'/history')->assertOk()->assertJsonCount(1, 'data');
     }
 
+    #[Group('tenant-isolation')]
     public function test_foreign_cohort_cycle_and_person_return_404(): void
     {
         $org = $this->editor();

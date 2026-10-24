@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -89,6 +90,7 @@ class CalendarControllerTest extends TestCase
         $this->assertDatabaseCount('calendar_participants', 1);
     }
 
+    #[Group('tenant-isolation')]
     public function test_team_visibility_is_revoked_at_current_roster_period_end(): void
     {
         $this->travelTo('2026-10-17 12:00:00');
@@ -149,6 +151,7 @@ class CalendarControllerTest extends TestCase
         $this->patchJson($this->path($org, $record['id']), ['version' => $record['version'], 'starts_at' => '2026-10-18T11:00:00+02:00'])->assertUnprocessable()->assertJsonValidationErrors('ends_at');
     }
 
+    #[Group('tenant-isolation')]
     public function test_cross_tenant_and_departed_references_are_rejected_without_changes(): void
     {
         $org = $this->editor();

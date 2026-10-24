@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 class OrganizationMaintenanceTest extends TestCase
@@ -60,6 +61,7 @@ class OrganizationMaintenanceTest extends TestCase
         Storage::disk('local')->assertExists($this->exportPath($export));
     }
 
+    #[Group('tenant-isolation')]
     public function test_reviewed_targeted_purge_deletes_only_allowed_categories_and_keeps_global_accounts_and_histories(): void
     {
         $this->freezeTime();
@@ -166,6 +168,7 @@ class OrganizationMaintenanceTest extends TestCase
         $this->assertDatabaseHas('organizations', ['id' => $organization->id, 'status' => 'active']);
     }
 
+    #[Group('tenant-isolation')]
     public function test_recovery_returns_to_suspended_with_audit_without_rewriting_data_or_touching_other_tenant(): void
     {
         Storage::fake('local');

@@ -15,6 +15,7 @@ use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesMatchCorrections;
 use Tests\Fixtures\ProvidesPeopleAccess;
@@ -100,6 +101,7 @@ class MatchCorrectionWorkerTest extends TestCase
         $this->postJson($s['root'].'/games', [...$this->scorePayload($s), 'version' => $correction['match_version']])->assertConflict()->assertJsonPath('code', 'MATCH_RECALCULATION_PENDING');
     }
 
+    #[Group('tenant-isolation')]
     public function test_another_tenant_cannot_execute_or_retry_the_correction(): void
     {
         $s = $this->correctionScenario();

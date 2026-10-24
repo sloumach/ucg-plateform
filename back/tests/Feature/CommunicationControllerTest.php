@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -109,6 +110,7 @@ class CommunicationControllerTest extends TestCase
         $this->assertNotSame('<img src=x>', $stored->body);
     }
 
+    #[Group('tenant-isolation')]
     public function test_notifications_recalculate_access_and_preferences_and_reads_are_idempotent_and_private(): void
     {
         $org = $this->editor();
@@ -156,6 +158,7 @@ class CommunicationControllerTest extends TestCase
         $this->getJson($url.'/inbox')->assertJsonCount(0, 'data');
     }
 
+    #[Group('tenant-isolation')]
     public function test_withdrawal_immediately_hides_content_comments_and_notifications_and_is_terminal(): void
     {
         $org = $this->editor();

@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesContractDocuments;
 use Tests\Fixtures\ProvidesPeopleAccess;
@@ -108,6 +109,7 @@ class ContractDocumentControllerTest extends TestCase
         $this->assertDatabaseCount('tenant_artifacts', 1);
     }
 
+    #[Group('tenant-isolation')]
     public function test_cross_tenant_contract_document_and_origin_return_404_even_for_a_member_of_both(): void
     {
         [$org, $user, $contract] = $this->documentScenario();

@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use RuntimeException;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesContractDocuments;
@@ -206,6 +207,7 @@ class ContractFinancialGovernanceTest extends TestCase
         $this->assertSame($before, $contract->refresh()->version);
     }
 
+    #[Group('tenant-isolation')]
     public function test_revoked_permissions_in_captured_context_cannot_write_financial_terms(): void
     {
         [$org, $user, $contract, $context] = $this->documentScenario(self::ALL);

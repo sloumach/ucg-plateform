@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\TestCase;
 
@@ -90,6 +91,7 @@ class ContextualRolesTest extends TestCase
         $this->assertDatabaseCount('organization_access_events', 0);
     }
 
+    #[Group('tenant-isolation')]
     public function test_role_keys_are_unique_inside_their_tenant_and_foreign_role_ids_return_404(): void
     {
         $org = $this->owner();
@@ -340,6 +342,7 @@ class ContextualRolesTest extends TestCase
         $this->assertDatabaseCount('organization_role_assignments', 3);
     }
 
+    #[Group('tenant-isolation')]
     public function test_suspension_and_revoke_are_immediate_for_http_and_other_tenants_remain_accessible(): void
     {
         $assignment = OrganizationRoleAssignment::factory()->create();

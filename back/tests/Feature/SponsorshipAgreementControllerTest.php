@@ -19,6 +19,8 @@ use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -28,6 +30,37 @@ class SponsorshipAgreementControllerTest extends TestCase
     use AuthenticatesWithMfa, LazilyRefreshDatabase, ProvidesPeopleAccess;
 
     private const array EDITOR = ['partnerships.read', 'partnerships.write', 'partnerships.validate', 'financial.read', 'financial.write', 'financial.validate'];
+
+    #[Group('tenant-isolation')]
+    #[TestWith(['financial.read'])]
+    #[TestWith(['financial.write'])]
+    public function test_financial_permission_removal_rechecks_a_previously_read_agreement_without_changing_terms(string $permission): void
+    {
+        [$org, $user, $sponsor] = $this->scenario();
+        $agreement = $this->prepared($org, $user, $sponsor);
+        $path = $this->root($sponsor, $agreement['id']);
+        $financial = $this->getJson($path.'/financial')->assertOk()->assertJsonPath('data.terms.amount', '12345.67')->json('data');
+        $assignment = OrganizationRoleAssignment::query()->where('organization_id', $org->id)->where('user_id', $user->id)->firstOrFail();
+        $assignment->role->forceFill(['permissions' => array_values(array_diff(self::EDITOR, [$permission]))])->save();
+        $before = DB::table('sponsorship_agreement_terms')->where('agreement_id', $agreement['id'])->firstOrFail();
+        $version = DB::table('sponsorship_agreements')->where('id', $agreement['id'])->value('version');
+        $events = DB::table('sponsorship_agreement_events')->count();
+        $audits = DB::table('organization_audit_events')->count();
+
+        $this->patchJson($path.'/financial', [...$this->financial($financial['agreement_version']), 'expected_version' => $financial['version']])->assertForbidden();
+        $this->assertSame(get_object_vars($before), get_object_vars(DB::table('sponsorship_agreement_terms')->where('agreement_id', $agreement['id'])->firstOrFail()));
+        $this->assertSame($version, DB::table('sponsorship_agreements')->where('id', $agreement['id'])->value('version'));
+        $this->assertSame($events, DB::table('sponsorship_agreement_events')->count());
+        $this->assertSame($audits, DB::table('organization_audit_events')->count());
+        if ($permission === 'financial.read') {
+            $this->getJson($path.'/financial')->assertForbidden()->assertJsonMissingPath('data')->assertDontSee('IN_KIND_SECRET');
+            $this->assertSame($events, DB::table('sponsorship_agreement_events')->count());
+        } else {
+            $this->getJson($path.'/financial')->assertOk()->assertJsonPath('data.version', $financial['version']);
+            $this->assertSame($events + 1, DB::table('sponsorship_agreement_events')->count());
+        }
+        $this->getJson($path)->assertOk()->assertJsonMissingPath('data.terms');
+    }
 
     public function test_anonymous_requests_are_rejected(): void
     {
@@ -107,6 +140,7 @@ class SponsorshipAgreementControllerTest extends TestCase
         $this->getJson($root.'members')->assertOk()->assertJsonMissingPath('data.0.email')->assertJsonMissingPath('data.0.roles');
     }
 
+    #[Group('tenant-isolation')]
     public function test_cross_tenant_and_cross_sponsor_ids_never_resolve(): void
     {
         [$org, $user, $sponsor] = $this->scenario();
@@ -198,6 +232,7 @@ class SponsorshipAgreementControllerTest extends TestCase
         $this->getJson($this->root($sponsor, $record['id']))->assertOk()->assertJsonMissingPath('data.contract_id')->assertJsonMissingPath('data.contract_version');
     }
 
+    #[Group('tenant-isolation')]
     public function test_exposure_authorization_disappears_if_responsible_access_is_revoked(): void
     {
         [$org, $user, $sponsor] = $this->scenario();

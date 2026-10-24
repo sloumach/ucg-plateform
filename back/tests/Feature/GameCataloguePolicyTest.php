@@ -26,6 +26,7 @@ use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Mockery;
+use PHPUnit\Framework\Attributes\Group;
 use RuntimeException;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
@@ -148,6 +149,7 @@ class GameCataloguePolicyTest extends TestCase
         $this->assertSame(100, GameCatalogueEntry::query()->where('kind', 'game')->count());
     }
 
+    #[Group('tenant-isolation')]
     public function test_shared_metadata_cache_never_caches_tenant_activations_and_follows_global_revision(): void
     {
         $org = Organization::factory()->create();
@@ -167,6 +169,7 @@ class GameCataloguePolicyTest extends TestCase
         $this->assertCount(3, $catalogue->profiles($other->id));
     }
 
+    #[Group('tenant-isolation')]
     public function test_captured_tenant_context_cannot_bypass_membership_revocation(): void
     {
         $org = Organization::factory()->create();

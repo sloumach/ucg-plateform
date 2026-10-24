@@ -15,6 +15,7 @@ use App\Modules\Tenancy\Domain\Models\OrganizationRole;
 use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -65,6 +66,7 @@ class CommunicationAudienceTest extends TestCase
         $this->getJson($this->root($org).'/announcements')->assertJsonPath('meta.total', 0);
     }
 
+    #[Group('tenant-isolation')]
     public function test_role_target_requires_an_active_organization_assignment_and_rechecks_role_revocation(): void
     {
         $this->travelTo('2026-10-16 12:00:00');
@@ -96,6 +98,7 @@ class CommunicationAudienceTest extends TestCase
         $this->assertDatabaseHas('announcements', ['id' => $draft['id'], 'status' => 'draft']);
     }
 
+    #[Group('tenant-isolation')]
     public function test_foreign_and_inactive_target_choices_do_not_leak_or_accept_other_tenant_records(): void
     {
         [$org, $user, $grant] = $this->reader();

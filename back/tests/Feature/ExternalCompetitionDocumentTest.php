@@ -7,6 +7,7 @@ use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesExternalCompetitions;
 use Tests\Fixtures\ProvidesPeopleAccess;
@@ -47,6 +48,7 @@ class ExternalCompetitionDocumentTest extends TestCase
         $this->assertDatabaseCount('external_competition_documents', 1);
     }
 
+    #[Group('tenant-isolation')]
     public function test_foreign_documents_and_versions_do_not_cross_a_competition_boundary(): void
     {
         $s = $this->competitionScenario();
@@ -74,6 +76,7 @@ class ExternalCompetitionDocumentTest extends TestCase
         $this->get($root.'/'.$doc['document_id'].'/versions/'.$doc['version'].'/download')->assertOk();
     }
 
+    #[Group('tenant-isolation')]
     public function test_reader_and_revoked_reader_cannot_modify_or_keep_downloading(): void
     {
         $s = $this->competitionScenario();

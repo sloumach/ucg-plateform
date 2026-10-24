@@ -9,6 +9,7 @@ use App\Modules\Competition\Infrastructure\Broadcasting\MatchScoreChanged;
 use App\Modules\Identity\Application\Services\MfaSession;
 use App\Modules\Identity\Domain\Models\User;
 use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
 use App\Modules\Tenancy\Domain\Models\OrganizationRole;
 use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use App\Modules\Tenancy\Presentation\Support\ActiveOrganizationSession;
@@ -20,6 +21,8 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Mockery\MockInterface;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\TestWith;
 use Psr\Log\LoggerInterface;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesMatchCorrections;
@@ -36,6 +39,30 @@ class MatchRealtimeTest extends TestCase
         config(['broadcasting.connections.reverb.key' => 'test-key', 'broadcasting.connections.reverb.secret' => 'test-secret', 'broadcasting.connections.reverb.app_id' => 'test-app']);
     }
 
+    #[Group('tenant-isolation')]
+    #[TestWith(['membership', 404])]
+    #[TestWith(['role', 403])]
+    #[TestWith(['read', 403])]
+    public function test_previously_signed_subscriber_cannot_reauthorize_or_read_scores_after_revocation(string $revocation, int $status): void
+    {
+        $s = $this->scoreScenario();
+        $this->actingAsWithMfa($s['reader']);
+        $this->postJson($s['root'].'/realtime/auth', $this->channelBody($s))->assertOk();
+        $this->getJson($s['root'].'/live')->assertOk();
+        $assignment = OrganizationRoleAssignment::query()->where('organization_id', $s['org']->id)->where('user_id', $s['reader']->id)->firstOrFail();
+        if ($revocation === 'membership') {
+            OrganizationMembership::query()->whereKey($assignment->membership_id)->firstOrFail()->forceFill(['status' => 'revoked'])->save();
+        } elseif ($revocation === 'role') {
+            $assignment->forceFill(['status' => 'revoked'])->save();
+        } else {
+            $assignment->role->forceFill(['permissions' => []])->save();
+        }
+
+        $this->postJson($s['root'].'/realtime/auth', $this->channelBody($s))->assertStatus($status)->assertJsonMissingPath('auth');
+        $this->getJson($s['root'].'/live')->assertStatus($status)->assertJsonMissingPath('data');
+        $this->assertDatabaseCount('match_game_instances', 0);
+    }
+
     public function test_authorized_reader_receives_a_private_signature_without_scores(): void
     {
         $s = $this->scoreScenario();
@@ -45,6 +72,7 @@ class MatchRealtimeTest extends TestCase
         ]);
     }
 
+    #[Group('tenant-isolation')]
     public function test_unrelated_reader_cannot_subscribe_to_a_private_match(): void
     {
         $s = $this->scoreScenario();
@@ -53,6 +81,7 @@ class MatchRealtimeTest extends TestCase
         $this->actingAsWithMfa($other)->postJson($s['root'].'/realtime/auth', $this->channelBody($s))->assertNotFound();
     }
 
+    #[Group('tenant-isolation')]
     public function test_foreign_organization_cannot_subscribe_to_a_known_match(): void
     {
         $s = $this->scoreScenario();
@@ -181,6 +210,7 @@ class MatchRealtimeTest extends TestCase
         $this->getJson($s['root'].'/live')->assertOk()->assertJsonPath('data.recalculation_pending', false)->assertJsonPath('data.series.standings.0.score', 0)->assertJsonPath('data.score_revision', $correction['id']);
     }
 
+    #[Group('tenant-isolation')]
     public function test_live_snapshot_checks_audience_and_rejects_unknown_inputs(): void
     {
         $s = $this->scoreScenario();

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Modules\Teams\Domain\Models\TeamEligibilityRuleset;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesLineups;
 use Tests\TestCase;
@@ -73,6 +74,7 @@ class TeamEligibilityControllerTest extends TestCase
         $this->getJson($lineupPath)->assertOk()->assertJsonPath('data.eligibility_status', 'eligible');
     }
 
+    #[Group('tenant-isolation')]
     public function test_reader_foreign_records_and_untrusted_report_fields_are_refused(): void
     {
         [$org,$user,$team,$period] = $this->lineupEditor(['sports.read']);

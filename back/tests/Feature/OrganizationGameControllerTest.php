@@ -18,6 +18,7 @@ use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -34,6 +35,7 @@ class OrganizationGameControllerTest extends TestCase
         $this->assertDatabaseCount('organization_games', 0);
     }
 
+    #[Group('tenant-isolation')]
     public function test_disabling_one_organization_does_not_change_global_or_other_tenant_catalogue(): void
     {
         $org = $this->editor();

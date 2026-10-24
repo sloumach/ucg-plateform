@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\TestCase;
 
@@ -112,6 +113,7 @@ class PlatformSupportAccessTest extends TestCase
         $this->assertDatabaseHas('organization_support_accesses', ['id' => $access['id'], 'status' => 'revoked']);
     }
 
+    #[Group('tenant-isolation')]
     public function test_foreign_tenant_or_operator_cannot_reuse_a_known_access_id(): void
     {
         $this->operator();
@@ -126,6 +128,7 @@ class PlatformSupportAccessTest extends TestCase
         $this->assertDatabaseCount('organization_support_events', 1);
     }
 
+    #[Group('tenant-isolation')]
     public function test_revoking_and_regranting_the_platform_role_does_not_revive_a_support_access(): void
     {
         $admin = User::factory()->withMfa()->create();

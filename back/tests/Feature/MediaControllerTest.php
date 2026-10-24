@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -95,6 +96,7 @@ class MediaControllerTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors('confirm_sharing');
     }
 
+    #[Group('tenant-isolation')]
     public function test_scrim_is_private_by_default_and_delayed_sharing_is_explicit_and_retractable(): void
     {
         $this->travelTo('2026-10-16 12:00:00');
@@ -131,6 +133,7 @@ class MediaControllerTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors('score');
     }
 
+    #[Group('tenant-isolation')]
     public function test_foreign_and_inactive_team_and_cross_tenant_media_are_not_found(): void
     {
         $org = $this->editor();

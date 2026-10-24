@@ -14,6 +14,7 @@ use App\Modules\Tenancy\Domain\Models\OrganizationRole;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesMatchLineups;
 use Tests\Fixtures\ProvidesPeopleAccess;
@@ -46,6 +47,7 @@ class MatchLineupControllerTest extends TestCase
         $this->getJson($s['path'].'?page=2&per_page=1')->assertOk()->assertJsonPath('data.0.snapshot.participants.0.slot_key', 'starter');
     }
 
+    #[Group('tenant-isolation')]
     public function test_insufficient_permissions_unknown_fields_and_foreign_sources_write_nothing(): void
     {
         $s = $this->matchLineupScenario();

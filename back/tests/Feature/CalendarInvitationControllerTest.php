@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesCalendarInvitations;
 use Tests\Fixtures\ProvidesPeopleAccess;
@@ -73,6 +74,7 @@ class CalendarInvitationControllerTest extends TestCase
         $this->assertDatabaseCount('calendar_invitations', 0);
     }
 
+    #[Group('tenant-isolation')]
     public function test_foreign_archived_stale_and_empty_activities_cannot_be_invited(): void
     {
         [$org, , , , $activity] = $this->invitationScenario();

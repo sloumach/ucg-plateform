@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 class OrganizationPortabilityTest extends TestCase
@@ -39,6 +40,7 @@ class OrganizationPortabilityTest extends TestCase
         config(['tenancy.cache_store' => 'database', 'tenancy.schedule_connection' => 'database', 'filesystems.artifacts' => 'local']);
     }
 
+    #[Group('tenant-isolation')]
     public function test_real_database_queue_exports_only_target_rows_and_files_without_global_identity_secrets(): void
     {
         $this->freezeTime();
@@ -96,6 +98,7 @@ class OrganizationPortabilityTest extends TestCase
         $this->assertFalse(app(TenantExecutionScope::class)->active());
     }
 
+    #[Group('tenant-isolation')]
     public function test_serialized_export_is_idempotent_and_keeps_its_registered_tenant(): void
     {
         Storage::fake('local');
@@ -112,6 +115,7 @@ class OrganizationPortabilityTest extends TestCase
         $this->assertFalse(app(TenantExecutionScope::class)->active());
     }
 
+    #[Group('tenant-isolation')]
     public function test_other_tenant_cannot_inspect_or_read_an_export_even_with_same_owner(): void
     {
         Storage::fake('local');
@@ -316,6 +320,7 @@ class OrganizationPortabilityTest extends TestCase
         $this->assertFalse(app(TenantExecutionScope::class)->active());
     }
 
+    #[Group('tenant-isolation')]
     public function test_operator_verification_revoked_after_enqueue_fails_without_external_archive(): void
     {
         Storage::fake('local');
@@ -366,6 +371,7 @@ class OrganizationPortabilityTest extends TestCase
         $this->assertDatabaseCount('tenant_portability_operations', 0);
     }
 
+    #[Group('tenant-isolation')]
     public function test_one_archive_cleanup_failure_does_not_block_another_tenant(): void
     {
         $this->freezeTime();

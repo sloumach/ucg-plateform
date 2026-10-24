@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -156,6 +157,7 @@ class CalendarConflictControllerTest extends TestCase
         $this->postJson($this->root($org).'/activities', [...$this->input(), 'resource_ids' => [$resource->id]])->assertCreated();
     }
 
+    #[Group('tenant-isolation')]
     public function test_foreign_or_archived_resources_and_foreign_activity_ids_are_404(): void
     {
         $org = $this->editor();
