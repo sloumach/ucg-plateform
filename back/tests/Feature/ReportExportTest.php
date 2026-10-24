@@ -36,7 +36,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Testing\Fakes\QueueFake;
 use Illuminate\Testing\PendingCommand;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
@@ -183,6 +185,86 @@ class ReportExportTest extends TestCase
         $this->assertStringNotContainsString('Alpha', $csv);
         $this->assertDatabaseCount('tenant_artifacts', 2);
         Queue::assertPushed(BuildReportExport::class, 2);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_serialized_export_and_replay_keep_the_dispatched_tenant_after_http_context_switch(): void
+    {
+        $s = $this->scenario();
+        $other = Organization::factory()->create(['timezone' => 'UTC']);
+        $this->grantPeopleAccess($other, $s['user'], ['reporting.export', 'reporting.direction', 'sports.read']);
+        Person::factory()->create(['organization_id' => $s['org']->id, 'status' => 'active', 'pseudonym' => 'Alpha private source']);
+        Person::factory()->create(['organization_id' => $other->id, 'status' => 'active', 'pseudonym' => 'Beta private source']);
+        $this->selectExportOrganization($s['org']);
+        $row = $this->requestExport($s);
+        $transport = $this->serializedQueuedExport();
+        $this->selectExportOrganization($other);
+        $this->getJson('/api/v1/tenants/'.$other->id.'/context')->assertOk();
+
+        Queue::fake()->except([BuildReportExport::class]);
+        Bus::dispatchSync(unserialize($transport));
+        Bus::dispatchSync(unserialize($transport));
+
+        $this->assertDatabaseHas('report_exports', ['id' => $row['id'], 'organization_id' => $s['org']->id, 'status' => 'completed', 'row_count' => 1]);
+        $this->assertSame(0, DB::table('report_exports')->where('organization_id', $other->id)->count());
+        $this->assertDatabaseCount('tenant_artifacts', 1);
+        $this->assertSame($other->id, session()->get(ActiveOrganizationSession::KEY.'.organization_id'));
+        $this->getJson('/api/v1/tenants/'.$other->id.'/exports')->assertOk()->assertJsonCount(0, 'data.items');
+        $this->selectExportOrganization($s['org']);
+        $csv = $this->get($s['root'].'/'.$row['id'].'/download')->assertOk()->getContent();
+        $this->assertIsString($csv);
+        $this->assertStringContainsString('Alpha private source', $csv);
+        $this->assertStringNotContainsString('Beta private source', $csv);
+        $this->assertDatabaseCount('people', 2);
+    }
+
+    #[Group('tenant-isolation')]
+    #[TestWith(['membership'])]
+    #[TestWith(['permission'])]
+    public function test_beta_permissions_cannot_rescue_an_alpha_export_revoked_after_dispatch(string $revocation): void
+    {
+        $s = $this->scenario();
+        $other = Organization::factory()->create(['timezone' => 'UTC']);
+        $this->grantPeopleAccess($other, $s['user'], ['reporting.export', 'reporting.direction', 'sports.read']);
+        $this->selectExportOrganization($s['org']);
+        $row = $this->requestExport($s);
+        $transport = $this->serializedQueuedExport();
+        $this->selectExportOrganization($other);
+        if ($revocation === 'membership') {
+            OrganizationMembership::query()->whereKey($s['assignment']->membership_id)->firstOrFail()->forceFill(['status' => 'revoked'])->save();
+        } else {
+            $s['assignment']->role->forceFill(['permissions' => ['reporting.export', 'reporting.direction']])->save();
+        }
+
+        Queue::fake()->except([BuildReportExport::class]);
+        Bus::dispatchSync(unserialize($transport));
+
+        $this->assertDatabaseHas('report_exports', ['id' => $row['id'], 'organization_id' => $s['org']->id, 'status' => 'failed']);
+        $this->assertDatabaseCount('tenant_artifacts', 0);
+        Storage::disk('local')->assertDirectoryEmpty('/');
+        $this->assertSame($other->id, session()->get(ActiveOrganizationSession::KEY.'.organization_id'));
+        $this->getJson('/api/v1/tenants/'.$other->id.'/exports')->assertOk()->assertJsonCount(0, 'data.items');
+        $this->assertDatabaseCount('report_exports', 1);
+    }
+
+    private function serializedQueuedExport(): string
+    {
+        $queue = Queue::getFacadeRoot();
+        $this->assertInstanceOf(QueueFake::class, $queue);
+        $job = $queue->pushed(BuildReportExport::class)->sole();
+        $this->assertInstanceOf(BuildReportExport::class, $job);
+
+        return serialize($job);
+    }
+
+    private function selectExportOrganization(Organization $organization): void
+    {
+        $revision = $this->postJson('/api/v1/active-organization', ['organization_id' => $organization->id])
+            ->assertOk()->json('data.revision');
+        $this->withHeader('X-Tenant-Revision', $revision);
+        $this->postJson('/api/v1/active-organization/confirmation', [
+            'organization_id' => $organization->id, 'revision' => $revision, 'confirm' => true,
+        ])->assertOk();
     }
 
     public function test_revoked_source_permissions_hide_list_metadata_and_block_download_and_processing(): void

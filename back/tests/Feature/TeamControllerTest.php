@@ -13,6 +13,7 @@ use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -55,12 +56,18 @@ class TeamControllerTest extends TestCase
         $this->assertDatabaseCount('organization_audit_events', 2);
     }
 
+    #[Group('tenant-isolation')]
     public function test_foreign_known_ids_do_not_leak_for_a_member_of_both_organizations(): void
     {
         $org = $this->editor();
         $foreign = Team::factory()->create();
         $this->grantPeopleAccess(Organization::findOrFail($foreign->organization_id), User::findOrFail(auth()->id()), ['sports.read', 'teams.manage']);
-        $this->getJson($this->path($org, $foreign->id))->assertNotFound();
+        $denied = $this->getJson($this->path($org, $foreign->id))->assertNotFound();
+        $missing = $this->getJson($this->path($org, (string) Str::uuid()))->assertNotFound();
+        $this->assertSame($missing->json('code'), $denied->json('code'));
+        $this->assertSame($missing->json('message'), $denied->json('message'));
+        $this->assertStringNotContainsString($foreign->id, (string) $denied->getContent());
+        $this->assertStringNotContainsString($foreign->organization_id, (string) $denied->getContent());
         $this->patchJson($this->path($org, $foreign->id), ['version' => $foreign->version, 'name' => 'Hijack'])->assertNotFound();
         $this->assertDatabaseHas('teams', ['id' => $foreign->id, 'name' => 'Équipe pilote']);
     }

@@ -16,6 +16,7 @@ use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
@@ -136,6 +137,37 @@ class TenantSearchTest extends TestCase
         $this->getJson($this->url([...$s, 'root' => '/api/v1/tenants/'.$other->id.'/search']))->assertNotFound();
         $s['assignment']->forceFill(['status' => 'revoked'])->save();
         $this->getJson($s['root'].'/types')->assertForbidden();
+    }
+
+    #[Group('tenant-isolation')]
+    #[TestWith([false])]
+    #[TestWith([true])]
+    public function test_http_context_switch_and_revocation_never_reuse_another_tenants_search_results(bool $suggestions): void
+    {
+        $s = $this->scenario();
+        $other = Organization::factory()->create();
+        $assignment = $this->grantPeopleAccess($other, $s['user'], ['sports.read']);
+        Person::factory()->count(2)->create(['organization_id' => $s['org']->id, 'pseudonym' => 'Alpha private']);
+        Person::factory()->create(['organization_id' => $other->id, 'pseudonym' => 'Alpha Beta private']);
+        $filters = ['per_page' => 1, ...($suggestions ? ['mode' => 'suggest'] : [])];
+        $revision = $this->postJson('/api/v1/active-organization', ['organization_id' => $s['org']->id])->assertOk()->json('data.revision');
+        $this->withHeader('X-Tenant-Revision', $revision);
+        $first = $this->getJson($this->url($s, $filters))->assertOk()->assertJsonPath('data.items.0.label', 'Alpha private');
+        $cursor = $first->json('data.meta.next_cursor');
+        $this->assertIsString($cursor);
+        $revision = $this->postJson('/api/v1/active-organization', ['organization_id' => $other->id])->assertOk()->json('data.revision');
+        $this->withHeader('X-Tenant-Revision', $revision);
+        $beta = [...$s, 'root' => '/api/v1/tenants/'.$other->id.'/search'];
+        $this->getJson($this->url($beta, $filters))->assertOk()->assertJsonCount(1, 'data.items')
+            ->assertJsonPath('data.items.0.label', 'Alpha Beta private')->assertHeader('Cache-Control', 'no-store, private');
+        $this->getJson($this->url($beta, [...$filters, 'cursor' => $cursor]))->assertUnprocessable()->assertJsonValidationErrors('cursor');
+
+        $assignment->forceFill(['status' => 'revoked'])->save();
+        $this->getJson($this->url($beta, $filters))->assertForbidden()->assertJsonMissingPath('data.items');
+        $this->getJson($beta['root'].'/types')->assertForbidden();
+        $revision = $this->postJson('/api/v1/active-organization', ['organization_id' => $s['org']->id])->assertOk()->json('data.revision');
+        $this->withHeader('X-Tenant-Revision', $revision);
+        $this->getJson($this->url($s))->assertOk()->assertJsonCount(2, 'data.items')->assertJsonPath('data.items.0.label', 'Alpha private');
     }
 
     public function test_guests_are_rejected_and_gate_is_bound_to_actor(): void

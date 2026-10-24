@@ -1386,6 +1386,16 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / XL
 - **Périmètre** : CRUD, URL directe, recherche, export, fichier, cache, job, notification, webhook et temps réel.
 - **Acceptation** : tous les scénarios REC-23 à REC-36 applicables au P0 sont couverts ; tout nouveau module tenant ajoute ses cas négatifs.
+- **Premier lot local (24/10/2026)** : groupe PHPUnit `tenant-isolation`, neuf
+  cas critiques dont huit nouveaux : job d'export sérialisé/rejoué après changement
+  de tenant, adhésion/permission révoquée avant traitement, recherche/suggestions
+  après changement et révocation, cache/fichiers après révocation et refus d'URL
+  étrangère indiscernable d'une URL inconnue. 312 tests SQLite (1 650 assertions)
+  sur quinze suites auditées ; 120 tests PostgreSQL temporaire (767 assertions)
+  sur les cinq suites modifiées. Pint/PHPStan verts ; aucune modification métier.
+  Matrice et limites REC-23–36 dans etat-projet.md ; ticket ouvert pour l'inventaire
+  complet CRUD/jobs, Reverb réel, webhooks, charge et restauration/réconciliation.
+  Livraison locale, nouvelle CI à confirmer après revue/commit/push.
 
 ### UCG-QA-003 — Tester les parcours navigateur critiques
 

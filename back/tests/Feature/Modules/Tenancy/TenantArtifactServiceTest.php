@@ -4,11 +4,13 @@ namespace Tests\Feature\Modules\Tenancy;
 
 use App\Exceptions\ArtifactStorageException;
 use App\Exceptions\DomainConflictException;
+use App\Modules\Identity\Domain\Models\User;
 use App\Modules\Tenancy\Application\Contracts\TenantArtifacts;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use App\Modules\Tenancy\Application\Services\TenantResolver;
 use App\Modules\Tenancy\Domain\Exceptions\TenantLimitExceededException;
 use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
 use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -17,6 +19,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
 class TenantArtifactServiceTest extends TestCase
@@ -69,6 +73,42 @@ class TenantArtifactServiceTest extends TestCase
             $this->assertSame(7, $files->usedBytes($first));
             $this->assertDatabaseHas('tenant_artifacts', ['organization_id' => $first->organizationId, 'id' => $artifact->id, 'ready' => true]);
         }
+    }
+
+    #[Group('tenant-isolation')]
+    #[TestWith(['read'])]
+    #[TestWith(['delete'])]
+    public function test_revoked_membership_cannot_reuse_a_file_context_while_another_tenant_remains_accessible(string $operation): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->create();
+        $first = Organization::factory()->create();
+        $second = Organization::factory()->create();
+        $membership = OrganizationMembership::factory()->create(['organization_id' => $first->id, 'user_id' => $user->id]);
+        OrganizationMembership::factory()->create(['organization_id' => $second->id, 'user_id' => $user->id]);
+        $resolver = app(TenantResolver::class);
+        $alpha = $resolver->resolve($first->id, '', $user->id, (string) Str::uuid());
+        $beta = $resolver->resolve($second->id, '', $user->id, (string) Str::uuid());
+        $files = app(TenantArtifacts::class);
+        $firstFile = $files->store($alpha, 'same-report.txt', 'Alpha private');
+        $secondFile = $files->store($beta, 'same-report.txt', 'Beta private');
+        $membership->forceFill(['status' => 'revoked'])->save();
+
+        try {
+            if ($operation === 'read') {
+                $files->read($alpha, $firstFile->id);
+            } else {
+                $files->delete($alpha, $firstFile->id);
+            }
+            $this->fail('A stale context must not authorize file access after membership revocation.');
+        } catch (ModelNotFoundException) {
+            $this->assertSame('Beta private', $files->read($beta, $secondFile->id));
+            $this->assertSame(12, $files->usedBytes($beta));
+        }
+        $owner = $resolver->resolve($first->id, '', $first->owner_user_id, (string) Str::uuid());
+        $this->assertSame('Alpha private', $files->read($owner, $firstFile->id));
+        $this->assertSame(13, $files->usedBytes($owner));
+        $this->assertDatabaseCount('tenant_artifacts', 2);
     }
 
     public function test_storage_quota_refuses_only_the_exhausted_tenant_and_deletion_releases_usage(): void

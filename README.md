@@ -4344,3 +4344,30 @@ Arrêt et suppression des environnements confirmés. Les six tests de garde-fous
 le test d'intégration PostgreSQL, les 493 tests frontend, le typage, le lint,
 Pint et PHPStan sont verts. Ces résultats ne ferment pas les autres tickets QA
 ni les validations de services externes ou d'exploitation.
+
+### Matrice d'isolation — premier lot UCG-QA-002
+
+Le groupe PHPUnit `tenant-isolation` rassemble neuf cas critiques, dont huit
+nouveaux : URL étrangère non révélatrice, changement de contexte, recherche et
+suggestions, révocation avant traitement d'export et révocation d'accès aux
+caches/fichiers. Les tests d'exports capturent le job demandé par HTTP, le
+sérialisent puis l'exécutent et le rejouent via les middlewares du bus ; aucun
+worker ni stockage de production n'est utilisé.
+
+Depuis `back`, sur un profil de test sans configuration compilée :
+
+```powershell
+if (Test-Path bootstrap/cache/config.php) { throw 'Configuration compilée : utiliser un checkout de test isolé.' }
+$env:APP_ENV = 'testing'
+$env:DB_CONNECTION = 'sqlite'
+$env:DB_DATABASE = ':memory:'
+$env:DB_URL = ''
+php vendor/bin/phpunit --group=tenant-isolation --log-junit=reports/phpunit-qa002-critical.xml
+```
+
+Cette sélection critique ne couvre pas tout QA-002. La matrice REC-23–36, les
+quinze suites auditées et les limites sont décrites dans `docs/etat-projet.md`.
+Validation locale : 312 tests SQLite et 120 tests sur PostgreSQL 17 temporaire
+pour les cinq suites modifiées, sans échec. Ces tests sont déjà inclus dans les
+sélections CI Feature/PostgreSQL existantes. Nouvelle CI du lot à confirmer après
+livraison ; Reverb réel, webhooks, charge et restauration restent distincts.

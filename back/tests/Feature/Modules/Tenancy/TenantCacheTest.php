@@ -3,14 +3,18 @@
 namespace Tests\Feature\Modules\Tenancy;
 
 use App\Exceptions\DomainConflictException;
+use App\Modules\Identity\Domain\Models\User;
 use App\Modules\Tenancy\Application\Contracts\TenantCache;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use App\Modules\Tenancy\Application\Services\TenantResolver;
 use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
 use App\Support\Cache\TenantCacheStore;
 use App\Support\Storage\TenantResourceNamespace;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 class TenantCacheTest extends TestCase
@@ -70,6 +74,35 @@ class TenantCacheTest extends TestCase
 
         $this->expectException(DomainConflictException::class);
         $cache->get($context, 'report');
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_revoked_membership_blocks_a_previously_resolved_cache_context_without_affecting_another_tenant(): void
+    {
+        config(['tenancy.cache_store' => 'database']);
+        $user = User::factory()->create();
+        $first = Organization::factory()->create();
+        $second = Organization::factory()->create();
+        $membership = OrganizationMembership::factory()->create(['organization_id' => $first->id, 'user_id' => $user->id]);
+        OrganizationMembership::factory()->create(['organization_id' => $second->id, 'user_id' => $user->id]);
+        $resolver = app(TenantResolver::class);
+        $alpha = $resolver->resolve($first->id, '', $user->id, (string) Str::uuid());
+        $beta = $resolver->resolve($second->id, '', $user->id, (string) Str::uuid());
+        $cache = app(TenantCache::class);
+        $cache->put($alpha, 'same-report', 'Alpha private', 60);
+        $cache->put($beta, 'same-report', 'Beta private', 60);
+        $this->assertSame('Alpha private', $cache->get($alpha, 'same-report'));
+        $membership->forceFill(['status' => 'revoked'])->save();
+
+        try {
+            $cache->get($alpha, 'same-report');
+            $this->fail('A previously authorized context must not bypass membership revocation.');
+        } catch (ModelNotFoundException) {
+            $this->assertSame('Beta private', $cache->get($beta, 'same-report'));
+        }
+        $owner = $resolver->resolve($first->id, '', $first->owner_user_id, (string) Str::uuid());
+        $this->assertSame('Alpha private', $cache->get($owner, 'same-report'));
+        $this->assertDatabaseCount('cache', 2);
     }
 
     public function test_failover_store_is_refused_instead_of_splitting_lock_ownership(): void

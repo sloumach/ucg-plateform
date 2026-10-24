@@ -6,7 +6,18 @@
 ## Point de reprise
 
 - Dernière mise à jour : 24 octobre 2026.
-- Lot courant : **UCG-QA-003**, extension du lanceur navigateur
+- Lot courant : **UCG-QA-002**, premier lot de la matrice d'isolation. Huit cas
+  ajoutés et comparaison renforcée des refus d'URL d'équipe étrangère/inexistante.
+  Groupe `tenant-isolation` : 9 cas, 111 assertions. Validation : 312 tests SQLite
+  (1 650 assertions) pour les suites auditées, 120 tests PostgreSQL temporaire
+  (767 assertions) pour les cinq suites modifiées, aucun échec ni exclusion.
+  Pint/PHPStan verts. Matrice REC-23–36 et limites en fin de document.
+  Livraison réunie dans le commit UCG-QA-002 dédié à ce premier lot, sans push ;
+  QA-002 reste ouvert et la nouvelle CI reste à confirmer après push.
+- Reprise après QA-003 : l'utilisateur a validé les CI du lot `c3fb614` avant
+  le démarrage de QA-002. Arbre propre et références locales staging/origin/staging
+  concordantes à ce démarrage ; pas de nouvelle lecture des CI distantes ici.
+- Livraison précédente : **UCG-QA-003**, extension du lanceur navigateur
   à PostgreSQL 17 temporaire. Les huit parcours réels PostgreSQL ont réussi
   (zéro échec, erreur ou exclusion, rapport XML relu), avec arrêt et suppression
   confirmés. Six tests de garde-fous et un test d'intégration PostgreSQL réussis ;
@@ -5530,3 +5541,82 @@ navigateur à PostgreSQL. Hébergement toujours différé.
   QA-002/004/005, services externes et recette hébergée restent des lots distincts.
   Livraison réunie dans le commit UCG-QA-003 dédié à ce lanceur ; aucun push
   effectué à cette étape. Nouvelle CI distante à confirmer après push.
+
+## UCG-QA-002 — Premier lot de preuves d'isolation (24 octobre 2026)
+
+Objectif : relier les critères du CDC aux tests existants et compléter les
+changements de contexte et révocations, sans ouvrir de nouveau parcours métier.
+Le ticket est XL : ce lot ne le clôt pas et ne remplace pas une qualification
+exhaustive des CRUD de chaque module. Le CDC ne contient pas de REC-31.
+
+### Cas ajoutés et renforcés
+
+- Export demandé dans Alpha, job capturé puis sérialisé, passage HTTP à Beta,
+  exécution et rejeu via `dispatchSync` et ses middlewares : un seul artefact,
+  source Alpha uniquement, session Beta conservée et aucun export dans Beta.
+  Le retour à Alpha permet de télécharger le CSV attendu. Ce test ne remplace
+  pas le worker externe ; les tests TenantJobRunner couvrent aussi la vraie
+  queue database et la réutilisation du worker en processus de test.
+- Révocation de l'adhésion Alpha ou de la permission source après envoi puis
+  sélection de Beta : les droits Beta ne sauvent pas le job Alpha. Export marqué
+  failed, aucun fichier ni artefact créé, Beta reste accessible.
+- Recherche et autocomplétion : même acteur et même préfixe dans deux tenants,
+  changement HTTP de contexte, rejet du curseur Alpha dans Beta, puis révocation
+  du rôle Beta. Aucun résultat Beta après révocation ; Alpha reste accessible.
+- Cache : même clé dans deux tenants, contexte Alpha conservé en mémoire puis
+  adhésion révoquée. Lecture Alpha refusée, valeur Beta intacte et valeur Alpha
+  toujours accessible à son propriétaire légitime.
+- Fichiers privés : après révocation d'adhésion Alpha, lecture et suppression via
+  l'ancien contexte refusées. Fichier et compteur Alpha conservés ; fichier Beta
+  de même nom et compteur Beta inchangés pour le même acteur.
+- URL directe d'équipe : code et message identiques pour une équipe étrangère
+  connue et un UUID inexistant ; aucun UUID de l'objet/tenant étranger dans le
+  refus. Le test d'écriture étrangère existant est conservé.
+
+Ces cas portent le groupe PHPUnit `tenant-isolation` : 9 cas, dont 8 nouveaux,
+dans les cinq fichiers modifiés. Ils restent inclus dans la suite Feature normale
+et dans la sélection PostgreSQL existante ; aucune modification de workflow requise.
+
+### Matrice initiale et limites de preuve
+
+Les noms ci-dessous désignent des fichiers sous `back/tests/Feature/` ; le préfixe
+`Tenancy/` abrège `Modules/Tenancy/`. Les suites citées ont été exécutées sous
+SQLite dans ce lot ; seules les cinq suites modifiées ont aussi été rejouées
+sur PostgreSQL. Une preuve ciblée n'est pas une certification globale du critère.
+
+| Critère | Suites de référence | Preuve et limite actuelle |
+| --- | --- | --- |
+| REC-23 | TeamControllerTest | URL étrangère et inconnue indiscernables, modification étrangère refusée ; autres CRUD à inventorier module par module. |
+| REC-24 | TenantSearchTest | Sources autorisées, curseurs, recherche et suggestions isolés après changement de contexte/révocation ; couvre le moteur livré. |
+| REC-25 | Tenancy/ActiveOrganizationControllerTest, TenantSearchTest, ReportExportTest | Session, révision et permissions recalculées côté API ; menus/navigateurs restent couverts séparément par QA-003. |
+| REC-26 | TeamControllerTest, Tenancy/TenantDatabaseIsolationTest | Slug local et unicités tenant ; inventaire des contraintes de tous les modules encore à compléter. |
+| REC-27 | ReportExportTest, Tenancy/TenantCacheTest, Tenancy/TenantArtifactServiceTest | Même rapport, même clé et même nom privés séparés ; pas de nouveau test Redis réel dans ce lot. |
+| REC-28 | ReportExportTest, Tenancy/TenantJobRunnerTest, Tenancy/TenantQueuedMailTest | Transport sérialisé, rejeu, contexte persisté, révocations et queue database ; jobs des autres modules à recouper. |
+| REC-29 | MatchRealtimeTest | Autorisation de canal privé et payload minimal testés sans réseau Reverb ; livraison réelle aux abonnés reste ouverte. |
+| REC-30 | Aucun endpoint webhook métier identifié dans app/Modules ou routes | Non démontré : qualifier le connecteur/signature/idempotence avant clôture ou décision explicite de périmètre. |
+| REC-32 | PlatformRoleManagementTest, PlatformSupportAccessTest | Refus d'élévation tenant et séparation des rôles ; conserver les exigences d'audit par parcours. |
+| REC-33 | PlatformSupportAccessTest | Actions explicites, motif, audit, révocation et expiration sans scheduler. |
+| REC-34 | Tenancy/TenantTechnicalLimitsTest, ReportExportTest, Tenancy/TenantArtifactServiceTest | Bornes de volume et quotas ; la non-dégradation sous charge reste à prouver par QA-005. |
+| REC-35 | Tenancy/OrganizationPortabilityTest, Tenancy/OrganizationMaintenanceTest | Export ciblé et purge autorisée/protégée sur fixtures ; exhaustivité de tous les modules et politique de conservation à qualifier. |
+| REC-36 | Tenancy/OrganizationMaintenanceTest | Retour d'archivé à suspendu sans réécriture des données ; ne prouve pas une restauration ni une réconciliation d'archive. OPS-004/005 restent ouverts. |
+
+### Validation et reprise
+
+- Groupe critique : 9 tests réussis, 111 assertions.
+- Sélection SQLite de 15 suites : 312 tests réussis, 1 650 assertions,
+  rapport `back/reports/phpunit-qa002-sqlite.xml`.
+- Les cinq suites modifiées sur un cluster natif PostgreSQL 17 neuf :
+  120 tests réussis, 767 assertions, rapport
+  `back/reports/phpunit-qa002-postgresql.xml`. Cluster créé par le lanceur
+  temporaire existant, port libre, secret propre, puis arrêt et suppression
+  confirmés. Aucun serveur/base existant utilisé.
+- Formatage Pint et analyse PHPStan sans erreur. Les trois rapports XML ont été
+  relus : aucun échec, erreur ou scénario ignoré. Aucun répertoire temporaire
+  du lanceur restant au contrôle final. Aucune nouvelle CI distante revendiquée
+  pour ces changements.
+- Aucun code métier, endpoint, migration, `.env`, permission ou donnée réelle
+  modifié. Stockages locaux simulés et bases SQLite en mémoire/PostgreSQL jetable.
+  Pas de SMTP, webhook, Redis ou serveur Reverb contacté dans ces vérifications.
+- Prochaine étape : revue/push et CI du lot, puis poursuivre l'inventaire
+  CRUD et jobs par module. REC-29/30/34/35/36 conservent les limites ci-dessus ;
+  QA-002 ne doit pas être fermé depuis la seule réussite du groupe critique.
