@@ -11,11 +11,15 @@ use App\Modules\People\Domain\Models\Person;
 use App\Modules\Teams\Domain\Models\GameCatalogueEntry;
 use App\Modules\Teams\Domain\Models\OrganizationGame;
 use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
+use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use App\Modules\Tenancy\Presentation\Support\ActiveOrganizationSession;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -88,6 +92,7 @@ class GameProfileControllerTest extends TestCase
         $this->getJson($this->path($person))->assertOk()->assertJsonCount(0, 'data')->assertJsonPath('meta.total', 0);
     }
 
+    #[Group('tenant-isolation')]
     public function test_foreign_person_profile_and_account_ids_return_404_even_for_members_of_both_tenants(): void
     {
         $person = $this->editor();
@@ -102,7 +107,89 @@ class GameProfileControllerTest extends TestCase
         $this->postJson('/api/v1/tenants/'.$person->organization_id.'/people/'.$foreignPerson->id.'/game-profiles', $this->payload())->assertNotFound();
         $local = GameProfile::factory()->create(['person_id' => $person->id, 'organization_id' => $person->organization_id]);
         $this->getJson($this->accountsPath($person, $local, $foreign->id))->assertNotFound();
+        $this->patchJson($this->path($person, $foreignProfile->id), ['version' => $foreignProfile->version, 'rank' => 'Gold'])->assertNotFound();
+        $this->patchJson($this->accountsPath($person, $local, $foreign->id), ['version' => $foreign->version, 'status' => 'archived'])->assertNotFound();
+        $this->assertDatabaseHas('person_game_profiles', ['id' => $foreignProfile->id, 'version' => $foreignProfile->version]);
+        $this->assertDatabaseHas('person_external_accounts', ['id' => $foreign->id, 'version' => $foreign->version]);
         $this->assertDatabaseCount('person_external_accounts', 1);
+        $this->assertDatabaseCount('organization_audit_events', 0);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_same_tenant_profiles_and_accounts_cannot_be_accessed_under_another_parent(): void
+    {
+        $person = $this->editor();
+        $other = Person::factory()->create(['organization_id' => $person->organization_id]);
+        $profile = GameProfile::factory()->create(['person_id' => $other->id, 'organization_id' => $other->organization_id]);
+        $local = GameProfile::factory()->create(['person_id' => $person->id, 'organization_id' => $person->organization_id]);
+        $account = ExternalGameAccount::factory()->create(['game_profile_id' => $profile->id]);
+
+        $this->getJson($this->path($other, $profile->id))->assertOk();
+        $this->getJson($this->accountsPath($other, $profile, $account->id))->assertOk();
+        $this->getJson($this->path($person, $profile->id))->assertNotFound();
+        $this->patchJson($this->path($person, $profile->id), ['version' => $profile->version, 'rank' => 'Gold'])->assertNotFound();
+        $this->postJson($this->accountsPath($person, $profile), ['provider_key' => 'riot', 'display_name' => 'New'])->assertNotFound();
+        $this->getJson($this->accountsPath($person, $local, $account->id))->assertNotFound();
+        $this->patchJson($this->accountsPath($person, $local, $account->id), ['version' => $account->version, 'status' => 'archived'])->assertNotFound();
+
+        $this->assertDatabaseHas('person_game_profiles', ['id' => $profile->id, 'version' => $profile->version, 'rank' => null]);
+        $this->assertDatabaseHas('person_external_accounts', ['id' => $account->id, 'version' => $account->version, 'status' => 'active']);
+        $this->assertDatabaseCount('person_external_accounts', 1);
+        $this->assertDatabaseCount('organization_audit_events', 0);
+    }
+
+    #[Group('tenant-isolation')]
+    #[TestWith(['membership', 404])]
+    #[TestWith(['role', 403])]
+    public function test_revocation_blocks_previously_read_profiles_and_accounts_without_writes(string $revoked, int $status): void
+    {
+        $person = $this->editor();
+        $user = User::findOrFail(auth()->id());
+        $profile = GameProfile::factory()->create(['person_id' => $person->id, 'organization_id' => $person->organization_id]);
+        $account = ExternalGameAccount::factory()->create(['game_profile_id' => $profile->id]);
+        $this->getJson($this->path($person, $profile->id))->assertOk();
+        $this->getJson($this->accountsPath($person, $profile, $account->id))->assertOk();
+        $model = $revoked === 'membership' ? OrganizationMembership::class : OrganizationRoleAssignment::class;
+        $model::query()->where('organization_id', $person->organization_id)->where('user_id', $user->id)
+            ->firstOrFail()->forceFill(['status' => 'revoked'])->save();
+
+        foreach ([$this->path($person), $this->path($person, $profile->id), $this->accountsPath($person, $profile), $this->accountsPath($person, $profile, $account->id)] as $path) {
+            $this->getJson($path)->assertStatus($status)->assertJsonMissingPath('data');
+        }
+        $this->postJson($this->path($person), [...$this->payload(), 'region_key' => 'na'])->assertStatus($status);
+        $this->patchJson($this->path($person, $profile->id), ['version' => $profile->version, 'rank' => 'Gold'])->assertStatus($status);
+        $this->postJson($this->accountsPath($person, $profile), ['provider_key' => 'riot', 'display_name' => 'New'])->assertStatus($status);
+        $this->patchJson($this->accountsPath($person, $profile, $account->id), ['version' => $account->version, 'status' => 'archived'])->assertStatus($status);
+
+        $this->assertDatabaseHas('person_game_profiles', ['id' => $profile->id, 'version' => $profile->version, 'rank' => null]);
+        $this->assertDatabaseHas('person_external_accounts', ['id' => $account->id, 'version' => $account->version, 'status' => 'active']);
+        $this->assertDatabaseCount('person_game_profiles', 1);
+        $this->assertDatabaseCount('person_external_accounts', 1);
+        $this->assertDatabaseCount('organization_audit_events', 0);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_removing_sports_write_preserves_profile_and_account_reads_but_blocks_mutations(): void
+    {
+        $person = $this->editor();
+        $profile = GameProfile::factory()->create(['person_id' => $person->id, 'organization_id' => $person->organization_id]);
+        $account = ExternalGameAccount::factory()->create(['game_profile_id' => $profile->id]);
+        $this->getJson($this->accountsPath($person, $profile, $account->id))->assertOk();
+        OrganizationRoleAssignment::query()->where('organization_id', $person->organization_id)->where('user_id', auth()->id())
+            ->firstOrFail()->role->forceFill(['permissions' => ['sports.read']])->save();
+
+        $this->getJson($this->path($person, $profile->id))->assertOk()->assertJsonPath('data.id', $profile->id);
+        $this->getJson($this->accountsPath($person, $profile, $account->id))->assertOk()->assertJsonPath('data.id', $account->id);
+        $this->postJson($this->path($person), [...$this->payload(), 'region_key' => 'na'])->assertForbidden();
+        $this->patchJson($this->path($person, $profile->id), ['version' => $profile->version, 'rank' => 'Gold'])->assertForbidden();
+        $this->postJson($this->accountsPath($person, $profile), ['provider_key' => 'riot', 'display_name' => 'New'])->assertForbidden();
+        $this->patchJson($this->accountsPath($person, $profile, $account->id), ['version' => $account->version, 'status' => 'archived'])->assertForbidden();
+
+        $this->assertDatabaseHas('person_game_profiles', ['id' => $profile->id, 'version' => $profile->version, 'rank' => null]);
+        $this->assertDatabaseHas('person_external_accounts', ['id' => $account->id, 'version' => $account->version, 'status' => 'active']);
+        $this->assertDatabaseCount('person_game_profiles', 1);
+        $this->assertDatabaseCount('person_external_accounts', 1);
+        $this->assertDatabaseCount('organization_audit_events', 0);
     }
 
     /** @return array<string, array{array<string, mixed>, string, string}> */

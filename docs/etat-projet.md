@@ -6,7 +6,19 @@
 ## Point de reprise
 
 - Dernière mise à jour : 24 octobre 2026.
-- Lot courant : **UCG-QA-002, deuxième lot Personnes/Équipes**. Neuf cas ajoutés,
+- Lot courant : **UCG-QA-002, troisième lot de ressources rattachées**.
+  Douze cas ajoutés sur les profils/comptes de jeu, périodes/checklist et
+  compositions ; deux scénarios étrangers renforcés, trois scénarios existants
+  intégrés au groupe critique. Groupe `tenant-isolation` : 34 tests,
+  489 assertions. Onze suites : 220 tests et 1 160 assertions sur chacun des
+  moteurs SQLite/PostgreSQL 17 temporaire, sans échec, erreur ou exclusion.
+  Pint/PHPStan verts, cluster arrêté/supprimé. Livraison réunie dans le commit
+  UCG-QA-002 dédié au troisième lot, sans push ;
+  détails et limites en fin de document.
+- Reprise du troisième lot : l'utilisateur valide la CI du commit `c3bbe85`.
+  Arbre propre au démarrage sur `staging`, référence locale origin/staging
+  concordante ; confirmation utilisateur, sans nouvelle lecture des CI distantes.
+- Livraison précédente : **UCG-QA-002, deuxième lot Personnes/Équipes**. Neuf cas ajoutés,
   deux scénarios étrangers renforcés ; groupe `tenant-isolation` : 19 tests,
   270 assertions. Neuf suites sélectionnées : 180 tests et 1 094 assertions sur
   chacun des moteurs SQLite/PostgreSQL 17 temporaire, aucun échec ou scénario
@@ -5744,3 +5756,59 @@ et comptes externes, périodes/éléments de départ et compositions d'équipe, 
 partant de leurs tests négatifs existants plutôt que les dupliquer. Les jobs des
 autres modules et les limites REC-29/30/34/35/36 restent ouvertes. Livraison
 réunie dans le commit UCG-QA-002 dédié au deuxième lot ; aucun push effectué.
+
+## UCG-QA-002 — Troisième lot de ressources rattachées (24 octobre 2026)
+
+### Objectif et couverture
+
+Compléter les tests négatifs existants des profils de jeu/comptes externes,
+périodes/éléments de départ et compositions d'équipe. Douze cas ajoutés dans
+trois suites de contrôleurs ; scénarios étrangers profils/cycle de vie renforcés,
+et trois scénarios préexistants ajoutés au groupe `tenant-isolation`.
+
+- Identifiants étrangers : acteur autorisé dans les deux organisations, mais
+  lectures et mutations sous le mauvais tenant refusées en 404. Les périodes et
+  la checklist Beta restent lisibles sous leur URL légitime. Une composition
+  Beta reste lisible dans Beta, sans pouvoir être annulée depuis une équipe Alpha.
+- Parent du même tenant : profil sous une autre personne, compte sous un autre
+  profil/personne, période et checklist sous une autre personne, composition sous
+  une autre équipe refusés. Les listes du parent local restent isolées.
+- Révocation après lecture réussie : retrait d'adhésion (404) ou d'attribution
+  de rôle (403), immédiatement appliqué aux lectures, créations et modifications.
+  Le départ d'une personne et l'annulation/finalisation de compositions sont
+  également refusés ; les réponses de lecture ne contiennent pas de données.
+- Retrait des seules permissions d'écriture : lectures encore autorisées,
+  créations/modifications refusées. Versions, états, rattachements et nombres de
+  lignes conservés ; aucun audit de mutation supplémentaire. Pour les compositions,
+  le brouillon et son entrée créés avant la révocation restent intacts, avec
+  exactement l'audit initial.
+
+### Validation
+
+- Groupe critique complet : **34 tests, 489 assertions** sur SQLite en mémoire.
+- Onze suites : GameProfileControllerTest, GameProfileServiceTest,
+  GameProfileSchemaTest, PersonLifecycleControllerTest, PersonDepartureServiceTest,
+  PersonLifecyclePolicyTest, PersonLifecycleSchemaTest, TeamLineupControllerTest,
+  TeamLineupServiceTest, TeamLineupPolicyTest, TeamLineupSchemaTest.
+  **220 tests, 1 160 assertions sur chaque moteur**, SQLite en mémoire puis
+  PostgreSQL 17 neuf. Rapports XML relus : zéro échec, erreur ou test ignoré.
+- Rapports : `back/reports/phpunit-qa002-lot3-critical.xml`,
+  `back/reports/phpunit-qa002-lot3-sqlite.xml`,
+  `back/reports/phpunit-qa002-lot3-postgresql.xml`.
+- Pint et PHPStan sans erreur. Les onze suites sont déjà sélectionnées par le
+  workflow PostgreSQL backend et les cas appartiennent à Feature ; aucun changement
+  de workflow ni dépendance requis.
+- Cluster PostgreSQL lancé par le mécanisme temporaire existant, avec port libre,
+  secret propre et stockage de test séparé ; arrêt et suppression confirmés.
+  Aucune base existante, donnée réelle, migration, `.env`, frontend ou logique
+  métier modifiée. Changements limités aux tests et à la documentation existante.
+
+### Limites et reprise
+
+La CI validée par l'utilisateur concerne `c3bbe85` ; ce troisième lot attend
+revue/commit/push puis validation CI. Les révocations sont exercées sur des routes
+tenant explicites avec une session authentifiée ; la bascule de contexte dans le
+navigateur reste couverte séparément par QA-003. QA-002 reste ouvert : les autres
+CRUD/jobs/modules et les limites REC-29/30/34/35/36 ne sont pas déclarés terminés.
+La prochaine extension doit partir de l'inventaire REC-23–36 pour sélectionner
+les prochains contrôles manquants, sans ajouter de doublons aux suites existantes.

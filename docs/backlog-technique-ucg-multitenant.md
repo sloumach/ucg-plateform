@@ -1407,6 +1407,18 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   aux profils de jeu, périodes et compositions ; QA-002 reste ouvert.
   CI de ce nouveau lot à confirmer après revue/commit/push.
 
+- **Troisième lot local (24/10/2026)** : profils/comptes de jeu, périodes/checklist
+  et compositions d'équipe. Douze cas ajoutés, scénarios étrangers renforcés et
+  trois scénarios existants intégrés au groupe critique : 34 tests, 489 assertions.
+  Refus sous le mauvais tenant/parent, révocation d'adhésion/rôle après lecture,
+  retrait des seules permissions d'écriture ; données/versions/audits conservés.
+  Onze suites : 220 tests, 1 160 assertions sur SQLite et PostgreSQL 17 temporaire,
+  zéro échec, erreur ou exclusion. Pint/PHPStan verts, cluster supprimé ; aucun
+  changement métier ou de migration. CI du deuxième lot `c3bbe85` validée par
+  l'utilisateur ; troisième lot livré dans un commit dédié, sans push,
+  CI à confirmer après livraison distante.
+  QA-002 reste ouvert pour les autres CRUD/jobs et les limites REC-23–36.
+
 ### UCG-QA-003 — Tester les parcours navigateur critiques
 
 - **Priorité / taille** : P0 / L

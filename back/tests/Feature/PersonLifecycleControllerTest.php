@@ -10,10 +10,14 @@ use App\Modules\People\Domain\Models\Person;
 use App\Modules\People\Domain\Models\PersonDepartureItem;
 use App\Modules\People\Domain\Models\PersonPeriod;
 use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
+use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -186,6 +190,7 @@ class PersonLifecycleControllerTest extends TestCase
         $this->getJson($this->path($org, $person, 'departure'))->assertOk()->assertJsonMissingPath('data.pending_items_count')->assertJsonMissingPath('data.reason_key');
     }
 
+    #[Group('tenant-isolation')]
     public function test_foreign_parent_and_record_are_404_even_for_a_multi_tenant_actor(): void
     {
         [$org,$person,$user] = $this->editor();
@@ -193,9 +198,97 @@ class PersonLifecycleControllerTest extends TestCase
         $this->grantPeopleAccess($other, $user, ['sports.read', 'sports.write', 'administrative.read', 'administrative.write']);
         $foreignPerson = Person::factory()->create(['organization_id' => $other->id]);
         $foreign = PersonPeriod::factory()->create(['organization_id' => $other->id, 'person_id' => $foreignPerson->id]);
+        $item = PersonDepartureItem::factory()->create(['organization_id' => $other->id, 'person_id' => $foreignPerson->id]);
+        $this->getJson($this->path($other, $foreignPerson, 'periods'))->assertOk()->assertJsonPath('data.0.id', $foreign->id);
+        $this->getJson($this->path($other, $foreignPerson, 'departure-items'))->assertOk()->assertJsonPath('data.0.id', $item->id);
         $this->getJson($this->path($org, Person::query()->findOrFail($foreign->person_id), 'periods'))->assertNotFound();
+        $this->getJson($this->path($org, $foreignPerson, 'departure-items'))->assertNotFound();
+        $this->postJson($this->path($org, $foreignPerson, 'periods'), $this->period())->assertNotFound();
+        $this->postJson($this->path($org, $foreignPerson, 'departure-items'), ['kind' => 'equipment', 'title' => 'New'])->assertNotFound();
         $this->patchJson($this->path($org, $person, 'periods').'/'.$foreign->id, ['version' => $foreign->version, 'status' => 'cancelled'])->assertNotFound();
-        $this->assertDatabaseHas('person_periods', ['id' => $foreign->id, 'status' => 'active']);
+        $this->patchJson($this->path($org, $person, 'departure-items').'/'.$item->id, ['version' => $item->version, 'status' => 'resolved'])->assertNotFound();
+        $this->assertDatabaseHas('person_periods', ['id' => $foreign->id, 'status' => 'active', 'version' => $foreign->version]);
+        $this->assertDatabaseHas('person_departure_items', ['id' => $item->id, 'status' => 'open', 'version' => $item->version]);
+        $this->assertDatabaseCount('person_periods', 1);
+        $this->assertDatabaseCount('person_departure_items', 1);
+        $this->assertDatabaseCount('organization_audit_events', 0);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_same_tenant_period_and_checklist_ids_return_404_under_another_person(): void
+    {
+        [$org, $person] = $this->editor();
+        $other = Person::factory()->create(['organization_id' => $org->id]);
+        $period = PersonPeriod::factory()->create(['organization_id' => $org->id, 'person_id' => $other->id]);
+        $item = PersonDepartureItem::factory()->create(['organization_id' => $org->id, 'person_id' => $other->id]);
+        $this->getJson($this->path($org, $other, 'periods'))->assertOk()->assertJsonPath('data.0.id', $period->id);
+        $this->getJson($this->path($org, $other, 'departure-items'))->assertOk()->assertJsonPath('data.0.id', $item->id);
+
+        $this->getJson($this->path($org, $person, 'periods'))->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson($this->path($org, $person, 'departure-items'))->assertOk()->assertJsonCount(0, 'data');
+        $this->patchJson($this->path($org, $person, 'periods').'/'.$period->id, ['version' => $period->version, 'status' => 'cancelled'])->assertNotFound();
+        $this->patchJson($this->path($org, $person, 'departure-items').'/'.$item->id, ['version' => $item->version, 'status' => 'resolved'])->assertNotFound();
+
+        $this->assertDatabaseHas('person_periods', ['id' => $period->id, 'status' => 'active', 'version' => $period->version]);
+        $this->assertDatabaseHas('person_departure_items', ['id' => $item->id, 'status' => 'open', 'version' => $item->version]);
+        $this->assertDatabaseCount('organization_audit_events', 0);
+    }
+
+    #[Group('tenant-isolation')]
+    #[TestWith(['membership', 404])]
+    #[TestWith(['role', 403])]
+    public function test_revocation_blocks_warmed_periods_and_checklist_without_writes(string $revoked, int $status): void
+    {
+        [$org, $person, $user] = $this->editor();
+        $period = PersonPeriod::factory()->create(['organization_id' => $org->id, 'person_id' => $person->id]);
+        $item = PersonDepartureItem::factory()->create(['organization_id' => $org->id, 'person_id' => $person->id]);
+        $this->getJson($this->path($org, $person, 'periods'))->assertOk();
+        $this->getJson($this->path($org, $person, 'departure-items'))->assertOk();
+        $model = $revoked === 'membership' ? OrganizationMembership::class : OrganizationRoleAssignment::class;
+        $model::query()->where('organization_id', $org->id)->where('user_id', $user->id)
+            ->firstOrFail()->forceFill(['status' => 'revoked'])->save();
+
+        foreach (['periods', 'departure-items', 'departure'] as $suffix) {
+            $this->getJson($this->path($org, $person, $suffix))->assertStatus($status)->assertJsonMissingPath('data');
+        }
+        $this->postJson($this->path($org, $person, 'periods'), $this->period())->assertStatus($status);
+        $this->patchJson($this->path($org, $person, 'periods').'/'.$period->id, ['version' => $period->version, 'status' => 'cancelled'])->assertStatus($status);
+        $this->postJson($this->path($org, $person, 'departure-items'), ['kind' => 'equipment', 'title' => 'New'])->assertStatus($status);
+        $this->patchJson($this->path($org, $person, 'departure-items').'/'.$item->id, ['version' => $item->version, 'status' => 'resolved'])->assertStatus($status);
+        $this->postJson($this->path($org, $person, 'departure'), ['version' => $person->version, 'reason_key' => 'other', 'confirm' => true, 'acknowledge_pending' => true])->assertStatus($status);
+
+        $this->assertDatabaseHas('person_periods', ['id' => $period->id, 'status' => 'active', 'version' => $period->version]);
+        $this->assertDatabaseHas('person_departure_items', ['id' => $item->id, 'status' => 'open', 'version' => $item->version]);
+        $this->assertDatabaseHas('people', ['id' => $person->id, 'version' => $person->version]);
+        $this->assertDatabaseCount('person_periods', 1);
+        $this->assertDatabaseCount('person_departure_items', 1);
+        $this->assertDatabaseCount('person_departures', 0);
+        $this->assertDatabaseCount('organization_audit_events', 0);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_removing_write_permissions_preserves_period_and_checklist_reads_without_mutations(): void
+    {
+        [$org, $person, $user] = $this->editor();
+        $period = PersonPeriod::factory()->create(['organization_id' => $org->id, 'person_id' => $person->id]);
+        $item = PersonDepartureItem::factory()->create(['organization_id' => $org->id, 'person_id' => $person->id]);
+        $this->getJson($this->path($org, $person, 'periods'))->assertOk();
+        $this->getJson($this->path($org, $person, 'departure-items'))->assertOk();
+        OrganizationRoleAssignment::query()->where('organization_id', $org->id)->where('user_id', $user->id)
+            ->firstOrFail()->role->forceFill(['permissions' => ['sports.read', 'administrative.read']])->save();
+
+        $this->getJson($this->path($org, $person, 'periods'))->assertOk()->assertJsonPath('data.0.id', $period->id);
+        $this->getJson($this->path($org, $person, 'departure-items'))->assertOk()->assertJsonPath('data.0.id', $item->id);
+        $this->postJson($this->path($org, $person, 'periods'), $this->period())->assertForbidden();
+        $this->patchJson($this->path($org, $person, 'periods').'/'.$period->id, ['version' => $period->version, 'status' => 'cancelled'])->assertForbidden();
+        $this->postJson($this->path($org, $person, 'departure-items'), ['kind' => 'equipment', 'title' => 'New'])->assertForbidden();
+        $this->patchJson($this->path($org, $person, 'departure-items').'/'.$item->id, ['version' => $item->version, 'status' => 'resolved'])->assertForbidden();
+
+        $this->assertDatabaseHas('person_periods', ['id' => $period->id, 'status' => 'active', 'version' => $period->version]);
+        $this->assertDatabaseHas('person_departure_items', ['id' => $item->id, 'status' => 'open', 'version' => $item->version]);
+        $this->assertDatabaseCount('person_periods', 1);
+        $this->assertDatabaseCount('person_departure_items', 1);
+        $this->assertDatabaseCount('organization_audit_events', 0);
     }
 
     /** @return array<string,array{string,array<string,mixed>,string}> */

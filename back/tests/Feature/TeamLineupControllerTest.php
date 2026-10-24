@@ -7,11 +7,16 @@ use App\Modules\Teams\Application\Services\TeamLineupService;
 use App\Modules\Teams\Domain\Models\Team;
 use App\Modules\Teams\Domain\Models\TeamLineup;
 use App\Modules\Teams\Domain\Models\TeamMembership;
+use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
+use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use App\Modules\Tenancy\Presentation\Support\ActiveOrganizationSession;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesLineups;
 use Tests\TestCase;
@@ -46,6 +51,7 @@ class TeamLineupControllerTest extends TestCase
         $this->assertDatabaseCount('organization_audit_events', 2);
     }
 
+    #[Group('tenant-isolation')]
     public function test_foreign_team_lineup_or_membership_ids_return_404_without_writes(): void
     {
         [$org,$user,$team,$period] = $this->lineupEditor();
@@ -58,6 +64,84 @@ class TeamLineupControllerTest extends TestCase
         $this->postJson($this->lineupPath($team), [...$this->lineupPayload($team, $period), 'entries' => [$this->lineupChoice($otherPeriod)]])->assertNotFound();
         $this->assertDatabaseCount('team_lineups', 1);
         $this->assertDatabaseCount('team_lineup_entries', 0);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_multi_tenant_manager_cannot_use_lineups_under_another_tenant_or_team(): void
+    {
+        [$org, $user, $team, $period] = $this->lineupEditor();
+        $this->actingAsWithMfa($user);
+        $foreign = TeamLineup::factory()->create();
+        $foreignTeam = Team::findOrFail($foreign->team_id);
+        $this->grantPeopleAccess(Organization::findOrFail($foreign->organization_id), $user, ['sports.read', 'teams.manage']);
+        $other = Team::factory()->create(['organization_id' => $org->id, 'game_id' => $team->game_id]);
+        $sameTenant = TeamLineup::factory()->create(['team_id' => $other->id]);
+        $this->getJson($this->lineupPath($foreignTeam).'/'.$foreign->id)->assertOk()->assertJsonPath('data.id', $foreign->id);
+        $this->getJson($this->lineupPath($other).'/'.$sameTenant->id)->assertOk()->assertJsonPath('data.id', $sameTenant->id);
+
+        foreach ([$foreign, $sameTenant] as $lineup) {
+            $this->getJson($this->lineupPath($team).'/'.$lineup->id)->assertNotFound();
+            $this->patchJson($this->lineupPath($team).'/'.$lineup->id, ['action' => 'cancel', 'version' => $lineup->version])->assertNotFound();
+            $this->assertDatabaseHas('team_lineups', ['id' => $lineup->id, 'version' => $lineup->version, 'status' => 'draft']);
+        }
+        $spoofedPath = '/api/v1/tenants/'.$org->id.'/teams/'.$foreignTeam->id.'/lineups';
+        $this->getJson($spoofedPath)->assertNotFound();
+        $this->postJson($spoofedPath, $this->lineupPayload($team, $period))->assertNotFound();
+        $this->getJson($this->lineupPath($team))->assertOk()->assertJsonCount(0, 'data');
+
+        $this->assertDatabaseCount('team_lineups', 2);
+        $this->assertDatabaseCount('team_lineup_entries', 0);
+        $this->assertDatabaseCount('organization_audit_events', 0);
+    }
+
+    #[Group('tenant-isolation')]
+    #[TestWith(['membership', 404])]
+    #[TestWith(['role', 403])]
+    public function test_revocation_blocks_previously_read_lineups_and_mutations(string $revoked, int $status): void
+    {
+        [$org, $user, $team, $period] = $this->lineupEditor();
+        $this->actingAsWithMfa($user);
+        $lineup = app(TeamLineupService::class)->create($this->personContext($org, $user), $team->id, $this->lineupPayload($team, $period));
+        $this->getJson($this->lineupPath($team))->assertOk();
+        $this->getJson($this->lineupPath($team).'/'.$lineup->id)->assertOk();
+        $model = $revoked === 'membership' ? OrganizationMembership::class : OrganizationRoleAssignment::class;
+        $model::query()->where('organization_id', $org->id)->where('user_id', $user->id)
+            ->firstOrFail()->forceFill(['status' => 'revoked'])->save();
+
+        $this->getJson($this->lineupPath($team))->assertStatus($status)->assertJsonMissingPath('data');
+        $this->getJson($this->lineupPath($team).'/'.$lineup->id)->assertStatus($status)->assertJsonMissingPath('data');
+        $this->postJson($this->lineupPath($team), $this->lineupPayload($team, $period))->assertStatus($status);
+        $this->patchJson($this->lineupPath($team).'/'.$lineup->id, ['action' => 'cancel', 'version' => $lineup->version])->assertStatus($status);
+        $this->patchJson($this->lineupPath($team).'/'.$lineup->id, ['action' => 'finalize', 'version' => $lineup->version, 'team_version' => $team->version])->assertStatus($status);
+
+        $this->assertDatabaseHas('team_lineups', ['id' => $lineup->id, 'status' => 'draft', 'version' => $lineup->version, 'finalized_at' => null]);
+        $this->assertDatabaseHas('team_lineup_entries', ['lineup_id' => $lineup->id, 'membership_id' => $period->id]);
+        $this->assertDatabaseCount('team_lineups', 1);
+        $this->assertDatabaseCount('team_lineup_entries', 1);
+        $this->assertDatabaseCount('organization_audit_events', 1);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_removing_team_management_preserves_lineup_reads_but_blocks_creation_and_actions(): void
+    {
+        [$org, $user, $team, $period] = $this->lineupEditor();
+        $this->actingAsWithMfa($user);
+        $lineup = app(TeamLineupService::class)->create($this->personContext($org, $user), $team->id, $this->lineupPayload($team, $period));
+        $this->getJson($this->lineupPath($team).'/'.$lineup->id)->assertOk();
+        OrganizationRoleAssignment::query()->where('organization_id', $org->id)->where('user_id', $user->id)
+            ->firstOrFail()->role->forceFill(['permissions' => ['sports.read']])->save();
+
+        $this->getJson($this->lineupPath($team))->assertOk()->assertJsonPath('data.0.id', $lineup->id);
+        $this->getJson($this->lineupPath($team).'/'.$lineup->id)->assertOk()->assertJsonPath('data.id', $lineup->id);
+        $this->postJson($this->lineupPath($team), $this->lineupPayload($team, $period))->assertForbidden();
+        $this->patchJson($this->lineupPath($team).'/'.$lineup->id, ['action' => 'cancel', 'version' => $lineup->version])->assertForbidden();
+        $this->patchJson($this->lineupPath($team).'/'.$lineup->id, ['action' => 'finalize', 'version' => $lineup->version, 'team_version' => $team->version])->assertForbidden();
+
+        $this->assertDatabaseHas('team_lineups', ['id' => $lineup->id, 'status' => 'draft', 'version' => $lineup->version, 'finalized_at' => null]);
+        $this->assertDatabaseHas('team_lineup_entries', ['lineup_id' => $lineup->id, 'membership_id' => $period->id]);
+        $this->assertDatabaseCount('team_lineups', 1);
+        $this->assertDatabaseCount('team_lineup_entries', 1);
+        $this->assertDatabaseCount('organization_audit_events', 1);
     }
 
     public function test_stale_team_and_lineup_versions_return_409_and_final_snapshot_is_terminal(): void

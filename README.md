@@ -4374,7 +4374,7 @@ livraison ; Reverb réel, webhooks, charge et restauration restent distincts.
 
 ### Isolation Personnes/Équipes — deuxième lot UCG-QA-002
 
-Le groupe `tenant-isolation` compte désormais **19 cas** (270 assertions). Le
+À la fin du deuxième lot, le groupe `tenant-isolation` comptait **19 cas** (270 assertions). Le
 deuxième lot ajoute neuf cas et renforce les scénarios étrangers Personne/Équipe :
 départ ou archivage refusé, droits révoqués après une lecture réussie, retrait
 d'une permission avec maintien des lectures autorisées, rattachements d'effectif
@@ -4387,3 +4387,18 @@ Les versions, historiques et audits sont contrôlés après refus, et les droits
 Beta encore légitimes restent utilisables. Aucun code métier ni migration modifié.
 La nouvelle CI reste à confirmer après livraison. Le détail des suites, les
 rapports et les limites de couverture figurent à la fin de `docs/etat-projet.md`.
+
+### Isolation des ressources rattachées — troisième lot UCG-QA-002
+
+Le groupe `tenant-isolation` compte désormais **34 cas, 489 assertions**. Douze
+cas ajoutés et des scénarios étrangers renforcés couvrent profils/comptes de jeu,
+périodes/checklist et compositions : mauvais tenant ou parent, révocation après
+accès réussi et retrait des permissions d'écriture avec maintien des lectures.
+Les refus préservent données, versions et audits.
+
+Onze suites liées passent sur SQLite en mémoire et PostgreSQL 17 temporaire :
+**220 tests, 1 160 assertions par moteur**, sans échec, erreur ou exclusion.
+Pint/PHPStan verts, cluster arrêté et supprimé ; code métier et migrations
+inchangés. Ces cas sont inclus dans la CI backend existante ; la CI du nouveau
+lot reste à confirmer après livraison. QA-002 reste ouvert ; rapports et limites
+dans `docs/etat-projet.md`.
