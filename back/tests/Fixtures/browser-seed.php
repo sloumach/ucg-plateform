@@ -81,6 +81,8 @@ $invitationManager = User::factory()->withMfa()->create(['name' => 'Browser invi
 $invitationRecipient = User::factory()->withMfa()->create(['name' => 'Browser invitation recipient', 'email' => 'browser-invitee@example.test', 'password' => 'Browser-fixture-only-2026!']);
 $invitationAlpha = Organization::factory()->create(['name' => 'Invitation Alpha', 'slug' => 'invitation-alpha']);
 $invitationBeta = Organization::factory()->create(['name' => 'Invitation Beta', 'slug' => 'invitation-beta']);
+$mfaOwner = User::factory()->create(['name' => 'Browser MFA owner', 'email' => 'browser-mfa@example.test', 'password' => 'Browser-fixture-only-2026!']);
+$mfaOrganization = Organization::factory()->create(['owner_user_id' => $mfaOwner->id, 'name' => 'MFA Alpha', 'slug' => 'mfa-alpha']);
 foreach ([
     [$user, $alpha, ['sports.read', 'sports.write']], [$user, $beta, ['sports.read']],
     [$rosterUser, $rosterAlpha, ['sports.read', 'sports.write', 'teams.manage']], [$rosterUser, $rosterBeta, ['sports.read']],
@@ -183,4 +185,5 @@ echo json_encode([
     'invitation' => ['alpha' => $invitationAlpha->id, 'beta' => $invitationBeta->id, 'recipient' => $invitationRecipient->id,
         'expired' => $expiredInvitation->id, 'betaInvitation' => $betaInvitation->id,
         'start' => now()->subDay()->toDateString(), 'end' => now()->addDays(7)->toDateString()],
+    'mfa' => ['organization' => $mfaOrganization->id],
 ], JSON_THROW_ON_ERROR);

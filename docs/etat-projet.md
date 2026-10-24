@@ -5317,3 +5317,45 @@ QA-003 reste ouvert pour l'enrôlement/récupération MFA, les cas avancés d'in
 les cinq autres rapports exportables, les documents/avenants/rappels des contrats
 et les cas avancés des autres modules. Le prochain lot proposé porte sur
 l'enrôlement et la récupération MFA avec API réelle. Hébergement toujours différé.
+
+## UCG-QA-003 — Huitième parcours réel : MFA (24 octobre 2026)
+
+- Propriétaire fictif vérifié, sans MFA initial, avec une organisation dédiée.
+  Seize tenants et quatorze comptes de scénario/intervenants au total. Connexion
+  avec mot de passe réel puis accès aux organisations refusé avant l'enrôlement.
+- Mot de passe incorrect refusé, clé Base32 obtenue depuis l'interface, TOTP calculé
+  par un client RFC 6238 indépendant du domaine PHP. Confirmation depuis une autre
+  session refusée ; code incorrect refusé puis activation réelle. Réponses no-store,
+  dix codes de secours uniques affichés puis masqués, absents après rechargement.
+- Deux contextes navigateur : activation invalidant la session antérieure,
+  connexion demandant un second facteur, code d'activation rejoué refusé et accès
+  métier bloqué. Un code de secours permet la récupération et révoque l'autre
+  session. Le même code consommé est refusé lors d'une nouvelle connexion.
+- Connexion TOTP sur un nouveau pas réel, sans manipulation d'horloge serveur.
+  Désactivation obligatoire interdite au propriétaire par API et bouton absent.
+  Renouvellement des codes avec mot de passe, révocation de l'autre session, ancien
+  code inutilisé refusé puis récupération avec un nouveau code. État MFA vérifié et
+  accès à la bonne organisation conservés après rechargement. Secret et codes
+  absents du compte sérialisé ; interface sans réaffichage des codes.
+- Limite réelle de cinq opérations MFA par minute : le scénario vérifie 429 et
+  un Retry-After borné, attend le délai indiqué puis réessaie une seule fois. Un
+  TOTP est recalculé si cette attente l'a fait expirer. Aucune exemption ni cache
+  de limitation purgé. Délai du scénario porté à six minutes ; la suite peut prendre
+  plusieurs minutes en respectant ces protections.
+- Formulaires exercés à 320 px et contrôle initial à 375/320 ; aucune origine
+  externe ni erreur JavaScript attendue. Les secrets n'existent que dans la base
+  temporaire, l'interface et la mémoire/traces fictives du test, pas dans fixture.json.
+- Validation : huit parcours réels sous Chrome ; MfaAuthenticationTest : 29 tests,
+  185 assertions ; MfaPanel : 4 tests ; quatre contrôles du lanceur. Typage strict,
+  lint, Pint dirty et PHPStan sans erreur. Pas de nouvelle CI distante ni de suite
+  complète PostgreSQL revendiquée.
+- Aucun code métier, migration ou configuration réelle modifié. Compte, clé
+  applicative, fichiers et base temporaires supprimés après arrêt des processus.
+  Livraison dans un commit local UCG-QA-003, sans push.
+
+Les parcours principaux de QA-003 ont maintenant chacun un scénario réel. Le ticket
+reste ouvert pour la revue globale de couverture et les cas avancés documentés :
+remplacement d'authentificateur, désactivation d'un compte ordinaire, expirations,
+autres rapports, documents/avenants/rappels et cas avancés des modules. Prochaine
+étape proposée : bilan de couverture QA-003 et préparation de la recette PostgreSQL.
+L'hébergement reste différé selon la décision du responsable.

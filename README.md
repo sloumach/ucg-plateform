@@ -4165,14 +4165,27 @@ Une seule adhésion est créée, sans permission de gestion ajoutée. Invitation
 Historique, accès après rechargement et largeurs 375/320 sont contrôlés. Les e-mails
 restent dans la file notifications, non consommée ; aucun envoi SMTP réel.
 
+Le huitième scénario utilise un propriétaire fictif sans MFA initial : accès métier
+bloqué, mot de passe incorrect refusé, activation liée à la session et clé TOTP
+réellement générée par le serveur. Un client RFC 6238 indépendant calcule les codes
+depuis cette clé. Après activation, les dix codes de secours sont lus une seule
+fois dans l'interface ; ils ne réapparaissent pas au rechargement. Un code TOTP
+rejoué et un code de secours consommé sont refusés. Récupération, connexion TOTP
+sur un nouveau pas temporel, renouvellement des codes et révocation des autres
+sessions sont contrôlés avec deux contextes navigateur. Le propriétaire ne peut
+pas désactiver son MFA obligatoire. Les limites d'opérations restent actives : le
+scénario vérifie le refus 429 puis attend le Retry-After avant de reprendre. Il
+peut donc durer plusieurs minutes. La suite n'avance pas l'horloge serveur.
+
 Chaque lancement crée un dossier temporaire propre, une SQLite vide, une clé de
 chiffrement éphémère et des sessions/fichiers/caches isolés. Il applique les
-migrations uniquement à cette nouvelle base et peuple quinze organisations
-fictives : sept comptes de scénario distincts, chacun avec son organisation de
-travail et une seconde organisation de contrôle, un destinataire d'invitation,
+migrations uniquement à cette nouvelle base et peuple seize organisations
+fictives : sept comptes de scénario avec deux organisations chacun, un propriétaire
+MFA avec sa propre organisation et un tenant inaccessible. Les comptes de contrôle
+comprennent un destinataire d'invitation,
 un approbateur pour les matchs,
 un approbateur et un gestionnaire administratif pour les contrats, deux comptes
-de contrôle des droits d'export, et un tenant inaccessible.
+de contrôle des droits d'export, soit quatorze comptes de scénario/intervenants.
 Les scénarios n'utilisent pas les écritures de l'autre. Les identifiants de ces fixtures sont publics et réservés
 aux tests ; ne pas les employer en recette ou production. Aucun contournement
 de connexion, MFA, CSRF ou autorisation n'est installé dans l'application.
@@ -4206,7 +4219,7 @@ une clé de format `v2`, puis reconstruit les modèles en mémoire. Les ancienne
 clés `v1` expirent selon leur durée existante de cinq minutes ; aucune purge
 globale ni modification du réglage `cache.serializable_classes=false` nécessaire.
 
-QA-003 reste ouvert pour l'enrôlement/récupération MFA, les cas avancés d'invitation,
+QA-003 reste ouvert pour les cas avancés MFA et d'invitation,
 rapports exportables autres que l'effectif actif, les documents/avenants/rappels des contrats et les cas avancés des matchs, ainsi que les cas de
 réservation, récurrence et notifications du calendrier. Cette
 suite locale/CI utilise SQLite ; elle ne remplace pas une recette PostgreSQL ni

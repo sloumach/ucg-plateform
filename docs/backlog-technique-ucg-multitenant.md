@@ -1441,6 +1441,15 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   mobile ; quinze tenants et treize comptes de scénario/intervenants. SQLite du
   lanceur sérialisée pour éviter les collisions HTTP/worker ; SMTP reste exclu.
   Enrôlement/récupération MFA et invitations avancées restent ouverts.
+- **Huitième lot local (24/10/2026)** : propriétaire sans MFA, activation réelle
+  liée à sa session, client TOTP indépendant et codes de secours à usage unique.
+  Refus des codes incorrects/rejoués, accès métier bloqué avant vérification,
+  récupération et renouvellement révoquant les autres sessions, anciens codes
+  invalidés et désactivation interdite au propriétaire. Rechargements, connexion
+  TOTP sur un nouveau pas réel et mobile. Seize tenants et quatorze comptes fictifs.
+  Limitation 429 et délai Retry-After respectés sans désactiver la protection.
+  Remplacement d'authentificateur, désactivation d'un compte ordinaire, limitation
+  multi-comptes par IP et expiration d'enrôlement restent des cas à approfondir.
 
 ### UCG-QA-004 — Tester concurrence et idempotence
 

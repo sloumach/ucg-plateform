@@ -3112,3 +3112,19 @@ L'API Laravel et le worker partagent ces réglages, après les mêmes gardes de 
 profil et configuration. Le réglage applicatif de la base et les profils de
 déploiement restent inchangés. La suite compte quinze tenants et treize comptes
 de scénario/intervenants dans les ressources temporaires.
+
+Le huitième parcours crée un propriétaire sans credentials MFA dans la fixture,
+puis effectue l'enrôlement via les formulaires publics. La clé Base32 vient de
+l'interface réelle ; un client HMAC-SHA1/RFC 6238 de test, indépendant du domaine
+PHP, calcule les TOTP. L'activation et les réponses contenant les codes restent
+no-store. Deux contextes navigateur montrent qu'un enrôlement n'est pas transférable
+à une autre session, puis que la récupération et le renouvellement invalident les
+anciens bindings de session et les anciens codes. Aucune exemption MFA ou horloge
+simulée n'est ajoutée au serveur. Le test attend au besoin le prochain pas réel
+avant de vérifier une nouvelle connexion TOTP.
+
+La clé et les codes synthétiques restent en mémoire du scénario et dans les traces
+fictives éventuelles, sans être ajoutés à fixture.json ni aux sources. Le compte
+authentifié ne les sérialise pas et l'interface ne les réaffiche pas au rechargement.
+Le stockage, la base, la clé applicative et les comptes restent temporaires : seize
+tenants et quatorze comptes de scénario/intervenants au total.
