@@ -6,7 +6,16 @@
 ## Point de reprise
 
 - Dernière mise à jour : 24 octobre 2026.
-- Correctif CI QA-002 en cours de livraison locale : le journal fourni signale
+- Lot courant : **UCG-QA-002, deuxième lot Personnes/Équipes**. Neuf cas ajoutés,
+  deux scénarios étrangers renforcés ; groupe `tenant-isolation` : 19 tests,
+  270 assertions. Neuf suites sélectionnées : 180 tests et 1 094 assertions sur
+  chacun des moteurs SQLite/PostgreSQL 17 temporaire, aucun échec ou scénario
+  ignoré. Pint/PHPStan verts, cluster arrêté/supprimé. Livraison réunie dans le
+  commit UCG-QA-002 dédié au deuxième lot, sans push ; détails en fin de document.
+- Reprise du deuxième lot : l'utilisateur valide la CI du correctif `337f67a`.
+  Staging et référence locale origin/staging concordantes, arbre propre au départ.
+  Cette confirmation vient de l'utilisateur ; pas de nouvelle lecture distante ici.
+- Historique du correctif CI QA-002 : le journal fourni signale
   l'échec de `communication.spec.ts` sur la visibilité du commentaire après
   confirmation, trois tentatives échouées. Attente explicite du POST, du
   rechargement des annonces et de la relecture des commentaires ajoutée au test.
@@ -14,15 +23,15 @@
   10/10, lint et typage verts. Suite complète : 52/53, communications réussies ;
   échec temps réel avec le Vite local qui ne fournit pas la clé publique de test.
   Détails et limites dans la dernière section.
-- Lot courant : **UCG-QA-002**, premier lot de la matrice d'isolation. Huit cas
+- Premier lot précédent : **UCG-QA-002**, matrice d'isolation. Huit cas
   ajoutés et comparaison renforcée des refus d'URL d'équipe étrangère/inexistante.
   Groupe `tenant-isolation` : 9 cas, 111 assertions. Validation : 312 tests SQLite
   (1 650 assertions) pour les suites auditées, 120 tests PostgreSQL temporaire
   (767 assertions) pour les cinq suites modifiées, aucun échec ni exclusion.
   Pint/PHPStan verts. Matrice REC-23–36 et limites en fin de document.
   Livraison incluse dans `2ee4f25`, observé sur staging et la référence locale
-  origin/staging à la reprise du correctif CI. QA-002 reste ouvert ; la CI
-  frontend signalée en échec fait l'objet du correctif décrit ci-dessus.
+  origin/staging à la reprise du correctif CI. QA-002 reste ouvert ; le correctif
+  frontend `337f67a` a depuis été validé en CI par l'utilisateur avant le lot 2.
 - Reprise après QA-003 : l'utilisateur a validé les CI du lot `c3fb614` avant
   le démarrage de QA-002. Arbre propre et références locales staging/origin/staging
   concordantes à ce démarrage ; pas de nouvelle lecture des CI distantes ici.
@@ -5666,3 +5675,72 @@ sur PostgreSQL. Une preuve ciblée n'est pas une certification globale du critè
   Nouvelle CI distante requise après revue/push pour confirmer la résolution.
   Correctif limité au test de communications et au suivi, réuni dans un commit
   UCG-QA-002 dédié ; aucun push effectué à cette étape.
+
+## UCG-QA-002 — Deuxième lot Personnes/Équipes (24 octobre 2026)
+
+Objectif : compléter les preuves HTTP de cloisonnement et de révocation, y compris
+pour un acteur autorisé dans deux organisations. Le périmètre de ce lot est la
+fiche personne, son départ, l'identité de l'équipe et les rattachements d'effectif.
+Les neuf nouveaux cas sont ajoutés aux tests existants, sans les remplacer.
+
+- Personne étrangère : même code/message que pour un UUID inexistant, aucun UUID
+  étranger révélé. Modification et départ refusés même avec les droits métier
+  requis dans le tenant de la route ; aucune fiche, version, sortie ou audit métier
+  modifié. Le parcours de départ utilise sa route réelle, son motif et son consentement.
+- Équipe étrangère : l'archivage est désormais testé en plus de la lecture et de
+  la modification déjà couvertes ; nom, statut, version et nombre de fiches préservés.
+  Aucune route DELETE de personne/équipe n'est inventée pour cet inventaire.
+- Après lecture initialement autorisée, révocation soit de l'adhésion, soit de
+  l'affectation de rôle Alpha : listes et détails ne renvoient plus de données,
+  créations/modifications et départ de personne ou archivage d'équipe refusés.
+  Réponses 404 pour l'adhésion révoquée, 403 pour le rôle retiré. Les versions et
+  compteurs restent inchangés et aucun audit de mutation n'est créé. Le même
+  acteur peut encore lire et modifier sa fiche Beta autorisée, avec audit Beta seul.
+- Retrait d'une permission sans retrait du rôle : `sports.write` retiré laisse
+  la lecture et une modification administrative autorisées, mais interdit la
+  création et la modification sportives. `teams.manage` retiré laisse les lectures
+  d'équipe, mais interdit création, modification et archivage. Aucun droit implicite
+  n'est accordé par les permissions administratives restantes.
+- Effectifs : acteur gestionnaire dans Alpha et Beta, lectures positives des deux
+  effectifs avant essais. Personne Beta dans un rattachement Alpha, équipe Beta
+  dans une URL Alpha, période Beta sous l'équipe Alpha et transfert vers Beta sont
+  refusés. Source/destination, versions, états actifs et fins nulles préservés ;
+  aucun mouvement, rattachement supplémentaire ou audit de mutation créé.
+- Effectifs après révocation d'adhésion/rôle : liste, historique, ajout et clôture
+  refusés après un premier accès réussi ; période existante intacte et lecture
+  Beta encore autorisée.
+
+### Validation
+
+- Groupe critique complet `tenant-isolation` : 19 tests, 270 assertions.
+  Le lot ajoute 9 cas et groupe aussi le scénario Personne étrangère déjà existant ;
+  le scénario Équipe étrangère appartenait déjà au groupe du premier lot.
+- Neuf suites : PersonControllerTest, PersonServiceTest, PersonPolicyTest,
+  PersonLifecycleControllerTest, TeamControllerTest, TeamServiceTest,
+  TeamMembershipControllerTest, TeamMembershipServiceTest, TeamLineupControllerTest.
+  SQLite en mémoire : 180 tests, 1 094 assertions ; PostgreSQL 17 neuf : mêmes
+  compteurs. XML relus : aucun échec, erreur ou test ignoré.
+- Rapports : `back/reports/phpunit-qa002-lot2-critical.xml`,
+  `back/reports/phpunit-qa002-lot2-sqlite.xml`,
+  `back/reports/phpunit-qa002-lot2-postgresql.xml`.
+- Pint et PHPStan sans erreur. Présence des neuf suites vérifiée dans la sélection
+  PostgreSQL du workflow backend ; les cas sont également inclus dans Feature.
+  Aucun changement de workflow ni dépendance requis.
+- PostgreSQL créé via le lanceur temporaire existant : port libre et secret propres,
+  stockage de test séparé, arrêt et suppression confirmés, aucun répertoire de
+  lanceur restant au contrôle final. Aucune base existante, donnée réelle,
+  permission réelle, migration, `.env`, frontend ou code métier modifié.
+
+### Limites et reprise
+
+La CI validée par l'utilisateur concerne `337f67a`, pas ce nouveau lot. Nouvelle
+CI à obtenir après revue/commit/push. Les tests de révocation utilisent une session
+authentifiée et les routes tenant explicites ; ils ne rejouent pas une bascule
+de contexte dans le navigateur, déjà traitée séparément par QA-003.
+
+Ces preuves complètent REC-23/25 et les contrôles de mutation du périmètre choisi,
+sans fermer tous les CRUD de People/Teams. Prochaine extension : profils de jeu
+et comptes externes, périodes/éléments de départ et compositions d'équipe, en
+partant de leurs tests négatifs existants plutôt que les dupliquer. Les jobs des
+autres modules et les limites REC-29/30/34/35/36 restent ouvertes. Livraison
+réunie dans le commit UCG-QA-002 dédié au deuxième lot ; aucun push effectué.

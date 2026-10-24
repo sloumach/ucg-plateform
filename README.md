@@ -4347,8 +4347,8 @@ ni les validations de services externes ou d'exploitation.
 
 ### Matrice d'isolation — premier lot UCG-QA-002
 
-Le groupe PHPUnit `tenant-isolation` rassemble neuf cas critiques, dont huit
-nouveaux : URL étrangère non révélatrice, changement de contexte, recherche et
+Le premier lot a introduit neuf cas critiques dans le groupe PHPUnit
+`tenant-isolation`, dont huit nouveaux : URL étrangère non révélatrice, changement de contexte, recherche et
 suggestions, révocation avant traitement d'export et révocation d'accès aux
 caches/fichiers. Les tests d'exports capturent le job demandé par HTTP, le
 sérialisent puis l'exécutent et le rejouent via les middlewares du bus ; aucun
@@ -4371,3 +4371,19 @@ Validation locale : 312 tests SQLite et 120 tests sur PostgreSQL 17 temporaire
 pour les cinq suites modifiées, sans échec. Ces tests sont déjà inclus dans les
 sélections CI Feature/PostgreSQL existantes. Nouvelle CI du lot à confirmer après
 livraison ; Reverb réel, webhooks, charge et restauration restent distincts.
+
+### Isolation Personnes/Équipes — deuxième lot UCG-QA-002
+
+Le groupe `tenant-isolation` compte désormais **19 cas** (270 assertions). Le
+deuxième lot ajoute neuf cas et renforce les scénarios étrangers Personne/Équipe :
+départ ou archivage refusé, droits révoqués après une lecture réussie, retrait
+d'une permission avec maintien des lectures autorisées, rattachements d'effectif
+et transferts refusés entre tenants, même avec un gestionnaire commun.
+
+La commande du groupe ci-dessus exécute également ces cas. Neuf suites liées
+ont été validées sur SQLite en mémoire et sur PostgreSQL 17 temporaire :
+180 tests, 1 094 assertions sur chaque moteur, sans échec, erreur ou exclusion.
+Les versions, historiques et audits sont contrôlés après refus, et les droits
+Beta encore légitimes restent utilisables. Aucun code métier ni migration modifié.
+La nouvelle CI reste à confirmer après livraison. Le détail des suites, les
+rapports et les limites de couverture figurent à la fin de `docs/etat-projet.md`.

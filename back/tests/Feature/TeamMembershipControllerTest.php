@@ -9,11 +9,15 @@ use App\Modules\Teams\Domain\Models\OrganizationGame;
 use App\Modules\Teams\Domain\Models\Team;
 use App\Modules\Teams\Domain\Models\TeamMembership;
 use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
+use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use App\Modules\Tenancy\Presentation\Support\ActiveOrganizationSession;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -72,6 +76,73 @@ class TeamMembershipControllerTest extends TestCase
         $this->patchJson($this->path($team).'/'.$foreign->id, ['version' => $foreign->version, 'action' => 'cancel', 'reason_key' => 'other'])->assertNotFound();
         $this->getJson($this->path(Team::findOrFail($foreign->team_id)))->assertNotFound();
         $this->assertDatabaseCount('team_movements', 0);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_membership_references_cannot_cross_tenants_even_when_the_actor_manages_both(): void
+    {
+        $this->freezeSecond();
+        [$team, $person] = $this->editor();
+        $user = User::findOrFail(auth()->id());
+        $other = Organization::factory()->create();
+        $this->grantPeopleAccess($other, $user, ['sports.read', 'teams.manage']);
+        $foreignTeam = Team::factory()->create(['organization_id' => $other->id, 'game_id' => $team->game_id]);
+        $foreignPerson = Person::factory()->create(['organization_id' => $other->id]);
+        $source = TeamMembership::factory()->create(['team_id' => $team->id, 'person_id' => $person->id]);
+        $foreign = TeamMembership::factory()->create(['team_id' => $foreignTeam->id, 'person_id' => $foreignPerson->id]);
+        $this->getJson($this->path($team))->assertOk()->assertJsonCount(1, 'data');
+        $this->getJson($this->path($foreignTeam))->assertOk()->assertJsonCount(1, 'data');
+
+        $this->postJson($this->path($team), $this->payload($foreignPerson))->assertNotFound();
+        $this->getJson('/api/v1/tenants/'.$team->organization_id.'/teams/'.$foreignTeam->id.'/memberships')->assertNotFound();
+        $this->patchJson($this->path($team).'/'.$foreign->id, [
+            'version' => $foreign->version, 'action' => 'close', 'reason_key' => 'other', 'effective_at' => now()->toIso8601String(),
+        ])->assertNotFound();
+        $this->patchJson($this->path($team).'/'.$source->id, [
+            'version' => $source->version, 'action' => 'transfer', 'reason_key' => 'transfer',
+            'effective_at' => now()->toIso8601String(), 'destination_team_id' => $foreignTeam->id,
+            'destination_version' => $foreignTeam->version, 'role_key' => 'player',
+        ])->assertNotFound();
+
+        $this->assertDatabaseHas('team_memberships', ['id' => $source->id, 'version' => $source->version, 'status' => 'active', 'ends_at' => null]);
+        $this->assertDatabaseHas('team_memberships', ['id' => $foreign->id, 'version' => $foreign->version, 'status' => 'active', 'ends_at' => null]);
+        $this->assertDatabaseCount('team_memberships', 2);
+        $this->assertDatabaseCount('team_movements', 0);
+        $this->assertDatabaseCount('organization_audit_events', 0);
+    }
+
+    #[Group('tenant-isolation')]
+    #[TestWith(['membership', 404])]
+    #[TestWith(['role', 403])]
+    public function test_roster_reads_and_changes_recheck_revocation_without_changing_history(string $revocation, int $status): void
+    {
+        $this->freezeSecond();
+        [$team, $person] = $this->editor();
+        $user = User::findOrFail(auth()->id());
+        $other = Organization::factory()->create();
+        $this->grantPeopleAccess($other, $user, ['sports.read', 'teams.manage']);
+        $beta = Team::factory()->create(['organization_id' => $other->id]);
+        $period = TeamMembership::factory()->create(['team_id' => $team->id, 'person_id' => $person->id]);
+        $this->getJson($this->path($team))->assertOk()->assertJsonCount(1, 'data');
+        $this->getJson($this->base($team).'/movements')->assertOk();
+        if ($revocation === 'membership') {
+            OrganizationMembership::query()->where('organization_id', $team->organization_id)->where('user_id', $user->id)->firstOrFail()->forceFill(['status' => 'revoked'])->save();
+        } else {
+            OrganizationRoleAssignment::query()->where('organization_id', $team->organization_id)->where('user_id', $user->id)->firstOrFail()->forceFill(['status' => 'revoked'])->save();
+        }
+
+        $this->getJson($this->path($team))->assertStatus($status)->assertJsonMissingPath('data');
+        $this->getJson($this->base($team).'/movements')->assertStatus($status)->assertJsonMissingPath('data');
+        $this->postJson($this->path($team), [...$this->payload($person), 'role_key' => 'coach'])->assertStatus($status);
+        $this->patchJson($this->path($team).'/'.$period->id, [
+            'version' => $period->version, 'action' => 'close', 'reason_key' => 'other', 'effective_at' => now()->toIso8601String(),
+        ])->assertStatus($status);
+
+        $this->assertDatabaseHas('team_memberships', ['id' => $period->id, 'version' => $period->version, 'status' => 'active', 'ends_at' => null]);
+        $this->assertDatabaseCount('team_memberships', 1);
+        $this->assertDatabaseCount('team_movements', 0);
+        $this->assertDatabaseCount('organization_audit_events', 0);
+        $this->getJson($this->path($beta))->assertOk()->assertJsonCount(0, 'data');
     }
 
     public function test_stale_version_and_terminal_closure_do_not_rewrite_history(): void

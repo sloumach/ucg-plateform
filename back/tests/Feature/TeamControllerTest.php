@@ -8,12 +8,15 @@ use App\Modules\Teams\Domain\Models\GameCatalogueEntry;
 use App\Modules\Teams\Domain\Models\OrganizationGame;
 use App\Modules\Teams\Domain\Models\Team;
 use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
+use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use App\Modules\Tenancy\Presentation\Support\ActiveOrganizationSession;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -69,7 +72,64 @@ class TeamControllerTest extends TestCase
         $this->assertStringNotContainsString($foreign->id, (string) $denied->getContent());
         $this->assertStringNotContainsString($foreign->organization_id, (string) $denied->getContent());
         $this->patchJson($this->path($org, $foreign->id), ['version' => $foreign->version, 'name' => 'Hijack'])->assertNotFound();
-        $this->assertDatabaseHas('teams', ['id' => $foreign->id, 'name' => 'Équipe pilote']);
+        $this->patchJson($this->path($org, $foreign->id), ['version' => $foreign->version, 'status' => 'archived'])->assertNotFound();
+        $this->assertDatabaseHas('teams', ['id' => $foreign->id, 'name' => 'Équipe pilote', 'status' => 'active', 'version' => $foreign->version]);
+        $this->assertDatabaseCount('teams', 1);
+        $this->assertDatabaseCount('organization_audit_events', 0);
+    }
+
+    #[Group('tenant-isolation')]
+    #[TestWith(['membership', 404])]
+    #[TestWith(['role', 403])]
+    public function test_revocation_after_team_reads_blocks_alpha_writes_without_revoking_beta(string $revocation, int $status): void
+    {
+        $org = $this->editor();
+        $user = User::findOrFail(auth()->id());
+        $other = Organization::factory()->create();
+        $this->grantPeopleAccess($other, $user, ['sports.read', 'teams.manage']);
+        $team = Team::factory()->create(['organization_id' => $org->id, 'name' => 'Alpha private']);
+        $beta = Team::factory()->create(['organization_id' => $other->id, 'name' => 'Beta private']);
+        $this->getJson($this->path($org))->assertOk()->assertJsonCount(1, 'data');
+        $this->getJson($this->path($org, $team->id))->assertOk()->assertJsonPath('data.name', 'Alpha private');
+        if ($revocation === 'membership') {
+            OrganizationMembership::query()->where('organization_id', $org->id)->where('user_id', $user->id)->firstOrFail()->forceFill(['status' => 'revoked'])->save();
+        } else {
+            OrganizationRoleAssignment::query()->where('organization_id', $org->id)->where('user_id', $user->id)->firstOrFail()->forceFill(['status' => 'revoked'])->save();
+        }
+
+        $this->getJson($this->path($org))->assertStatus($status)->assertJsonMissingPath('data');
+        $this->getJson($this->path($org, $team->id))->assertStatus($status)->assertJsonMissingPath('data');
+        $this->postJson($this->path($org), $this->payload())->assertStatus($status);
+        $this->patchJson($this->path($org, $team->id), ['version' => $team->version, 'name' => 'Hijacked'])->assertStatus($status);
+        $this->patchJson($this->path($org, $team->id), ['version' => $team->version, 'status' => 'archived'])->assertStatus($status);
+
+        $this->assertDatabaseHas('teams', ['id' => $team->id, 'version' => $team->version, 'name' => 'Alpha private', 'status' => 'active']);
+        $this->assertDatabaseCount('teams', 2);
+        $this->assertDatabaseCount('organization_audit_events', 0);
+        $this->getJson($this->path($other, $beta->id))->assertOk()->assertJsonPath('data.name', 'Beta private');
+        $this->patchJson($this->path($other, $beta->id), ['version' => $beta->version, 'name' => 'Beta authorized'])->assertOk();
+        $this->assertDatabaseHas('organization_audit_events', ['organization_id' => $other->id]);
+        $this->assertDatabaseCount('organization_audit_events', 1);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_removing_team_management_keeps_reads_but_blocks_creation_editing_and_archival(): void
+    {
+        $org = $this->editor();
+        $user = User::findOrFail(auth()->id());
+        $team = Team::factory()->create(['organization_id' => $org->id, 'name' => 'Preserved']);
+        $this->getJson($this->path($org, $team->id))->assertOk();
+        OrganizationRoleAssignment::query()->where('organization_id', $org->id)->where('user_id', $user->id)->firstOrFail()
+            ->role->forceFill(['permissions' => ['sports.read']])->save();
+
+        $this->getJson($this->path($org))->assertOk()->assertJsonCount(1, 'data');
+        $this->getJson($this->path($org, $team->id))->assertOk()->assertJsonPath('data.name', 'Preserved');
+        $this->postJson($this->path($org), $this->payload())->assertForbidden();
+        $this->patchJson($this->path($org, $team->id), ['version' => $team->version, 'name' => 'Hijacked'])->assertForbidden();
+        $this->patchJson($this->path($org, $team->id), ['version' => $team->version, 'status' => 'archived'])->assertForbidden();
+        $this->assertDatabaseHas('teams', ['id' => $team->id, 'version' => $team->version, 'name' => 'Preserved', 'status' => 'active']);
+        $this->assertDatabaseCount('teams', 1);
+        $this->assertDatabaseCount('organization_audit_events', 0);
     }
 
     public function test_listing_is_bounded_filtered_sorted_and_empty_results_are_successful(): void

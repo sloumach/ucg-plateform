@@ -8,11 +8,14 @@ use App\Modules\Identity\Domain\Models\User;
 use App\Modules\People\Domain\Models\Person;
 use App\Modules\Tenancy\Domain\Models\Organization;
 use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
+use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use App\Modules\Tenancy\Presentation\Support\ActiveOrganizationSession;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
@@ -191,17 +194,85 @@ class PersonControllerTest extends TestCase
         $this->assertDatabaseCount('organization_audit_events', 0);
     }
 
+    #[Group('tenant-isolation')]
     public function test_foreign_person_returns_404_even_if_actor_belongs_to_both_tenants(): void
     {
-        $organization = $this->editor();
+        $organization = $this->editor(['sports.read', 'sports.write', 'administrative.read', 'administrative.write', 'memberships.manage', 'invitations.manage']);
         $user = User::findOrFail(auth()->id());
         $other = Organization::factory()->create();
         $this->grantPeopleAccess($other, $user, ['sports.read', 'sports.write']);
         $person = Person::factory()->create(['organization_id' => $other->id]);
 
-        $this->getJson($this->path($organization, $person->id))->assertNotFound();
+        $denied = $this->getJson($this->path($organization, $person->id))->assertNotFound();
+        $missing = $this->getJson($this->path($organization, (string) Str::uuid()))->assertNotFound();
+        $this->assertSame($missing->json('code'), $denied->json('code'));
+        $this->assertSame($missing->json('message'), $denied->json('message'));
+        $this->assertStringNotContainsString($person->id, (string) $denied->getContent());
+        $this->assertStringNotContainsString($other->id, (string) $denied->getContent());
         $this->patchJson($this->path($organization, $person->id), ['pseudonym' => 'Déplacé', 'version' => $person->version])->assertNotFound();
+        $this->postJson($this->path($organization, $person->id).'/departure', ['version' => $person->version, 'reason_key' => 'other', 'confirm' => true])->assertNotFound();
         $this->assertDatabaseHas('people', ['id' => $person->id, 'organization_id' => $other->id, 'version' => $person->version]);
+        $this->assertDatabaseCount('people', 1);
+        $this->assertDatabaseCount('person_departures', 0);
+        $this->assertDatabaseCount('organization_audit_events', 0);
+    }
+
+    #[Group('tenant-isolation')]
+    #[TestWith(['membership', 404])]
+    #[TestWith(['role', 403])]
+    public function test_revocation_after_person_reads_blocks_alpha_writes_without_revoking_beta(string $revocation, int $status): void
+    {
+        $organization = $this->editor(['sports.read', 'sports.write', 'administrative.read', 'administrative.write', 'memberships.manage', 'invitations.manage']);
+        $user = User::findOrFail(auth()->id());
+        $other = Organization::factory()->create();
+        $this->grantPeopleAccess($other, $user, ['sports.read', 'sports.write']);
+        $person = Person::factory()->create(['organization_id' => $organization->id, 'pseudonym' => 'Alpha private']);
+        $beta = Person::factory()->create(['organization_id' => $other->id, 'pseudonym' => 'Beta private']);
+        $this->getJson($this->path($organization))->assertOk()->assertJsonCount(1, 'data');
+        $this->getJson($this->path($organization, $person->id))->assertOk()->assertJsonPath('data.pseudonym', 'Alpha private');
+        if ($revocation === 'membership') {
+            OrganizationMembership::query()->where('organization_id', $organization->id)->where('user_id', $user->id)->firstOrFail()->forceFill(['status' => 'revoked'])->save();
+        } else {
+            OrganizationRoleAssignment::query()->where('organization_id', $organization->id)->where('user_id', $user->id)->firstOrFail()->forceFill(['status' => 'revoked'])->save();
+        }
+
+        $this->getJson($this->path($organization))->assertStatus($status)->assertJsonMissingPath('data');
+        $this->getJson($this->path($organization, $person->id))->assertStatus($status)->assertJsonMissingPath('data');
+        $this->postJson($this->path($organization), $this->personPayload())->assertStatus($status);
+        $this->patchJson($this->path($organization, $person->id), ['version' => $person->version, 'pseudonym' => 'Hijacked'])->assertStatus($status);
+        $this->postJson($this->path($organization, $person->id).'/departure', ['version' => $person->version, 'reason_key' => 'other', 'confirm' => true])->assertStatus($status);
+
+        $this->assertDatabaseHas('people', ['id' => $person->id, 'version' => $person->version, 'pseudonym' => 'Alpha private', 'status' => 'active']);
+        $this->assertDatabaseCount('people', 2);
+        $this->assertDatabaseCount('person_departures', 0);
+        $this->assertDatabaseCount('organization_audit_events', 0);
+        $this->getJson($this->path($other, $beta->id))->assertOk()->assertJsonPath('data.pseudonym', 'Beta private');
+        $this->patchJson($this->path($other, $beta->id), ['version' => $beta->version, 'pseudonym' => 'Beta authorized'])->assertOk();
+        $this->assertDatabaseHas('organization_audit_events', ['organization_id' => $other->id]);
+        $this->assertDatabaseCount('organization_audit_events', 1);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_removing_sports_write_keeps_reads_and_administrative_edits_but_blocks_sports_writes(): void
+    {
+        $organization = $this->editor();
+        $user = User::findOrFail(auth()->id());
+        $person = Person::factory()->create(['organization_id' => $organization->id, 'pseudonym' => 'Preserved']);
+        $this->getJson($this->path($organization, $person->id))->assertOk();
+        OrganizationRoleAssignment::query()->where('organization_id', $organization->id)->where('user_id', $user->id)->firstOrFail()
+            ->role->forceFill(['permissions' => ['sports.read', 'administrative.read', 'administrative.write']])->save();
+
+        $this->getJson($this->path($organization, $person->id))->assertOk()->assertJsonPath('data.pseudonym', 'Preserved');
+        $this->postJson($this->path($organization), $this->personPayload())->assertForbidden();
+        $this->patchJson($this->path($organization, $person->id), ['version' => $person->version, 'pseudonym' => 'Hijacked'])->assertForbidden();
+        $this->assertDatabaseHas('people', ['id' => $person->id, 'version' => $person->version, 'pseudonym' => 'Preserved']);
+        $this->assertDatabaseCount('people', 1);
+        $this->assertDatabaseCount('organization_audit_events', 0);
+
+        $this->patchJson($this->path($organization, $person->id), ['version' => $person->version, 'contact_email' => 'authorized@example.test'])
+            ->assertOk()->assertJsonPath('data.contact_email', 'authorized@example.test');
+        $this->assertDatabaseHas('people', ['id' => $person->id, 'pseudonym' => 'Preserved']);
+        $this->assertDatabaseCount('organization_audit_events', 1);
     }
 
     public function test_same_global_account_links_distinct_profiles_in_two_tenants_without_granting_rights(): void

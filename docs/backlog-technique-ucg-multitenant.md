@@ -1396,6 +1396,16 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   Matrice et limites REC-23–36 dans etat-projet.md ; ticket ouvert pour l'inventaire
   complet CRUD/jobs, Reverb réel, webhooks, charge et restauration/réconciliation.
   Livraison locale, nouvelle CI à confirmer après revue/commit/push.
+- **Deuxième lot local (24/10/2026)** : fiches Personnes/Équipes et effectifs.
+  Neuf cas ajoutés, deux scénarios étrangers renforcés : départ/archivage étrangers,
+  révocation d'adhésion/rôle après accès réussi, retrait granulaire de permissions,
+  rattachements/périodes/transferts inter-tenant refusés sans effet métier.
+  Lectures/modifications Beta autorisées conservées. Groupe critique : 19 tests,
+  270 assertions ; neuf suites sélectionnées : 180 tests, 1 094 assertions sur
+  SQLite et sur PostgreSQL 17 temporaire, aucun échec ni exclusion. Pint/PHPStan
+  verts, cluster supprimé ; code métier et migrations inchangés. Suite à étendre
+  aux profils de jeu, périodes et compositions ; QA-002 reste ouvert.
+  CI de ce nouveau lot à confirmer après revue/commit/push.
 
 ### UCG-QA-003 — Tester les parcours navigateur critiques
 
