@@ -6,7 +6,18 @@
 ## Point de reprise
 
 - Dernière mise à jour : 24 octobre 2026.
-- Lot courant : **UCG-QA-002, troisième lot de ressources rattachées**.
+- Lot courant : **UCG-QA-002, quatrième lot imports de personnes**.
+  Douze cas ajoutés et un scénario étranger renforcé : transport sérialisé après
+  bascule HTTP, rejeu, révocation avant exécution/entre blocs, rapports et fichiers
+  privés. Groupe `tenant-isolation` : 47 tests, 804 assertions. Cinq suites :
+  69 tests, 488 assertions sur SQLite et PostgreSQL 17 temporaire, sans échec,
+  erreur ou exclusion. Pint/PHPStan verts, cluster arrêté/supprimé. Modifications
+  réunies dans un commit UCG-QA-002 dédié au quatrième lot, sans push ; détails
+  et limites en fin de document.
+- Reprise du quatrième lot : l'utilisateur valide la CI du commit `2c9d3bc`.
+  Arbre propre sur `staging`, référence locale origin/staging concordante au départ ;
+  confirmation utilisateur, sans nouvelle lecture des CI distantes.
+- Livraison précédente : **UCG-QA-002, troisième lot de ressources rattachées**.
   Douze cas ajoutés sur les profils/comptes de jeu, périodes/checklist et
   compositions ; deux scénarios étrangers renforcés, trois scénarios existants
   intégrés au groupe critique. Groupe `tenant-isolation` : 34 tests,
@@ -5812,3 +5823,64 @@ navigateur reste couverte séparément par QA-003. QA-002 reste ouvert : les aut
 CRUD/jobs/modules et les limites REC-29/30/34/35/36 ne sont pas déclarés terminés.
 La prochaine extension doit partir de l'inventaire REC-23–36 pour sélectionner
 les prochains contrôles manquants, sans ajouter de doublons aux suites existantes.
+
+## UCG-QA-002 — Quatrième lot imports de personnes (24 octobre 2026)
+
+### Objectif et couverture
+
+Compléter REC-28 pour les imports livrés, ainsi que leurs frontières HTTP et de
+stockage. Douze cas ajoutés dans PersonImportControllerTest et
+PersonImportProcessorTest ; scénario HTTP étranger existant renforcé et ajouté
+au groupe critique. Le test direct de révocation de rôle préexistant est conservé.
+
+- Confirmation via HTTP, capture du véritable ProcessPersonImport, sérialisation,
+  bascule HTTP Alpha vers Beta puis exécution et rejeu via Bus::dispatchSync et
+  les middlewares tenant réels. Les deux personnes sont créées dans Alpha une
+  seule fois, sans admission de compte. Un pseudonyme identique déjà présent dans
+  Beta ne bloque pas Alpha ; la fiche Beta et sa version restent intactes.
+- Révocation Alpha d'adhésion, d'attribution de rôle ou de la seule permission
+  administrative.write, avant traitement ou après un premier bloc validé. Le job
+  sérialisé puis rejoué échoue avec les métadonnées opérationnelles attendues :
+  aucune nouvelle personne, lignes créées/en attente inchangées, aucun audit
+  métier supplémentaire. Les droits complets conservés dans Beta ne secourent pas
+  Alpha ; session Beta préservée et portée d'exécution nettoyée.
+- Révocation après lecture réussie : liste, détail, rapport, téléversement,
+  prévisualisation et confirmation refusés ; aucun job ajouté. Versions, lignes,
+  fichiers chiffrés (empreintes relues) et audits métier préservés. Beta reste
+  consultable. Les tests sans bascule explicite vérifient les statuts 404/403 ;
+  après bascule, le garde de contexte peut répondre 409 avant la politique métier.
+- Même CSV et même nom téléversés dans deux tenants : imports, empreintes
+  d'idempotence et artefacts distincts ; lecture légitime vérifiée et lecture de
+  l'artefact étranger refusée via le port interne TenantArtifacts. Listes isolées,
+  pas de création de personne ni de traitement implicite.
+- Transport valide pour Beta avec un identifiant d'import Alpha : refus sans
+  changement du run Alpha, de ses lignes, des personnes ou audits, y compris
+  lorsque le gestionnaire dispose des permissions d'import dans les deux tenants.
+
+### Validation
+
+- Groupe critique complet sur SQLite en mémoire : **47 tests, 804 assertions**.
+- Cinq suites : PersonImportControllerTest, PersonImportProcessorTest,
+  PersonImportPolicyTest, PersonImportSchemaTest, PersonCsvParserTest.
+  **69 tests, 488 assertions par moteur**, SQLite en mémoire et PostgreSQL 17 neuf.
+  Rapports XML relus : zéro échec, erreur ou exclusion.
+- Rapports : `back/reports/phpunit-qa002-lot4-critical.xml`,
+  `back/reports/phpunit-qa002-lot4-sqlite.xml`,
+  `back/reports/phpunit-qa002-lot4-postgresql.xml`.
+- Pint/PHPStan verts ; les cinq suites figurent déjà dans la sélection PostgreSQL
+  du workflow backend et dans Feature. Aucun changement de workflow ou dépendance.
+- Cluster temporaire arrêté et supprimé ; aucune base existante, donnée réelle,
+  migration, `.env`, frontend ou logique métier modifiée. Stockage simulé local
+  pour les artefacts ; aucune file ni aucun worker de production sollicité.
+
+### Limites et reprise
+
+La CI validée par l'utilisateur concerne `2c9d3bc`. Ce quatrième lot est livré
+dans un commit dédié, sans push ; sa CI reste à confirmer après livraison distante.
+Le transport capturé par HTTP passe par la file synchrone et
+les middlewares réels, sans démontrer le fonctionnement d'un worker Redis en
+exploitation. Dans les cas entre blocs, le premier bloc est validé par le service
+réel avec chunk_size=1 ; le job sérialisé est ensuite exécuté après révocation.
+La reprise transactionnelle après erreur technique reste prouvée par le test
+préexistant du processeur. QA-002 reste ouvert pour les autres CRUD/jobs et les
+limites REC-29/30/34/35/36 ; ce lot ne les clôture pas.

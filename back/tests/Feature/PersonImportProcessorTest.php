@@ -14,12 +14,15 @@ use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use App\Modules\Tenancy\Domain\Models\Organization;
 use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
 
@@ -131,6 +134,33 @@ class PersonImportProcessorTest extends TestCase
         [$context,$run] = $this->prepared("pseudo,email\nAlex,alex@example.test", true, false);
         $this->assertFalse(app(PersonImportProcessor::class)->process($context, $run->id));
         $this->assertDatabaseCount('people', 0);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_serialized_job_cannot_process_an_import_id_belonging_to_another_tenant(): void
+    {
+        [$context, $run] = $this->prepared("pseudo,email\nAlex,alex@example.test");
+        $other = Organization::factory()->create();
+        $user = User::findOrFail($context->actorUserId);
+        $this->grantPeopleAccess($other, $user, PersonImportInput::PERMISSIONS);
+        $transport = serialize(new ProcessPersonImport($this->personContext($other, $user)->toJobContext(), $run->id));
+        $auditCount = DB::table('organization_audit_events')->count();
+        Queue::assertPushed(ProcessPersonImport::class, 1);
+
+        Queue::fake()->except([ProcessPersonImport::class]);
+        try {
+            Bus::dispatchSync(unserialize($transport));
+            $this->fail('A valid tenant context must not authorize a foreign import identifier.');
+        } catch (ModelNotFoundException) {
+            $this->assertDatabaseHas('person_imports', ['id' => $run->id, 'organization_id' => $context->organizationId, 'status' => 'queued', 'version' => $run->version, 'failure_code' => null]);
+        }
+
+        $this->assertDatabaseHas('person_import_rows', ['import_id' => $run->id, 'organization_id' => $context->organizationId, 'status' => 'ready', 'person_id' => null]);
+        $this->assertDatabaseCount('person_imports', 1);
+        $this->assertDatabaseCount('person_import_rows', 1);
+        $this->assertDatabaseCount('people', 0);
+        $this->assertDatabaseCount('tenant_artifacts', 1);
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
     }
 
     /** @return array{TenantContext,PersonImport} */

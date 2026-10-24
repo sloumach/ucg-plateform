@@ -1419,6 +1419,17 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   CI à confirmer après livraison distante.
   QA-002 reste ouvert pour les autres CRUD/jobs et les limites REC-23–36.
 
+- **Quatrième lot local (24/10/2026)** : imports de personnes. Douze cas ajoutés,
+  scénario HTTP étranger renforcé et intégré au groupe critique : 47 tests,
+  804 assertions. Job sérialisé après bascule HTTP, rejeu, révocations avant
+  traitement/entre blocs, rapports et artefacts privés ; droits Beta conservés
+  sans permettre les créations Alpha révoquées. Cinq suites : 69 tests,
+  488 assertions sur SQLite et PostgreSQL 17 temporaire, aucun échec ou test ignoré.
+  Pint/PHPStan verts, cluster supprimé, aucun changement métier ou de migration.
+  CI de `2c9d3bc` validée par l'utilisateur ; quatrième lot livré dans un commit
+  dédié, sans push, CI à confirmer après livraison distante. Limites dans etat-projet.md ;
+  autres CRUD/jobs et REC-29/30/34/35/36 restent ouverts.
+
 ### UCG-QA-003 — Tester les parcours navigateur critiques
 
 - **Priorité / taille** : P0 / L

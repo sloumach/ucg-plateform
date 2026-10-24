@@ -4390,7 +4390,7 @@ rapports et les limites de couverture figurent à la fin de `docs/etat-projet.md
 
 ### Isolation des ressources rattachées — troisième lot UCG-QA-002
 
-Le groupe `tenant-isolation` compte désormais **34 cas, 489 assertions**. Douze
+À la fin du troisième lot, le groupe `tenant-isolation` comptait **34 cas, 489 assertions**. Douze
 cas ajoutés et des scénarios étrangers renforcés couvrent profils/comptes de jeu,
 périodes/checklist et compositions : mauvais tenant ou parent, révocation après
 accès réussi et retrait des permissions d'écriture avec maintien des lectures.
@@ -4402,3 +4402,17 @@ Pint/PHPStan verts, cluster arrêté et supprimé ; code métier et migrations
 inchangés. Ces cas sont inclus dans la CI backend existante ; la CI du nouveau
 lot reste à confirmer après livraison. QA-002 reste ouvert ; rapports et limites
 dans `docs/etat-projet.md`.
+
+### Isolation des imports — quatrième lot UCG-QA-002
+
+Le groupe `tenant-isolation` compte désormais **47 cas, 804 assertions**. Douze
+cas ajoutés et un scénario étranger renforcé couvrent le job d'import sérialisé
+après bascule HTTP, le rejeu, la révocation avant exécution ou entre blocs,
+les rapports privés et les fichiers identiques déposés dans deux tenants.
+Les refus préservent les lignes déjà validées et empêchent les créations restantes.
+
+Cinq suites liées passent sur SQLite en mémoire et PostgreSQL 17 temporaire :
+**69 tests, 488 assertions par moteur**, sans échec, erreur ou exclusion.
+Pint/PHPStan verts, cluster arrêté et supprimé ; changements limités aux tests
+et à la documentation. CI du nouveau lot à confirmer après livraison ; QA-002
+reste ouvert. Rapports et limites dans `docs/etat-projet.md`.
