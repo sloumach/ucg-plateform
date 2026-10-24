@@ -6,7 +6,18 @@
 ## Point de reprise
 
 - Dernière mise à jour : 24 octobre 2026.
-- Lot courant : **UCG-QA-002, quatrième lot imports de personnes**.
+- Lot courant : **UCG-QA-002, cinquième lot documents contractuels**.
+  Neuf cas ajoutés : analyse sérialisée après bascule HTTP, révocation avant
+  exécution, anciens liens après révocation et retrait granulaire d'écriture.
+  Un scénario étranger existant intégré au groupe critique : 57 tests,
+  1 024 assertions. Six suites : 89 tests, 618 assertions sur chacun des moteurs
+  SQLite/PostgreSQL 17 temporaire, sans échec, erreur ou exclusion. Pint/PHPStan
+  verts, cluster arrêté/supprimé. Livraison réunie dans un commit UCG-QA-002
+  dédié au cinquième lot, sans push ; détails en fin de document.
+- Reprise du cinquième lot : l'utilisateur valide la CI du commit `14117bd`.
+  Arbre propre sur `staging` et référence locale origin/staging concordante au
+  départ ; confirmation utilisateur, sans nouvelle lecture des CI distantes.
+- Livraison précédente : **UCG-QA-002, quatrième lot imports de personnes**.
   Douze cas ajoutés et un scénario étranger renforcé : transport sérialisé après
   bascule HTTP, rejeu, révocation avant exécution/entre blocs, rapports et fichiers
   privés. Groupe `tenant-isolation` : 47 tests, 804 assertions. Cinq suites :
@@ -5884,3 +5895,67 @@ réel avec chunk_size=1 ; le job sérialisé est ensuite exécuté après révoc
 La reprise transactionnelle après erreur technique reste prouvée par le test
 préexistant du processeur. QA-002 reste ouvert pour les autres CRUD/jobs et les
 limites REC-29/30/34/35/36 ; ce lot ne les clôture pas.
+
+## UCG-QA-002 — Cinquième lot documents contractuels (24 octobre 2026)
+
+### Objectif et couverture
+
+Compléter REC-27/28 pour les analyses en file et les téléchargements privés des
+documents contractuels. Neuf cas ajoutés dans ContractDocumentSecurityControllerTest
+et ContractDocumentScanTest ; un scénario HTTP étranger préexistant ajouté au
+groupe critique. Les tests existants de révocation pendant l'analyse ou la lecture
+du stockage restent conservés.
+
+- Téléversement HTTP d'une version, capture du véritable ScanContractDocument,
+  sérialisation puis bascule HTTP Alpha vers Beta. Exécution et rejeu via
+  Bus::dispatchSync et les middlewares tenant réels : scanner simulé appelé une
+  seule fois avec les octets attendus, verdict clean conservé au rejeu, aucune
+  analyse créée dans Beta. Version du document, version du contrat, fichier
+  chiffré et nombre d'audits préservés au rejeu. Retour dans Alpha et téléchargement
+  des octets originaux vérifiés.
+- Révocation Alpha d'adhésion, de rôle ou de la permission administrative.write
+  avant exécution : scanner et lecture d'artefact jamais appelés. Le callback de
+  file marque uniquement l'analyse failed/worker_failed, sans démarrage ni moteur ;
+  le rejeu conserve ces métadonnées. Versions, fichier et audits métier restent
+  intacts, les permissions Beta ne secourent pas Alpha. Session Beta préservée et
+  portée d'exécution nettoyée après traitement.
+- Lien signé émis et déjà utilisé avant révocation d'adhésion, de rôle ou de
+  lecture : le même lien, les listes de versions/analyses, l'émission d'un nouveau
+  lien et la relance d'analyse sont refusés en 404/403. Aucun octet privé servi,
+  aucune lecture d'artefact ni nouvelle analyse ; fichier et verdict existants
+  conservés. Le contexte Beta reste accessible au même acteur.
+- Retrait de la seule permission d'écriture : ancien lien et lectures encore
+  valides, nouveau lien autorisé, mais relance d'analyse et téléversement interdits.
+  Version du contrat, verdict, nombre de versions/artefacts et audits préservés.
+- Transport valide pour Beta portant un identifiant d'analyse Alpha : refus avant
+  appel du scanner ou lecture du fichier, sans altérer l'analyse Alpha, son fichier
+  ou les audits, même pour un gestionnaire commun aux deux tenants.
+
+### Validation
+
+- Groupe critique complet sur SQLite en mémoire : **57 tests, 1 024 assertions**.
+- Six suites : ContractDocumentControllerTest, ContractDocumentServiceTest,
+  ContractDocumentSchemaTest, ContractDocumentSecurityControllerTest,
+  ContractDocumentScanTest, ContractDocumentScanSchemaTest.
+  **89 tests, 618 assertions par moteur**, SQLite en mémoire et PostgreSQL 17 neuf.
+  Rapports XML relus : zéro échec, erreur ou exclusion.
+- Rapports : `back/reports/phpunit-qa002-lot5-critical.xml`,
+  `back/reports/phpunit-qa002-lot5-sqlite.xml`,
+  `back/reports/phpunit-qa002-lot5-postgresql.xml`.
+- Pint/PHPStan verts. Les six suites figurent déjà dans la sélection PostgreSQL
+  du workflow backend et dans Feature ; aucun changement de workflow ou dépendance.
+- Deux commandes SQLite lancées simultanément ont initialement interféré sur le
+  même Storage::fake. Relance séquentielle des suites puis du groupe critique :
+  tout passe. Ne pas lancer ces commandes en parallèle avec le même storage_path.
+  PostgreSQL utilise un stockage temporaire distinct, arrêté/supprimé avec son
+  cluster ; aucun répertoire du lanceur restant au contrôle final.
+
+### Limites et reprise
+
+La CI validée par l'utilisateur concerne `14117bd` ; ce cinquième lot est livré
+dans un commit dédié, sans push. Sa CI reste à confirmer après livraison distante.
+Scanner simulé, stockage local simulé et transport via
+la file synchrone : ces tests ne prouvent pas un scan ClamAV réel ni l'exploitation
+d'un worker Redis. Aucune base existante, donnée réelle, migration, `.env`, frontend
+ou logique métier modifiée. QA-002 reste ouvert pour les autres CRUD/jobs et les
+limites REC-29/30/34/35/36.

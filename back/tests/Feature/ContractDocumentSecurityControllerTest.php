@@ -5,14 +5,30 @@ namespace Tests\Feature;
 use App\Modules\Contracts\Application\Services\ContractDocumentScanService;
 use App\Modules\Contracts\Application\Services\ContractDocumentService;
 use App\Modules\Contracts\Application\Services\ContractFinancialService;
+use App\Modules\Contracts\Domain\Contracts\ContractDocumentScanner;
+use App\Modules\Contracts\Domain\Models\ContractDocument;
+use App\Modules\Contracts\Domain\Models\ContractDocumentScan;
+use App\Modules\Contracts\Domain\Models\ContractDocumentVersion;
+use App\Modules\Contracts\Domain\Models\ContractRecord;
+use App\Modules\Contracts\Domain\ScanVerdict;
+use App\Modules\Contracts\Infrastructure\Queue\ScanContractDocument;
 use App\Modules\Identity\Domain\Models\User;
 use App\Modules\Tenancy\Application\Contracts\TenantArtifacts;
+use App\Modules\Tenancy\Application\Services\TenantExecutionScope;
+use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
 use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
+use App\Modules\Tenancy\Presentation\Support\ActiveOrganizationSession;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Testing\Fakes\QueueFake;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesDocumentSecurity;
 use Tests\TestCase;
@@ -203,6 +219,7 @@ class ContractDocumentSecurityControllerTest extends TestCase
             ->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('meta.total', 2)->assertJsonPath('data.0.id', $scan->id);
     }
 
+    #[Group('tenant-isolation')]
     public function test_guests_unprivileged_users_foreign_versions_and_unknown_input_are_denied(): void
     {
         [$org, $user, $contract, , $document, $version, $scan] = $this->securityScenario();
@@ -218,5 +235,207 @@ class ContractDocumentSecurityControllerTest extends TestCase
         $this->grantPeopleAccess($org, $staff, ['sports.read', 'financial.read']);
         $this->actingAsWithMfa($staff);
         $this->getJson($path.'/scans')->assertForbidden();
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_serialized_http_scan_and_replay_keep_the_original_tenant_after_context_switch(): void
+    {
+        $this->freezeTime();
+        [$org, $user, $contract, $document, $version, $scan, $transport] = $this->queuedHttpScan();
+        $other = Organization::factory()->create();
+        $this->grantPeopleAccess($other, $user, ['administrative.read', 'administrative.write']);
+        $this->selectOrganization($org);
+        $this->selectOrganization($other);
+        $filePath = 'tenants/'.$org->id.'/artifacts/'.$version->artifact_id;
+        $stored = Storage::disk('local')->get($filePath);
+        $contractVersion = $contract->refresh()->version;
+        $versionBefore = $version->getRawOriginal();
+        $this->mock(ContractDocumentScanner::class)->shouldReceive('scan')->once()
+            ->with($this->documentPdf()->getContent())->andReturn(new ScanVerdict('clean', engine: 'ClamAV test/123/fresh'));
+
+        Queue::fake()->except([ScanContractDocument::class]);
+        Bus::dispatchSync(unserialize($transport));
+        $verdict = $scan->refresh()->getRawOriginal();
+        $auditCount = DB::table('organization_audit_events')->count();
+        Bus::dispatchSync(unserialize($transport));
+
+        $this->assertSame('clean', $scan->refresh()->status);
+        $this->assertSame($verdict, $scan->getRawOriginal());
+        $this->assertSame($versionBefore, $version->refresh()->getRawOriginal());
+        $this->assertSame($contractVersion, $contract->refresh()->version);
+        $this->assertSame($stored, Storage::disk('local')->get($filePath));
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->assertDatabaseCount('contract_document_scans', 1);
+        $this->assertDatabaseCount('contract_document_versions', 1);
+        $this->assertDatabaseCount('tenant_artifacts', 1);
+        $this->assertSame(0, DB::table('contract_document_scans')->where('organization_id', $other->id)->count());
+        $this->assertFalse(app(TenantExecutionScope::class)->active());
+        $this->assertSame($other->id, session()->get(ActiveOrganizationSession::KEY.'.organization_id'));
+        $this->getJson('/api/v1/tenants/'.$other->id.'/context')->assertOk();
+        $this->selectOrganization($org);
+        $path = $this->documentPath($org, $contract, $document->id).'/versions/'.$version->id;
+        $url = $this->postJson($path.'/download-link', ['expected_scan_id' => $scan->id])->assertOk()->json('data.url');
+        $this->assertSame($this->documentPdf()->getContent(), $this->get($url)->assertOk()->getContent());
+    }
+
+    #[Group('tenant-isolation')]
+    #[TestWith(['membership'])]
+    #[TestWith(['role'])]
+    #[TestWith(['write'])]
+    public function test_beta_permissions_cannot_rescue_a_serialized_scan_revoked_before_execution(string $revocation): void
+    {
+        $this->freezeTime();
+        [$org, $user, $contract, , $version, $scan, $transport] = $this->queuedHttpScan();
+        $other = Organization::factory()->create();
+        $this->grantPeopleAccess($other, $user, ['administrative.read', 'administrative.write']);
+        $this->selectOrganization($org);
+        $this->selectOrganization($other);
+        $filePath = 'tenants/'.$org->id.'/artifacts/'.$version->artifact_id;
+        $stored = Storage::disk('local')->get($filePath);
+        $versionBefore = $version->getRawOriginal();
+        $contractVersion = $contract->refresh()->version;
+        $auditCount = DB::table('organization_audit_events')->count();
+        $this->revokeDocumentAccess($org, $user, $revocation);
+        $this->mock(ContractDocumentScanner::class)->shouldNotReceive('scan');
+        $this->mock(TenantArtifacts::class)->shouldNotReceive('read');
+
+        Queue::fake()->except([ScanContractDocument::class]);
+        Bus::dispatchSync(unserialize($transport));
+        $failed = $scan->refresh()->getRawOriginal();
+        Bus::dispatchSync(unserialize($transport));
+
+        $this->assertSame('failed', $scan->refresh()->status);
+        $this->assertSame('worker_failed', $scan->reason);
+        $this->assertNull($scan->started_at);
+        $this->assertNull($scan->engine);
+        $this->assertSame($failed, $scan->getRawOriginal());
+        $this->assertSame($versionBefore, $version->refresh()->getRawOriginal());
+        $this->assertSame($contractVersion, $contract->refresh()->version);
+        $this->assertSame($stored, Storage::disk('local')->get($filePath));
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->assertDatabaseCount('contract_document_scans', 1);
+        $this->assertDatabaseCount('contract_document_versions', 1);
+        $this->assertDatabaseCount('tenant_artifacts', 1);
+        $this->assertSame(0, DB::table('contract_document_scans')->where('organization_id', $other->id)->count());
+        $this->assertFalse(app(TenantExecutionScope::class)->active());
+        $this->assertSame($other->id, session()->get(ActiveOrganizationSession::KEY.'.organization_id'));
+        $this->getJson('/api/v1/tenants/'.$other->id.'/context')->assertOk();
+    }
+
+    #[Group('tenant-isolation')]
+    #[TestWith(['membership', 404])]
+    #[TestWith(['role', 403])]
+    #[TestWith(['read', 403])]
+    public function test_revocation_blocks_an_already_used_signed_link_and_warmed_document_reads(string $revocation, int $status): void
+    {
+        $this->freezeTime();
+        [$org, $user, $contract, $context, $document, $version, $scan] = $this->securityScenario();
+        $other = Organization::factory()->create();
+        $this->grantPeopleAccess($other, $user, ['administrative.read', 'administrative.write']);
+        $this->approveScan($context, $scan);
+        $this->actingAsWithMfa($user);
+        $path = $this->documentPath($org, $contract, $document->id).'/versions/'.$version->id;
+        $url = $this->postJson($path.'/download-link', ['expected_scan_id' => $scan->id])->assertOk()->json('data.url');
+        $this->assertSame($this->documentPdf()->getContent(), $this->get($url)->assertOk()->getContent());
+        $this->getJson($path.'/scans')->assertOk();
+        $filePath = 'tenants/'.$org->id.'/artifacts/'.$version->artifact_id;
+        $stored = Storage::disk('local')->get($filePath);
+        $scanBefore = $scan->getRawOriginal();
+        $auditCount = DB::table('organization_audit_events')->count();
+        $this->revokeDocumentAccess($org, $user, $revocation);
+        $this->mock(TenantArtifacts::class)->shouldNotReceive('read');
+
+        $this->getJson($url)->assertStatus($status)->assertDontSee('PRIVATE DOCUMENT')->assertJsonMissingPath('data');
+        $this->getJson($this->documentPath($org, $contract, $document->id).'/versions')->assertStatus($status)->assertJsonMissingPath('data');
+        $this->getJson($path.'/scans')->assertStatus($status)->assertJsonMissingPath('data');
+        $this->postJson($path.'/download-link', ['expected_scan_id' => $scan->id])->assertStatus($status);
+        $this->postJson($path.'/scans', ['expected_scan_id' => $scan->id])->assertStatus($status);
+        $this->getJson('/api/v1/tenants/'.$other->id.'/context')->assertOk();
+
+        $this->assertSame($scanBefore, $scan->refresh()->getRawOriginal());
+        $this->assertSame($stored, Storage::disk('local')->get($filePath));
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->assertDatabaseCount('contract_document_scans', 1);
+        $this->assertDatabaseCount('contract_document_versions', 1);
+        $this->assertDatabaseCount('tenant_artifacts', 1);
+        Queue::assertPushed(ScanContractDocument::class, 1);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_removing_document_write_keeps_existing_link_readable_but_blocks_rescanning_and_upload(): void
+    {
+        $this->freezeTime();
+        [$org, $user, $contract, $context, $document, $version, $scan] = $this->securityScenario();
+        $this->approveScan($context, $scan);
+        $this->actingAsWithMfa($user);
+        $path = $this->documentPath($org, $contract, $document->id).'/versions/'.$version->id;
+        $url = $this->postJson($path.'/download-link', ['expected_scan_id' => $scan->id])->assertOk()->json('data.url');
+        $this->get($url)->assertOk();
+        $contractVersion = $contract->refresh()->version;
+        $scanBefore = $scan->getRawOriginal();
+        $auditCount = DB::table('organization_audit_events')->count();
+        $this->revokeDocumentAccess($org, $user, 'write');
+
+        $this->assertSame($this->documentPdf()->getContent(), $this->get($url)->assertOk()->getContent());
+        $this->getJson($path.'/scans')->assertOk()->assertJsonPath('data.0.id', $scan->id);
+        $this->postJson($path.'/download-link', ['expected_scan_id' => $scan->id])->assertOk();
+        $this->postJson($path.'/scans', ['expected_scan_id' => $scan->id])->assertForbidden();
+        $this->post($this->documentPath($org, $contract, $document->id).'/versions',
+            ['contract_version' => $contractVersion, 'purpose' => 'draft', 'file' => $this->documentPdf('NEW CONTENT')], ['Accept' => 'application/json'])->assertForbidden();
+
+        $this->assertSame($scanBefore, $scan->refresh()->getRawOriginal());
+        $this->assertSame($contractVersion, $contract->refresh()->version);
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->assertDatabaseCount('contract_document_scans', 1);
+        $this->assertDatabaseCount('contract_document_versions', 1);
+        $this->assertDatabaseCount('tenant_artifacts', 1);
+        Queue::assertPushed(ScanContractDocument::class, 1);
+    }
+
+    /** @return array{Organization, User, ContractRecord, ContractDocument, ContractDocumentVersion, ContractDocumentScan, string} */
+    private function queuedHttpScan(): array
+    {
+        Storage::fake('local');
+        Queue::fake([ScanContractDocument::class]);
+        [$org, $user, $contract, $context] = $this->documentScenario();
+        $document = $this->originalDocument($context, $contract);
+        $this->actingAsWithMfa($user);
+        $response = $this->post($this->documentPath($org, $contract, $document->id).'/versions',
+            ['contract_version' => $contract->version, 'purpose' => 'draft', 'file' => $this->documentPdf()], ['Accept' => 'application/json'])->assertCreated();
+        $versionId = $response->json('data.id');
+        $this->assertIsString($versionId);
+        $version = ContractDocumentVersion::findOrFail($versionId);
+        $scan = ContractDocumentScan::query()->where('document_version_id', $version->id)->firstOrFail();
+        $queue = Queue::getFacadeRoot();
+        $this->assertInstanceOf(QueueFake::class, $queue);
+        $job = $queue->pushed(ScanContractDocument::class)->sole();
+        $this->assertInstanceOf(ScanContractDocument::class, $job);
+        $this->assertSame($org->id, $job->context->tenantId);
+        $this->assertSame($user->id, $job->context->actorUserId);
+        $this->assertSame($scan->id, $job->scanId);
+
+        return [$org, $user, $contract, $document, $version, $scan, serialize($job)];
+    }
+
+    private function selectOrganization(Organization $organization): void
+    {
+        $revision = $this->postJson('/api/v1/active-organization', ['organization_id' => $organization->id])->assertOk()->json('data.revision');
+        $this->withHeader('X-Tenant-Revision', $revision);
+        $this->postJson('/api/v1/active-organization/confirmation', ['organization_id' => $organization->id, 'revision' => $revision, 'confirm' => true])->assertOk();
+    }
+
+    private function revokeDocumentAccess(Organization $organization, User $user, string $revocation): void
+    {
+        if ($revocation === 'membership') {
+            OrganizationMembership::query()->where('organization_id', $organization->id)->where('user_id', $user->id)
+                ->firstOrFail()->forceFill(['status' => 'revoked'])->save();
+        } else {
+            $assignment = OrganizationRoleAssignment::query()->where('organization_id', $organization->id)->where('user_id', $user->id)->firstOrFail();
+            if ($revocation === 'role') {
+                $assignment->forceFill(['status' => 'revoked'])->save();
+            } else {
+                $assignment->role->forceFill(['permissions' => $revocation === 'write' ? ['administrative.read'] : ['administrative.write']])->save();
+            }
+        }
     }
 }

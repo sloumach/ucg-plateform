@@ -9,16 +9,21 @@ use App\Modules\Contracts\Application\Services\ContractDocumentScanService;
 use App\Modules\Contracts\Domain\Contracts\ContractDocumentScanner;
 use App\Modules\Contracts\Domain\ScanVerdict;
 use App\Modules\Contracts\Infrastructure\Queue\ScanContractDocument;
+use App\Modules\Tenancy\Application\Contracts\TenantArtifacts;
 use App\Modules\Tenancy\Application\Contracts\TenantAuditJournal;
+use App\Modules\Tenancy\Application\Services\TenantExecutionScope;
+use App\Modules\Tenancy\Domain\Models\Organization;
 use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use App\Support\Queue\JobContext;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Group;
 use RuntimeException;
 use Tests\Fixtures\ProvidesDocumentSecurity;
 use Tests\TestCase;
@@ -148,5 +153,36 @@ class ContractDocumentScanTest extends TestCase
         }
         app(ContractDocumentScanProcessor::class)->failed($org->id, $scan->id, $user->id);
         $this->assertSame('worker_failed', $scan->refresh()->reason);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_serialized_scan_cannot_use_a_foreign_identifier_even_with_rights_in_both_tenants(): void
+    {
+        [$org, $user, , , , $version, $scan] = $this->securityScenario();
+        $other = Organization::factory()->create();
+        $this->grantPeopleAccess($other, $user, ['administrative.read', 'administrative.write']);
+        $transport = serialize(new ScanContractDocument(new JobContext((string) Str::uuid(), $other->id, $user->id), $scan->id));
+        $before = $scan->getRawOriginal();
+        $filePath = 'tenants/'.$org->id.'/artifacts/'.$version->artifact_id;
+        $stored = Storage::disk('local')->get($filePath);
+        $auditCount = DB::table('organization_audit_events')->count();
+        $this->mock(ContractDocumentScanner::class)->shouldNotReceive('scan');
+        $this->mock(TenantArtifacts::class)->shouldNotReceive('read');
+        Queue::assertPushed(ScanContractDocument::class, 1);
+
+        Queue::fake()->except([ScanContractDocument::class]);
+        try {
+            Bus::dispatchSync(unserialize($transport));
+            $this->fail('A tenant transport must not authorize a foreign scan identifier.');
+        } catch (ModelNotFoundException) {
+            $this->assertSame($before, $scan->refresh()->getRawOriginal());
+        }
+
+        $this->assertSame($stored, Storage::disk('local')->get($filePath));
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->assertDatabaseCount('contract_document_scans', 1);
+        $this->assertDatabaseCount('contract_document_versions', 1);
+        $this->assertDatabaseCount('tenant_artifacts', 1);
+        $this->assertFalse(app(TenantExecutionScope::class)->active());
     }
 }

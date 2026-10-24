@@ -4405,7 +4405,7 @@ dans `docs/etat-projet.md`.
 
 ### Isolation des imports — quatrième lot UCG-QA-002
 
-Le groupe `tenant-isolation` compte désormais **47 cas, 804 assertions**. Douze
+À la fin du quatrième lot, le groupe `tenant-isolation` comptait **47 cas, 804 assertions**. Douze
 cas ajoutés et un scénario étranger renforcé couvrent le job d'import sérialisé
 après bascule HTTP, le rejeu, la révocation avant exécution ou entre blocs,
 les rapports privés et les fichiers identiques déposés dans deux tenants.
@@ -4416,3 +4416,17 @@ Cinq suites liées passent sur SQLite en mémoire et PostgreSQL 17 temporaire :
 Pint/PHPStan verts, cluster arrêté et supprimé ; changements limités aux tests
 et à la documentation. CI du nouveau lot à confirmer après livraison ; QA-002
 reste ouvert. Rapports et limites dans `docs/etat-projet.md`.
+
+### Isolation des documents contractuels — cinquième lot UCG-QA-002
+
+Le groupe `tenant-isolation` compte désormais **57 cas, 1 024 assertions**. Neuf
+cas ajoutés couvrent l'analyse sérialisée après bascule HTTP, son rejeu, la
+révocation avant exécution et les liens signés après révocation. Le retrait de
+l'écriture conserve les lectures autorisées ; fichiers et versions restent intacts.
+
+Six suites liées passent sur SQLite en mémoire et PostgreSQL 17 temporaire :
+**89 tests, 618 assertions par moteur**, sans échec, erreur ou exclusion.
+Pint/PHPStan verts, cluster arrêté et supprimé ; scanner et stockage simulés,
+aucun changement métier ou de migration. Exécuter les commandes SQLite utilisant
+le même stockage simulé successivement. CI du nouveau lot à confirmer après
+livraison ; QA-002 reste ouvert. Rapports et limites dans `docs/etat-projet.md`.

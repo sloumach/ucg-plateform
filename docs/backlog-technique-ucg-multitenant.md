@@ -1430,6 +1430,18 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   dédié, sans push, CI à confirmer après livraison distante. Limites dans etat-projet.md ;
   autres CRUD/jobs et REC-29/30/34/35/36 restent ouverts.
 
+- **Cinquième lot local (24/10/2026)** : documents contractuels. Neuf cas ajoutés,
+  un scénario étranger existant intégré au groupe critique : 57 tests,
+  1 024 assertions. Analyse sérialisée après bascule HTTP, rejeu, révocation avant
+  exécution et anciens liens signés après révocation ; lectures conservées après
+  retrait de l'écriture. Six suites : 89 tests, 618 assertions par moteur SQLite
+  et PostgreSQL 17 temporaire, aucun échec ou test ignoré. Pint/PHPStan verts,
+  cluster supprimé ; scanner/stockage simulés, aucun changement métier ou migration.
+  Commandes SQLite avec stockage simulé commun validées successivement.
+  CI de `14117bd` validée par l'utilisateur ; cinquième lot livré dans un commit
+  dédié, sans push, CI à confirmer après livraison distante.
+  Autres CRUD/jobs et REC-29/30/34/35/36 ouverts.
+
 ### UCG-QA-003 — Tester les parcours navigateur critiques
 
 - **Priorité / taille** : P0 / L
