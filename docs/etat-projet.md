@@ -6,7 +6,16 @@
 ## Point de reprise
 
 - Dernière mise à jour : 24 octobre 2026.
-- Lot courant : **UCG-QA-002, cinquième lot documents contractuels**.
+- Lot courant : **UCG-QA-002, sixième lot rappels contractuels**.
+  Sept cas ajoutés et un scénario étranger renforcé/intégré au groupe critique :
+  65 tests, 1 173 assertions. Quatre suites : 81 tests, 538 assertions sur SQLite
+  et PostgreSQL 17 temporaire, sans échec, erreur ou exclusion. Emails simulés,
+  Pint/PHPStan verts, cluster arrêté/supprimé. Livraison réunie dans un commit
+  UCG-QA-002 dédié au sixième lot, sans push ; détails et limites en fin de document.
+- Reprise du sixième lot : l'utilisateur valide la CI du commit `11d6117`.
+  Arbre propre sur `staging` et référence locale origin/staging concordante au
+  départ ; confirmation utilisateur, sans nouvelle lecture des CI distantes.
+- Livraison précédente : **UCG-QA-002, cinquième lot documents contractuels**.
   Neuf cas ajoutés : analyse sérialisée après bascule HTTP, révocation avant
   exécution, anciens liens après révocation et retrait granulaire d'écriture.
   Un scénario étranger existant intégré au groupe critique : 57 tests,
@@ -5959,3 +5968,66 @@ la file synchrone : ces tests ne prouvent pas un scan ClamAV réel ni l'exploita
 d'un worker Redis. Aucune base existante, donnée réelle, migration, `.env`, frontend
 ou logique métier modifiée. QA-002 reste ouvert pour les autres CRUD/jobs et les
 limites REC-29/30/34/35/36.
+
+## UCG-QA-002 — Sixième lot rappels contractuels (24 octobre 2026)
+
+### Objectif et couverture
+
+Compléter REC-28 sur les rappels contractuels et leurs notifications privées.
+Sept cas ajoutés dans ContractReminderTest ; scénario étranger préexistant
+renforcé par les droits explicites dans les deux tenants et ajouté au groupe
+critique. Les tests existants de révocation/récupération, MFA, réattribution,
+ambiguïté SMTP et contenu générique des emails sont conservés.
+
+- Même compte responsable dans Alpha et Beta : deux RunTenantScheduledTask
+  sérialisés avec le même identifiant d'exécution, puis traitement Alpha/Beta
+  via Bus::dispatchSync et les middlewares réels. Chacun produit son propre rappel,
+  sa notification en application et sa clé d'idempotence email. Rejeu puis nouveau
+  passage après seize minutes : aucun envoi ni ligne supplémentaire, états,
+  tentatives et versions de livraison identiques. Session HTTP Beta préservée,
+  portée d'exécution nettoyée ; boîtes de réception et historiques ne montrent
+  que le rappel du tenant demandé.
+- Emails initialement en attente : révocation Alpha d'adhésion, de rôle,
+  d'administrative.read ou de financial.read avant l'envoi. Le passage Alpha
+  sérialisé/rejoué bloque l'email sans tentative d'envoi, même si le destinataire
+  garde ses permissions complètes dans Beta. La livraison Beta reste d'abord
+  intacte puis est envoyée une seule fois lors de son propre passage.
+  Paramètres et historique Alpha refusés en 404/403 ; boîte Alpha refusée, ou vide
+  pour le seul retrait financier. Lectures Beta légitimes maintenues.
+- Résolution d'une livraison Beta sous un contrat Alpha, ou d'une livraison Alpha
+  sous un autre contrat du même tenant : 404 sans modification des livraisons ni
+  audit de mutation. Les historiques restent isolés ; résolution Beta sous son
+  URL légitime autorisée, sans changer l'incertitude Alpha ni réémettre d'email.
+- Retrait d'administrative.write : lectures encore permises et email encore
+  éligible avec le droit de lecture conservé ; configuration et résolution
+  interdites. Versions du contrat/plan, audits et nombre de rappels préservés.
+
+### Validation
+
+- Groupe critique complet sur SQLite en mémoire : **65 tests, 1 173 assertions**.
+- Quatre suites : ContractReminderTest, ContractReminderMailTest,
+  ContractFinancialGovernanceTest, Modules/Tenancy/TenantScheduledTaskTest.
+  **81 tests, 538 assertions par moteur**, SQLite en mémoire et PostgreSQL 17 neuf.
+  Rapports XML relus : zéro échec, erreur ou exclusion. La suite modifiée a aussi
+  été relancée après normalisation du type de la capture de livraisons :
+  34 tests, 273 assertions, sans échec.
+- Rapports : `back/reports/phpunit-qa002-lot6-critical.xml`,
+  `back/reports/phpunit-qa002-lot6-sqlite.xml`,
+  `back/reports/phpunit-qa002-lot6-postgresql.xml`.
+- Pint/PHPStan verts. Les quatre suites sont déjà incluses dans la sélection
+  PostgreSQL du workflow backend, directement ou via Modules/Tenancy, et dans
+  Feature. Aucun changement de workflow ou dépendance.
+- Commandes SQLite exécutées successivement. PostgreSQL utilise son stockage
+  temporaire distinct ; arrêt et suppression confirmés, aucun répertoire du
+  lanceur restant au contrôle final. Aucune base existante, donnée réelle,
+  migration, `.env`, frontend ou logique métier modifiée.
+
+### Limites et reprise
+
+La CI validée par l'utilisateur concerne `11d6117` ; ce sixième lot est livré
+dans un commit dédié, sans push. Sa CI reste à confirmer après livraison distante.
+Les tâches planifiées portent un contexte système sans
+acteur ; les révocations testées concernent l'éligibilité actuelle du destinataire.
+Transport sérialisé exécuté via la file synchrone et emails capturés par le faux
+mailer existant : aucun SMTP réel ni worker Redis d'exploitation validé ici.
+QA-002 reste ouvert pour les autres CRUD/jobs et les limites REC-29/30/34/35/36.

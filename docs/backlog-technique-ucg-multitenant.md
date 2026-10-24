@@ -1442,6 +1442,17 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   dédié, sans push, CI à confirmer après livraison distante.
   Autres CRUD/jobs et REC-29/30/34/35/36 ouverts.
 
+- **Sixième lot local (24/10/2026)** : rappels contractuels. Sept cas ajoutés,
+  un scénario étranger renforcé/intégré au groupe critique : 65 tests,
+  1 173 assertions. Tâches sérialisées/rejouées dans deux tenants au destinataire
+  commun, révocations avant envoi, historiques privés et résolutions tenant/contrat
+  incorrects ; droits Beta maintenus sans autoriser Alpha. Quatre suites :
+  81 tests, 538 assertions par moteur SQLite/PostgreSQL 17 temporaire, aucun échec
+  ou test ignoré. Pint/PHPStan verts, cluster supprimé, emails simulés ; aucun
+  changement métier ou migration. CI de `11d6117` validée par l'utilisateur ;
+  sixième lot livré dans un commit dédié, sans push, CI à confirmer après livraison distante.
+  Autres CRUD/jobs et REC-29/30/34/35/36 restent ouverts.
+
 ### UCG-QA-003 — Tester les parcours navigateur critiques
 
 - **Priorité / taille** : P0 / L

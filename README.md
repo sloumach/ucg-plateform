@@ -4419,7 +4419,7 @@ reste ouvert. Rapports et limites dans `docs/etat-projet.md`.
 
 ### Isolation des documents contractuels — cinquième lot UCG-QA-002
 
-Le groupe `tenant-isolation` compte désormais **57 cas, 1 024 assertions**. Neuf
+À la fin du cinquième lot, le groupe `tenant-isolation` comptait **57 cas, 1 024 assertions**. Neuf
 cas ajoutés couvrent l'analyse sérialisée après bascule HTTP, son rejeu, la
 révocation avant exécution et les liens signés après révocation. Le retrait de
 l'écriture conserve les lectures autorisées ; fichiers et versions restent intacts.
@@ -4430,3 +4430,17 @@ Pint/PHPStan verts, cluster arrêté et supprimé ; scanner et stockage simulés
 aucun changement métier ou de migration. Exécuter les commandes SQLite utilisant
 le même stockage simulé successivement. CI du nouveau lot à confirmer après
 livraison ; QA-002 reste ouvert. Rapports et limites dans `docs/etat-projet.md`.
+
+### Isolation des rappels contractuels — sixième lot UCG-QA-002
+
+Le groupe `tenant-isolation` compte désormais **65 cas, 1 173 assertions**. Sept
+cas ajoutés couvrent deux tenants avec un destinataire commun, les tâches
+planifiées sérialisées/rejouées, les révocations avant envoi et les historiques
+ou résolutions sous le mauvais tenant/contrat. Les droits Beta restent utilisables
+sans autoriser l'email Alpha révoqué ; le retrait de l'écriture conserve les lectures.
+
+Quatre suites liées passent sur SQLite en mémoire et PostgreSQL 17 temporaire :
+**81 tests, 538 assertions par moteur**, sans échec, erreur ou exclusion.
+Pint/PHPStan verts, cluster arrêté et supprimé ; emails simulés, aucun changement
+métier ou de migration. CI du nouveau lot à confirmer après livraison ; QA-002
+reste ouvert. Rapports et limites dans `docs/etat-projet.md`.

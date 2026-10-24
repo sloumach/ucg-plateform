@@ -16,18 +16,24 @@ use App\Modules\Identity\Domain\Models\User;
 use App\Modules\People\Domain\Models\Person;
 use App\Modules\Tenancy\Application\Contracts\TenantAuditJournal;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
+use App\Modules\Tenancy\Application\Services\TenantExecutionScope;
 use App\Modules\Tenancy\Domain\Contracts\PortabilityRepository;
 use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
 use App\Modules\Tenancy\Domain\Models\OrganizationRole;
 use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use App\Modules\Tenancy\Infrastructure\Queue\RunTenantScheduledTask;
+use App\Modules\Tenancy\Presentation\Support\ActiveOrganizationSession;
 use App\Support\Queue\JobContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\TestWith;
 use RuntimeException;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\FakeContractReminderMailer;
@@ -90,11 +96,13 @@ class ContractReminderTest extends TestCase
         $this->assertDatabaseCount('contract_reminder_plans', 0);
     }
 
+    #[Group('tenant-isolation')]
     public function test_foreign_contracts_and_read_only_accounts_cannot_configure_reminders(): void
     {
         [$org, $user, $contract] = $this->documentScenario();
         $this->actingAsWithMfa($user);
         $foreign = ContractRecord::factory()->create();
+        $this->grantPeopleAccess(Organization::findOrFail($foreign->organization_id), $user, ['administrative.read', 'administrative.write']);
         $this->getJson($this->path($org, $foreign))->assertNotFound();
         $this->patchJson($this->path($org, $foreign), $this->settings($foreign))->assertNotFound();
         $reader = User::factory()->withMfa()->create();
@@ -354,6 +362,198 @@ class ContractReminderTest extends TestCase
         $this->assertCount(0, $this->mailer->sent);
         $this->assertDatabaseHas('contract_reminder_deliveries', ['email_status' => 'blocked', 'reason' => 'obsolete']);
         $this->assertDatabaseCount('contract_reminder_deliveries', 1);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_serialized_scheduled_runs_with_the_same_id_keep_two_tenants_and_their_inboxes_isolated(): void
+    {
+        [$org, $user, $contract] = $this->scenario();
+        [$other, $foreignContract] = $this->scenarioForRecipient($user);
+        $this->actingAsWithMfa($user);
+        $this->selectOrganization($other);
+        $run = (string) Str::uuid();
+        $alpha = serialize(new RunTenantScheduledTask(new JobContext($run, $org->id, null), 'contract-reminders', $run));
+        $beta = serialize(new RunTenantScheduledTask(new JobContext($run, $other->id, null), 'contract-reminders', $run));
+
+        Bus::dispatchSync(unserialize($alpha));
+        $this->assertDatabaseCount('contract_reminder_deliveries', 1);
+        $this->assertSame(0, ContractReminderDelivery::query()->where('organization_id', $other->id)->count());
+        Bus::dispatchSync(unserialize($beta));
+        $deliveries = $this->deliverySnapshot();
+        $sent = $this->mailer->sent;
+        Bus::dispatchSync(unserialize($alpha));
+        Bus::dispatchSync(unserialize($beta));
+        $this->travel(16)->minutes();
+        $this->processReminders($org);
+        $this->processReminders($other);
+
+        $this->assertSame($deliveries, $this->deliverySnapshot());
+        $this->assertSame($sent, $this->mailer->sent);
+        $this->assertCount(2, $sent);
+        $alphaDelivery = ContractReminderDelivery::query()->where('organization_id', $org->id)->firstOrFail();
+        $betaDelivery = ContractReminderDelivery::query()->where('organization_id', $other->id)->firstOrFail();
+        $this->assertNotSame($alphaDelivery->occurrence, $betaDelivery->occurrence);
+        $this->assertSame([['email' => $user->email, 'key' => $alphaDelivery->occurrence], ['email' => $user->email, 'key' => $betaDelivery->occurrence]], $sent);
+        $this->assertDatabaseHas('contract_reminder_deliveries', ['id' => $alphaDelivery->id, 'recipient_id' => $user->id, 'in_app_status' => 'sent', 'email_status' => 'sent', 'attempts' => 1]);
+        $this->assertDatabaseHas('contract_reminder_deliveries', ['id' => $betaDelivery->id, 'recipient_id' => $user->id, 'in_app_status' => 'sent', 'email_status' => 'sent', 'attempts' => 1]);
+        $this->assertFalse(app(TenantExecutionScope::class)->active());
+        $this->assertSame($other->id, session()->get(ActiveOrganizationSession::KEY.'.organization_id'));
+        $this->getJson('/api/v1/tenants/'.$other->id.'/contracts/reminders')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $betaDelivery->id);
+        $this->getJson($this->path($other, $foreignContract).'/history')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $betaDelivery->id);
+        $this->selectOrganization($org);
+        $this->getJson('/api/v1/tenants/'.$org->id.'/contracts/reminders')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $alphaDelivery->id);
+        $this->getJson($this->path($org, $contract).'/history')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $alphaDelivery->id);
+    }
+
+    #[Group('tenant-isolation')]
+    #[TestWith(['membership'])]
+    #[TestWith(['role'])]
+    #[TestWith(['read'])]
+    #[TestWith(['financial'])]
+    public function test_beta_recipient_rights_cannot_authorize_pending_alpha_mail_after_revocation(string $revocation): void
+    {
+        [$org, $user, $contract] = $this->scenario(30, true, $revocation === 'financial');
+        [$other, $foreignContract] = $this->scenarioForRecipient($user, $revocation === 'financial');
+        $this->mailer->enabled = false;
+        $this->processReminders($org);
+        $this->processReminders($other);
+        $alpha = ContractReminderDelivery::query()->where('organization_id', $org->id)->firstOrFail();
+        $beta = ContractReminderDelivery::query()->where('organization_id', $other->id)->firstOrFail();
+        $betaBefore = $beta->getRawOriginal();
+        $this->actingAsWithMfa($user);
+        $this->getJson($this->path($org, $contract).'/history')->assertOk();
+        $this->getJson('/api/v1/tenants/'.$org->id.'/contracts/reminders')->assertOk()->assertJsonCount(1, 'data');
+        $this->revokeReminderAccess($org, $user, $revocation);
+        $this->mailer->enabled = true;
+        $run = (string) Str::uuid();
+        $transport = serialize(new RunTenantScheduledTask(new JobContext($run, $org->id, null), 'contract-reminders', $run));
+
+        Bus::dispatchSync(unserialize($transport));
+        Bus::dispatchSync(unserialize($transport));
+
+        $this->assertSame([], $this->mailer->sent);
+        $this->assertDatabaseHas('contract_reminder_deliveries', ['id' => $alpha->id, 'organization_id' => $org->id, 'email_status' => 'blocked', 'reason' => 'recipient_unavailable', 'attempts' => 0, 'email_sent_at' => null]);
+        $this->assertSame($betaBefore, $beta->refresh()->getRawOriginal());
+        $status = $revocation === 'membership' ? 404 : 403;
+        $this->getJson($this->path($org, $contract))->assertStatus($status)->assertJsonMissingPath('data');
+        $this->getJson($this->path($org, $contract).'/history')->assertStatus($status)->assertJsonMissingPath('data');
+        if ($revocation === 'financial') {
+            $this->getJson('/api/v1/tenants/'.$org->id.'/contracts/reminders')->assertOk()->assertJsonCount(0, 'data');
+        } else {
+            $this->getJson('/api/v1/tenants/'.$org->id.'/contracts/reminders')->assertStatus($status)->assertJsonMissingPath('data');
+        }
+        $this->processReminders($other);
+        $this->processReminders($other);
+        $this->assertSame([['email' => $user->email, 'key' => $beta->occurrence]], $this->mailer->sent);
+        $this->assertDatabaseHas('contract_reminder_deliveries', ['id' => $beta->id, 'email_status' => 'sent', 'attempts' => 1]);
+        $this->getJson('/api/v1/tenants/'.$other->id.'/contracts/reminders')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $beta->id);
+        $this->getJson($this->path($other, $foreignContract).'/history')->assertOk()->assertJsonPath('data.0.id', $beta->id);
+        $this->assertDatabaseCount('contract_reminder_deliveries', 2);
+        $this->assertFalse(app(TenantExecutionScope::class)->active());
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_foreign_and_wrong_contract_resolution_ids_return_404_without_mutating_deliveries(): void
+    {
+        [$org, $user, $contract] = $this->scenario();
+        [$other, $foreignContract] = $this->scenarioForRecipient($user);
+        $this->mailer->fail = true;
+        $this->processReminders($org);
+        $this->processReminders($other);
+        $alpha = ContractReminderDelivery::query()->where('organization_id', $org->id)->firstOrFail();
+        $beta = ContractReminderDelivery::query()->where('organization_id', $other->id)->firstOrFail();
+        $sameTenantContract = ContractRecord::factory()->create(['organization_id' => $org->id,
+            'responsible_person_id' => $contract->responsible_person_id, 'created_by' => $user->id, 'prepared_by' => $user->id]);
+        $before = $this->deliverySnapshot();
+        $auditCount = DB::table('organization_audit_events')->count();
+        $this->actingAsWithMfa($user);
+
+        $this->getJson($this->path($org, $foreignContract))->assertNotFound();
+        $this->getJson($this->path($org, $foreignContract).'/history')->assertNotFound();
+        $this->postJson($this->path($org, $contract).'/'.$beta->id.'/resolution', ['expected_version' => $beta->version, 'action' => 'confirm_sent'])->assertNotFound();
+        $this->postJson($this->path($org, $sameTenantContract).'/'.$alpha->id.'/resolution', ['expected_version' => $alpha->version, 'action' => 'confirm_sent'])->assertNotFound();
+        $this->assertSame($before, $this->deliverySnapshot());
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->assertCount(2, $this->mailer->sent);
+        $this->getJson($this->path($org, $contract).'/history')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $alpha->id);
+        $this->getJson($this->path($other, $foreignContract).'/history')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $beta->id);
+        $this->postJson($this->path($other, $foreignContract).'/'.$beta->id.'/resolution', ['expected_version' => $beta->version, 'action' => 'confirm_sent'])->assertOk();
+        $this->assertSame('uncertain', $alpha->refresh()->email_status);
+        $this->assertSame('sent', $beta->refresh()->email_status);
+        $this->processReminders($org);
+        $this->processReminders($other);
+        $this->assertCount(2, $this->mailer->sent);
+        $this->assertDatabaseCount('contract_reminder_deliveries', 2);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_removing_reminder_write_preserves_reads_and_eligible_email_but_blocks_settings_and_resolution(): void
+    {
+        [$org, $user, $contract] = $this->scenario();
+        $this->mailer->enabled = false;
+        $this->processReminders($org);
+        $delivery = ContractReminderDelivery::query()->firstOrFail();
+        $plan = ContractReminderPlan::query()->firstOrFail();
+        $contractVersion = $contract->version;
+        $auditCount = DB::table('organization_audit_events')->count();
+        $this->actingAsWithMfa($user);
+        $this->getJson($this->path($org, $contract).'/history')->assertOk();
+        $this->revokeReminderAccess($org, $user, 'write');
+
+        $this->getJson($this->path($org, $contract))->assertOk()->assertJsonPath('data.version', $plan->version);
+        $this->getJson($this->path($org, $contract).'/history')->assertOk()->assertJsonPath('data.0.id', $delivery->id);
+        $this->getJson('/api/v1/tenants/'.$org->id.'/contracts/reminders')->assertOk()->assertJsonCount(1, 'data');
+        $this->patchJson($this->path($org, $contract), [...$this->settings($contract), 'expected_version' => $plan->version, 'enabled' => false])->assertForbidden();
+        $this->postJson($this->path($org, $contract).'/'.$delivery->id.'/resolution', ['expected_version' => $delivery->version, 'action' => 'confirm_sent'])->assertForbidden();
+        $this->assertSame('pending', $delivery->refresh()->email_status);
+        $this->mailer->enabled = true;
+        $this->processReminders($org);
+        $this->assertSame([['email' => $user->email, 'key' => $delivery->occurrence]], $this->mailer->sent);
+        $this->assertSame('sent', $delivery->refresh()->email_status);
+        $this->assertSame($contractVersion, $contract->refresh()->version);
+        $this->assertSame($plan->version, $plan->refresh()->version);
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->assertDatabaseCount('contract_reminder_deliveries', 1);
+    }
+
+    /** @return array{Organization, ContractRecord} */
+    private function scenarioForRecipient(User $recipient, bool $financial = false): array
+    {
+        [$org, , $contract] = $this->scenario(30, true, $financial);
+        $this->grantPeopleAccess($org, $recipient, ['administrative.read', 'administrative.write', ...($financial ? ['financial.read'] : [])]);
+        Person::query()->whereKey($contract->responsible_person_id)->firstOrFail()->forceFill(['user_id' => $recipient->id])->save();
+
+        return [$org, $contract];
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function deliverySnapshot(): array
+    {
+        return array_values(DB::table('contract_reminder_deliveries')->orderBy('id')->get()->map(fn (object $delivery): array => get_object_vars($delivery))->all());
+    }
+
+    private function selectOrganization(Organization $organization): void
+    {
+        $revision = $this->postJson('/api/v1/active-organization', ['organization_id' => $organization->id])->assertOk()->json('data.revision');
+        $this->withHeader('X-Tenant-Revision', $revision);
+        $this->postJson('/api/v1/active-organization/confirmation', ['organization_id' => $organization->id, 'revision' => $revision, 'confirm' => true])->assertOk();
+    }
+
+    private function revokeReminderAccess(Organization $organization, User $user, string $revocation): void
+    {
+        if ($revocation === 'membership') {
+            OrganizationMembership::query()->where('organization_id', $organization->id)->where('user_id', $user->id)->firstOrFail()->forceFill(['status' => 'revoked'])->save();
+        } else {
+            $assignment = OrganizationRoleAssignment::query()->where('organization_id', $organization->id)->where('user_id', $user->id)->firstOrFail();
+            if ($revocation === 'role') {
+                $assignment->forceFill(['status' => 'revoked'])->save();
+            } else {
+                $permissions = array_values(array_diff($assignment->role->permissions, [match ($revocation) {
+                    'read' => 'administrative.read', 'financial' => 'financial.read', default => 'administrative.write',
+                }]));
+                $assignment->role->forceFill(['permissions' => $permissions, 'version' => (string) Str::uuid()])->save();
+            }
+        }
     }
 
     /** @return array{Organization, User, ContractRecord, TenantContext} */
