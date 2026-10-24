@@ -1434,6 +1434,13 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   Second CSV Beta distinct, rechargement et mobile 375/320. Treize tenants et onze
   comptes de scénario/intervenants. Les cinq autres rapports exportables et les cas
   avancés de révocation/nettoyage en environnement hébergé restent à approfondir.
+- **Septième lot local (24/10/2026)** : invitations d'organisation avec API réelle,
+  rôle Membre et période d'adhésion, expiration et refus sans accès, révocation,
+  réémission puis acceptation et une seule adhésion. Doublon, délégation administrateur,
+  rôle injecté, autre destinataire et accès inter-tenant refusés. Rechargements et
+  mobile ; quinze tenants et treize comptes de scénario/intervenants. SQLite du
+  lanceur sérialisée pour éviter les collisions HTTP/worker ; SMTP reste exclu.
+  Enrôlement/récupération MFA et invitations avancées restent ouverts.
 
 ### UCG-QA-004 — Tester concurrence et idempotence
 

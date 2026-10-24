@@ -20,6 +20,7 @@ test('the harness discards inherited application settings and refuses foreign pa
     const environment = isolatedEnvironment(root, 'a'.repeat(64), 18000, 15173, {
       PATH: process.env.PATH, DB_CONNECTION: 'pgsql', DB_DATABASE: 'production',
       APP_KEY: 'production-sentinel', AWS_SECRET_ACCESS_KEY: 'production-sentinel',
+      MAIL_MAILER: 'smtp', MAIL_HOST: 'production-sentinel',
       VITE_APP_KEY: 'production-sentinel', CI: 'true',
     })
     assert.equal(environment.DB_CONNECTION, 'sqlite')
@@ -27,6 +28,7 @@ test('the harness discards inherited application settings and refuses foreign pa
     assert.equal(environment.QUEUE_CONNECTION, 'database')
     assert.equal(environment.REPORT_EXPORTS_ENABLED, 'true')
     assert.equal(environment.EXPIRE_TENANT_ARTIFACTS_ENABLED, 'false')
+    assert.equal(environment.MAIL_MAILER, 'array')
     assert.equal(environment.CI, 'true')
     assert.equal(JSON.stringify(environment).includes('production-sentinel'), false)
     assert.throws(() => assertHarnessRoot(resolve(root, '..')))

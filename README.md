@@ -4155,11 +4155,22 @@ Le panneau réutilise la confirmation explicite d'organisation des autres module
 une session nouvellement ouverte peut confirmer sa première demande depuis les
 exports, sans devoir écrire dans un autre module au préalable.
 
+Le septième scénario couvre les invitations d'organisation, avec un gestionnaire
+et un destinataire vérifié déjà enrôlé MFA. Invitation expirée et refus d'une autre
+organisation sans accès accordé, création avec rôle Membre et période, doublon et
+délégation administrateur refusés, révocation puis réémission et acceptation par
+le destinataire : le parcours utilise les formulaires et confirmations réels.
+Une seule adhésion est créée, sans permission de gestion ajoutée. Invitations
+étrangères, autre compte, rôle injecté et nouvelle acceptation sont refusés.
+Historique, accès après rechargement et largeurs 375/320 sont contrôlés. Les e-mails
+restent dans la file notifications, non consommée ; aucun envoi SMTP réel.
+
 Chaque lancement crée un dossier temporaire propre, une SQLite vide, une clé de
 chiffrement éphémère et des sessions/fichiers/caches isolés. Il applique les
-migrations uniquement à cette nouvelle base et peuple treize organisations
-fictives : six comptes de scénario distincts, chacun avec son organisation de
-travail et son organisation en lecture seule, un approbateur pour les matchs,
+migrations uniquement à cette nouvelle base et peuple quinze organisations
+fictives : sept comptes de scénario distincts, chacun avec son organisation de
+travail et une seconde organisation de contrôle, un destinataire d'invitation,
+un approbateur pour les matchs,
 un approbateur et un gestionnaire administratif pour les contrats, deux comptes
 de contrôle des droits d'export, et un tenant inaccessible.
 Les scénarios n'utilisent pas les écritures de l'autre. Les identifiants de ces fixtures sont publics et réservés
@@ -4176,6 +4187,12 @@ Les requêtes du navigateur vers des origines autres que ces deux serveurs sont
 bloquées. Seul `--headed` peut être ajouté ; une autre configuration ne peut pas
 être substituée au lanceur par argument CLI.
 
+Le bootstrap réservé aux tests configure cette SQLite en WAL, avec délai d'attente
+de cinq secondes et transactions IMMEDIATE, afin de sérialiser les écritures du
+serveur et du worker. Ces réglages ne modifient pas `back/config/database.php` ni
+les bases de développement. Le profil e-mail reste `array`, même si le poste
+fournit des paramètres SMTP.
+
 La CI frontend exécute ces scénarios après la suite Playwright existante. Rapports :
 `front/reports/playwright-real.xml`, `playwright-real-html` et
 `playwright-real-results`. En cas d'échec, une trace, une capture et, s'il existe,
@@ -4189,7 +4206,7 @@ une clé de format `v2`, puis reconstruit les modèles en mémoire. Les ancienne
 clés `v1` expirent selon leur durée existante de cinq minutes ; aucune purge
 globale ni modification du réglage `cache.serializable_classes=false` nécessaire.
 
-QA-003 reste ouvert pour les invitations, l'enrôlement/récupération MFA, les
+QA-003 reste ouvert pour l'enrôlement/récupération MFA, les cas avancés d'invitation,
 rapports exportables autres que l'effectif actif, les documents/avenants/rappels des contrats et les cas avancés des matchs, ainsi que les cas de
 réservation, récurrence et notifications du calendrier. Cette
 suite locale/CI utilise SQLite ; elle ne remplace pas une recette PostgreSQL ni

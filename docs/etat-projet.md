@@ -5272,3 +5272,48 @@ QA-003 reste ouvert pour invitations et MFA avancé, cinq autres rapports export
 documents/avenants/rappels des contrats et cas avancés des autres modules. Le prochain
 lot proposé couvre les invitations avec API réelle, puis l'enrôlement/récupération
 MFA. L'hébergement reste différé selon la décision du responsable.
+
+## UCG-QA-003 — Septième parcours réel : invitations (24 octobre 2026)
+
+- Deux organisations dédiées, gestionnaire MFA avec invitations.manage et
+  memberships.manage dans Alpha et accès simple dans Beta. Destinataire déjà
+  vérifié et enrôlé MFA, sans organisation initiale. Quinze tenants et treize
+  comptes de scénario/intervenants au total. Pas de dépendance aux écritures des
+  autres scénarios.
+- Invitation Alpha expirée : état affiché et aucune action Accepter ; tentative
+  directe refusée avec INVITATION_EXPIRED. Invitation Beta refusée par le formulaire
+  de confirmation ; aucune organisation accessible ni adhésion créée.
+- Gestionnaire : invitation avec e-mail normalisé, rôle Membre et période explicite
+  UTC, formulaire à 320 px après contrôle 375/320. Doublon pending et délégation
+  administrateur par un non-propriétaire refusés. Tentative d'accepter par un autre
+  compte et révocation d'un identifiant d'invitation étranger refusées.
+- Invitation conservée après rechargement puis révoquée depuis l'interface.
+  Destinataire : état Révoquée sans bouton d'acceptation et nouvel essai direct
+  refusé. Aucun membre destinataire avant la réémission. Nouvelle invitation
+  distincte, rôle injecté refusé, acceptation réelle puis sélection d'Alpha.
+- Une seule adhésion active, rôle member, fin de période conservée ; contexte
+  limité à organization.view. Nouvelle acceptation refusée, gestion des invitations
+  interdite et Beta inaccessible. État accepté et accès Alpha conservés après
+  rechargement. Historique Alpha limité à expired/revoked/accepted. Gestionnaire
+  passé à Beta : formulaire absent, données Alpha disparues et création refusée.
+- E-mails seulement mis en file notifications, non consommée par le worker du
+  lanceur. Profil array et exclusion de SMTP hérité vérifiés. Ce lot ne valide pas
+  la livraison d'e-mail, la création de compte, la vérification d'adresse ou
+  l'enrôlement MFA du destinataire.
+- Premier lancement : verrou SQLite pendant la réservation d'un job d'export
+  existant. Correction du bootstrap de test uniquement : WAL, attente de 5 s et
+  transactions IMMEDIATE pour sérialiser les écritures HTTP/worker. Aucun changement
+  de back/config/database.php ou de base réelle. Les garde-fous restent exécutés
+  avant le bootstrap et le nettoyage suit l'arrêt des processus.
+- Validation : sept parcours réels sous Chrome ; InvitationControllerTest :
+  17 tests, 93 assertions ; TenantWorkspace : 7 tests ; quatre contrôles du lanceur.
+  Typage strict, lint, Pint dirty et PHPStan sans erreur. Pas de nouvelle CI distante
+  ou suite complète PostgreSQL revendiquée.
+- Aucun code métier ou schéma applicatif modifié, pas de migration appliquée sur
+  une base existante, de `.env` réel modifié ou d'envoi SMTP réel. Tests et documentation
+  réunis dans un commit local UCG-QA-003 sans push.
+
+QA-003 reste ouvert pour l'enrôlement/récupération MFA, les cas avancés d'invitation,
+les cinq autres rapports exportables, les documents/avenants/rappels des contrats
+et les cas avancés des autres modules. Le prochain lot proposé porte sur
+l'enrôlement et la récupération MFA avec API réelle. Hébergement toujours différé.

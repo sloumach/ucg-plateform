@@ -13,6 +13,7 @@ use App\Modules\Teams\Domain\Models\TeamLineup;
 use App\Modules\Teams\Domain\Models\TeamLineupEntry;
 use App\Modules\Teams\Domain\Models\TeamMembership;
 use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Modules\Tenancy\Domain\Models\OrganizationInvitation;
 use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
 use App\Modules\Tenancy\Domain\Models\OrganizationRole;
 use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
@@ -76,6 +77,10 @@ $exportColleague = User::factory()->withMfa()->create(['name' => 'Browser export
 $exportReader = User::factory()->withMfa()->create(['name' => 'Browser export reader', 'email' => 'browser-export-reader@example.test', 'password' => 'Browser-fixture-only-2026!']);
 $exportAlpha = Organization::factory()->create(['name' => 'Export Alpha', 'slug' => 'export-alpha', 'timezone' => 'UTC']);
 $exportBeta = Organization::factory()->create(['name' => 'Export Beta', 'slug' => 'export-beta', 'timezone' => 'UTC']);
+$invitationManager = User::factory()->withMfa()->create(['name' => 'Browser invitation manager', 'email' => 'browser-inviter@example.test', 'password' => 'Browser-fixture-only-2026!']);
+$invitationRecipient = User::factory()->withMfa()->create(['name' => 'Browser invitation recipient', 'email' => 'browser-invitee@example.test', 'password' => 'Browser-fixture-only-2026!']);
+$invitationAlpha = Organization::factory()->create(['name' => 'Invitation Alpha', 'slug' => 'invitation-alpha']);
+$invitationBeta = Organization::factory()->create(['name' => 'Invitation Beta', 'slug' => 'invitation-beta']);
 foreach ([
     [$user, $alpha, ['sports.read', 'sports.write']], [$user, $beta, ['sports.read']],
     [$rosterUser, $rosterAlpha, ['sports.read', 'sports.write', 'teams.manage']], [$rosterUser, $rosterBeta, ['sports.read']],
@@ -90,6 +95,8 @@ foreach ([
     [$exportUser, $exportBeta, ['reporting.export', 'reporting.direction', 'sports.read']],
     [$exportColleague, $exportAlpha, ['reporting.export', 'reporting.direction', 'sports.read', 'sports.write']],
     [$exportReader, $exportAlpha, ['reporting.direction', 'sports.read']],
+    [$invitationManager, $invitationAlpha, ['invitations.manage', 'memberships.manage']],
+    [$invitationManager, $invitationBeta, ['organization.view']],
 ] as [$account, $organization, $permissions]) {
     $membership = OrganizationMembership::factory()->create(['organization_id' => $organization->id, 'user_id' => $account->id]);
     $role = OrganizationRole::factory()->create([
@@ -150,6 +157,9 @@ $expiredExport->forceFill(['organization_id' => $exportAlpha->id, 'actor_user_id
     'request_key' => (string) Str::uuid(), 'card' => 'active_people', 'view' => 'direction', 'timezone' => 'UTC',
     'from_date' => now()->toDateString(), 'to_date' => now()->addDay()->toDateString(), 'status' => 'queued',
     'created_at' => now()->subHours(2), 'expires_at' => now()->subHour()])->save();
+$expiredInvitation = OrganizationInvitation::factory()->create(['organization_id' => $invitationAlpha->id,
+    'email' => $invitationRecipient->email, 'invited_by' => $invitationManager->id, 'expires_at' => now()->subMinute()]);
+$betaInvitation = OrganizationInvitation::factory()->create(['organization_id' => $invitationBeta->id, 'email' => $invitationRecipient->email]);
 echo json_encode([
     'alpha' => $alpha->id, 'beta' => $beta->id, 'foreign' => $foreign->id,
     'betaPerson' => $betaPerson->id, 'foreignPerson' => $foreignPerson->id,
@@ -170,4 +180,7 @@ echo json_encode([
     'export' => ['alpha' => $exportAlpha->id, 'beta' => $exportBeta->id, 'from' => now()->toDateString(), 'to' => now()->addDay()->toDateString(),
         'person' => $exportPerson->id, 'personVersion' => $exportPerson->version, 'formulaPerson' => $exportFormulaPerson->id,
         'betaPerson' => $exportBetaPerson->id, 'expired' => $expiredExport->id],
+    'invitation' => ['alpha' => $invitationAlpha->id, 'beta' => $invitationBeta->id, 'recipient' => $invitationRecipient->id,
+        'expired' => $expiredInvitation->id, 'betaInvitation' => $betaInvitation->id,
+        'start' => now()->subDay()->toDateString(), 'end' => now()->addDays(7)->toDateString()],
 ], JSON_THROW_ON_ERROR);

@@ -1,6 +1,8 @@
 <?php
 
+use Illuminate\Contracts\Config\Repository;
 use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Bootstrap\LoadConfiguration;
 
 // This entry point belongs only to the isolated browser harness, never public/index.php.
 $root = getenv('UCG_BROWSER_ROOT');
@@ -31,6 +33,13 @@ if (! $application instanceof Application) {
 }
 $application->useEnvironmentPath($root);
 $application->useStoragePath($root.'/storage');
+$application->afterBootstrapping(LoadConfiguration::class, function (Application $application): void {
+    // The HTTP server and queue worker share only this disposable SQLite file.
+    $configuration = $application->make(Repository::class);
+    $configuration->set('database.connections.sqlite.journal_mode', 'WAL');
+    $configuration->set('database.connections.sqlite.busy_timeout', 5000);
+    $configuration->set('database.connections.sqlite.transaction_mode', 'IMMEDIATE');
+});
 if (preg_match('/^[A-Za-z]:[\\\\\/]/', $root) === 1) {
     $application->addAbsoluteCachePathPrefix(substr($root, 0, 3));
 }

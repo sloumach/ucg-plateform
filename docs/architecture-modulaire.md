@@ -3093,3 +3093,22 @@ la durée réelle et le nettoyage restent couverts par les tests backend dédié
 Le parcours modifie ensuite une personne via l'API publique pour vérifier le refus
 du snapshot périmé. Treize tenants et onze comptes de scénario/intervenants sont
 isolés dans les ressources temporaires.
+
+Le septième parcours couvre les invitations d'organisation et leur admission :
+gestionnaire avec invitations.manage/memberships.manage dans Alpha, accès simple
+dans Beta, destinataire vérifié avec MFA et sans adhésion initiale. Une invitation
+Alpha déjà échue et une invitation Beta déclinée sont conservées dans l'historique.
+Créations, révocation et acceptation passent par les endpoints et confirmations
+publics. Le rôle Membre n'ajoute que organization.view, sans attribution de rôle
+personnalisé ni permission administrative implicite. L'envoi est mis en file
+notifications, que le worker de cette suite ne consomme pas ; MAIL_MAILER=array
+et l'exclusion de paramètres SMTP hérités sont contrôlés par le test du lanceur.
+
+Un verrou SQLite pendant la réservation d'un job d'export a révélé une collision
+entre lectures et écritures du serveur et du worker en mode DEFERRED. Le bootstrap
+PHP exclusivement réservé au lanceur installe après LoadConfiguration, avant toute
+connexion, journal_mode=WAL, busy_timeout=5000 et transaction_mode=IMMEDIATE.
+L'API Laravel et le worker partagent ces réglages, après les mêmes gardes de chemin,
+profil et configuration. Le réglage applicatif de la base et les profils de
+déploiement restent inchangés. La suite compte quinze tenants et treize comptes
+de scénario/intervenants dans les ressources temporaires.
