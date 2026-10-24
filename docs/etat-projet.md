@@ -6,7 +6,17 @@
 ## Point de reprise
 
 - Dernière mise à jour : 24 octobre 2026.
-- Lot courant : **UCG-QA-002, huitième lot imports statistiques**.
+- Lot courant : **UCG-QA-002, neuvième lot observations statistiques**.
+  Huit cas ajoutés et un scénario étranger existant intégré au groupe critique :
+  95 tests, 1 921 assertions. Quatre suites : 112 tests, 1 459 assertions sur
+  SQLite et PostgreSQL 17 temporaire, sans échec, erreur ou exclusion.
+  Pint/PHPStan verts, cluster arrêté/supprimé. Livraison réunie dans un commit
+  UCG-QA-002 dédié au neuvième lot, sans push ; détails et limites en fin de document.
+- Reprise du neuvième lot : l'utilisateur annonce lancer la CI de `a581415`,
+  puis autorise le démarrage prudent du lot suivant. Aucun résultat de cette CI
+  n'a été confirmé ; pas de nouvelle lecture distante ici. Arbre propre sur
+  `staging` et référence locale origin/staging concordante au départ.
+- Livraison précédente : **UCG-QA-002, huitième lot imports statistiques**.
   Neuf cas ajoutés et un scénario étranger existant intégré au groupe critique :
   86 tests, 1 695 assertions. Quatre suites : 104 tests, 1 082 assertions sur
   SQLite et PostgreSQL 17 temporaire, sans échec, erreur ou exclusion.
@@ -6177,3 +6187,65 @@ est exécuté par le service réel ; le job sérialisé est ensuite exécuté ap
 révocation ou reprise. Stockage local simulé et transport via la file synchrone :
 aucun worker Redis d'exploitation validé ici. QA-002 reste ouvert pour les autres
 CRUD/jobs et les limites REC-29/30/34/35/36.
+
+## UCG-QA-002 — Neuvième lot observations statistiques (24 octobre 2026)
+
+### Objectif et couverture
+
+Compléter les frontières HTTP des observations, corrections et historiques, ainsi
+que leur dépendance à l'audience des matchs. Huit cas ajoutés dans ObservationTest ;
+scénario étranger préexistant ajouté au groupe critique. Les tests existants de
+provenance d'import, droits distincts, concurrence et versions restent conservés.
+
+- Acteur explicitement autorisé à créer/corriger dans Alpha et Beta, avec une
+  observation lisible dans chaque tenant. Dans les deux sens, URL de détail,
+  historique, version ou correction portant l'identifiant étranger refusée en
+  404, comme la création utilisant une personne de l'autre tenant. Captures des
+  observations/révisions et nombre d'audits identiques après refus.
+- Révocation Alpha d'adhésion, de rôle ou de sports.statistics.read après lectures
+  réussies : liste, détail, historique, version et choix de personnes refusés en
+  404/403, ainsi que création/correction. Aucune donnée privée dans les réponses,
+  aucune écriture ni audit de mutation. Observation Beta encore lisible et
+  correction autorisée vers 12.125 ; valeur zéro et historique Alpha préservés.
+- Retrait de sports.statistics.write : lectures conservées, création et choix
+  de personnes refusés, correction encore autorisée. Une seule révision/audit
+  supplémentaire pour la correction légitime ; version initiale zéro lisible.
+- Retrait de sports.statistics.correct : correction interdite sans écriture,
+  création d'une autre observation autorisée ; observation/version initiales
+  intactes et lisibles. Les deux permissions ne s'accordent pas mutuellement.
+- Identifiant de version d'une autre observation du même tenant : consultation
+  sous le mauvais parent refusée en 404, utilisation pour corriger l'autre
+  observation refusée en 409/OBSERVATION_STALE. Aucune révision ni audit ajouté.
+- Match initialement partagé avec l'organisation puis restreint à privé par un
+  changement contrôlé de fixture serveur : observation et choix de match retirés
+  des listes, détail/historique/version et correction refusés en 404, comme une
+  nouvelle observation sur ce match. Les observations/révisions restent intactes ;
+  le créateur du match garde l'accès légitime aux valeurs et versions existantes.
+
+### Validation
+
+- Groupe critique complet sur SQLite en mémoire : **95 tests, 1 921 assertions**.
+- Quatre suites : ObservationTest, StatisticalCalculationTest,
+  StatisticalImportProcessingTest, MatchControllerTest.
+  **112 tests, 1 459 assertions par moteur**, SQLite en mémoire et PostgreSQL 17 neuf.
+  Rapports XML relus : zéro échec, erreur ou exclusion.
+- Rapports : `back/reports/phpunit-qa002-lot9-critical.xml`,
+  `back/reports/phpunit-qa002-lot9-sqlite.xml`,
+  `back/reports/phpunit-qa002-lot9-postgresql.xml`.
+- Pint/PHPStan verts. Les quatre suites sont déjà incluses dans la sélection
+  PostgreSQL du workflow backend et dans Feature ; aucun changement de workflow
+  ou dépendance requis.
+- Commandes SQLite successives, PostgreSQL avec stockage temporaire distinct.
+  Cluster arrêté/supprimé, aucun répertoire du lanceur restant au contrôle final.
+  Aucune base existante, donnée réelle, migration, `.env`, frontend ou logique
+  métier modifiée.
+
+### Limites et reprise
+
+La CI de `a581415` a été annoncée en lancement, sans validation rapportée. Ce
+neuvième lot est livré dans un commit dédié, sans push ; sa propre CI reste à
+obtenir après livraison distante. Le changement d'audience
+est préparé dans la fixture pour tester sa prise en compte par les routes
+d'observation ; il ne rejoue pas le partage dans le navigateur. La concurrence
+réelle d'ObservationConcurrencyTest n'est pas réexécutée par ces quatre suites.
+QA-002 reste ouvert pour les autres CRUD/jobs et les limites REC-29/30/34/35/36.

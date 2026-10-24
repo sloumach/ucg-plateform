@@ -1476,6 +1476,18 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   livré dans un commit dédié demandé explicitement, sans push, CI à confirmer
   après livraison distante. Autres CRUD/jobs et REC-29/30/34/35/36 ouverts.
 
+- **Neuvième lot local (24/10/2026)** : observations statistiques. Huit cas
+  ajoutés, un scénario étranger existant intégré au groupe critique : 95 tests,
+  1 921 assertions. Observations/versions entre tenants, révocations après lecture,
+  création/correction distinctes et retrait d'audience d'un match ; valeurs et
+  historiques conservés après refus. Quatre suites : 112 tests, 1 459 assertions
+  par moteur SQLite/PostgreSQL 17 temporaire, aucun échec ou test ignoré.
+  Pint/PHPStan verts, cluster supprimé ; aucun changement métier ou migration.
+  CI de `a581415` annoncée en lancement, sans résultat confirmé ; neuvième lot
+  livré dans un commit dédié, sans push, CI à obtenir après livraison distante.
+  Limites dans etat-projet.md ; autres
+  CRUD/jobs et REC-29/30/34/35/36 restent ouverts.
+
 ### UCG-QA-003 — Tester les parcours navigateur critiques
 
 - **Priorité / taille** : P0 / L

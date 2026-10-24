@@ -11,9 +11,11 @@ use App\Modules\Performance\Application\Services\ObservationService;
 use App\Modules\Performance\Application\Validation\MetricCatalogueInput;
 use App\Modules\Performance\Domain\Models\StatisticalObservation;
 use App\Modules\Teams\Domain\Models\GameCatalogueEntry;
+use App\Modules\Teams\Domain\Models\OrganizationGame;
 use App\Modules\Tenancy\Application\Contracts\TenantAuditJournal;
 use App\Modules\Tenancy\Domain\Contracts\PortabilityRepository;
 use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
 use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\QueryException;
@@ -23,6 +25,8 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesMatchScores;
 use Tests\Fixtures\ProvidesMetricCatalogue;
@@ -72,6 +76,7 @@ class ObservationTest extends TestCase
         $this->getJson($s['root'])->assertNotFound();
     }
 
+    #[Group('tenant-isolation')]
     public function test_cross_tenant_person_match_and_observation_are_not_exposed(): void
     {
         $s = $this->observationScenario(true);
@@ -87,6 +92,190 @@ class ObservationTest extends TestCase
         $foreignMatch = MatchRecord::factory()->create();
         $this->postJson($s['root'], [...$s['input'], 'match_id' => $foreignMatch->id])->assertNotFound();
         $this->assertDatabaseCount('statistical_observations', 1);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_multi_tenant_corrector_cannot_read_or_modify_observations_and_versions_under_another_tenant(): void
+    {
+        $s = $this->observationScenario(true);
+        $other = $this->otherTenantObservation($s);
+        $before = $this->observationSnapshot();
+        $auditCount = DB::table('organization_audit_events')->count();
+
+        foreach ([[$s, $other], [$other, $s]] as [$current, $foreign]) {
+            $ownPath = $current['root'].'/'.$current['record']['id'];
+            $path = $current['root'].'/'.$foreign['record']['id'];
+            $this->getJson($ownPath)->assertOk()->assertJsonPath('data.value', '0');
+            $this->getJson($ownPath.'/versions/'.$current['record']['version'])->assertOk();
+            $this->getJson($path)->assertNotFound();
+            $this->getJson($path.'/history')->assertNotFound();
+            $this->getJson($path.'/versions/'.$foreign['record']['version'])->assertNotFound();
+            $this->patchJson($path, $this->observationCorrection($foreign))->assertNotFound();
+            $this->postJson($current['root'], [...$current['input'], 'person_id' => $foreign['person']->id])->assertNotFound();
+        }
+
+        $this->assertSame($before, $this->observationSnapshot());
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->assertDatabaseCount('statistical_observations', 2);
+        $this->assertDatabaseCount('observation_revisions', 2);
+    }
+
+    #[Group('tenant-isolation')]
+    #[TestWith(['membership', 404])]
+    #[TestWith(['role', 403])]
+    #[TestWith(['read', 403])]
+    public function test_revocation_blocks_warmed_observations_history_and_writes_without_revoking_beta(string $revocation, int $status): void
+    {
+        $s = $this->observationScenario(true);
+        $other = $this->otherTenantObservation($s);
+        $path = $s['root'].'/'.$s['record']['id'];
+        foreach (['', '/history', '/versions/'.$s['record']['version']] as $suffix) {
+            $this->getJson($path.$suffix)->assertOk();
+        }
+        $this->getJson($s['root'])->assertOk()->assertJsonPath('meta.total', 1);
+        $before = $this->observationSnapshot($s['org']->id);
+        $auditCount = DB::table('organization_audit_events')->count();
+        if ($revocation === 'membership') {
+            OrganizationMembership::query()->whereKey($s['assignment']->membership_id)->firstOrFail()->forceFill(['status' => 'revoked'])->save();
+        } elseif ($revocation === 'role') {
+            $s['assignment']->forceFill(['status' => 'revoked'])->save();
+        } else {
+            $s['assignment']->role->forceFill(['permissions' => ['sports.read', 'sports.write', 'sports.statistics.write', 'sports.statistics.correct']])->save();
+        }
+
+        foreach ([$s['root'], $path, $path.'/history', $path.'/versions/'.$s['record']['version'], $s['root'].'/choices?kind=people'] as $url) {
+            $this->getJson($url)->assertStatus($status)->assertJsonMissingPath('data')->assertDontSee('Note privée');
+        }
+        $this->postJson($s['root'], [...$s['input'], 'source_label' => 'Nouvelle source'])->assertStatus($status);
+        $this->patchJson($path, $this->observationCorrection($s))->assertStatus($status);
+        $this->assertSame($before, $this->observationSnapshot($s['org']->id));
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->getJson($other['root'].'/'.$other['record']['id'])->assertOk()->assertJsonPath('data.value', '0');
+        $this->patchJson($other['root'].'/'.$other['record']['id'], $this->observationCorrection($other))->assertOk()->assertJsonPath('data.value', '12.125');
+        $this->assertSame($before, $this->observationSnapshot($s['org']->id));
+        $this->assertDatabaseCount('statistical_observations', 2);
+        $this->assertDatabaseCount('observation_revisions', 3);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_removing_creation_permission_preserves_reads_and_correction_but_blocks_creation_and_choices(): void
+    {
+        $s = $this->observationScenario(true);
+        $path = $s['root'].'/'.$s['record']['id'];
+        $this->getJson($path)->assertOk();
+        $before = $this->observationSnapshot();
+        $auditCount = DB::table('organization_audit_events')->count();
+        $s['assignment']->role->forceFill(['permissions' => ['sports.read', 'sports.write', 'sports.statistics.read', 'sports.statistics.correct']])->save();
+
+        $this->getJson($path.'/history')->assertOk();
+        $this->getJson($path.'/versions/'.$s['record']['version'])->assertOk()->assertJsonPath('data.value', '0');
+        $this->postJson($s['root'], [...$s['input'], 'source_label' => 'Nouvelle source'])->assertForbidden();
+        $this->getJson($s['root'].'/choices?kind=people')->assertForbidden();
+        $this->assertSame($before, $this->observationSnapshot());
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->patchJson($path, $this->observationCorrection($s))->assertOk()->assertJsonPath('data.value', '12.125')->assertJsonPath('data.number', 2);
+        $this->getJson($path.'/versions/'.$s['record']['version'])->assertOk()->assertJsonPath('data.value', '0');
+        $this->assertDatabaseCount('statistical_observations', 1);
+        $this->assertDatabaseCount('observation_revisions', 2);
+        $this->assertSame($auditCount + 1, DB::table('organization_audit_events')->count());
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_removing_correction_permission_preserves_creation_without_overwriting_existing_history(): void
+    {
+        $s = $this->observationScenario(true);
+        $path = $s['root'].'/'.$s['record']['id'];
+        $this->getJson($path)->assertOk();
+        $before = $this->observationSnapshot();
+        $auditCount = DB::table('organization_audit_events')->count();
+        $s['assignment']->role->forceFill(['permissions' => ['sports.read', 'sports.write', 'sports.statistics.read', 'sports.statistics.write']])->save();
+
+        $this->patchJson($path, $this->observationCorrection($s))->assertForbidden();
+        $this->getJson($path.'/history')->assertOk()->assertJsonPath('meta.total', 1);
+        $this->assertSame($before, $this->observationSnapshot());
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->postJson($s['root'], [...$s['input'], 'source_label' => 'Nouvelle source'])->assertCreated()->assertJsonPath('data.value', '0');
+        $this->getJson($path)->assertOk()->assertJsonPath('data.version', $s['record']['version'])->assertJsonPath('data.value', '0');
+        $this->getJson($path.'/versions/'.$s['record']['version'])->assertOk()->assertJsonPath('data.value', '0');
+        $this->assertDatabaseCount('statistical_observations', 2);
+        $this->assertDatabaseCount('observation_revisions', 2);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_same_tenant_version_ids_cannot_be_read_or_applied_to_another_observation(): void
+    {
+        $s = $this->observationScenario(true);
+        $other = $this->postJson($s['root'], [...$s['input'], 'source_label' => 'Autre observation'])->assertCreated()->json('data');
+        $before = $this->observationSnapshot();
+        $auditCount = DB::table('organization_audit_events')->count();
+
+        $this->getJson($s['root'].'/'.$s['record']['id'].'/versions/'.$other['version'])->assertNotFound();
+        $this->getJson($s['root'].'/'.$other['id'].'/versions/'.$s['record']['version'])->assertNotFound();
+        $this->patchJson($s['root'].'/'.$s['record']['id'], [...$this->observationCorrection($s), 'version' => $other['version']])->assertConflict()->assertJsonPath('code', 'OBSERVATION_STALE');
+        $this->assertSame($before, $this->observationSnapshot());
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->getJson($s['root'].'/'.$other['id'].'/versions/'.$other['version'])->assertOk()->assertJsonPath('data.value', '0');
+        $this->assertDatabaseCount('observation_revisions', 2);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_restricting_a_previously_visible_match_hides_observation_versions_and_blocks_corrections(): void
+    {
+        $s = $this->observationScenario();
+        $match = MatchRecord::factory()->create(['organization_id' => $s['org']->id, 'game_id' => $s['game']->id,
+            'created_by' => $s['reader']->id, 'kind' => 'scrim', 'visibility' => 'organization',
+            'sharing_authorized_by' => $s['reader']->id, 'sharing_authorized_at' => now()]);
+        $row = $this->postJson($s['root'], [...$s['input'], 'match_id' => $match->id, 'source_kind' => 'scrim'])->assertCreated()->json('data');
+        $s['record'] = $row;
+        $path = $s['root'].'/'.$row['id'];
+        foreach (['', '/history', '/versions/'.$row['version']] as $suffix) {
+            $this->getJson($path.$suffix)->assertOk();
+        }
+        $this->getJson($s['root'])->assertOk()->assertJsonPath('meta.total', 1);
+        $this->getJson($s['root'].'/choices?kind=matches&game_id='.$s['game']->id)->assertOk()->assertJsonPath('meta.total', 1);
+        $before = $this->observationSnapshot();
+        $auditCount = DB::table('organization_audit_events')->count();
+        $match->forceFill(['visibility' => 'private', 'version' => (string) Str::uuid()])->save();
+
+        $this->getJson($s['root'])->assertOk()->assertJsonPath('meta.total', 0);
+        $this->getJson($s['root'].'/choices?kind=matches&game_id='.$s['game']->id)->assertOk()->assertJsonPath('meta.total', 0);
+        foreach (['', '/history', '/versions/'.$row['version']] as $suffix) {
+            $this->getJson($path.$suffix)->assertNotFound()->assertJsonMissingPath('data');
+        }
+        $this->patchJson($path, $this->observationCorrection($s))->assertNotFound();
+        $this->postJson($s['root'], [...$s['input'], 'match_id' => $match->id, 'source_kind' => 'scrim', 'source_label' => 'Autre source'])->assertNotFound();
+        $this->assertSame($before, $this->observationSnapshot());
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->actingAsWithMfa($s['reader']);
+        $this->getJson($path)->assertOk()->assertJsonPath('data.value', '0');
+        $this->getJson($path.'/versions/'.$row['version'])->assertOk()->assertJsonPath('data.value', '0');
+    }
+
+    /** @param array<string, mixed> $s
+     * @return array<string, mixed> */
+    private function otherTenantObservation(array $s): array
+    {
+        $org = Organization::factory()->create();
+        OrganizationGame::factory()->create(['organization_id' => $org->id, 'game_id' => $s['game']->id, 'enabled' => true]);
+        $assignment = $this->grantPeopleAccess($org, $s['writer'], $s['assignment']->role->permissions);
+        $person = Person::factory()->create(['organization_id' => $org->id]);
+        $root = '/api/v1/tenants/'.$org->id.'/observations';
+        $input = [...$s['input'], 'person_id' => $person->id];
+        $record = $this->postJson($root, $input)->assertCreated()->json('data');
+
+        return [...$s, ...compact('org', 'assignment', 'person', 'root', 'input', 'record')];
+    }
+
+    /** @return array<string, list<array<string, mixed>>> */
+    private function observationSnapshot(?string $organization = null): array
+    {
+        $snapshot = [];
+        foreach (['statistical_observations', 'observation_revisions'] as $table) {
+            $snapshot[$table] = array_values(DB::table($table)->when($organization !== null, fn ($query) => $query->where('organization_id', $organization))
+                ->orderBy('id')->get()->map(fn (object $row): array => get_object_vars($row))->all());
+        }
+
+        return $snapshot;
     }
 
     public function test_linked_observation_disappears_when_match_audience_changes(): void
