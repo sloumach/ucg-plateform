@@ -6,7 +6,16 @@
 ## Point de reprise
 
 - Dernière mise à jour : 24 octobre 2026.
-- Lot courant : **UCG-QA-002, sixième lot rappels contractuels**.
+- Lot courant : **UCG-QA-002, septième lot inscriptions aux compétitions**.
+  Dix cas ajoutés et un scénario étranger existant intégré au groupe critique :
+  76 tests, 1 395 assertions. Six suites : 66 tests, 531 assertions sur SQLite
+  et PostgreSQL 17 temporaire, sans échec, erreur ou exclusion. Pint/PHPStan
+  verts, cluster arrêté/supprimé. Livraison réunie dans un commit UCG-QA-002
+  dédié au septième lot, sans push ; détails et limites en fin de document.
+- Reprise du septième lot : l'utilisateur valide la CI du commit `9b55cbf`.
+  Arbre propre sur `staging` et référence locale origin/staging concordante au
+  départ ; confirmation utilisateur, sans nouvelle lecture des CI distantes.
+- Livraison précédente : **UCG-QA-002, sixième lot rappels contractuels**.
   Sept cas ajoutés et un scénario étranger renforcé/intégré au groupe critique :
   65 tests, 1 173 assertions. Quatre suites : 81 tests, 538 assertions sur SQLite
   et PostgreSQL 17 temporaire, sans échec, erreur ou exclusion. Emails simulés,
@@ -6031,3 +6040,70 @@ acteur ; les révocations testées concernent l'éligibilité actuelle du destin
 Transport sérialisé exécuté via la file synchrone et emails capturés par le faux
 mailer existant : aucun SMTP réel ni worker Redis d'exploitation validé ici.
 QA-002 reste ouvert pour les autres CRUD/jobs et les limites REC-29/30/34/35/36.
+
+## UCG-QA-002 — Septième lot inscriptions aux compétitions (24 octobre 2026)
+
+### Objectif et couverture
+
+Compléter REC-23/28 pour les dossiers d'inscription, leurs rappels privés et les
+références aux documents de compétition. Dix cas ajoutés dans
+CompetitionRegistrationControllerTest et CompetitionRegistrationReminderTest ;
+un scénario HTTP étranger préexistant ajouté au groupe critique. Aucun test
+existant supprimé, aucune fonctionnalité de téléversement binaire introduite.
+
+- Même compte responsable dans Alpha et Beta : deux RunTenantScheduledTask
+  sérialisés avec un identifiant d'exécution commun, exécution via Bus::dispatchSync
+  et middlewares réels après sélection HTTP de Beta. Génération limitée au tenant
+  traité, deux occurrences distinctes rattachées aux bonnes révisions. Rejeu et
+  nouvelles exécutions sans ligne supplémentaire ni changement des rappels
+  existants. Session Beta préservée, portée d'exécution nettoyée ; consultation
+  des rappels de chaque tenant limitée à son propre résultat.
+- Révocation Alpha d'adhésion, de rôle ou de sports.registrations.read après
+  sérialisation : aucun rappel Alpha généré. Les permissions Beta du même compte
+  restent utilisables et permettent exactement un rappel Beta. Le rejeu n'ajoute
+  pas de doublon et les deux révisions d'inscription sont conservées.
+- Après accès HTTP réussi aux dossiers, historiques, choix de personnes et
+  rappels : mêmes révocations appliquées aux lectures et à l'écriture, statuts
+  404/403, aucune donnée privée dans la réponse. Révision chiffrée, rappel existant
+  et nombre d'audits préservés ; contexte Beta encore accessible.
+- Retrait de sports.registrations.write : dossier, historique et rappels déjà
+  générés restent consultables, modification et choix de personnes interdits.
+  Le passage à l'étape d'échéance suivante ne génère pas de nouveau rappel sans
+  le droit d'écriture requis par ce module ; contenu de la révision et audits
+  intacts.
+- Version documentaire d'une autre compétition du même tenant ou d'un autre
+  tenant : lecture sous son URL légitime vérifiée, lien depuis le dossier Alpha
+  et historique/téléchargement sous le mauvais parent refusés en 404. Aucun ajout
+  de révision ni audit de mutation, document d'origine toujours accessible après
+  refus. Acteur explicitement autorisé dans les deux tenants pour le cas étranger.
+
+### Validation
+
+- Groupe critique complet sur SQLite en mémoire : **76 tests, 1 395 assertions**.
+- Six suites : CompetitionRegistrationControllerTest,
+  CompetitionRegistrationReminderTest, CompetitionRegistrationPolicyTest,
+  CompetitionRegistrationSchemaTest, ExternalCompetitionDocumentTest,
+  Modules/Tenancy/TenantScheduledTaskTest.
+  **66 tests, 531 assertions par moteur**, SQLite en mémoire et PostgreSQL 17 neuf.
+  Rapports XML relus : zéro échec, erreur ou exclusion.
+- Rapports : `back/reports/phpunit-qa002-lot7-critical.xml`,
+  `back/reports/phpunit-qa002-lot7-sqlite.xml`,
+  `back/reports/phpunit-qa002-lot7-postgresql.xml`.
+- Pint/PHPStan verts. Les six suites sont déjà incluses dans la sélection
+  PostgreSQL du workflow backend, directement ou via Modules/Tenancy, et dans
+  Feature. Aucun changement de workflow ou dépendance.
+- Commandes SQLite exécutées successivement. PostgreSQL avec stockage temporaire
+  distinct, arrêté et supprimé ; aucun répertoire du lanceur restant au contrôle
+  final. Aucune base existante, donnée réelle, migration, `.env`, frontend ou
+  logique métier modifiée.
+
+### Limites et reprise
+
+La CI validée par l'utilisateur concerne `9b55cbf` ; ce septième lot est livré
+dans un commit dédié, sans push. Sa CI reste à confirmer après livraison distante.
+Les tâches planifiées portent un contexte système sans
+acteur ; les révocations concernent l'éligibilité du destinataire. Transport via
+la file synchrone : aucun worker Redis d'exploitation validé. Les documents liés
+sont les versions de texte privées déjà livrées ; aucun fichier binaire ni service
+externe ajouté ou sollicité. QA-002 reste ouvert pour les autres CRUD/jobs et les
+limites REC-29/30/34/35/36.

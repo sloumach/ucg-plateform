@@ -2,17 +2,23 @@
 
 namespace Tests\Feature;
 
+use App\Modules\Competition\Application\Services\ProcessCompetitionRegistrationReminders;
 use App\Modules\Competition\Domain\Models\CompetitionRegistrationRevision;
 use App\Modules\Identity\Application\Services\MfaSession;
 use App\Modules\People\Domain\Models\Person;
 use App\Modules\Tenancy\Application\Contracts\TenantAuditJournal;
+use App\Modules\Tenancy\Application\Contracts\TenantExecutionContext;
 use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
+use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use App\Modules\Tenancy\Presentation\Support\ActiveOrganizationSession;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesCompetitionRegistrations;
 use Tests\Fixtures\ProvidesExternalCompetitions;
@@ -51,6 +57,7 @@ class CompetitionRegistrationControllerTest extends TestCase
         $this->assertDatabaseCount('competition_registration_revisions', 1);
     }
 
+    #[Group('tenant-isolation')]
     public function test_reader_cannot_write_and_cross_tenant_roster_is_not_resolved(): void
     {
         $s = $this->registrationScenario();
@@ -83,6 +90,115 @@ class CompetitionRegistrationControllerTest extends TestCase
         $input['items'][0]['document_version_id'] = (string) Str::uuid();
         $this->patchJson($s['path'], $input)->assertNotFound();
         $this->assertDatabaseCount('competition_registration_revisions', 1);
+    }
+
+    #[Group('tenant-isolation')]
+    #[TestWith(['membership', 404])]
+    #[TestWith(['role', 403])]
+    #[TestWith(['read', 403])]
+    public function test_revocation_blocks_warmed_registration_history_people_and_reminders_without_writes(string $revocation, int $status): void
+    {
+        $s = $this->registrationScenario(true);
+        $this->generateReminders($s);
+        $other = Organization::factory()->create();
+        $this->grantPeopleAccess($other, $s['writer'], ['sports.read', 'sports.competitions.read', 'sports.registrations.read', 'sports.registrations.write']);
+        foreach (['', '/history', '/people', '/reminders'] as $suffix) {
+            $this->getJson($s['path'].$suffix)->assertOk();
+        }
+        $this->getJson($s['path'].'/reminders')->assertOk()->assertJsonCount(1, 'data');
+        $before = CompetitionRegistrationRevision::query()->whereKey($s['revision']['version'])->firstOrFail()->getRawOriginal();
+        $reminders = DB::table('competition_registration_reminders')->get()->map(fn (object $row): array => get_object_vars($row))->all();
+        $auditCount = DB::table('organization_audit_events')->count();
+        $assignment = OrganizationRoleAssignment::query()->where('organization_id', $s['org']->id)->where('user_id', $s['writer']->id)->firstOrFail();
+        if ($revocation === 'membership') {
+            OrganizationMembership::query()->whereKey($assignment->membership_id)->firstOrFail()->forceFill(['status' => 'revoked'])->save();
+        } elseif ($revocation === 'role') {
+            $assignment->forceFill(['status' => 'revoked'])->save();
+        } else {
+            $assignment->role->forceFill(['permissions' => ['sports.read', 'sports.competitions.read', 'sports.registrations.write']])->save();
+        }
+
+        foreach (['', '/history', '/people', '/reminders'] as $suffix) {
+            $this->getJson($s['path'].$suffix)->assertStatus($status)->assertJsonMissingPath('data')->assertDontSee('Suivi interne privé');
+        }
+        $this->patchJson($s['path'], [...$s['input'], 'expected_version' => $s['revision']['version'], 'notes' => 'Modification interdite'])->assertStatus($status);
+        $this->getJson('/api/v1/tenants/'.$other->id.'/context')->assertOk();
+
+        $this->assertSame($before, CompetitionRegistrationRevision::query()->whereKey($s['revision']['version'])->firstOrFail()->getRawOriginal());
+        $this->assertSame($reminders, DB::table('competition_registration_reminders')->get()->map(fn (object $row): array => get_object_vars($row))->all());
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->assertDatabaseCount('competition_registration_revisions', 1);
+        $this->assertDatabaseCount('competition_registration_reminders', 1);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_removing_registration_write_preserves_reads_but_blocks_changes_people_choices_and_new_reminders(): void
+    {
+        $s = $this->registrationScenario(true);
+        $this->generateReminders($s);
+        $this->getJson($s['path'].'/history')->assertOk();
+        $revision = CompetitionRegistrationRevision::query()->whereKey($s['revision']['version'])->firstOrFail();
+        $payload = $revision->getRawOriginal('payload');
+        $auditCount = DB::table('organization_audit_events')->count();
+        OrganizationRoleAssignment::query()->where('organization_id', $s['org']->id)->where('user_id', $s['writer']->id)->firstOrFail()
+            ->role->forceFill(['permissions' => ['sports.read', 'sports.competitions.read', 'sports.registrations.read', 'sports.competitions.write']])->save();
+
+        $this->getJson($s['path'])->assertOk()->assertJsonPath('data.version', $s['revision']['version']);
+        $this->getJson($s['path'].'/history')->assertOk()->assertJsonCount(1, 'data');
+        $this->getJson($s['path'].'/reminders')->assertOk()->assertJsonCount(1, 'data');
+        $this->getJson($s['path'].'/people')->assertForbidden();
+        $this->patchJson($s['path'], [...$s['input'], 'expected_version' => $s['revision']['version'], 'notes' => 'Modification interdite'])->assertForbidden();
+        $this->travelTo('2026-10-19T10:00:00Z');
+        $this->generateReminders($s);
+
+        $this->assertSame($payload, $revision->refresh()->getRawOriginal('payload'));
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->assertDatabaseCount('competition_registration_revisions', 1);
+        $this->assertDatabaseCount('competition_registration_reminders', 1);
+        $this->assertDatabaseMissing('competition_registration_reminders', ['stage' => 'day']);
+        $this->getJson($s['path'].'/reminders')->assertOk()->assertJsonCount(1, 'data');
+    }
+
+    #[Group('tenant-isolation')]
+    #[TestWith([false])]
+    #[TestWith([true])]
+    public function test_document_versions_from_another_competition_cannot_be_linked_or_downloaded_under_this_registration(bool $otherTenant): void
+    {
+        $s = $this->registrationScenario(true);
+        if ($otherTenant) {
+            $foreign = $this->competitionScenario();
+            $this->grantPeopleAccess($foreign['org'], $s['writer'], ['sports.read', 'sports.competitions.read', 'sports.competitions.write', 'sports.registrations.read', 'sports.registrations.write']);
+        } else {
+            $foreign = $s;
+            $foreign['record'] = $this->postJson($s['root'], [...$s['body'], 'reference' => 'SECOND_COMPETITION'])->assertCreated()->json('data');
+        }
+        $this->actingAsWithMfa($s['writer']);
+        $root = $foreign['root'].'/'.$foreign['record']['id'].'/documents';
+        $doc = $this->postJson($root, $this->competitionDocument($foreign))->assertCreated()->json('data');
+        $download = $root.'/'.$doc['document_id'].'/versions/'.$doc['version'].'/download';
+        $this->get($download)->assertOk()->assertSee('Règlement source', false);
+        $before = CompetitionRegistrationRevision::query()->whereKey($s['revision']['version'])->firstOrFail()->getRawOriginal();
+        $auditCount = DB::table('organization_audit_events')->count();
+        $items = $s['input']['items'];
+        $items[0]['document_version_id'] = $doc['version'];
+
+        $this->patchJson($s['path'], [...$s['input'], 'expected_version' => $s['revision']['version'], 'items' => $items])->assertNotFound();
+        $wrongRoot = $s['root'].'/'.$s['record']['id'].'/documents/'.$doc['document_id'];
+        $this->getJson($wrongRoot.'/history')->assertNotFound();
+        $this->getJson($wrongRoot.'/versions/'.$doc['version'].'/download')->assertNotFound();
+
+        $this->assertSame($before, CompetitionRegistrationRevision::query()->whereKey($s['revision']['version'])->firstOrFail()->getRawOriginal());
+        $this->assertSame($auditCount, DB::table('organization_audit_events')->count());
+        $this->assertDatabaseCount('competition_registration_revisions', 1);
+        $this->assertDatabaseCount('external_competition_documents', 1);
+        $this->get($download)->assertOk()->assertSee('Règlement source', false);
+    }
+
+    /** @param array<string, mixed> $scenario */
+    private function generateReminders(array $scenario): void
+    {
+        $run = (string) Str::uuid();
+        app(ProcessCompetitionRegistrationReminders::class)->run(new TenantExecutionContext($scenario['org']->id, $run, 'UTC', 'fr'), $run);
     }
 
     /**
