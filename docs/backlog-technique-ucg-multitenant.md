@@ -1513,6 +1513,21 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   l'utilisateur ; onzième lot réuni dans un commit dédié, sans push, CI à obtenir après
   livraison distante. Autres CRUD/jobs et REC-29/30/34/35/36 restent ouverts.
 
+- **Consolidation en tâche unique (24–25/10/2026)** : 45 cas HTTP ajoutés (40 sur
+  dix familles de ressources, deux révocations financières et trois après
+  signature temps réel), un test Reverb réel et 69 méthodes existantes intégrées
+  au groupe critique, soit 84 cas avec paramètres. Groupe critique : 246 tests,
+  3 831 assertions sur SQLite. La CI inclut la nouvelle matrice, le test de cache
+  isolé et le transport Reverb local avec Node 24. Aucun changement métier ou
+  migration. Suites complètes : 2 748 réussites/50 exclusions SQLite et 2 794
+  réussites/4 exclusions PostgreSQL 17, sans échec ni erreur. Reverb réel passé
+  trois fois (1 test/26 assertions par exécution), Pint/PHPStan verts, ressources
+  temporaires nettoyées. Livraison en trois commits dédiés, sans push. QA-002 reste ouvert
+  pour API-002/REC-30, QA-005/REC-34, OPS-007/REC-35 et OPS-004/005/REC-36.
+  REC-29 dispose d'une preuve de transport local, pas d'une certification de
+  l'hébergement ni d'une éviction des sockets déjà connectées. Détails et matrice
+  de preuves dans etat-projet.md ; aucune CI distante validée pour la consolidation.
+
 ### UCG-QA-003 — Tester les parcours navigateur critiques
 
 - **Priorité / taille** : P0 / L

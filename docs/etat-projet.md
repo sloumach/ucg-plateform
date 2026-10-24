@@ -5,8 +5,22 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 24 octobre 2026.
-- Lot courant : **UCG-QA-002, onzième lot suivi pédagogique Académie**.
+- Dernière mise à jour : 25 octobre 2026.
+- Tâche courante : **UCG-QA-002, consolidation du périmètre local restant**.
+  L'utilisateur autorise une tâche unique, sans validation intermédiaire par lot,
+  avec prudence et commits cohérents. 45 cas HTTP ajoutés sur les révocations,
+  un test de transport Reverb réel ajouté, 69 méthodes existantes intégrées au
+  groupe critique : 246 cas, 3 831 assertions sur SQLite. Suites complètes :
+  2 798 cas par moteur ; SQLite 2 748 réussites/50 exclusions, PostgreSQL
+  2 794 réussites/4 exclusions, aucun échec ni erreur. Reverb réel : 1 test,
+  26 assertions, trois exécutions réussies. Pint/PHPStan verts, clusters et
+  processus de test arrêtés/supprimés. Livraison répartie en trois commits,
+  sans push ; aucune logique métier ni migration modifiée. QA-002 reste ouvert
+  sur les dépendances et limites détaillées dans la matrice finale.
+- Reprise de la consolidation : `b7a6cba` présent sur `staging` et la référence
+  locale origin/staging, arbre propre au départ. Sa CI n'a pas été confirmée par
+  l'utilisateur ; dernière validation rapportée : `22ac7d5`. Aucune lecture distante.
+- Livraison précédente : **UCG-QA-002, onzième lot suivi pédagogique Académie**.
   Onze cas ajoutés et un scénario étranger existant intégré au groupe critique :
   117 tests, 2 421 assertions sur SQLite. Quatre suites liées : 69 tests,
   777 assertions par moteur SQLite/PostgreSQL 17 temporaire, sans échec,
@@ -6379,3 +6393,128 @@ push ; sa CI reste à obtenir après livraison distante. Les révocations sont p
 sans rejouer leur parcours navigateur. AcademyConcurrencyTest n'est pas réexécuté
 par ces quatre suites. QA-002 reste ouvert pour les autres CRUD/jobs et les
 limites REC-29/30/34/35/36.
+
+## UCG-QA-002 — Consolidation du périmètre local restant (24–25 octobre 2026)
+
+### Mandat et périmètre
+
+L'utilisateur demande de regrouper les lots restants en une seule tâche, puis
+autorise le travail prudent. Les étapes et commits sont gérés sans nouvelle
+autorisation par lot. `b7a6cba` et origin/staging concordent au démarrage ; arbre
+propre. Sa CI n'est pas confirmée dans la conversation. Aucun résultat distant
+n'est déduit de la seule présence du commit dans la référence locale.
+
+Cette consolidation complète les preuves locales des modules livrés. Elle ne
+crée pas un connecteur webhook absent, une politique de conservation ou un
+outil de restauration, et ne remplace pas la qualification de l'environnement
+hébergé. QA-002 reste ouvert tant que ses dépendances applicables ne sont pas
+satisfaites ou explicitement arbitrées.
+
+### Écarts traités
+
+- TenantBusinessRevocationTest : **40 cas**, dix familles (partenaires, contacts,
+  opportunités, accords, campagnes, médias, communications, activités calendrier,
+  matchs et compétitions externes), chacune avec retrait d'adhésion, de rôle,
+  de lecture ou d'écriture après consultation réussie. Même acteur dans Alpha
+  et Beta ; lectures/historiques pertinents revérifiés, mutations Alpha refusées,
+  captures des tables et compteurs d'audits inchangés. Beta reste lisible et sa
+  correction réussit, avec relecture du modèle persisté, y compris les champs
+  chiffrés. Le retrait de l'écriture conserve les lectures autorisées.
+- SponsorshipAgreementControllerTest : **deux cas** après lecture de conditions
+  financières. Retrait de financial.read ou financial.write : sauvegarde refusée,
+  version/conditions/historiques/audits inchangés. Lecture financière refusée si
+  son droit disparaît ; sinon conservée avec l'événement de consultation attendu.
+  La fiche générale ne divulgue pas les conditions.
+- MatchRealtimeTest : **trois cas** après signature de canal et lecture live
+  réussies. Révocation d'adhésion, de rôle ou de lecture : nouvelle signature et
+  récupération des scores refusées, aucune partie créée.
+- **69 méthodes existantes**, soit **84 cas avec paramètres**, intégrées au
+  groupe critique sans supprimer ni réduire leurs assertions. Elles couvrent
+  identifiants étrangers, mauvais parents, audiences, notifications et workers
+  calendrier, flux ICS et anciens tokens, scores/résultats/carnets/corrections,
+  documents/résultats de compétition, rôles/support, quotas, exports et purge
+  ciblés. Groupe final : **246 cas, 3 831 assertions** sur SQLite.
+- ReverbDeliveryTest : signatures obtenues via les vraies routes de deux tenants,
+  deux connexions WebSocket autorisées et une troisième refusée par la route et
+  le transport (signature invalide). Publication avec le broadcaster et l'événement
+  applicatifs réels ; chaque abonné reçoit son seul événement, le troisième
+  aucun. Vérification du payload minimal à quatre clés, sans score ni contenu
+  métier. Serveur de test en boucle locale, identifiants d'application aléatoires,
+  ports libres, échange atomique des fichiers et arrêt des processus en finally.
+  Node 24 natif, aucune dépendance npm ajoutée. Trois exécutions indépendantes
+  réussies : **1 test, 26 assertions chacune**.
+- Workflow backend : nouvelle matrice et test de cache ajoutés à la sélection
+  PostgreSQL ; étape Reverb dédiée avec Node 24. Le test de transport reste
+  opt-in dans la suite normale afin de ne pas imposer un serveur aux tests HTTP.
+
+### Régression d'isolation des tests découverte
+
+La première exécution complète PostgreSQL a été interrompue après propagation
+d'erreurs de schéma ; elle n'est pas une validation réussie. Le cluster a été
+arrêté et supprimé. La séquence DashboardIndicatorTest →
+EffectiveGameCatalogueCacheTest reproduit une fonction PostgreSQL déjà existante :
+`migrate:fresh` supprime les tables mais conserve les fonctions de triggers.
+Le test de cache utilisait DatabaseMigrations dans la base commune aux suites.
+
+Correction limitée à ce test : base PostgreSQL aléatoire dédiée, migration sans
+transaction conservée, restauration de la connexion et de l'état du framework,
+puis suppression de cette seule base dans les callbacks de nettoyage. Les
+assertions du test, les migrations et le code métier sont inchangés. SQLite
+conserve le fonctionnement existant. La séquence étendue aux contrôleurs de
+compétitions passe ensuite : **40 tests, 256 assertions sur PostgreSQL**.
+Rapports de reproduction : `phpunit-qa002-cache-isolation-sequence.xml` (échec
+attendu avant correction) et `phpunit-qa002-cache-isolation-afterfix.xml`.
+
+### Matrice REC-23 à REC-36 après consolidation
+
+Les noms de suites désignent `back/tests/Feature/`, avec `Tenancy/` pour
+`Modules/Tenancy/`. Une limite ci-dessous reste ouverte même si le groupe critique
+est vert ; la matrice initiale du premier lot est conservée comme historique.
+
+| Critère | Preuves locales mobilisées | Limite de clôture |
+| --- | --- | --- |
+| REC-23 | Lots 1–11, TenantBusinessRevocationTest, contrôleurs partenariats/sponsoring, médias, calendrier, communication et compétition : URL étrangères, mauvais parents, mutations refusées. | Couverture des modules livrés ; tout nouveau module doit ajouter ses frontières. |
+| REC-24 | TenantSearchTest, PartnershipControllerTest, choix de références des modules et régression EffectiveGameCatalogueCacheTest. | Pas de moteur externe de recherche qualifié ici. |
+| REC-25 | ActiveOrganizationControllerTest, ContextualRolesTest, jobs sérialisés des lots précédents et matrice Alpha/Beta après révocation. | Interface/navigateur suivi séparément par QA-003. |
+| REC-26 | OrganizationSchemaTest, ContextualRolesTest et suites de schéma avec clés composites et unicités locales ; inspecteur de propriété des tables. | Vérifier les nouvelles migrations à chaque extension ; aucune extrapolation vers des identifiants d'intégration absente. |
+| REC-27 | TenantCacheTest, TenantArtifactServiceTest, ReportExportTest, CalendarSubscriptionTest et export opérateur. | Redis réel dispose d'une étape CI dédiée ; il n'est pas démarré localement dans cette consolidation. |
+| REC-28 | Imports personnes/statistiques, scans et rappels contractuels, rappels d'inscription, CalendarInvitationWorkerTest, CalendarChangeWorkerTest et export opérateur sérialisé. | Pas de qualification de la topologie Redis/Horizon hébergée ni de SMTP réel. |
+| REC-29 | Autorisation et révocation HTTP/live, payload minimal, tests de file et transport Reverb local réel avec deux tenants. | Reverse proxy/TLS/worker hébergés non qualifiés ; pas de preuve d'éviction d'une socket déjà abonnée après révocation. Une invalidation minimale ne vaut pas autorisation de relire les scores. |
+| REC-30 | Recherche du code applicatif et des routes : aucun endpoint webhook métier entrant identifié ; l'URL Slack de logging n'est pas un tel endpoint. | API-002 requis : connecteur, contrat de signature, mapping tenant et idempotence, ou arbitrage explicite d'applicabilité au P0. Non déclaré satisfait. |
+| REC-32 | PlatformRoleManagementTest, ContextualRolesTest et séparation des rôles tenant/plateforme. | Conserver les audits et tests par nouvelle action privilégiée. |
+| REC-33 | PlatformSupportAccessTest : tenant/opérateur liés, durée, révocation, audit et expiration contrôlée. | Pas de nouvelle recette d'exploitation ou de scheduler hébergé ici. |
+| REC-34 | TenantTechnicalLimitsTest, quotas imports/exports/artefacts, budgets Redis et file isolée en CI. | QA-005 requis : charge asymétrique selon l'enveloppe du CDC, p95 et impact sur Beta mesurés. Des tests de bornes ne prouvent pas cette charge. |
+| REC-35 | Catalogue de portabilité fermé aux tables/colonnes inconnues, export chiffré et fichiers ciblés, politiques et purge autorisée sur fixtures ; Beta préservé. | OPS-007 requis pour politique complète par catégorie et rétention réelle, y compris sauvegardes. Pas de déclaration de conformité d'une purge exhaustive. |
+| REC-36 | OrganizationMaintenanceTest : retour d'archivé à suspendu sans réécriture ni impact Beta. | OPS-004/005 requis : restauration de sauvegarde et réconciliation base/fichiers sans écraser les mises à jour Beta ; retour de statut seul insuffisant. |
+
+### Validation et livraison
+
+| Vérification finale | Résultat |
+| --- | --- |
+| Backend complet SQLite en mémoire | 2 798 cas : **2 748 réussites**, 17 690 assertions, 50 exclusions prévues. |
+| Backend complet PostgreSQL 17 neuf | 2 798 cas : **2 794 réussites**, 18 222 assertions, 4 exclusions prévues. Les tests de concurrence réelle sont inclus. |
+| Groupe critique SQLite | **246 réussites**, 3 831 assertions, aucune exclusion. |
+| Reverb réel local, trois démarrages indépendants | **1 réussite/26 assertions par exécution**, aucune exclusion. |
+| Pint, PHPStan, syntaxe du client Node et parsing YAML du workflow | Réussis. |
+
+Tous les rapports finaux ont été relus : zéro échec et zéro erreur. Les quatre
+exclusions PostgreSQL sont ClamAV, les deux intégrations Redis et Reverb opt-in ;
+ce dernier est exécuté séparément avec succès. SQLite exclut aussi les cas de
+concurrence réservés à PostgreSQL et le contrôle de schéma qui exige ce moteur.
+Redis dispose de son étape CI existante ; aucun Redis ou ClamAV réel démarré ici.
+Rapports sous `back/reports/` : `phpunit-qa002-consolidated-sqlite.xml`,
+`phpunit-qa002-consolidated-postgresql.xml`,
+`phpunit-qa002-consolidated-critical.xml`, `phpunit-qa002-reverb-1.xml` à `-3.xml`.
+La première tentative PostgreSQL interrompue est remplacée par la validation
+complète réussie après correction ; elle n'est pas comptée comme preuve positive.
+
+Cluster PostgreSQL et bases de concurrence supprimés, processus Reverb/Node
+arrêtés ; aucun répertoire temporaire du lanceur ou de Reverb restant au contrôle
+final. Livraison en trois commits dédiés demandés dans le cadre de la tâche
+unique, sans push ; la CI distante des nouveaux commits reste à obtenir.
+Les informations nécessaires pour qualifier les webhooks P0, la recette de
+charge/restauration et la politique de rétention ont été demandées à l'utilisateur ;
+aucune réponse ni décision de périmètre n'est présumée.
+Aucune base existante, donnée réelle, migration, dépendance applicative, `.env`
+ou interface modifiée. Les preuves de transport local n'impliquent aucune mise
+en production. Aucun push ni résultat de CI distante revendiqué pour ce travail.

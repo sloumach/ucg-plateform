@@ -4506,7 +4506,7 @@ et limites dans `docs/etat-projet.md`.
 
 ### Isolation du suivi pédagogique Académie — onzième lot UCG-QA-002
 
-Le groupe `tenant-isolation` compte désormais **117 cas, 2 421 assertions**. Onze
+À la fin du onzième lot, le groupe `tenant-isolation` comptait **117 cas, 2 421 assertions**. Onze
 cas ajoutés couvrent les identifiants étrangers ou sous le mauvais parent, les
 révocations après lecture, les droits distincts sur les retours partagés et notes
 internes et l'accès personnel de l'élève. Les historiques masquent les références
@@ -4519,3 +4519,46 @@ Pint/PHPStan verts, cluster arrêté et supprimé ; aucun changement métier ou 
 migration. CI de `22ac7d5` validée par l'utilisateur ; onzième lot réuni dans un
 commit dédié, sans push, sa CI reste à obtenir après livraison. QA-002 reste ouvert. Rapports
 et limites dans `docs/etat-projet.md`.
+
+### Consolidation UCG-QA-002 — isolation et révocations
+
+Le groupe `tenant-isolation` compte désormais **246 cas, 3 831 assertions**.
+La consolidation ajoute 40 cas sur dix familles de ressources, deux cas de
+révocation financière et trois cas après signature d'un canal temps réel.
+Elle intègre également 69 méthodes existantes, soit 84 cas avec leurs jeux de
+données, sans supprimer leurs assertions. Les accès Beta restent utilisables
+après révocation Alpha ; les refus préservent les données et audits de mutation.
+
+```bash
+cd back
+php vendor/bin/phpunit --group=tenant-isolation
+```
+
+Le test de transport réel nécessite Node 24 et un port local libre. Il démarre
+son propre Reverb sur `127.0.0.1`, obtient les signatures par les routes tenant,
+vérifie deux abonnés autorisés et une signature invalide, puis ferme ses processus.
+La CI l'exécute séparément ; il est explicitement ignoré dans la suite ordinaire.
+
+```bash
+# Bash / CI
+UCG_TEST_REVERB=1 php vendor/bin/phpunit tests/Feature/ReverbDeliveryTest.php
+```
+
+```powershell
+$env:UCG_TEST_REVERB='1'
+php vendor/bin/phpunit tests/Feature/ReverbDeliveryTest.php
+Remove-Item Env:UCG_TEST_REVERB
+```
+
+Le test de cache sans transaction utilise sa propre base jetable sur PostgreSQL,
+pour conserver les fonctions de triggers de la base partagée entre les autres
+tests. La sélection PostgreSQL de CI inclut cette régression et la nouvelle matrice.
+Suites backend complètes : **2 748 réussites/50 exclusions sur SQLite**, et
+**2 794 réussites/4 exclusions sur PostgreSQL 17**, aucun échec ni erreur.
+Reverb réel : trois exécutions réussies, chacune 1 test et 26 assertions.
+Pint/PHPStan verts, YAML et client Node vérifiés, ressources temporaires nettoyées.
+Livraison en trois commits dédiés, sans push ; CI distante à obtenir. Résultats
+et limites dans `docs/etat-projet.md`. QA-002 reste ouvert : webhooks non livrés (API-002), charge
+asymétrique (QA-005), politique de purge exhaustive (OPS-007) et restauration
+avec réconciliation (OPS-004/005). Le test Reverb local ne certifie pas le proxy,
+TLS, workers hébergés ou l'éviction des sockets déjà abonnées après révocation.
