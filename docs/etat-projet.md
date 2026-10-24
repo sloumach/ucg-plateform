@@ -5,11 +5,26 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 23 octobre 2026.
+- Dernière mise à jour : 24 octobre 2026.
+- Lot courant : **UCG-QA-003**, extension du lanceur navigateur
+  à PostgreSQL 17 temporaire. Les huit parcours réels PostgreSQL ont réussi
+  (zéro échec, erreur ou exclusion, rapport XML relu), avec arrêt et suppression
+  confirmés. Six tests de garde-fous et un test d'intégration PostgreSQL réussis ;
+  SQLite revérifié : 8/8 sans exclusion, nettoyage confirmé ; frontend 493/493,
+  typage/lint/Pint/PHPStan verts. Nouvelle matrice CI
+  SQLite/PostgreSQL préparée, pas encore exécutée à distance. Détails en fin de
+  document ; aucune base existante, migration métier ou configuration réelle modifiée.
+- Reprise QA-003 : `staging` et `origin/staging` synchronisées au SHA
+  `c1d5f341a7494f73fa6ea77861405170c02cd540`, arbre propre avant cette mise à jour.
+  CI distante vérifiée via l'API GitHub : backend `40046960453` et frontend
+  `40046960495` terminées avec succès. Les étapes PostgreSQL, Redis et navigateur
+  avec API réelle sont explicitement réussies. Détails et limites dans la dernière
+  section ; ce constat remplace l'attente de CI pour ce SHA, sans clore les autres
+  tickets QA ni la recette hébergée.
 - Périmètre sportif : organisation de tournois retirée des documents ; suivi
   interne des compétitions externes conservé. Voir la décision de périmètre ci-dessous.
 - Branche de travail : `staging`.
-- Dernier ticket implémenté localement : **UCG-ACA-003**, objectifs individuels/collectifs et feedback,
+- Dernier module métier implémenté avant la qualification QA-003 : **UCG-ACA-003**, objectifs individuels/collectifs et feedback,
   notes internes justifiées avec permission distincte, accès personnel en lecture seule.
   Migration `2026_10_22_224821` préparée, constatée Pending en lecture seule ;
   aucune migration courante appliquée par l’agent. PostgreSQL CI complet :
@@ -5438,3 +5453,80 @@ métier et migrations restent inchangés ; seules la sélection CI et la documen
 évoluent. Livraison locale sans push. Prochaine action : obtenir une exécution de la
 CI PostgreSQL complétée, puis traiter ses éventuels échecs avant d'étendre le lanceur
 navigateur à PostgreSQL. Hébergement toujours différé.
+
+## Vérification des CI du bilan QA-003 (24 octobre 2026)
+
+- Après `git fetch origin`, `staging` et `origin/staging` pointent sur
+  `c1d5f341a7494f73fa6ea77861405170c02cd540`. Aucun push ni nouveau lancement
+  n'est nécessaire pour ce SHA : les deux workflows ont déjà été exécutés.
+- [Backend quality — 40046960453](https://github.com/sloumach/ucg-plateform/actions/runs/40046960453) :
+  statut completed, conclusion success. Vérification individuelle des étapes :
+  formatage, analyse statique, tests backend, contraintes PostgreSQL et isolation
+  Redis terminés avec succès. La sélection PostgreSQL inclut les quatre fichiers
+  Contrats ajoutés dans le bilan précédent.
+- [Frontend quality — 40046960495](https://github.com/sloumach/ucg-plateform/actions/runs/40046960495) :
+  les jobs lint/tests/build et Playwright sont terminés avec succès. Les étapes
+  Playwright et parcours isolés avec API Laravel réelle sont explicitement réussies.
+  Le workflow utilise toujours SQLite pour les parcours navigateur.
+- Artefacts confirmés par l'API : `backend-test-report`, `frontend-test-report`
+  et `playwright-reports`, présents et non expirés au moment de la vérification.
+  Leur contenu n'a pas été téléchargé ni relu. Aucun nouveau décompte de tests,
+  aucune absence d'exclusions et aucune exécution navigateur PostgreSQL ne sont
+  déduits du seul statut success.
+- L'attente d'une CI distante réussie du SHA `c1d5f34` est levée. QA-003 reste
+  en qualification pour la lecture des rapports JUnit et l'examen des exclusions
+  et écarts déjà recensés. Prochaine étape : examiner ces rapports, puis préparer
+  le lanceur navigateur PostgreSQL isolé avec ses garde-fous et son nettoyage.
+  Les critères QA-002/004/005, SMTP, antivirus, Reverb, restauration et exploitation
+  restent distincts. Aucun service réel, schéma ou donnée métier modifié.
+
+## UCG-QA-003 — Lanceur navigateur PostgreSQL isolé (24 octobre 2026)
+
+- Mode explicite `--postgresql` / `npm run test:e2e:postgresql` ; SQLite reste
+  le mode par défaut. Utilisation des binaires natifs PostgreSQL 17, sans Docker,
+  sans connexion au service installé et sans lecture du `.env` de développement.
+  `UCG_BROWSER_PG_BIN` sélectionne seulement un répertoire de binaires canonique,
+  jamais une adresse de serveur ou une base existante.
+- `initdb` crée un cluster neuf dans `ucg-browser-*/pgsql`, avec authentification
+  SCRAM, compte dédié, secret aléatoire du lancement, port libre et écoute loopback
+  seulement. Une nouvelle base `ucg_browser_<identifiant aléatoire>` y est créée.
+  Les ports HTTP/Vite/PostgreSQL sont distincts ; aucune variable DB/PG héritée
+  n'est transmise. Le serveur HTTP et le worker partagent uniquement ce cluster.
+- Avant boot Laravel, le garde contrôle le propriétaire du répertoire, le manifeste,
+  le profil testing, les coordonnées exactes et la version, puis compare le
+  `data_directory` renvoyé par PostgreSQL au chemin temporaire attendu. Le seed
+  refuse un schéma public déjà rempli avant toute migration. Les garde-fous
+  SQLite, caches de configuration, queues et fichiers privés sont conservés.
+- Arrêt des serveurs HTTP/worker avant `pg_ctl stop` ; vérification du chemin,
+  du jeton et du PID avant arrêt du seul cluster créé. Suppression du répertoire
+  après arrêt confirmé. Une annulation ne désactive pas le nettoyage ; en cas
+  de doute ou d'échec, statut d'échec et conservation des ressources pour diagnostic.
+  SIGKILL/arrêt brutal du système restent hors garantie de nettoyage.
+- Correctif du lanceur sous Windows : `pg_ctl` écrit dans un fichier temporaire
+  au lieu de pipes hérités par le daemon, qui empêchaient la fin du sous-processus.
+  Les deux instances temporaires de diagnostic ont été arrêtées après vérification
+  de propriété, puis supprimées par leurs lanceurs. Aucun service existant arrêté.
+- La matrice frontend prépare des jobs SQLite/PostgreSQL indépendants, sur
+  Ubuntu 24.04, avec binaires 17 installés depuis PGDG sans cluster standard.
+  Artefacts distincts et rapport `front/reports/playwright-real-postgresql.xml`.
+  Ni le workflow backend ni le code métier ni les migrations ne changent.
+- Validation locale : six contrôles Node du lanceur ; test d'intégration PostgreSQL
+  prouvant refus de coordonnées modifiées, d'un autre répertoire réel malgré un
+  manifeste plausible, d'une base déjà remplie et d'un arrêt sans propriétaire.
+  Arrêt également vérifié après annulation ; relance de l'arrêt sans effet.
+  Huit parcours réels PostgreSQL réussis en environ 6,2 minutes ; XML relu :
+  8 tests, 0 échec, 0 erreur, 0 exclusion. Nettoyage confirmé après cette suite.
+  Régression SQLite : huit parcours réels réussis en environ 4 minutes, XML relu
+  avec les mêmes compteurs, arrêt et suppression des ressources confirmés.
+  Frontend : 493 tests dans 66 fichiers réussis, typage et lint verts ; Pint dirty
+  et PHPStan sans erreur. YAML de la matrice analysé avec Symfony YAML.
+- Limites : lancement PostgreSQL initial refusé par le jeton Windows restreint,
+  puis validé avec les droits normaux de la session. Un essai SQLite sous sandbox
+  n'a pas trouvé l'exécutable navigateur ; nettoyage confirmé et relance dans la
+  session utilisateur. Cela ne constitue pas un échec d'un parcours métier.
+  Cette relance SQLite est réussie (8/8), sans téléchargement de navigateur.
+  La nouvelle CI Linux/PostgreSQL et ses rapports doivent être validés après
+  revue/push. Les preuves CI du SHA `c1d5f34` concernent la version précédente.
+  QA-002/004/005, services externes et recette hébergée restent des lots distincts.
+  Livraison réunie dans le commit UCG-QA-003 dédié à ce lanceur ; aucun push
+  effectué à cette étape. Nouvelle CI distante à confirmer après push.

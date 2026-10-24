@@ -13,11 +13,17 @@ if (! is_string($root) || ! is_string($token) || strlen($token) !== 64
     || realpath(dirname($root)) !== $temporaryDirectory
     || preg_match('/^ucg-browser-[a-zA-Z0-9]+$/D', basename($root)) !== 1
     || ! is_file($root.'/owner') || ! hash_equals($token, trim((string) file_get_contents($root.'/owner')))
-    || getenv('APP_ENV') !== 'testing' || getenv('DB_CONNECTION') !== 'sqlite'
-    || getenv('DB_DATABASE') !== $root.'/browser.sqlite' || getenv('DB_URL') !== ''
-    || ! is_file($root.'/browser.sqlite') || is_link($root.'/browser.sqlite')
+    || getenv('APP_ENV') !== 'testing' || getenv('DB_URL') !== ''
     || getenv('LARAVEL_STORAGE_PATH') !== $root.'/storage'
     || getenv('APP_CONFIG_CACHE') !== $root.'/config.php' || is_file($root.'/config.php')) {
+    throw new RuntimeException('Isolated browser environment required; no application was booted.');
+}
+
+if (getenv('UCG_BROWSER_ENGINE') === 'pgsql' && getenv('DB_CONNECTION') === 'pgsql') {
+    require __DIR__.'/browser-postgresql.php';
+} elseif (getenv('UCG_BROWSER_ENGINE') !== 'sqlite' || getenv('DB_CONNECTION') !== 'sqlite'
+    || getenv('DB_DATABASE') !== $root.'/browser.sqlite'
+    || ! is_file($root.'/browser.sqlite') || is_link($root.'/browser.sqlite')) {
     throw new RuntimeException('Isolated browser environment required; no application was booted.');
 }
 foreach (['APP_SERVICES_CACHE' => 'services.php', 'APP_PACKAGES_CACHE' => 'packages.php', 'APP_ROUTES_CACHE' => 'routes.php', 'APP_EVENTS_CACHE' => 'events.php'] as $variable => $filename) {
@@ -34,11 +40,13 @@ if (! $application instanceof Application) {
 $application->useEnvironmentPath($root);
 $application->useStoragePath($root.'/storage');
 $application->afterBootstrapping(LoadConfiguration::class, function (Application $application): void {
-    // The HTTP server and queue worker share only this disposable SQLite file.
+    // SQLite writers share one file; PostgreSQL retains its native concurrency.
     $configuration = $application->make(Repository::class);
-    $configuration->set('database.connections.sqlite.journal_mode', 'WAL');
-    $configuration->set('database.connections.sqlite.busy_timeout', 5000);
-    $configuration->set('database.connections.sqlite.transaction_mode', 'IMMEDIATE');
+    if (getenv('UCG_BROWSER_ENGINE') === 'sqlite') {
+        $configuration->set('database.connections.sqlite.journal_mode', 'WAL');
+        $configuration->set('database.connections.sqlite.busy_timeout', 5000);
+        $configuration->set('database.connections.sqlite.transaction_mode', 'IMMEDIATE');
+    }
 });
 if (preg_match('/^[A-Za-z]:[\\\\\/]/', $root) === 1) {
     $application->addAbsoluteCachePathPrefix(substr($root, 0, 3));

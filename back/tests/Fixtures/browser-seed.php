@@ -27,10 +27,21 @@ if (! $application instanceof Application) {
 }
 $kernel = $application->make(Kernel::class);
 $kernel->bootstrap();
-$database = config('database.connections.sqlite.database');
-if (! is_string($database) || filesize($database) !== 0 || config('database.default') !== 'sqlite'
-    || ! $application->environment('testing')) {
-    throw new RuntimeException('An empty isolated SQLite database is required.');
+$driver = getenv('UCG_BROWSER_ENGINE');
+if (config('database.default') !== $driver || ! $application->environment('testing')) {
+    throw new RuntimeException('An isolated browser database is required.');
+}
+if ($driver === 'sqlite') {
+    $database = config('database.connections.sqlite.database');
+    if (! is_string($database) || filesize($database) !== 0) {
+        throw new RuntimeException('An empty isolated SQLite database is required.');
+    }
+} else {
+    $connection = $application->make('db')->connection()->getPdo();
+    $objectsQuery = $connection->query("SELECT COUNT(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public'");
+    if ($objectsQuery === false || (int) $objectsQuery->fetchColumn() !== 0) {
+        throw new RuntimeException('An empty isolated PostgreSQL database is required.');
+    }
 }
 if ($kernel->call('migrate', ['--force' => true, '--no-interaction' => true]) !== 0) {
     throw new RuntimeException('Browser database migration failed.');

@@ -3,8 +3,8 @@ import { tmpdir } from 'node:os'
 import { basename, dirname } from 'node:path'
 
 export function playwrightArguments(arguments_) {
-  if (arguments_.some((argument) => argument !== '--headed')) {
-    throw new Error('Only --headed may be passed to the isolated browser runner.')
+  if (arguments_.some((argument) => !['--headed', '--postgresql'].includes(argument))) {
+    throw new Error('Only --headed and --postgresql may be passed to the isolated browser runner.')
   }
   return arguments_
 }
@@ -26,6 +26,7 @@ export function isolatedEnvironment(root, token, apiPort, frontPort, source = pr
   return {
     ...inherited,
     UCG_BROWSER_ROOT: root, UCG_BROWSER_TOKEN: token,
+    UCG_BROWSER_ENGINE: 'sqlite',
     UCG_BROWSER_API_URL: api, UCG_BROWSER_FRONT_URL: front,
     APP_ENV: 'testing', APP_DEBUG: 'false', APP_URL: api, FRONTEND_URL: front,
     APP_CONFIG_CACHE: `${root}/config.php`, APP_SERVICES_CACHE: `${root}/services.php`,
@@ -43,5 +44,17 @@ export function isolatedEnvironment(root, token, apiPort, frontPort, source = pr
     VITE_DEPLOYMENT_ENV: 'local', VITE_API_BASE_URL: `${api}/api/v1`,
     VITE_REVERB_APP_KEY: 'browser-public-key', VITE_REVERB_HOST: '127.0.0.1',
     VITE_REVERB_PORT: '8080', VITE_REVERB_SCHEME: 'http',
+  }
+}
+
+export function postgresEnvironment(root, token, port) {
+  assertHarnessRoot(root)
+  if (!/^[a-f0-9]{64}$/.test(token) || !Number.isInteger(port) || port < 1024 || port > 65535) {
+    throw new Error('A browser token and an ephemeral PostgreSQL port are required.')
+  }
+  return {
+    UCG_BROWSER_ENGINE: 'pgsql', DB_CONNECTION: 'pgsql', DB_HOST: '127.0.0.1',
+    DB_PORT: String(port), DB_DATABASE: `ucg_browser_${token.slice(0, 24)}`,
+    DB_USERNAME: 'ucg_browser', DB_PASSWORD: token, DB_URL: '', DB_SSLMODE: 'disable',
   }
 }

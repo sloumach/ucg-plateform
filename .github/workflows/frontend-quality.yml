@@ -52,8 +52,13 @@ jobs:
           retention-days: 14
 
   end-to-end:
-    name: Playwright end-to-end
-    runs-on: ubuntu-latest
+    name: Playwright end-to-end (${{ matrix.database }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, postgresql]
     defaults:
       run:
         working-directory: front
@@ -73,8 +78,17 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
-          extensions: mbstring, pcntl, posix, pdo_sqlite, sqlite3
+          extensions: mbstring, pcntl, posix, pdo_sqlite, sqlite3, pdo_pgsql
           coverage: none
+
+      - name: Install PostgreSQL 17 binaries for the disposable browser cluster
+        if: matrix.database == 'postgresql'
+        run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get update
+          echo 'create_main_cluster = false' | sudo tee -a /etc/postgresql-common/createcluster.conf
+          sudo apt-get install --yes postgresql-17
+          echo 'UCG_BROWSER_PG_BIN=/usr/lib/postgresql/17/bin' >> "$GITHUB_ENV"
 
       - name: Install frontend dependencies
         run: npm ci
@@ -93,18 +107,27 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run Playwright tests
+        if: matrix.database == 'sqlite'
         run: npm run test:e2e
 
       - name: Run isolated browser journey against real Laravel API
+        if: matrix.database == 'sqlite'
         run: |
           npm run test:e2e:harness
           npm run test:e2e:real
+
+      - name: Run isolated PostgreSQL ownership and browser journeys
+        if: matrix.database == 'postgresql'
+        run: |
+          npm run test:e2e:harness
+          npm run test:e2e:postgresql:harness
+          npm run test:e2e:postgresql
 
       - name: Upload Playwright reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-reports
+          name: playwright-reports-${{ matrix.database }}
           path: |
             front/reports/playwright.xml
             front/reports/playwright-html
@@ -113,5 +136,9 @@ jobs:
             front/reports/playwright-real-html
             front/reports/playwright-real-results
             front/reports/playwright-real-application.log
+            front/reports/playwright-real-postgresql.xml
+            front/reports/playwright-real-postgresql-html
+            front/reports/playwright-real-postgresql-results
+            front/reports/playwright-real-postgresql-application.log
           if-no-files-found: ignore
           retention-days: 14

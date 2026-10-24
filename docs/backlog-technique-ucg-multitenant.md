@@ -1456,8 +1456,22 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   Preuves et écarts détaillés dans etat-projet.md ; critères et procédure PostgreSQL
   dans le README. CI PostgreSQL existante complétée par les quatre fichiers Contrats
   d'audit/gouvernance financière/rappels/e-mails. Exécution locale de ces ajouts sous
-  SQLite : 82 tests, 489 assertions ; exécution PostgreSQL/CI du SHA à obtenir.
-  Lanceur navigateur PostgreSQL encore absent, moteur Docker local inaccessible.
+  SQLite : 82 tests, 489 assertions. CI du SHA `c1d5f34` vérifiée le 24/10/2026 :
+  backend `40046960453` et frontend `40046960495` réussies, dont les étapes
+  PostgreSQL, Redis et parcours navigateur avec API réelle. Artefacts présents
+  et non expirés ; contenu des JUnit non relu lors de cette vérification API,
+  donc aucun nouveau décompte ni absence d'exclusions revendiqués. QA-003 reste
+  en qualification pour la revue des rapports et des écarts documentés.
+- **Extension PostgreSQL (24/10/2026)** : mode explicite `--postgresql`, cluster
+  PostgreSQL 17 neuf dans le répertoire temporaire, port libre en loopback,
+  identifiants propres et refus des connexions héritées. Propriété vérifiée avant
+  boot Laravel via manifeste et répertoire réel du serveur ; schéma public vide
+  exigé avant migration. Arrêt contrôlé après HTTP/worker puis suppression, ou
+  conservation en cas de doute. Six contrôles du lanceur et test d'intégration
+  PostgreSQL des refus/propriété/base déjà remplie/annulation validés. Rapports
+  séparés ; huit parcours réels réussis sur chaque moteur, sans échec ni exclusion,
+  avec arrêt/suppression confirmés. Frontend 493/493, typage/lint/Pint/PHPStan verts.
+  Matrice SQLite/PostgreSQL préparée ; nouvelle CI distante à exécuter après livraison.
 
 ### UCG-QA-004 — Tester concurrence et idempotence
 

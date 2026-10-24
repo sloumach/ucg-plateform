@@ -10,7 +10,7 @@ if (! $application instanceof Application) {
 $kernel = $application->make(Kernel::class);
 $kernel->bootstrap();
 if (config('queue.default') !== 'database' || config('queue.connections.database.connection') !== null
-    || config('database.default') !== 'sqlite' || ! $application->environment('testing')) {
+    || config('database.default') !== getenv('UCG_BROWSER_ENGINE') || ! $application->environment('testing')) {
     fwrite(STDERR, 'An isolated database queue is required.'.PHP_EOL);
     exit(1);
 }

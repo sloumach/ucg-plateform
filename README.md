@@ -4225,7 +4225,7 @@ réservation, récurrence et notifications du calendrier. Cette
 suite locale/CI utilise SQLite ; elle ne remplace pas une recette PostgreSQL ni
 la validation des workers de recette/production et du temps réel Reverb.
 
-### Bilan QA-003 et recette PostgreSQL préparée — 24 octobre 2026
+### Bilan QA-003 au commit c1d5f34 et recette PostgreSQL préparée — 24 octobre 2026
 
 Les huit parcours couvrent le périmètre principal de QA-003, à 375/320 px sous
 Chrome avec API Laravel réelle. La matrice et les limites de couverture figurent
@@ -4275,3 +4275,72 @@ Lors de ce bilan, PDO PostgreSQL et psql sont présents, mais le moteur Docker n
 pas répondu. Aucun test PostgreSQL local ni nouvelle CI distante n'est donc déclaré
 réussi. La qualification hébergée, SMTP, antivirus, Reverb et restauration restent
 des validations séparées ; l'hébergement reste différé.
+
+Vérification distante du 24 octobre 2026 : au SHA `c1d5f34`, les CI
+[backend](https://github.com/sloumach/ucg-plateform/actions/runs/40046960453) et
+[frontend](https://github.com/sloumach/ucg-plateform/actions/runs/40046960495)
+sont terminées avec succès. L'API GitHub confirme notamment les étapes PostgreSQL,
+Redis et navigateur avec API réelle. Les trois artefacts de rapports sont présents
+et non expirés à cette vérification. Leur contenu n'a pas été téléchargé ni relu :
+les décomptes et exclusions des JUnit restent à examiner avant clôture de QA-003.
+Ce résultat ne valide pas les parcours navigateur sur PostgreSQL, absents du
+lanceur de ce SHA, ni les autres tickets QA ou la recette hébergée.
+
+### Parcours navigateur sur PostgreSQL temporaire — UCG-QA-003
+
+Le lanceur propose maintenant un mode PostgreSQL 17 explicite. SQLite reste le
+défaut de `npm run test:e2e:real`. Le mode PostgreSQL crée un **nouveau cluster**
+dans son répertoire temporaire, écoute uniquement sur `127.0.0.1` avec un port
+libre et utilise un compte/mot de passe propres au lancement, avec authentification
+SCRAM. Aucun serveur existant ni variable `DB_*` ou `PG*` héritée n'est réutilisé.
+Docker et le service PostgreSQL local ne sont pas nécessaires.
+
+Prérequis : PHP avec `pdo_pgsql`, PostgreSQL **17** et ses outils `initdb`,
+`pg_ctl`, `createdb` dans le PATH, ou leur répertoire absolu canonique dans
+`UCG_BROWSER_PG_BIN`. Exécuter avec un utilisateur ordinaire, pas root.
+Depuis `front`, sous Windows :
+
+```powershell
+$env:UCG_BROWSER_PG_BIN = 'C:\Program Files\PostgreSQL\17\bin'
+npm run test:e2e:harness
+npm run test:e2e:postgresql:harness
+npm run test:e2e:postgresql
+```
+
+Sous Linux, par exemple avec les binaires PGDG installés :
+
+```bash
+export UCG_BROWSER_PG_BIN=/usr/lib/postgresql/17/bin
+npm run test:e2e:harness
+npm run test:e2e:postgresql:harness
+npm run test:e2e:postgresql
+```
+
+Le garde PHP vérifie le jeton, le manifeste, le profil testing, les coordonnées
+exactes, la version 17 et le `data_directory` renvoyé par le serveur **avant**
+de charger Laravel. Le seed exige un schéma public vide avant toute migration.
+Les sessions, fichiers, caches, queues, clé applicative et données fictives restent
+propres au lancement ; les e-mails utilisent array et les broadcasts log.
+La file database/reports est réellement consommée dans cette base temporaire.
+
+Après arrêt des serveurs HTTP/worker, `pg_ctl` arrête uniquement le cluster dont
+le chemin, le jeton et le fichier PID correspondent au lancement ; le répertoire
+est ensuite supprimé. L'arrêt fonctionne aussi après annulation. En cas de doute
+sur la propriété ou d'échec d'arrêt, le lanceur échoue et conserve le chemin pour
+diagnostic : ne jamais supprimer un répertoire contenant une instance encore active.
+Un arrêt brutal du système/SIGKILL ne peut pas garantir ce nettoyage.
+
+Les rapports PostgreSQL sont séparés : `reports/playwright-real-postgresql.xml`,
+`reports/playwright-real-postgresql-html` et `reports/playwright-real-postgresql-results`.
+Le workflow frontend a une matrice SQLite/PostgreSQL et des artefacts distincts
+`playwright-reports-sqlite` / `playwright-reports-postgresql`. Le job PostgreSQL
+installe les binaires 17 depuis le dépôt PGDG officiel, sans création de cluster
+standard ; le lanceur crée son propre cluster sans utiliser les services du runner.
+Cette nouvelle matrice doit encore être validée sur la CI distante après livraison.
+
+Validation locale du lot : huit parcours réussis sur PostgreSQL (environ 6,2 min)
+et huit sur SQLite (environ 4 min), sans échec, erreur ou exclusion dans les XML.
+Arrêt et suppression des environnements confirmés. Les six tests de garde-fous,
+le test d'intégration PostgreSQL, les 493 tests frontend, le typage, le lint,
+Pint et PHPStan sont verts. Ces résultats ne ferment pas les autres tickets QA
+ni les validations de services externes ou d'exploitation.
