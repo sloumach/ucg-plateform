@@ -1501,6 +1501,18 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   CI à obtenir après livraison distante.
   Autres CRUD/jobs et REC-29/30/34/35/36 restent ouverts.
 
+- **Onzième lot local (24/10/2026)** : suivi pédagogique Académie. Onze cas
+  ajoutés, un scénario étranger existant intégré au groupe critique : 117 tests,
+  2 421 assertions. Objectifs/retours/notes liés au tenant/cycle/parent,
+  révocations après lecture, droits partagés/internes distincts et filtrage de
+  l'historique après retrait du droit interne. Accès personnel revérifié après
+  retrait d'inscription, départ, retrait du droit ou d'adhésion, sans affecter
+  Beta. Quatre suites : 69 tests, 777 assertions par moteur SQLite/PostgreSQL 17
+  temporaire, sans échec, erreur ou exclusion. Pint/PHPStan verts, cluster arrêté
+  et supprimé ; aucun changement métier ou migration. CI de `22ac7d5` validée par
+  l'utilisateur ; onzième lot réuni dans un commit dédié, sans push, CI à obtenir après
+  livraison distante. Autres CRUD/jobs et REC-29/30/34/35/36 restent ouverts.
+
 ### UCG-QA-003 — Tester les parcours navigateur critiques
 
 - **Priorité / taille** : P0 / L

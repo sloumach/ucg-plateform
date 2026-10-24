@@ -6,7 +6,17 @@
 ## Point de reprise
 
 - Dernière mise à jour : 24 octobre 2026.
-- Lot courant : **UCG-QA-002, dixième lot séances Académie et présences**.
+- Lot courant : **UCG-QA-002, onzième lot suivi pédagogique Académie**.
+  Onze cas ajoutés et un scénario étranger existant intégré au groupe critique :
+  117 tests, 2 421 assertions sur SQLite. Quatre suites liées : 69 tests,
+  777 assertions par moteur SQLite/PostgreSQL 17 temporaire, sans échec,
+  erreur ou exclusion. Pint/PHPStan verts, cluster arrêté et supprimé.
+  Livraison réunie dans un commit dédié, sans push ; détails en fin de document.
+- Reprise du onzième lot : l'utilisateur valide la CI de `22ac7d5`, puis
+  autorise le démarrage prudent. Confirmation utilisateur, sans nouvelle lecture
+  distante ; arbre propre sur `staging` et référence locale origin/staging
+  concordante au départ.
+- Livraison précédente : **UCG-QA-002, dixième lot séances Académie et présences**.
   Neuf cas ajoutés et un scénario étranger existant intégré au groupe critique :
   105 tests, 2 131 assertions sur SQLite. Quatre suites liées : 77 tests,
   607 assertions par moteur SQLite/PostgreSQL 17 temporaire, sans échec,
@@ -6311,3 +6321,61 @@ push ; sa CI reste à obtenir après livraison distante. Le passage du calendrie
 fixture serveur : le parcours navigateur de partage n'est pas rejoué ici.
 AcademyConcurrencyTest n'est pas réexécuté par ces quatre suites. QA-002 reste
 ouvert pour les autres CRUD/jobs et les limites REC-29/30/34/35/36.
+
+## UCG-QA-002 — Onzième lot suivi pédagogique Académie (24 octobre 2026)
+
+### Objectif et couverture
+
+Renforcer les accès HTTP aux objectifs, retours partagés et notes internes après
+consultation ou révocation. Onze cas ajoutés dans AcademyCoachingVisibilityTest,
+avec le scénario étranger existant intégré au groupe critique. Aucun test existant
+supprimé ; aucun changement métier nécessaire.
+
+- Gestionnaire autorisé dans Alpha et Beta : lectures Beta réussies, mais objectifs,
+  retours, notes et mentor Beta refusés sous Alpha en 404. État des objectifs,
+  retours, révisions et nombre d'audits inchangés après les tentatives.
+- Dans le même tenant, objectif sous un autre cycle, retour/note sous un autre
+  objectif et identifiant interne utilisé sur le chemin partagé (ou inversement)
+  refusés en 404, sans mutation.
+- Après lectures réussies des objectifs, retours, notes et historique, révocation
+  de l'adhésion, du rôle ou de academy.read : lectures et créations/corrections
+  Alpha refusées en 404/403. Les notes Beta restent lisibles et un retour Beta
+  reste corrigeable ; les enregistrements et révisions Alpha restent intacts.
+- Retrait de academy.notes.manage : notes déjà consultées devenues inaccessibles,
+  leurs identifiants et leur nombre retirés de l'historique, écriture refusée ;
+  correction du retour partagé toujours autorisée. Retrait de
+  academy.feedback.manage : lecture partagée conservée, création/correction
+  partagée refusée, correction interne encore autorisée. Les refus n'ajoutent
+  aucune révision ni audit de mutation.
+- Élève lié à une personne dans deux tenants : objectifs et retours initialement
+  lisibles, objectif Beta refusé sous Alpha. Retrait d'inscription ou personne
+  devenue ancienne : liste personnelle Alpha vide et ancien lien en 404.
+  Retrait de academy.self.read ou d'adhésion : anciens liens Alpha refusés en
+  403/404. Accès Beta conservé sans note interne ni version de gestion exposée ;
+  objectifs, retours, révisions et audits inchangés.
+
+### Validation
+
+- Groupe critique complet sur SQLite en mémoire : **117 tests, 2 421 assertions**.
+- Quatre suites : AcademyCoachingVisibilityTest, AcademyCoachingTest,
+  AcademyCoachingSchemaTest et AcademySessionTest. **69 tests, 777 assertions
+  par moteur**, SQLite en mémoire et PostgreSQL 17 neuf. Rapports XML relus :
+  zéro échec, erreur ou exclusion.
+- Rapports : `back/reports/phpunit-qa002-lot11-critical.xml`,
+  `back/reports/phpunit-qa002-lot11-sqlite.xml`,
+  `back/reports/phpunit-qa002-lot11-postgresql.xml`.
+- Pint/PHPStan verts. Les quatre suites sont déjà sélectionnées dans le workflow
+  backend PostgreSQL et dans Feature ; aucun changement de dépendance ou workflow.
+- Commandes SQLite successives et stockage PostgreSQL temporaire distinct.
+  Cluster arrêté et supprimé ; aucun répertoire du lanceur restant au contrôle
+  final. Aucune base existante, donnée réelle, migration, configuration
+  d'environnement, logique métier ou interface modifiée.
+
+### Limites et reprise
+
+La CI de `22ac7d5` est validée par l'utilisateur, sans nouvelle lecture distante.
+Ce onzième lot est réuni dans un commit dédié demandé par l'utilisateur, sans
+push ; sa CI reste à obtenir après livraison distante. Les révocations sont préparées dans les fixtures serveur,
+sans rejouer leur parcours navigateur. AcademyConcurrencyTest n'est pas réexécuté
+par ces quatre suites. QA-002 reste ouvert pour les autres CRUD/jobs et les
+limites REC-29/30/34/35/36.
