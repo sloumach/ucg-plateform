@@ -1272,6 +1272,9 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Périmètre** : endpoint, signature, rejeu, tenant, stockage durable, idempotence et quarantaine.
 - **Acceptation** : doublon sans double effet ; événement invalide consultable et rejouable par une action autorisée.
 - **Références CDC** : REC-30.
+- **Décision de périmètre (25/10/2026)** : l'utilisateur confirme qu'aucun webhook
+  entrant n'est prévu au P0. REC-30 est non applicable à ce périmètre ; ce ticket
+  P1 reste ouvert pour une future intégration et ne bloque pas la clôture P0 de QA-002.
 
 ### UCG-API-003 — Fiabiliser les appels fournisseurs
 
@@ -1523,7 +1526,9 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   réussites/4 exclusions PostgreSQL 17, sans échec ni erreur. Reverb réel passé
   trois fois (1 test/26 assertions par exécution), Pint/PHPStan verts, ressources
   temporaires nettoyées. Livraison en trois commits dédiés, sans push. QA-002 reste ouvert
-  pour API-002/REC-30, QA-005/REC-34, OPS-007/REC-35 et OPS-004/005/REC-36.
+  pour QA-005/REC-34, OPS-007/REC-35 et OPS-004/005/REC-36. L'utilisateur confirme
+  le 25/10/2026 qu'aucun webhook entrant n'est prévu au P0 : REC-30 non applicable
+  à ce périmètre, API-002 conservé pour une future intégration.
   REC-29 dispose d'une preuve de transport local, pas d'une certification de
   l'hébergement ni d'une éviction des sockets déjà connectées. Détails et matrice
   de preuves dans etat-projet.md ; aucune CI distante validée pour la consolidation.

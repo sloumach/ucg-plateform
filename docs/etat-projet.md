@@ -17,6 +17,9 @@
   processus de test arrêtés/supprimés. Livraison répartie en trois commits,
   sans push ; aucune logique métier ni migration modifiée. QA-002 reste ouvert
   sur les dépendances et limites détaillées dans la matrice finale.
+- Décision utilisateur du 25 octobre 2026 : **aucun webhook entrant prévu au P0**.
+  REC-30 est non applicable au périmètre P0 actuel ; API-002 reste à traiter si
+  une intégration entrante est introduite. Cette décision ne valide aucun webhook.
 - Reprise de la consolidation : `b7a6cba` présent sur `staging` et la référence
   locale origin/staging, arbre propre au départ. Sa CI n'a pas été confirmée par
   l'utilisateur ; dernière validation rapportée : `22ac7d5`. Aucune lecture distante.
@@ -6480,7 +6483,7 @@ est vert ; la matrice initiale du premier lot est conservée comme historique.
 | REC-27 | TenantCacheTest, TenantArtifactServiceTest, ReportExportTest, CalendarSubscriptionTest et export opérateur. | Redis réel dispose d'une étape CI dédiée ; il n'est pas démarré localement dans cette consolidation. |
 | REC-28 | Imports personnes/statistiques, scans et rappels contractuels, rappels d'inscription, CalendarInvitationWorkerTest, CalendarChangeWorkerTest et export opérateur sérialisé. | Pas de qualification de la topologie Redis/Horizon hébergée ni de SMTP réel. |
 | REC-29 | Autorisation et révocation HTTP/live, payload minimal, tests de file et transport Reverb local réel avec deux tenants. | Reverse proxy/TLS/worker hébergés non qualifiés ; pas de preuve d'éviction d'une socket déjà abonnée après révocation. Une invalidation minimale ne vaut pas autorisation de relire les scores. |
-| REC-30 | Recherche du code applicatif et des routes : aucun endpoint webhook métier entrant identifié ; l'URL Slack de logging n'est pas un tel endpoint. | API-002 requis : connecteur, contrat de signature, mapping tenant et idempotence, ou arbitrage explicite d'applicabilité au P0. Non déclaré satisfait. |
+| REC-30 | Aucun endpoint webhook métier entrant identifié. Le 25 octobre 2026, l'utilisateur confirme : « Aucun webhook entrant prévu au P0 ». | **Non applicable au P0 actuel**, sur décision explicite de périmètre. API-002 reste ouvert pour une future intégration ; signature, mapping tenant et idempotence devront alors être testés. Aucune implémentation de webhook certifiée. |
 | REC-32 | PlatformRoleManagementTest, ContextualRolesTest et séparation des rôles tenant/plateforme. | Conserver les audits et tests par nouvelle action privilégiée. |
 | REC-33 | PlatformSupportAccessTest : tenant/opérateur liés, durée, révocation, audit et expiration contrôlée. | Pas de nouvelle recette d'exploitation ou de scheduler hébergé ici. |
 | REC-34 | TenantTechnicalLimitsTest, quotas imports/exports/artefacts, budgets Redis et file isolée en CI. | QA-005 requis : charge asymétrique selon l'enveloppe du CDC, p95 et impact sur Beta mesurés. Des tests de bornes ne prouvent pas cette charge. |
@@ -6512,9 +6515,9 @@ Cluster PostgreSQL et bases de concurrence supprimés, processus Reverb/Node
 arrêtés ; aucun répertoire temporaire du lanceur ou de Reverb restant au contrôle
 final. Livraison en trois commits dédiés demandés dans le cadre de la tâche
 unique, sans push ; la CI distante des nouveaux commits reste à obtenir.
-Les informations nécessaires pour qualifier les webhooks P0, la recette de
-charge/restauration et la politique de rétention ont été demandées à l'utilisateur ;
-aucune réponse ni décision de périmètre n'est présumée.
+L'utilisateur confirme le 25 octobre 2026 qu'aucun webhook entrant n'est prévu
+au P0 ; REC-30 n'est donc plus bloquant pour ce périmètre. Les informations sur
+la recette de charge/restauration et la politique de rétention restent attendues.
 Aucune base existante, donnée réelle, migration, dépendance applicative, `.env`
 ou interface modifiée. Les preuves de transport local n'impliquent aucune mise
 en production. Aucun push ni résultat de CI distante revendiqué pour ce travail.

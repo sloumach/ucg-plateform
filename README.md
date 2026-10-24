@@ -4558,7 +4558,9 @@ Suites backend complètes : **2 748 réussites/50 exclusions sur SQLite**, et
 Reverb réel : trois exécutions réussies, chacune 1 test et 26 assertions.
 Pint/PHPStan verts, YAML et client Node vérifiés, ressources temporaires nettoyées.
 Livraison en trois commits dédiés, sans push ; CI distante à obtenir. Résultats
-et limites dans `docs/etat-projet.md`. QA-002 reste ouvert : webhooks non livrés (API-002), charge
+et limites dans `docs/etat-projet.md`. L'utilisateur confirme le 25 octobre 2026
+qu'aucun webhook entrant n'est prévu au P0 : REC-30 est non applicable à ce
+périmètre ; API-002 reste prévu pour une future intégration. QA-002 reste ouvert : charge
 asymétrique (QA-005), politique de purge exhaustive (OPS-007) et restauration
 avec réconciliation (OPS-004/005). Le test Reverb local ne certifie pas le proxy,
 TLS, workers hébergés ou l'éviction des sockets déjà abonnées après révocation.
