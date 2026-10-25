@@ -4570,9 +4570,10 @@ TLS, workers hébergés ou l'éviction des sockets déjà abonnées après révo
 **Brouillon de travail du 25 octobre 2026, sans autorisation de suppression.**
 L'utilisateur confirme que l'établissement d'UCG est en **Tunisie (TN)**.
 Cette information de cadrage ne remplace pas automatiquement les valeurs FR
-des fixtures ou la configuration d'une organisation existante. Les pays des
-utilisateurs, les responsables des traitements, les éventuels mineurs et le
-lieu de l'hébergement restent à préciser. L'inventaire ci-dessous porte sur les
+des fixtures ou la configuration d'une organisation existante. Le pilote est
+désormais confirmé pour des participants vivant uniquement en Tunisie, avec
+accueil de mineurs ; MENA/Europe reste le périmètre ultérieur. Les responsables
+des traitements et le lieu de l'hébergement restent à préciser. L'inventaire porte sur les
 sources du dépôt, pas sur les données ou paramètres effectifs d'une base réelle.
 
 ### Référence et décisions existantes
@@ -4791,3 +4792,35 @@ situation. La simulation devra expliquer chaque sélection et refus, vérifier
 les copies/imports et dépendances, ainsi que l'absence d'effet sur Beta. Ces cas
 sont un **plan futur**, pas des tests exécutés ni un moteur livré dans ce lot.
 **CAD-004, OPS-007 et REC-35 restent ouverts.**
+
+#### Décisions du premier pilote — 25 octobre 2026
+
+Ces précisions complètent le périmètre général ci-dessus :
+
+| Sujet | Décision utilisateur | Ce qui reste à compléter |
+| --- | --- | --- |
+| Participants du premier test | Personnes vivant uniquement en Tunisie | Équipe, participants et modules exacts du pilote dans CAD-006. Aucun filtre de pays n'est ajouté au produit par cette décision documentaire. |
+| Extension ultérieure | Zone MENA et Europe | Pays précis et examen des règles avant extension ; aucun autre pays n'est déclaré validé pour le premier test. |
+| Vérification des parents/tuteurs des mineurs | Une personne de l'équipe UCG, à désigner | Désigner la personne et son remplaçant, définir la procédure et les habilitations. Ce rôle opérationnel ne désigne pas à lui seul le responsable des traitements. |
+
+Le fonctionnement suivant est **proposé, à valider avant mise en œuvre** : la
+personne désignée examine la situation du mineur, vérifie les éléments et
+autorisations requis selon la procédure applicable, puis consigne un résultat
+daté et limité aux usages concernés. Une vérification en attente ou incomplète
+ne doit pas être présentée comme approuvée. Le contenu des preuves, leur stockage,
+leurs accès et leur durée doivent être définis ; aucune copie de pièce d'identité
+n'est demandée ou stockée par ce cadrage. Prévoir ensuite la correction, le
+changement de représentant et le retrait d'une autorisation selon l'usage.
+
+Ce parcours n'est pas implémenté. Le ticket **ACA-005** prévoit déjà les
+représentants, autorisations, visibilité et conservation, avec activation après
+validation juridique locale. La présence de mineurs confirmée rend ce ticket
+pertinent pour le pilote ; sa condition d'activation reste ouverte. La validation
+doit couvrir les usages réellement choisis, sans supposer que la seule résidence
+en Tunisie détermine tous les lieux de traitement ou toutes les règles applicables.
+
+Avant de développer ce parcours ou la purge, il reste à faire valider pour le
+pilote tunisien : les informations nécessaires et modalités de vérification,
+les usages autorisés, les événements de fin de candidature/relation et les durées
+par sous-catégorie PERS. Aucune durée n'est encore fixée. L'hébergement différé
+reste une dépendance distincte pour les accès, prestataires et copies.

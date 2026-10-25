@@ -646,6 +646,11 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Périmètre** : représentant légal, autorisations, visibilité et conservation selon le pays.
 - **Acceptation** : activation uniquement après validation juridique locale ; aucun dossier médical ou psychologique ajouté implicitement.
 - **Références CDC** : ACA-07.
+- **Cadrage pilote (25/10/2026)** : mineurs confirmés, participants du premier test
+  vivant uniquement en Tunisie ; vérification des parents/tuteurs confiée à une
+  personne de l'équipe UCG encore à désigner. Le besoin est confirmé, sans
+  activation ni implémentation du parcours. Validation locale et procédure
+  restent à compléter dans CAD-004 ; aucune durée ni preuve imposée par défaut.
 
 ## 10 Module Planning, disponibilités et logistique
 
@@ -1733,6 +1738,12 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   d'âge fixé, aucun code ni donnée modifié ; simulations seulement décrites.
   Ticket ouvert pour les décisions métier, leur validation applicable et les
   autres familles de données ; OPS-007/REC-35 ouverts également.
+- **Décisions pilote complémentaires (25/10/2026)** : premier test réservé à des
+  participants vivant en Tunisie ; MENA/Europe concerne la suite. Une personne
+  de l'équipe UCG à désigner vérifiera les informations/autorisations des
+  parents/tuteurs. Tableau de décisions et proposition de parcours dans le
+  README ; procédure, usages, durées et validation locale restent ouverts.
+  Aucun code, donnée, filtre géographique ou mécanisme de purge modifié.
 
 ### UCG-CAD-005 — Valider jeux et connecteurs prioritaires
 
@@ -1743,6 +1754,10 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 
 - **Priorité / taille** : P0 / S
 - **Décision attendue** : équipe UCG pilote, utilisateurs, modules activés, données reprises, calendrier et critères de succès.
+- **Décision partielle (25/10/2026)** : l'utilisateur confirme que les participants
+  du premier test vivront uniquement en Tunisie. Le périmètre MENA/Europe reste
+  ultérieur ; équipe, liste des participants, modules, calendrier et critères de
+  succès restent à décider. CAD-006 n'est pas clôturé par ce seul choix de pays.
 
 ## 24 Découpage suggéré des premières itérations
 

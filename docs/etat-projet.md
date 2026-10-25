@@ -6,14 +6,23 @@
 ## Point de reprise
 
 - Dernière mise à jour : 25 octobre 2026.
-- Tâche courante : **UCG-CAD-004, fiche de décision des dossiers de personnes**.
+- Tâche courante : **UCG-CAD-004, décisions du premier pilote**. Après `c676726`,
+  l'utilisateur précise que les participants du premier test vivront uniquement
+  en Tunisie ; MENA/Europe reste prévu pour la suite. Pour les mineurs, une
+  personne de l'équipe UCG, à désigner, vérifiera les informations/autorisations
+  des parents/tuteurs. README et backlog mis à jour ; lien avec ACA-005 et choix
+  partiel CAD-006 explicites. Proposition de parcours seulement : procédure,
+  usages et durées restent à valider. Aucune activation, donnée ou configuration
+  modifiée, aucun commit/push dans ce nouveau lot.
+- Lot précédent : **UCG-CAD-004, fiche de décision des dossiers de personnes**.
   Le cadrage OPS-007 précédent est commité en `83fa8e4` (aucun push par l'agent).
   L'utilisateur confirme des mineurs et un périmètre MENA/Europe ; les pays exacts
   restent à préciser. Fiche ajoutée au README : huit sous-catégories, parcours et
   événements de départ à décider, six tables du noyau, copies/dépendances et
   parcours de représentants à définir. Aucune durée ni règle d'âge inventée,
   aucune configuration, donnée ou protection modifiée. CAD-004/OPS-007/REC-35
-  ouverts ; détails en fin de document. Ce nouveau lot n'est pas commité.
+  ouverts ; détails en fin de document. Lot commité depuis en `c676726`, sans push
+  par l'agent.
 - Lot précédent : **UCG-OPS-007, inventaire et matrice de conservation préparatoires**.
   L'utilisateur autorise la préparation prudente des règles, sans suppression,
   et confirme l'établissement d'UCG en **Tunisie (TN)**. Inventaire des sources :
