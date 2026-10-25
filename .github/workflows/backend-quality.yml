@@ -126,7 +126,7 @@ jobs:
 
   antivirus:
     name: Real ClamAV clean and EICAR verification
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     defaults:
       run:
@@ -157,15 +157,21 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --yes --no-install-recommends clamav-daemon clamav-freshclam
+          sudo systemctl stop clamav-freshclam.service clamav-daemon.service clamav-daemon.socket
           scan_root="$RUNNER_TEMP/ucg-clamav"
-          mkdir -p "$scan_root/db"
-          cat > "$scan_root/freshclam.conf" <<EOF
-          DatabaseDirectory $scan_root/db
+          mkdir -p "$scan_root"
+          # Keep config, database and logs inside the packaged AppArmor allowlist.
+          sudo install -d -m 0700 -o "$(id -un)" -g "$(id -gn)" /var/lib/clamav/ucg-ci
+          sudo install -m 0600 -o "$(id -un)" -g "$(id -gn)" /dev/null /var/log/clamav/ucg-ci-freshclam.log
+          sudo install -m 0600 -o "$(id -un)" -g "$(id -gn)" /dev/null /var/log/clamav/ucg-ci-clamd.log
+          sudo tee /etc/clamav/freshclam.conf > /dev/null <<EOF
+          DatabaseDirectory /var/lib/clamav/ucg-ci
           DatabaseOwner $(id -un)
           DatabaseMirror database.clamav.net
-          UpdateLogFile $scan_root/freshclam.log
+          UpdateLogFile /var/log/clamav/ucg-ci-freshclam.log
           EOF
-          freshclam --config-file="$scan_root/freshclam.conf" --stdout
+          sudo chmod 0644 /etc/clamav/freshclam.conf
+          freshclam --config-file=/etc/clamav/freshclam.conf --stdout
           clamd --version > reports/clamav-version.txt
 
       - name: Start an owned loopback-only scanner with bounded scanning
@@ -173,10 +179,10 @@ jobs:
           TZ: UTC
         run: |
           scan_root="$RUNNER_TEMP/ucg-clamav"
-          cat > "$scan_root/clamd.conf" <<EOF
+          sudo tee /etc/clamav/clamd.conf > /dev/null <<EOF
           Foreground yes
-          DatabaseDirectory $scan_root/db
-          LogFile $scan_root/clamd.log
+          DatabaseDirectory /var/lib/clamav/ucg-ci
+          LogFile /var/log/clamav/ucg-ci-clamd.log
           TCPAddr 127.0.0.1
           TCPSocket 3310
           MaxThreads 2
@@ -189,7 +195,8 @@ jobs:
           AlertExceedsMax yes
           AlertEncrypted yes
           EOF
-          clamd --config-file="$scan_root/clamd.conf" > "$scan_root/stdout.log" 2>&1 &
+          sudo chmod 0644 /etc/clamav/clamd.conf
+          clamd --config-file=/etc/clamav/clamd.conf > "$scan_root/stdout.log" 2>&1 &
           echo $! > "$scan_root/runner.pid"
           for attempt in $(seq 1 60); do
             if php -r '$s=@stream_socket_client("tcp://127.0.0.1:3310",$n,$m,1); if(!$s){exit(1);} stream_set_timeout($s,1); fwrite($s,"zPING\0"); $r=fread($s,16); fclose($s); exit($r==="PONG\0"?0:1);'; then
@@ -221,7 +228,7 @@ jobs:
           scan_root="$RUNNER_TEMP/ucg-clamav"
           if test -f "$scan_root/runner.pid"; then
             scanner_pid=$(cat "$scan_root/runner.pid")
-            if [[ "$scanner_pid" =~ ^[0-9]+$ ]] && ps -p "$scanner_pid" -o args= | grep -F -- "--config-file=$scan_root/clamd.conf"; then
+            if [[ "$scanner_pid" =~ ^[0-9]+$ ]] && ps -p "$scanner_pid" -o args= | grep -F -- '--config-file=/etc/clamav/clamd.conf'; then
               kill "$scanner_pid"
             fi
           fi
@@ -235,5 +242,6 @@ jobs:
             back/reports/phpunit-clamav.xml
             back/reports/clamav-version.txt
             ${{ runner.temp }}/ucg-clamav/*.log
+            /var/log/clamav/ucg-ci-*.log
           if-no-files-found: ignore
           retention-days: 14

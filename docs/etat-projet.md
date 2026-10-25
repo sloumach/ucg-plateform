@@ -6,6 +6,11 @@
 ## Point de reprise
 
 - Dernière mise à jour : 25 octobre 2026.
+- Correctif courant : **CI après UCG-OPS-006 / 50062b0**. L'utilisateur signale
+  deux échecs : Playwright datetime-local à secondes nulles et lecture de la
+  configuration FreshClam sous RUNNER_TEMP. Correction du format navigateur avec
+  borne :00 exercée à chaque passage, et chemins ClamAV standards compatibles
+  AppArmor sur Ubuntu 24.04. Vérifications et limites en fin de document.
 - Tâche courante : **UCG-OPS-006, trois lots regroupés en un commit demandé**.
   CI de `ca42b47` validée par l'utilisateur avant changement de ticket. Tests de
   fichiers et quarantaine complétés ; ClamAV exige une réponse unique terminée
@@ -7620,3 +7625,52 @@ cette recette et le futur déploiement (signatures, paramètres, réseau privé,
 workers, parcours complet). Aucun moteur de production n'est activé, aucune
 migration ni donnée applicative réelle modifiée. Livraison en un seul nouveau
 commit, sans push ni réécriture des commits précédents.
+
+## Correctifs CI après 50062b0 (25 octobre 2026)
+
+L'utilisateur signale un échec Playwright du parcours roster et un échec de
+préparation FreshClam. OPS-008 n'a pas démarré ; la CI de 50062b0 n'est pas validée.
+
+### Roster : format canonique des dates navigateur
+
+L'erreur Malformed value est reproduite avec Chromium installé : fill refuse
+2026-10-24T21:57:00, normalisé par le champ en 2026-10-24T21:57 ; une valeur avec
+secondes non nulles est acceptée. Playwright compare strictement valeur donnée et
+valeur relue avant d'émettre les événements du champ. Ce n'est pas un refus API.
+
+Le début de période du scénario est désormais choisi à la minute, un jour dans
+le passé, pour exercer les secondes nulles à chaque exécution. Le payload API
+conserve les secondes et le fuseau explicites. La clôture conserve la précision
+à la seconde et retire seulement le suffixe :00 pour la saisie navigateur,
+afin de ne pas arrondir sa date avant le transfert récent.
+
+### ClamAV : chemins autorisés sur le runner Ubuntu
+
+L'erreur de lecture de freshclam.conf sous RUNNER_TEMP concorde avec le profil
+AppArmor livré par le paquet : ses chemins de configuration autorisés sont sous
+/etc/clamav, pas sous le répertoire de travail GitHub. La même correction est
+appliquée à clamd pour éviter le refus suivant. Les références des profils sont
+dans le README ; le journal fourni ne contient pas l'événement noyau DENIED,
+donc la cause AppArmor reste une déduction de ces éléments.
+
+Le job est fixé à Ubuntu 24.04. Les configurations utilisent les noms standards
+/etc/clamav/freshclam.conf et /etc/clamav/clamd.conf, les signatures un dossier
+ucg-ci dédié dans /var/lib/clamav, les journaux /var/log/clamav/ucg-ci-*.log. Les
+droits sont explicites pour le compte non root du runner. Les services du paquet
+sont arrêtés après installation pour éviter une instance concurrente ; le PID
+de l'instance du test reste suivi et vérifié avant son arrêt. Les journaux sont
+conservés en artefacts. AppArmor reste actif, aucun avis ni test n'est ignoré.
+
+Le démarrage réel sous Ubuntu/AppArmor et le téléchargement de signatures restent
+à confirmer au prochain passage distant : aucun moteur Linux équivalent n'a été
+exécuté sur le poste Windows. Aucun code métier, migration, donnée réelle ou
+dépendance n'a été changé ; correctifs non commités et aucun push.
+
+Validation finale du correctif : **8 parcours SQLite réussis** (322,69 s) et
+**8 parcours PostgreSQL réussis** (423,76 s), zéro erreur/échec/exclusion. Le cas
+roster à secondes nulles passe dans les deux moteurs ; arrêts des serveurs et
+suppression des ressources temporaires confirmés. Lint frontend, TypeScript,
+parsing YAML, syntaxe Bash des blocs run backend et diff check réussis. Rapports
+ignorés front/reports/playwright-real.xml et playwright-real-postgresql.xml.
+La suite PHPUnit complète n'est pas répétée pour ces seules corrections de CI
+et de saisie dans un test navigateur ; aucun fichier PHP n'a changé.

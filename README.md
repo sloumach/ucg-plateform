@@ -5234,6 +5234,18 @@ vérifier les signatures, paramètres effectifs, réseau privé, workers et le p
 complet dépôt/analyse/téléchargement. Références : [scan](https://docs.clamav.net/manual/Usage/Scanning.html)
 et [configuration ClamAV](https://github.com/Cisco-Talos/clamav/blob/main/etc/clamd.conf.sample).
 
+Correctif de préparation CI après le premier lancement : le runner antivirus est
+fixé à Ubuntu 24.04. Les configurations utilisent /etc/clamav/freshclam.conf et
+/etc/clamav/clamd.conf, les signatures un sous-répertoire dédié de /var/lib/clamav
+et les journaux /var/log/clamav/ucg-ci-*.log, conservés en artefacts. Ces chemins
+respectent les profils AppArmor du paquet ([FreshClam](https://sources.debian.org/src/clamav/1.4.6%2Bdfsg-1/debian/usr.bin.freshclam/),
+[clamd](https://sources.debian.org/src/clamav/1.4.6%2Bdfsg-1/debian/usr.sbin.clamd/)) ;
+la configuration initiale sous RUNNER_TEMP pouvait être refusée malgré des droits
+Unix corrects. Les services installés automatiquement sont arrêtés avant l'instance
+du test ; son PID reste suivi et seul ce processus est arrêté au nettoyage.
+AppArmor reste actif. La lecture des configurations, l'écriture des signatures et
+journaux sont permises au compte du runner, sans lancer le moteur en root.
+
 ### Audits et suivi des dépendances
 
 Les workflows auditent maintenant le verrou Composer (avec paquets de développement

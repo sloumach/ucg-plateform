@@ -81,14 +81,15 @@ test('personne et équipes réelles, transfert de roster, clôture et accès ten
   await expect(membershipForm.getByRole('option', { name: 'Beta roster player', exact: true })).toHaveCount(0)
   await expect(membershipForm.getByRole('option', { name: 'Foreign private player', exact: true })).toHaveCount(0)
   await membershipForm.getByLabel('Personne de l’organisation').selectOption(person.id)
-  const start = new Date(Date.now() - 86_400_000).toISOString().slice(0, 19)
+  // Chromium normalizes zero seconds away; exercise that boundary on every run.
+  const start = new Date(Date.now() - 86_400_000).toISOString().slice(0, 16)
   await membershipForm.getByLabel('Début de la période').fill(start)
   await membershipForm.getByRole('button', { name: 'Enregistrer l’appartenance', exact: true }).click()
   const membership = await approve(sourceRoster, `${sourcePath}/memberships`, 'POST', 201)
   await expect(sourceRoster.getByRole('heading', { name: 'Roster browser player · Titulaire', exact: true })).toBeVisible()
 
   const alphaHeaders = await headers()
-  const payload = { person_id: person.id, role_key: 'player', starts_at: `${start}+00:00`, reason_key: 'initial' }
+  const payload = { person_id: person.id, role_key: 'player', starts_at: `${start}:00+00:00`, reason_key: 'initial' }
   const overlap = await context.request.post(`${sourcePath}/memberships`, { headers: alphaHeaders, data: payload })
   expect(overlap.status()).toBe(409)
   expect((await overlap.json()).code).toBe('TEAM_MEMBERSHIP_OVERLAP')
@@ -119,7 +120,7 @@ test('personne et équipes réelles, transfert de roster, clôture et accès ten
   await expect.poll(() => Date.now()).toBeGreaterThan(new Date(transferred.starts_at).getTime() + 1000)
   await targetRoster.getByRole('button', { name: 'Clôturer la période', exact: true }).click()
   const closeForm = targetRoster.getByRole('form', { name: 'Enregistrer l’appartenance' })
-  await closeForm.getByLabel('Date d’effet').fill(new Date().toISOString().slice(0, 19))
+  await closeForm.getByLabel('Date d’effet').fill(new Date().toISOString().slice(0, 19).replace(/:00$/, ''))
   await closeForm.getByRole('button', { name: 'Enregistrer l’appartenance', exact: true }).click()
   const closed = await approve<TeamMembership>(targetRoster, `${destinationPath}/memberships/${transferred.id}`, 'PATCH', 200)
   expect(closed.status).toBe('closed')
