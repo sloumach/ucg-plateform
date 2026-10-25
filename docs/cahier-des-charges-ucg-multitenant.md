@@ -31,7 +31,18 @@ Un utilisateur peut appartenir à plusieurs organisations et y exercer des rôle
 
 L’architecture initiale recommandée utilise une base PostgreSQL et un schéma partagés, avec un identifiant d’organisation obligatoire sur toutes les données appartenant à un tenant. Ce choix doit être renforcé par des contraintes relationnelles, des contrôles d’autorisation et des tests d’isolation ; l’ajout d’un simple champ `organization_id` ne constitue pas à lui seul une isolation multi-tenant.
 
-Le pays d’établissement, les effectifs, les jeux prioritaires, le budget et la présence de mineurs ne sont pas encore précisés. Ils doivent être confirmés pendant le cadrage. Les exemples liés à VALORANT, League of Legends ou Counter-Strike illustrent le modèle et ne constituent pas une liste de jeux commandés.
+Précisions de cadrage confirmées le 25 octobre 2026 : UCG / Ultra Cyber Game est
+la véritable structure de l'utilisateur, établie en Tunisie. Le premier essai
+utilisera uniquement des données métier fictives ; la première population réelle
+visée vit en Tunisie, avec accueil futur de mineurs. MENA/Europe constitue une
+extension ultérieure dont les pays restent à préciser. Une personne de l'équipe
+UCG, encore à désigner, vérifiera les informations/autorisations des parents ou
+tuteurs selon une procédure à faire valider. Les responsabilités de traitement,
+durées métier et hébergement restent ouverts dans CAD-004 ; le dossier consolidé
+du README distingue préparation et conditions de clôture. Les effectifs, jeux
+prioritaires et budget restent à confirmer. Les exemples liés à VALORANT, League
+of Legends ou Counter-Strike illustrent le modèle et ne constituent pas une liste
+de jeux commandés.
 
 ### 1.3 Vocabulaire
 

@@ -4824,3 +4824,111 @@ pilote tunisien : les informations nécessaires et modalités de vérification,
 les usages autorisés, les événements de fin de candidature/relation et les durées
 par sous-catégorie PERS. Aucune durée n'est encore fixée. L'hébergement différé
 reste une dépendance distincte pour les accès, prestataires et copies.
+
+### UCG-CAD-004 — Dossier consolidé et conditions de clôture
+
+**Situation au 25 octobre 2026.** « Pilote » désigne le premier essai de
+l'application. L'utilisateur confirme qu'UCG / Ultra Cyber Game est sa véritable
+structure et que cet essai utilisera **uniquement des données fictives pour le
+moment**. L'accueil de personnes réelles, notamment de mineurs, est un objectif
+ultérieur ; il n'est pas autorisé par la préparation de cet essai. La mention de
+participants vivant en Tunisie décrit la population cible du premier essai réel,
+pas l'existence d'un fichier de participants réels déjà collecté.
+
+Cette section consolide les décisions précédentes. **La préparation documentaire
+est consolidée ; CAD-004 reste ouvert pour validation des points ci-dessous.**
+L'hébergement est toujours différé. Aucun nom de responsable, mandat, prestataire,
+durée métier ou avis juridique n'est réputé acquis à partir du nom UCG.
+
+#### Tableau de clôture unique
+
+| Décision | État confirmé | Élément nécessaire pour clôturer le cadrage réel | Porteur attendu |
+| --- | --- | --- | --- |
+| CAD4-01 — Pays et territoires | UCG établie en Tunisie ; première population cible vivant en Tunisie ; MENA/Europe ensuite ; essai actuel fictif | Liste des pays et usages examinés avant toute extension ; lieux de traitement couverts par CAD4-06 | Direction UCG |
+| CAD4-02 — Responsabilités | UCG est une véritable structure ; vérificateur parents/tuteurs à désigner dans l'équipe | Identifier l'entité/personne qui décide des finalités et moyens, son contact et la répartition avec exploitant/prestataires. Distinguer compte propriétaire technique, vérificateur et responsable des traitements ; qualifier séparément la plateforme et chaque organisation | Direction UCG avec validation compétente |
+| CAD4-03 — Mineurs | Accueil futur confirmé ; date de naissance facultative dans le code ; aucun parcours complet de représentant livré | Nommer vérificateur/remplaçant, valider la procédure ci-dessous, l'âge pertinent, les éléments nécessaires et les formalités ; rattacher la décision à ACA-005 | Direction UCG et personne compétente en droit tunisien |
+| CAD4-04 — Conservation | Inventaire des 116 tables en 18 familles, huit sous-catégories PERS et expirations techniques disponibles | Décision datée sur chaque catégorie utilisée : finalité, événement, durée active, archive/accès, justification, action finale, copies, gel et validateur. Documenter aussi les catégories hors périmètre du premier essai réel et le contrôle avant leur activation | Responsables métier et validation locale |
+| CAD4-05 — Information et demandes | Usages internes/publics et copies distingués dans la fiche | Texte adapté aux usages retenus, destinataires, contact de demande, vérification du demandeur, traitement des corrections/retraits/départs et procédure de décision tracée | Direction UCG et référent à désigner |
+| CAD4-06 — Hébergement et prestataires | Choix différé par l'utilisateur | Prestataire, pays des bases/fichiers/sauvegardes/logs, accès support, services externes, transferts et responsabilités contractuelles ; vérifier la chaîne effective dans OPS-001/004/005 | Direction UCG et exploitation |
+
+Les rôles juridiques ne sont pas attribués automatiquement : la question de
+l'entité qui choisit les données et leurs usages n'a pas encore reçu de réponse.
+Le vérificateur des parents/tuteurs n'est pas non plus une personne déjà nommée.
+La résidence tunisienne des personnes n'identifie pas le pays d'un futur service
+d'e-mail, d'un stockage ou d'un accès de support.
+
+#### Point juridique à intégrer avant données réelles
+
+Référence consultée le 25 octobre 2026 : [loi n° 2004-63 publiée par l'INS](https://www.ins.tn/sites/default/files-ftp3/files/2020-04/Loi%2063-2004%20Fr.pdf).
+L'article 28 mentionne le consentement du tuteur et l'autorisation du juge de la
+famille pour les données d'un enfant : une validation interne ne les remplace
+pas. Les articles 7–8, 31, 45–46 et 50–52 éclairent les formalités, l'information,
+la destruction et les transferts à faire examiner. Ce repérage ne certifie pas
+l'applicabilité exacte ni l'état exhaustif du droit. La [fiche officielle ARP
+095/2025](https://www.arp.tn/loi/project/4237) affiche une proposition en commission ;
+elle ne constitue pas une loi de remplacement promulguée. Faire confirmer les
+textes et modalités en vigueur avant collecte réelle.
+
+#### Procédure proposée pour les mineurs — à valider, non implémentée
+
+1. **Préparer l'admission** : préciser l'activité, les informations strictement
+   nécessaires, les destinataires et la procédure applicable avant de demander
+   des informations réelles. Ne pas ouvrir une collecte de justificatifs pour
+   simplement compléter ce document.
+2. **Orienter les cas** : prévoir les situations adulte, mineur et âge non établi,
+   avec les critères validés localement. Une date absente ou déclarée ne vaut pas
+   vérification ; les cas indéterminés restent en attente d'examen.
+3. **Vérifier la représentation** : le vérificateur UCG désigné applique la méthode
+   approuvée ; il traite aussi les désaccords ou changements de représentant et
+   distingue le contact fourni de la qualité de représentant effectivement revue.
+4. **Séparer les usages** : participation interne, communication, publication
+   du profil/image et transmission à un tiers font l'objet de décisions propres.
+   La création d'un compte ou l'accès sportif ne doit pas approuver ces usages.
+5. **Vérifier le dossier applicable** : contrôler les éléments/formalités validés
+   localement, leur portée et leur validité. Prévoir des résultats en attente,
+   incomplet, refusé ou validé pour un usage déterminé, avec motif minimal ; ce
+   vocabulaire est une proposition de conception, pas de nouveaux états livrés.
+6. **Tracer avec accès restreint** : prévoir référence de dossier, usage/version
+   de l'information, identité de l'intervenant, résultat/date de revue et échéance
+   de réexamen. Le détail des preuves, leur support et leur durée restent à
+   approuver. Aucun document d'identité n'est collecté par défaut ; ne pas utiliser
+   les biographies ou notes générales comme coffre de justificatifs.
+7. **Réexaminer** : correction, retrait, changement de représentant, majorité,
+   pays ou activité provoquent une nouvelle décision sur les usages concernés.
+   Distinguer suspension d'un usage, retrait d'accès, fin de relation et effacement.
+8. **Terminer la relation** : appliquer les décisions de conservation approuvées
+   aux sous-catégories et copies ; un litige/gel doit avoir un périmètre et une
+   revue. La purge sera conçue dans OPS-007, sans désactiver les gardes SQL actuels.
+
+#### Conservation et essais : décisions distinctes
+
+Les durées métier restent **non validées pour les 18 familles**, y compris les
+contrats, justificatifs, statistiques, journaux et sauvegardes, pas seulement
+les dossiers de personnes. La fiche PERS est une première déclinaison ; les
+autres catégories doivent recevoir leurs propres décisions avant usage réel.
+La conservation d'audit illimitée existante demeure une décision technique à
+réexaminer ; elle ne clôt pas CAD4-04. Aucun délai français ni durée numérique
+arbitraire n'est ajouté pour rendre la matrice artificiellement complète.
+
+Pour l'essai actuel, utiliser des scénarios et personnes entièrement inventés,
+sans copie de fichiers réels, identité de parent ou coordonnées de membre réel.
+Les comptes des développeurs, adresses d'envoi, journaux et services utilisés
+peuvent toutefois concerner de vraies personnes : « données métier fictives »
+ne certifie pas que l'ensemble de l'installation est dépourvu de données
+personnelles. Les outils existants de test isolé/nettoyage ne deviennent pas
+une politique de conservation de production.
+
+#### Passage aux autres tickets
+
+L'essai fictif permet de préparer conception et simulations sans présumer les
+décisions ci-dessus. Les scénarios futurs doivent couvrir : accès inter-tenant
+refusé, vérificateur sans droit, dossier incomplet, usage non approuvé, retrait,
+changement de représentant, âge inconnu, compte partagé, événement de fin absent,
+gel et cohérence des copies. Aucun de ces tests n'est déclaré exécuté par ce lot.
+
+Pour clore CAD-004 sur un essai réel, chaque ligne CAD4 doit disposer d'une
+décision datée, d'un responsable et des références/validations nécessaires ;
+un choix différé reste ouvert. **ACA-005** porte l'implémentation des mineurs,
+**OPS-007** celle de la conservation/purge, **OPS-001/004/005** les environnements
+et copies, **CAD-006/REL-001** le périmètre et la conduite du premier essai.
+Ce dossier ne clôt aucun de ces tickets, REC-35 ou la recette QA-005 différée.

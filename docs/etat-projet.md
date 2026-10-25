@@ -6,14 +6,25 @@
 ## Point de reprise
 
 - Dernière mise à jour : 25 octobre 2026.
-- Tâche courante : **UCG-CAD-004, décisions du premier pilote**. Après `c676726`,
+- Tâche courante : **UCG-CAD-004, consolidation en un seul commit demandé**.
+  Après `f771467`, l'utilisateur confirme qu'UCG est sa véritable structure et que
+  l'essai actuel utilise **uniquement des données fictives pour le moment**.
+  « Pilote » a été expliqué comme premier essai. La Tunisie définit la première
+  population réelle cible, MENA/Europe la suite. Dossier consolidé dans le README :
+  six décisions CAD4, procédure mineurs proposée en huit étapes, responsabilités,
+  conservation des 18 familles et critères avant données réelles. Préparation
+  consolidée ; ticket ouvert sur validations manquantes et hébergement différé.
+  La question sur l'entité qui décide des usages n'a pas reçu de réponse : ne pas
+  déduire les responsabilités juridiques du nom UCG. Aucun code/donnée modifié.
+  Détails en fin de document ; commit unique autorisé, aucun push demandé.
+- Lot précédent : **UCG-CAD-004, décisions du premier pilote**. Après `c676726`,
   l'utilisateur précise que les participants du premier test vivront uniquement
   en Tunisie ; MENA/Europe reste prévu pour la suite. Pour les mineurs, une
   personne de l'équipe UCG, à désigner, vérifiera les informations/autorisations
   des parents/tuteurs. README et backlog mis à jour ; lien avec ACA-005 et choix
   partiel CAD-006 explicites. Proposition de parcours seulement : procédure,
   usages et durées restent à valider. Aucune activation, donnée ou configuration
-  modifiée, aucun commit/push dans ce nouveau lot.
+  modifiée. Lot commité depuis en `f771467`, sans push par l'agent.
 - Lot précédent : **UCG-CAD-004, fiche de décision des dossiers de personnes**.
   Le cadrage OPS-007 précédent est commité en `83fa8e4` (aucun push par l'agent).
   L'utilisateur confirme des mineurs et un périmètre MENA/Europe ; les pays exacts
@@ -7194,3 +7205,42 @@ configuration ou donnée réelle modifié. Aucun commit/push effectué dans ce l
 **CAD-004, OPS-007 et REC-35 restent ouverts.** Prochaine étape : compléter les
 décisions métier et pays précis, faire valider les règles applicables, puis
 concevoir la simulation et les évolutions nécessaires.
+
+## UCG-CAD-004 — Consolidation et limites de clôture (25 octobre 2026)
+
+L'utilisateur demande de terminer CAD-004 en un seul commit. Les clarifications
+confirment que l'essai actuel sera uniquement fictif et qu'UCG / Ultra Cyber Game
+est sa véritable structure. Les termes du dépôt ont été expliqués ; aucune
+réponse sur la responsabilité de traitement n'est déduite d'une incompréhension.
+Le vérificateur parents/tuteurs reste une personne de l'équipe à désigner.
+
+Le README rassemble désormais un tableau CAD4-01 à CAD4-06 : pays/territoires,
+responsabilités, mineurs, conservation, information/demandes et hébergement.
+Chaque ligne précise le fait confirmé, la décision manquante, son porteur attendu
+et les conditions de clôture. La procédure proposée couvre admission, orientation
+des cas, représentation, usages, vérification du dossier, trace restreinte,
+réexamen et fin de relation. Elle ne crée aucun droit, stockage de justificatif,
+seuil d'âge ou nouveau parcours applicatif. Les durées restent non validées pour
+les 18 familles ; l'audit illimité existant n'est pas présenté comme conformité.
+
+Les sources primaires ont été consultées : texte de la loi n° 2004-63 publié par
+l'INS, publication ministérielle déjà référencée et fiche ARP 095/2025. Le repérage
+juridique du README précise la limite de la simple vérification interne et la
+nécessité de faire confirmer les modalités en vigueur. Une proposition parlementaire
+n'est pas traitée comme un texte de remplacement promulgué. Ce travail n'est pas
+un avis de validation juridique pour UCG et aucune démarche externe n'est lancée.
+
+Le cahier des charges est corrigé sur les faits devenus connus ; backlog et point
+de reprise distinguent essai fictif actuel, première population réelle cible et
+extension ultérieure. Les comptes/logs réels éventuels ne sont pas déclarés
+fictifs du seul fait des scénarios métier. Hébergement, copies et prestataires
+restent à préciser ; OPS-001/004/005, ACA-005, OPS-007 et QA-005 restent distincts.
+
+Contrôle documentaire du diff, des références CAD4, étapes et faits confirmés ;
+aucun test applicatif nécessaire pour ces seuls textes. Aucun accès à une base,
+commande Artisan, migration, expiration, purge ou modification de configuration.
+Quatre documents existants sont modifiés, sans création de fichier. Le commit
+unique est autorisé pour la consolidation, sans push. **CAD-004 reste ouvert** :
+la préparation est regroupée mais les décisions/validations nécessaires à un
+usage réel ne peuvent pas être déclarées obtenues. Aucun ticket de conformité,
+de purge ou de recette réelle n'est clôturé artificiellement.

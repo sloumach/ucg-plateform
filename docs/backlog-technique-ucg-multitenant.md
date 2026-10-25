@@ -1727,6 +1727,17 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 
 - **Priorité / taille** : P0 / M
 - **Décision attendue** : pays d’établissement, territoires, rôles RGPD, durées, représentants légaux et hébergement.
+- **État consolidé (25/10/2026)** : préparation documentaire consolidée, **ticket
+  ouvert pour validation avant données réelles**. L'utilisateur confirme UCG comme
+  sa véritable structure et des essais uniquement fictifs pour le moment ; la
+  première population réelle visée est tunisienne, MENA/Europe ultérieur.
+  Dossier unique dans le README, avec six décisions CAD4-01–06, responsabilités
+  non attribuées par défaut, procédure mineurs proposée en huit étapes, repérage
+  des sources officielles et critères de passage au réel. Les 18 familles de
+  conservation n'ont pas encore de durées métier validées ; l'hébergement reste
+  différé. Le rôle du vérificateur UCG ne suffit pas à valider le parcours légal.
+  Un seul commit de consolidation est demandé. Aucun code, collecte réelle,
+  purge ou activation ACA-005 ; les sections ci-dessous retracent la préparation.
 - **Préparation dossiers de personnes (25/10/2026)** : après le cadrage OPS-007
   commité en `83fa8e4`, l'utilisateur confirme l'accueil de mineurs et un périmètre
   MENA/Europe ; les pays exacts restent à préciser. Fiche dans le README : huit
@@ -1758,6 +1769,10 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   du premier test vivront uniquement en Tunisie. Le périmètre MENA/Europe reste
   ultérieur ; équipe, liste des participants, modules, calendrier et critères de
   succès restent à décider. CAD-006 n'est pas clôturé par ce seul choix de pays.
+- **Précision ultérieure (25/10/2026)** : l'essai actuel utilise uniquement des
+  données fictives. La résidence tunisienne définit la première population réelle
+  cible, sans affirmer qu'une liste de personnes réelles est déjà collectée.
+  Le dossier CAD-004 ne remplace pas le choix de l'équipe/modules du premier essai.
 
 ## 24 Découpage suggéré des premières itérations
 
