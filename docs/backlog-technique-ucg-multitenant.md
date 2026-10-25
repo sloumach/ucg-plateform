@@ -1376,6 +1376,18 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Périmètre** : export, sélection depuis sauvegarde, réconciliation et procédure de réimport contrôlée.
 - **Acceptation** : récupération sans écraser les mises à jour récentes des autres tenants.
 - **Références CDC** : REC-36.
+- **Premier exercice local (25/10/2026)** : sélection Alpha depuis un cluster
+  restauré à partir d'une sauvegarde chiffrée, puis réconciliation ciblée dans
+  le cluster fictif courant. Trois champs d'une fiche existante et un artefact
+  manquant/ledger intact uniquement ; nouvelle version et audit via PersonService.
+  Modifications, nouvelle fiche et nouveau fichier Beta postérieurs à la sauvegarde
+  conservés, contrôles sur les 116 tables tenant et 20 globales et fichiers Beta.
+  Plan sans écriture signé au laboratoire, refus inter-tenant/altération/obsolescence,
+  compensation base/fichier sur erreur synchrone et réapplication refusée.
+  npm test:recovery:tenant, rapport tenant-recovery-local.json et raccordement CI
+  PostgreSQL. **Ticket/REC-36 ouverts** : import complet, références/intermodules,
+  décisions d'effacement/gel et reprise après crash restent à traiter. Aucun
+  moteur de réimport de production ou changement d'OrganizationRecoveryService.
 
 ### UCG-OPS-006 — Appliquer la sécurité des fichiers et dépendances
 

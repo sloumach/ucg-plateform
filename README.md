@@ -4998,3 +4998,66 @@ Les durées locales ne sont ni un RTO de service ni un engagement RPO. Les modul
 autres que People/artefacts ont leur schéma restauré, pas un scénario métier
 peuplé. La récupération sélective d'un tenant avec réconciliation relève
 d'OPS-005/REC-36 ; cet exercice restaure une base complète dans une cible distincte.
+
+## UCG-OPS-005 — Premier exercice de récupération sélective
+
+Depuis `front`, avec les mêmes prérequis PostgreSQL 17 que l'exercice OPS-004 :
+
+```powershell
+$env:UCG_BROWSER_PG_BIN = 'C:\Program Files\PostgreSQL\17\bin'
+npm run test:recovery:harness
+npm run test:recovery:tenant
+```
+
+Le test `tenant-recovery.test.mjs` et la fixture PHP `tenant-recovery.php` sont
+réservés aux environnements temporaires attestés du lanceur. Le laboratoire
+commun `recovery-lab.mjs` sert aussi au test OPS-004. Aucune commande opérateur,
+route d'import ou restauration vers une base utilisée n'est ajoutée.
+
+Le scénario sauvegarde Alpha/Beta fictifs, restaure le dump et les fichiers dans
+un second cluster, puis y sélectionne la fiche et le fichier Alpha. Ce cluster
+de lecture est ensuite arrêté. Dans le cluster courant, Alpha est modifié et son
+fichier privé supprimé pour simuler une perte ; Beta reçoit une modification,
+une nouvelle fiche et un nouveau fichier après sauvegarde. Les données à rétablir
+proviennent du cluster restauré, pas de la fiche Alpha courante.
+
+La comparaison préalable est sans écriture et porte sur un périmètre fermé :
+**pseudonyme, prénom et courriel d'une fiche Alpha existante, ainsi qu'un artefact
+Alpha manquant dont le ledger doit être intact et identique à la sauvegarde**.
+La confirmation du tenant, les identifiants de fiche/artefact, le contenu et son
+empreinte sont vérifiés. Le plan est signé avec le jeton éphémère du laboratoire
+courant et fixe version/empreinte de la fiche et du ledger ; une modification
+du plan ou un changement de la fiche depuis sa préparation entraîne un refus.
+Cette signature lie le plan au laboratoire, sans constituer une approbation
+métier réelle ni une signature juridique.
+
+La réapplication utilise PersonService et ses validations/autorisations ; les
+droits métier sont accordés explicitement dans les fixtures, indépendamment de
+la qualité de propriétaire. La fiche reçoit une nouvelle version et un événement
+d'audit Alpha. Les gardes SQL et les historiques restent actifs. Le fichier
+manquant est créé sans écraser un objet existant et sans modifier le ledger ou
+son quota. Une erreur synchrone simulée après écriture annule la transaction et
+supprime seulement le fichier nouvellement créé. Ce test de compensation ne
+garantit pas l'atomicité base/fichiers en cas d'arrêt brutal de machine.
+
+Les contrôles comparent tous les comptes/empreintes de lignes Beta sur les
+**116 tables du catalogue fermé**, les **20 tables globales restantes** et les
+octets des deux fichiers Beta récents. Les refus portent sur absence de droit,
+confirmation étrangère, données Beta présentées pour Alpha, fiche/artefact
+étrangers, plan altéré, plan devenu obsolète et réapplication après succès.
+Un échec simulé doit laisser toutes les lignes et fichiers courants inchangés.
+Les modèles métier peuplés restent People, rôles et artefacts ; les autres tables
+figurent au contrôle, sans scénario métier peuplé dans chaque module.
+
+Le rapport ignoré `front/reports/tenant-recovery-local.json` contient le résultat,
+les empreintes des sources/de la sauvegarde chiffrée, les durées, contrôles et
+nettoyage, sans identités, contenu de fichier, plan privé ou clé. Le job PostgreSQL
+CI exécute ce test et collecte ce rapport ; son exécution distante reste à valider.
+
+**OPS-005/REC-36 restent ouverts** : cet exercice ne reconstitue pas une organisation
+entière perdue, ses références manquantes, contrats/matchs/historiques ou comptes
+globaux. Il ne transforme pas OrganizationRecoveryService (désarchivage des données
+préservées) en moteur d'import. Réconciliation intermodules, gels/effacements
+autorisés depuis sauvegarde, reprise durable après crash et qualification sur
+infrastructure relèvent des lots suivants ; aucune réactivation automatique ni
+suppression de données réelles n'est autorisée par cette fixture.

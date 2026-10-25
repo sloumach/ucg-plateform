@@ -129,6 +129,7 @@ jobs:
         run: |
           npm run test:recovery:harness
           npm run test:recovery
+          npm run test:recovery:tenant
 
       - name: Upload Playwright reports
         if: always()
@@ -148,5 +149,6 @@ jobs:
             front/reports/playwright-real-postgresql-results
             front/reports/playwright-real-postgresql-application.log
             front/reports/recovery-local.json
+            front/reports/tenant-recovery-local.json
           if-no-files-found: ignore
           retention-days: 14

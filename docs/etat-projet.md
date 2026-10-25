@@ -6,7 +6,17 @@
 ## Point de reprise
 
 - Dernière mise à jour : 25 octobre 2026.
-- Tâche courante : **UCG-OPS-004, exercice local de sauvegarde/restauration**.
+- Tâche courante : **UCG-OPS-005, premier exercice local de récupération sélective**.
+  L'utilisateur autorise le démarrage prudent après le commit OPS-004 `7a7d545`.
+  Source fictive courante et second cluster restauré ; sélection Alpha depuis
+  sauvegarde, plan sans écriture et réapplication de trois champs d'une fiche
+  existante et d'un artefact manquant, sans changer le ledger. Version/audit neufs,
+  conservation des modifications et ajouts Beta, contrôles des données globales.
+  Laboratoire partagé avec OPS-004, scripts npm et CI PostgreSQL. Périmètre de
+  fixture fermé ; aucun réimport complet d'organisation ou outil opérateur livré.
+  OPS-005/REC-36 restent ouverts. Détails et résultats en fin de document ; aucun
+  commit/push demandé dans cette tâche.
+- Lot précédent : **UCG-OPS-004, exercice local de sauvegarde/restauration**.
   Après le commit CAD-004 `60ab7f3`, l'utilisateur autorise le démarrage prudent
   d'un exercice exclusivement fictif et isolé. Deux clusters PostgreSQL 17
   temporaires, dump complet et fichiers privés, chiffrement d'enveloppe distinct
@@ -7328,3 +7338,94 @@ brutal de machine garanti. Les ressources restent conservées en cas de doute de
 propriété/arrêt et le test échoue. OPS-005/REC-36 ne sont pas clôturés par une
 restauration globale dans un nouveau cluster. Aucun commit ni push effectué dans
 ce lot ; aucune modification de code métier, dépendance ou configuration réelle.
+
+## UCG-OPS-005 — Récupération sélective locale initiale (25 octobre 2026)
+
+### Mandat et périmètre
+
+Après `7a7d545`, l'utilisateur autorise un démarrage prudent sur données fictives.
+L'arbre est propre au début. OrganizationRecoveryService est examiné : il
+désarchive des données préservées vers suspended et ne réimporte pas une archive.
+Le nouvel exercice est donc distinct, exclusivement dans des fixtures attestées,
+sans route, commande opérateur, service de réimport ou modification de ce service.
+
+Le laboratoire commun recovery-lab.mjs extrait les opérations déjà présentes
+dans le test OPS-004 (démarrage, fixture PHP, coordonnées natives, restauration
+et nettoyage). OPS-004 le réutilise et est réexécuté. Le nouveau test sauvegarde
+le cluster fictif courant, restaure dans un second cluster, y sélectionne Alpha,
+puis arrête ce cluster de lecture. Le cluster courant reçoit des changements
+Alpha et Beta ; le fichier privé Alpha est retiré pour simuler la perte. Beta
+reçoit une modification de fiche, une nouvelle fiche et un nouvel artefact.
+
+### Réconciliation et protections
+
+La fixture tenant-recovery.php accepte uniquement ses opérations fermées sous
+le bootstrap PostgreSQL/temporaire existant. Le périmètre récupérable est borné
+à trois champs (pseudonyme, prénom, courriel) d'une fiche Alpha déjà existante et
+à un artefact Alpha manquant dont le ledger demeure intact. Les entrées sont
+validées avant traitement et bornées en taille ; aucune table/colonne arbitraire
+ou identité globale n'est importée. Les données privées sélectionnées et le plan
+circulent dans les pipes des sous-processus, sans inclusion dans le rapport.
+
+La préparation du plan ne fait aucune écriture, ce que les empreintes de toutes
+les lignes contrôlent. Confirmation, tenant et identifiants sont vérifiés. Le
+plan signé au jeton du laboratoire fige version/empreinte de la fiche et du ledger.
+Une modification de fiche postérieure au plan impose un nouvel examen. La
+signature empêche l'altération du plan dans l'exercice, sans valider juridiquement
+une opération réelle ni remplacer le contrôle de provenance d'un futur import.
+
+La réapplication passe par PersonService et ses couches existantes, avec droits
+métier explicites et MFA de la fixture. Les premières tentatives ont confirmé le
+refus d'un propriétaire sans droits métier, puis le besoin d'affecter ses rôles
+selon la convention existante (membership_id nul pour un propriétaire). Les
+droits sont préparés par factories dans l'exercice, sans changer les règles
+applicatives. Le refus avant attribution et l'absence d'effet sont testés.
+
+La fiche reçoit une version neuve et un audit, sans réécriture/suppression de
+l'historique ; trois audits Alpha sont attendus (dommage, changement après plan,
+récupération). Le ledger et quota ne changent pas. Un fichier absent est créé
+avec refus d'écrasement. L'échec synchrone injecté après écriture déclenche le
+rollback SQL et l'enlèvement du seul fichier nouvellement créé ; ce mécanisme
+de fixture ne garantit pas une reprise durable après crash.
+
+### Résultats vérifiés
+
+Dernier rapport ignoré front/reports/tenant-recovery-local.json : **passed**,
+Node 24.21.0/Windows/PostgreSQL 17, environ **66,49 s** pour l'exercice complet.
+Sélection depuis sauvegarde restaurée : **15,08 s** (création/restauration du
+cluster incluses), préparation et refus : **21,67 s**, réconciliation seule :
+**1,31 s**. Les durées techniques ne sont pas des objectifs RPO/RTO de service.
+
+Les empreintes/comptages de toutes les lignes Beta des **116 tables du catalogue**
+et des **20 tables globales restantes**, ainsi que les deux fichiers Beta récents,
+sont inchangés après récupération Alpha. Les nouvelles lignes Beta sont présentes.
+Le fichier Alpha et les champs déchiffrés sont rétablis ; la version est neuve.
+Le catalogue est contrôlé fermé ; les modules autres que People/rôles/artefacts
+restent majoritairement vides et ne sont pas déclarés testés métier.
+
+Les refus couvrent absence de droit, confirmation étrangère, paquet Beta,
+identifiants de fiche/artefact étrangers, plan altéré, plan obsolète et seconde
+application après succès. Après refus/échec injecté, les empreintes intégrales
+de la base courante et les fichiers correspondent à l'état préalable. Les deux
+clusters sont arrêtés, leurs répertoires supprimés et cleanup=true. Les empreintes
+des sources des rapports OPS-004/005 concordent avec les fichiers livrés.
+
+**13 tests réussis sans exclusion** : cinq de protocole, six du lanceur partagé,
+un exercice global OPS-004 et un exercice sélectif OPS-005. Lint, Pint dirty et
+PHPStan réussis. Aucun test métier existant modifié ; suite applicative complète
+non relancée pour ces seuls outils/fixtures. La CI PostgreSQL lance
+test:recovery:tenant après OPS-004 et conserve le nouveau rapport JSON. Aucune
+nouvelle exécution distante n'est déclarée validée.
+
+### Limites et suite
+
+**OPS-005 et REC-36 restent ouverts.** Pas de reconstruction d'une organisation
+entière disparue, d'historiques supprimés ou de références manquantes ; pas de
+réimport complet des 116 tables ni d'outil opérateur prêt pour production.
+Reprise durable des écritures base/fichiers, réconciliation des autres modules,
+choix face aux gels/effacements autorisés depuis la sauvegarde, permissions
+d'opérateur et qualification sur infrastructure restent à concevoir/éprouver.
+Le scénario courant ne lance aucun HTTP, worker ou écriture concurrente ; le
+conflit de version est injecté entre plan et application, sans preuve de charge.
+Aucune protection SQL désactivée, donnée utilisée touchée ou organisation
+réactivée. Aucun commit ni push effectué dans cette tâche.
