@@ -6,7 +6,17 @@
 ## Point de reprise
 
 - Dernière mise à jour : 25 octobre 2026.
-- Tâche courante : **UCG-QA-002, consolidation du périmètre local restant**.
+- Reprise courante : **UCG-QA-003 qualifié sur son périmètre convenu**.
+  Après autorisation explicite de l'utilisateur, les trois artefacts frontend
+  du SHA `b4dd21a` ont été téléchargés et leurs JUnit et données HTML relus :
+  493 tests unitaires, 53 cas Playwright généraux, 8 parcours réels SQLite et
+  8 PostgreSQL, sans échec, erreur ni exclusion. Les 69 cas Playwright ont chacun
+  une seule tentative, aucun flaky ni erreur globale. Les neuf thèmes du ticket
+  et les contrôles 375/320 px sont couverts. L'attente de lecture des artefacts
+  est levée ; limites et preuves détaillées dans la dernière section.
+  Prochain chantier proposé : QA-005/REC-34, non démarré. QA-002 reste ouvert
+  pour cette charge, la rétention, la restauration et les limites hébergées.
+- Dernière livraison : **UCG-QA-002, consolidation du périmètre local restant**.
   L'utilisateur autorise une tâche unique, sans validation intermédiaire par lot,
   avec prudence et commits cohérents. 45 cas HTTP ajoutés sur les révocations,
   un test de transport Reverb réel ajouté, 69 méthodes existantes intégrées au
@@ -6521,3 +6531,166 @@ la recette de charge/restauration et la politique de rétention restent attendue
 Aucune base existante, donnée réelle, migration, dépendance applicative, `.env`
 ou interface modifiée. Les preuves de transport local n'impliquent aucune mise
 en production. Aucun push ni résultat de CI distante revendiqué pour ce travail.
+
+## UCG-QA-003 — Revue de qualification sur b4dd21a (25 octobre 2026)
+
+> État initial de cette revue, conservé pour traçabilité. La lecture authentifiée
+> et la décision finale sont consignées dans la section suivante et remplacent
+> l'attente d'autorisation et de qualification décrite ici.
+
+### Objectif et état vérifié
+
+L'utilisateur confirme la CI de `b4dd21a`, demande de vérifier la priorité entre
+QA-002/003/005, puis autorise la revue prudente de QA-003. Cette étape examine les
+preuves existantes et les critères d'acceptation ; elle ne démarre pas QA-005.
+Au départ, arbre propre sur `staging`, HEAD et référence locale origin/staging
+sur `b4dd21a7ec37f30fcf94f40e5590aa47d34b4164`.
+
+Contrôle direct des API publiques GitHub Actions, sur ce SHA exact :
+
+| Preuve distante | Résultat constaté |
+| --- | --- |
+| [Frontend quality — 40142869767](https://github.com/sloumach/ucg-plateform/actions/runs/40142869767) | Completed/success ; lint, tests unitaires et build réussis. |
+| Job Playwright SQLite | Suite générale, garde-fous et parcours réels Laravel réussis. |
+| Job Playwright PostgreSQL | Garde-fous, contrôle du cluster jetable et parcours réels réussis. |
+| [Backend quality — 40142869759](https://github.com/sloumach/ucg-plateform/actions/runs/40142869759) | Completed/success ; formatage, analyse statique, tests, PostgreSQL, Reverb réel et isolation Redis réussis. |
+
+Les étapes conditionnelles non sélectionnées dans chaque branche de la matrice
+sont marquées skipped : ce sont des étapes de workflow, pas un décompte de tests
+exclus. Les artefacts suivants existent et ne sont pas expirés au contrôle :
+`playwright-reports-sqlite` (12579298608), `playwright-reports-postgresql`
+(12579801387), `frontend-test-report` (12579621188) et `backend-test-report`
+(12579927802). Métadonnées publiques sauvegardées localement dans
+`front/reports/qa003-b4dd21a/ci-metadata.json` (répertoire de rapports ignoré).
+
+### Rapports locaux et contrôle du périmètre
+
+| Rapport local relu | Cas réels | Échecs / erreurs / exclusions | Portée |
+| --- | --- | --- | --- |
+| `front/reports/playwright-real.xml` | 8 | 0 / 0 / 0 | Exécution SQLite du 24 octobre, environ 239 s. |
+| `front/reports/playwright-real-postgresql.xml` | 8 | 0 / 0 / 0 | Exécution PostgreSQL du 24 octobre, environ 369 s. |
+| `front/reports/playwright.xml` | 0 | 0 / 0 / 0 | Rapport vide du 24 octobre ; aucune preuve positive de suite générale. |
+
+Les compteurs ont été confrontés aux nœuds testcase et à l'absence de nœuds
+failure/error/skipped. Les deux fichiers `.last-run.json` des parcours réels
+indiquent passed, sans test échoué. Ces fichiers locaux ne sont pas les artefacts
+CI de `b4dd21a` et n'attestent pas les décomptes de cette CI.
+
+La comparaison Git depuis `c3fb614` ne montre aucun changement des parcours,
+du lanceur, des configurations Playwright réelles, des fixtures navigateur,
+de l'interface `front/src` ou du workflow frontend. Le client Reverb ajouté
+depuis dans les fixtures backend relève de QA-002, pas de ces parcours.
+Les huit sources contiennent chacune un scénario, sans skip/fixme/only, et des
+contrôles de débordement aux largeurs 375/320 px. Les requêtes navigateur autorisées
+continuent vers le frontend et l'API locaux ; les autres origines sont refusées.
+Le lanceur réel conserve un worker unique, retries=0, des données jetables et
+des garde-fous avant migrations. Aucun nouveau test ni service n'est lancé ici.
+
+Les neuf thèmes de QA-003 sont représentés : identité/personne/changement de
+tenant dans un scénario, puis roster, calendrier, match, contrat, export,
+invitation et MFA dans les sept autres. Le bilan de couverture précédent reste
+applicable, y compris ses limites sur les cas avancés. Le premier scénario ne
+collecte pas explicitement les événements pageerror, contrairement aux sept
+autres ; cette limite interdit de revendiquer un contrôle uniforme de toutes
+les erreurs JavaScript, sans constituer une anomalie métier observée.
+
+### Décision de qualification et suite
+
+**Couverture principale confirmée ; qualification documentaire encore ouverte.**
+Les critères de parcours, tailles d'écran et erreurs exploitables disposent des
+preuves locales et des étapes CI réussies décrites ci-dessus. Il reste à lire
+les rapports CI du SHA exact pour vérifier leurs cas, exclusions et éventuelles
+relances, notamment la suite générale qui autorise des retries en CI. Aucun
+nouveau décompte CI ni absence de flakiness n'est déduit du statut success.
+
+Le téléchargement public d'un artefact renvoie 401. La revue automatique refuse
+ensuite la commande proposant de lire les identifiants GitHub configurés via
+`git credential fill`, car cet accès n'a pas été explicitement autorisé. Cette
+commande n'a pas été exécutée et aucun identifiant n'a été lu. La lecture des
+artefacts attend soit une autorisation explicite pour cet accès authentifié,
+soit la fourniture des rapports par l'utilisateur. Aucun contournement tenté.
+
+Les variantes avancées de la matrice QA-003 restent des suites à prioriser,
+pas des anomalies bloquantes découvertes ni une extension automatique du ticket
+à tous les critères du CDC. QA-002 conserve ses dépendances QA-005/REC-34,
+OPS-007/REC-35, OPS-004/005/REC-36 et les limites hébergées REC-29. Aucun webhook
+entrant n'est attendu au P0. Après décision de qualification QA-003, QA-005 reste
+un prochain chantier proposé ; ni la clôture QA-002 ni le pilote ne sont acquis.
+
+Cette revue modifie uniquement le suivi documentaire. Pas de modification
+métier, migration, configuration, dépendance ou donnée réelle ; pas de commit
+ni de push effectué pendant cette étape.
+
+## UCG-QA-003 — Lecture des artefacts CI et qualification finale (25 octobre 2026)
+
+### Autorisation et provenance
+
+Après la demande explicite d'autorisation d'utiliser les identifiants GitHub
+déjà configurés pour télécharger les rapports, l'utilisateur répond « ok on
+avance ». La commande authentifiée est alors approuvée et exécutée. Les
+identifiants sont utilisés uniquement en mémoire pour les lectures GitHub,
+sans affichage ni enregistrement dans les rapports ou le dépôt.
+
+Le run frontend `40142869767` est revérifié avant téléchargement : SHA exact
+`b4dd21a7ec37f30fcf94f40e5590aa47d34b4164`, conclusion success. Les trois
+artefacts sont retrouvés dans la liste de ce run, non expirés :
+
+| Artefact | Identifiant | Archive téléchargée |
+| --- | --- | --- |
+| frontend-test-report | 12579621188 | 20 529 octets |
+| playwright-reports-sqlite | 12579298608 | 761 439 octets |
+| playwright-reports-postgresql | 12579801387 | 306 222 octets |
+
+Archives conservées sous `front/reports/qa003-b4dd21a/`, ignoré par Git.
+`qualification-summary.json` conserve les empreintes SHA-256 des archives,
+les décomptes, noms des suites et résultats du contrôle des tentatives ;
+`ci-metadata.json` conserve les références des runs, jobs et artefacts.
+Les XML et les données JSON embarquées dans les HTML sont lus comme des
+données, sans exécuter le contenu des rapports.
+
+### Résultats CI effectivement relus
+
+| Rapport | Cas | Échecs | Erreurs | Exclusions | Durée rapportée |
+| --- | --- | --- | --- | --- | --- |
+| Vitest `vitest.xml` | 493 | 0 | 0 | 0 | 70,60 s |
+| Playwright général `playwright.xml` | 53 | 0 | 0 | 0 | 132,62 s |
+| API réelle SQLite `playwright-real.xml` | 8 | 0 | 0 | 0 | 208,97 s |
+| API réelle PostgreSQL `playwright-real-postgresql.xml` | 8 | 0 | 0 | 0 | 221,86 s |
+
+Les compteurs JUnit correspondent au nombre réel de nœuds testcase ; aucun
+nœud failure/error/skipped/flakyFailure/rerunFailure. Les rapports HTML des trois
+suites Playwright confirment respectivement 53/8/8 résultats expected, zéro
+unexpected, flaky, skipped et zéro erreur globale. Chacun des 69 cas possède
+exactement une tentative dans les données du rapport : aucune réussite obtenue
+après relance sur ce run. Le rapport général porte aussi le SHA et l'URL du run
+attendus dans ses métadonnées. Les rapports réels n'embarquent pas ces métadonnées
+Git ; leur rattachement repose sur les artefacts du run vérifié, pas sur une
+attribution déduite du nom de fichier.
+
+Les deux rapports réels contiennent les huit suites attendues : calendrier,
+contrats, exports, identité/personnes/contexte, invitations, matchs, MFA et
+équipes/roster. Les 53 cas généraux complètent ces parcours avec des API métier
+simulées ; ils ne sont pas présentés comme 53 parcours avec API réelle.
+
+### Décision et prochain chantier
+
+**QA-003 est qualifié sur son périmètre convenu ; la revue est terminée.**
+La couverture des neuf thèmes et des tailles 375/320 px, les contrôles d'erreurs
+exploitables et la réussite des parcours réels sur les deux moteurs disposent
+maintenant des preuves de sources, locales et CI relues. L'attente de lecture
+des artefacts est levée. Les variantes avancées déjà documentées restent des
+suites à prioriser ; aucun nouvel échec ou anomalie bloquante n'est observé ici.
+Cette qualification concerne Chromium et ces parcours ciblés, sans élargir la
+preuve à un audit exhaustif d'accessibilité, à tous les navigateurs ou à la
+recette des services hébergés.
+
+La prochaine étape proposée est **QA-005/REC-34**, pour mesurer les performances
+et l'effet d'un tenant fortement actif sur un autre selon l'enveloppe du CDC.
+QA-005 n'est pas exécuté dans cette revue. QA-002 reste ouvert pour cette preuve
+de charge, OPS-007/REC-35, OPS-004/005/REC-36 et les limites hébergées REC-29.
+QA-004, la reprise des données, le pilote et la mise en production ne sont pas
+validés par cette qualification.
+
+Seuls les deux documents de suivi sont modifiés ; les rapports téléchargés
+restent locaux et ignorés. Aucun test applicatif relancé pour cette revue de
+preuves existantes, aucune base ni donnée réelle modifiée. Pas de commit ni push.

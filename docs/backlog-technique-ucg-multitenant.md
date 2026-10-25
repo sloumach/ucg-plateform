@@ -1538,6 +1538,17 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / L
 - **Périmètre** : invitation, MFA, changement de tenant, personne, roster, calendrier, match, contrat et export.
 - **Acceptation** : parcours stables sur tailles d’écran convenues et erreurs exploitables.
+- **Qualifié sur le périmètre convenu (25/10/2026, `b4dd21a`)** : les trois
+  artefacts frontend du run `40142869767` ont été téléchargés après autorisation
+  explicite, puis JUnit et données HTML relus. 493 tests unitaires, 53 cas
+  Playwright généraux, 8 parcours avec API réelle SQLite et 8 PostgreSQL : aucun
+  échec, erreur ou exclusion. Les 69 cas Playwright ont chacun une seule tentative,
+  zéro flaky et aucune erreur globale. Les huit parcours représentent les neuf
+  thèmes, avec contrôles à 375/320 px. Revue de qualification terminée ; attente
+  de lecture des artefacts levée. Les cas avancés déjà recensés restent à prioriser,
+  sans nouvel échec constaté. Portée Chromium et parcours ciblés ; QA-002/004/005
+  et l'exploitation restent distincts. Prochain chantier proposé : QA-005/REC-34,
+  non démarré ici. Preuves et limites dans la dernière section de `etat-projet.md`.
 - **Premier lot local (23/10/2026)** : connexion/MFA TOTP, sélection et changement
   de tenant, confirmation et création persistée d'une personne, déconnexion,
   contrôles CSRF/isolation/droits et mobile 375/320 avec API Laravel réelle.
