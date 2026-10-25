@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Modules\Contracts\Infrastructure\Scanning\ClamAvDocumentScanner;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Process\Process;
+use Tests\Fixtures\PdfAttachment;
 use Tests\TestCase;
 
 class ClamAvDocumentScannerTest extends TestCase
@@ -43,7 +44,7 @@ class ClamAvDocumentScannerTest extends TestCase
             $this->assertMatchesRegularExpression('/^127\.0\.0\.1:[0-9]+$/', $address);
             config(['contract_documents.clamav.enabled' => true, 'contract_documents.clamav.host' => '127.0.0.1',
                 'contract_documents.clamav.port' => (int) substr($address, strrpos($address, ':') + 1), 'contract_documents.clamav.operation_seconds' => 1]);
-            $contents = "%PDF-1.4\n".str_repeat('x', 150000)."\n%%EOF";
+            $contents = PdfAttachment::create(str_repeat('x', 150000));
             $verdict = app(ClamAvDocumentScanner::class)->scan($contents);
             $this->assertSame($status, $verdict->status);
             $this->assertSame($reason, $verdict->reason);

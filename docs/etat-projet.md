@@ -6,6 +6,11 @@
 ## Point de reprise
 
 - Dernière mise à jour : 25 octobre 2026.
+- Correctif courant : **sonde EICAR PDF après 8a60f40**. La CI atteint désormais
+  le moteur réel mais le commentaire PDF contenant EICAR est déclaré clean.
+  Sonde remplacée par une véritable pièce jointe PDF non compressée ; contrôle
+  indépendant EICAR brut via INSTREAM ajouté. Résultats et limites en fin de
+  document ; pas de nouvelle validation CI ni de commit/push à ce stade.
 - Correctif courant : **CI après UCG-OPS-006 / 50062b0**. L'utilisateur signale
   deux échecs : Playwright datetime-local à secondes nulles et lecture de la
   configuration FreshClam sous RUNNER_TEMP. Correction du format navigateur avec
@@ -7674,3 +7679,37 @@ parsing YAML, syntaxe Bash des blocs run backend et diff check réussis. Rapport
 ignorés front/reports/playwright-real.xml et playwright-real-postgresql.xml.
 La suite PHPUnit complète n'est pas répétée pour ces seules corrections de CI
 et de saisie dans un test navigateur ; aucun fichier PHP n'a changé.
+
+## Correction de la sonde antivirus réelle après 8a60f40
+
+La CI fournie par l'utilisateur accepte le PDF témoin mais classe également clean
+le PDF contenant EICAR dans un commentaire. L'empreinte SHA-256 de la chaîne
+décodée est correcte (275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f),
+sa longueur est de 68 octets. L'erreur est dans la construction initiale de la
+sonde : la spécification EICAR ne garantit pas la détection d'une chaîne précédée
+d'un en-tête PDF et placée dans un commentaire. Aucun résultat clean n'est
+transformé en rejet dans le code applicatif pour faire passer le test.
+
+Une fixture PdfAttachment construit en mémoire un PDF 1.4 avec catalogue,
+arborescence de page, Filespec, EmbeddedFile non compressé, longueurs, xref et
+trailer cohérents. Le test réel compare deux documents de même structure :
+pièce jointe inoffensive de 68 octets acceptée et pièce jointe EICAR standard
+obligatoirement rejected/malware. Un second test réel transmet indépendamment
+EICAR seul via INSTREAM et exige une réponse FOUND unique terminée et close.
+Les deux tests vérifient aussi longueur/empreinte de la sonde ; aucun EICAR en
+clair n'est écrit sur disque et aucune signature artificielle n'est ajoutée.
+
+Le lecteur pypdf 6.10.0 fourni par l'environnement, en mode strict, reconnaît les
+deux PDF (une page), extrait les deux pièces jointes de 68 octets et confirme
+l'empreinte standard pour EICAR. Vérification indépendante en mémoire, sans
+nouvelle dépendance au projet. Les essais TCP utilisent également la fixture
+PDF pour contrôler l'intégrité des octets et le découpage des flux réels.
+
+Validation locale : **15 tests de protocole réussis, 102 assertions ; deux tests
+réels exclus explicitement faute de moteur**. Pint dirty, PHPStan et diff check
+réussis. Le moteur
+ClamAV n'est pas installé et le daemon Docker n'est pas disponible : les deux
+sondes réelles restent à confirmer en CI, y compris l'extraction de la pièce
+jointe. Aucun verdict simulé ne vaut validation de ClamAV ; tous les formats et
+modes de compression PDF ne sont pas déclarés qualifiés. Code applicatif,
+configuration du scanner et dépendances inchangés. Aucun commit/push effectué.

@@ -5246,6 +5246,18 @@ du test ; son PID reste suivi et seul ce processus est arrêté au nettoyage.
 AppArmor reste actif. La lecture des configurations, l'écriture des signatures et
 journaux sont permises au compte du runner, sans lancer le moteur en root.
 
+La sonde antivirus PDF a ensuite été corrigée : ajouter EICAR dans un commentaire
+PDF n'est pas un test de détection garanti par la [spécification EICAR](https://www.eicar.org/download-anti-malware-testfile/).
+Le test utilise maintenant un PDF structuré avec catalogue, page, table xref et
+pièce jointe /EmbeddedFile non compressée contenant exactement les 68 octets
+standards. Un PDF de même structure avec une pièce jointe inoffensive doit rester
+clean. Un second test envoie séparément la sonde standard à clamd via INSTREAM,
+pour distinguer reconnaissance des signatures et extraction PDF. Les deux tests
+réels sont obligatoires dans le job opt-in, sans verdict simulé ni modification
+des signatures. Le contenu EICAR reste décodé en mémoire, sans fixture en clair
+sur disque. Ces sondes ne qualifient pas tous les formats ou modes de compression
+que peut contenir un PDF ; leur validation avec le moteur réel reste attendue.
+
 ### Audits et suivi des dépendances
 
 Les workflows auditent maintenant le verrou Composer (avec paquets de développement
