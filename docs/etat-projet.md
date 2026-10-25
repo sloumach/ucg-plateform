@@ -6,6 +6,12 @@
 ## Point de reprise
 
 - Dernière mise à jour : 25 octobre 2026.
+- Correctif CI en cours après `704c0f8` : échec de la fenêtre UTC de
+  `CalendarSubscriptionTest` reproduit localement. L'horloge est désormais fixée
+  avant la création des adhésions/affectations, pour éviter qu'elles deviennent
+  futures après le voyage temporel. Les 15 cas du fichier passent (114 assertions),
+  Pint/PHPStan verts. Correctif limité au test et à ce suivi ; sans commit/push,
+  nouvelle CI distante non exécutée. Détails dans la dernière section.
 - Tâche courante : **UCG-QA-005, premier lot de mesure locale bornée**.
   Lanceur PostgreSQL jetable ajouté : trois tenants, trois comptes, 630 fiches,
   deux sessions, deux serveurs HTTP PHP et un worker database. Rapport final
@@ -6825,3 +6831,30 @@ Modifications limitées aux fixtures de test, lanceur/métriques/tests Node,
 scripts npm, raccordement des garde-fous CI et documentation existante.
 Aucun code métier, endpoint public, migration, dépendance, `.env` ou donnée
 réelle modifié. Aucun SMTP, fournisseur externe, Redis ou Horizon sollicité.
+
+## Correctif CI — Fenêtre UTC d'abonnement calendrier (25 octobre 2026)
+
+Journal fourni par l'utilisateur : un échec dans
+`CalendarSubscriptionTest::test_window_uses_utc_half_open_bounds_and_preserves_stable_uids`,
+404 au premier téléchargement au lieu de 200 ; 2 747 réussites et 50 exclusions
+dans cette exécution CI. Le SHA de cette exécution n'est pas fourni et n'est pas
+déduit du seul journal.
+
+L'échec est reproduit à l'identique sur SQLite en mémoire, avant correction.
+Le scénario créait les droits à l'heure réelle, puis reculait au
+25 octobre 2026 à 00 h 30. Les affectations générées avec un début relatif à
+l'heure réelle pouvaient alors devenir futures ; le contrôle d'accès refusait
+normalement le flux avec RESOURCE_NOT_FOUND. Ce test dépendait donc de la date
+d'exécution et de l'ordre de création des fixtures.
+
+Correction ciblée : déplacement du `travelTo` avant `scenario()` dans ce seul
+test. Les droits et le flux sont créés dans le même contexte temporel que les
+activités et leurs bornes UTC. Les assertions des bornes semi-ouvertes et de
+stabilité des UID sont conservées ; aucune règle d'accès applicative modifiée.
+
+Validation : fichier complet CalendarSubscriptionTest, **15 cas réussis,
+114 assertions**, sans exclusion, sur SQLite en mémoire ; Pint dirty et PHPStan
+réussis. Rapports locaux `back/reports/calendar-window-before.xml` et
+`back/reports/calendar-subscriptions-fixed.xml`. La suite backend complète n'est
+pas relancée pour cette modification d'ordre dans le test. Nouvelle CI distante
+à exécuter après livraison ; aucun commit ni push pendant ce correctif.

@@ -118,8 +118,8 @@ class CalendarSubscriptionTest extends TestCase
 
     public function test_window_uses_utc_half_open_bounds_and_preserves_stable_uids(): void
     {
-        [$org, $user, $feed, $url] = $this->scenario();
         $this->travelTo('2026-10-25 00:30:00');
+        [$org, $user, $feed, $url] = $this->scenario();
         $feed->forceFill(['before_days' => 0, 'after_days' => 1, 'expires_at' => now()->addDays(5)])->save();
         foreach ([['lower', '2026-10-24 23:00:00', '2026-10-25 00:00:00'], ['overlap', '2026-10-24 23:30:00', '2026-10-25 00:30:00'],
             ['dst', '2026-10-25 00:30:00', '2026-10-25 01:30:00'], ['upper', '2026-10-26 00:00:00', '2026-10-26 01:00:00']] as [$title, $start, $end]) {
