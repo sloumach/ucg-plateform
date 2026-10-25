@@ -13,7 +13,7 @@ const backend = fileURLToPath(new URL('../../../back', import.meta.url))
 
 export function fixture(lab, operation, changes = {}, { script = 'recovery.php', input } = {}) {
   assertRecoveryRoot(lab.root, lab.token)
-  if (!['recovery.php', 'tenant-recovery.php'].includes(script)) throw new Error('Unknown recovery fixture.')
+  if (!['recovery.php', 'tenant-recovery.php', 'tenant-graph.php'].includes(script)) throw new Error('Unknown recovery fixture.')
   return new Promise((done, reject) => {
     const child = spawn('php', [`tests/Fixtures/${script}`, operation], {
       cwd: backend, env: { ...lab.environment, ...changes }, windowsHide: true,
@@ -30,7 +30,7 @@ export function fixture(lab, operation, changes = {}, { script = 'recovery.php',
       let response
       try { response = JSON.parse(output) } catch { /* Refusals may have no JSON. */ }
       if (failure || code !== 0) {
-        const reason = /^TENANT_RECOVERY_[A-Z_]+$/.test(response?.refused) ? ` ${response.refused}` : ''
+        const reason = /^(?:TENANT_RECOVERY|GRAPH)_[A-Z_]+$/.test(response?.refused) ? ` ${response.refused}` : ''
         return reject(new Error(`Recovery fixture ${operation} refused or failed (${code}).${reason}`))
       }
       return response === undefined ? reject(new Error('Recovery fixture returned invalid JSON.')) : done(response)

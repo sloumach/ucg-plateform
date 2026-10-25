@@ -6,7 +6,17 @@
 ## Point de reprise
 
 - Dernière mise à jour : 25 octobre 2026.
-- Tâche courante : **UCG-OPS-005, premier exercice local de récupération sélective**.
+- Tâche courante : **UCG-OPS-005, consolidation des quatre lots locaux**.
+  L'utilisateur valide la CI de `da068af` et demande les quatre lots dans un seul
+  nouveau commit ; le lot 1 déjà commité est conservé. Nouveau graphe réellement
+  absent de la cible, People/Teams/Match/Contracts et références, préservation
+  explicite des conflits, compteurs dérivés gérés par triggers. Reprise chiffrée
+  après commit SQL et après installation de fichier, marqueur/audit uniques,
+  refus de dérive, gel/purge et réattribution d'accès. Procédure dans le README.
+  Les essais restent fictifs ; qualification réelle/hébergement et états non
+  couverts restent ouverts. Résultats finaux en fin de document. Un seul commit
+  est autorisé/demandé pour ce changement ; aucun push demandé.
+- Lot précédent : **UCG-OPS-005, premier exercice local de récupération sélective**.
   L'utilisateur autorise le démarrage prudent après le commit OPS-004 `7a7d545`.
   Source fictive courante et second cluster restauré ; sélection Alpha depuis
   sauvegarde, plan sans écriture et réapplication de trois champs d'une fiche
@@ -7429,3 +7439,111 @@ Le scénario courant ne lance aucun HTTP, worker ou écriture concurrente ; le
 conflit de version est injecté entre plan et application, sans preuve de charge.
 Aucune protection SQL désactivée, donnée utilisée touchée ou organisation
 réactivée. Aucun commit ni push effectué dans cette tâche.
+
+## UCG-OPS-005 — Consolidation locale des lots 1–4 (25 octobre 2026)
+
+### Mandat et décisions
+
+L'utilisateur valide la CI de `da068af`, puis demande les quatre lots dans un seul
+commit. Le lot 1 déjà commité est conservé ; un nouveau commit rassemble les lots
+locaux complémentaires et leur qualification. Hébergement différé et essais
+exclusivement fictifs restent les contraintes. Aucun agent secondaire utilisé.
+Arbre propre au début ; pas de push autorisé/demandé.
+
+### Graphe absent et réconciliation
+
+Le nouveau test tenant-graph.test.mjs crée trois clusters attestés. Une sauvegarde
+de base construit la cible avant la création du graphe ; une sauvegarde enrichie
+est restaurée pour lecture et sélection. Cette simulation crée une absence réelle
+de lignes dans la cible sans supprimer de données protégées. Source et copie de
+lecture sont arrêtées avant application sur la cible fictive courante.
+
+Seize lignes dans seize tables sont rétablies : people, person_game_profiles,
+person_external_accounts, person_periods, teams, team_memberships, team_lineups,
+team_lineup_entries, matches, match_participants, contracts, contract_parties,
+contract_obligations, contract_transitions, contract_documents et
+contract_document_versions. Les relations partagent la nouvelle personne. Les
+modèles sont peuplés par factories existantes ou modèles lorsque sans factory.
+Les champs administratifs et documentaires chiffrés sont relus après récupération.
+Les contrats testés sont brouillons, les matchs proposés et compositions brouillons.
+
+RecoveryGraphRepository et RecoveryGraphJournal sont des aides sous tests/Fixtures,
+sans binding applicatif ni commande/route de réimport en production. La première
+gère catalogue/colonnes/tenant, doublons, conflits, collisions et ordre topologique
+des FK composites réelles. La seconde orchestre revue signée, contrôles d'accès,
+journal chiffré et état de reprise. Paquet de 2 Mio/500 lignes, 100 fichiers de
+8 Kio au plus : aucune qualification de volumes de production.
+
+Une divergence de ligne existante exige explicitement de conserver la ligne
+courante ; aucun écrasement n'est offert. Les générations dashboard_source_versions
+sont exclues du rejeu et signalées comme dérivées : les triggers les recréent et
+les incrémentent. Réintroduire les anciennes valeurs bloquait des reprises ou
+faussait l'invalidation. Les triggers restent actifs durant tous les essais.
+Habilitations manquantes, nouveau lien à un compte global, conflits de quota/ledger,
+référence globale absente et états protégés non pris en charge provoquent un refus.
+Aucune ligne globale n'est importée et aucune autorisation n'est réattribuée.
+
+### Interruption et reprise
+
+Le plan privé est authentifié pour le laboratoire et conservé chiffré sous la clé
+applicative ; l'écriture est synchronisée avant SQL. Données manquantes, audit et
+marqueur recovery/pending sont commis ensemble. Après SQL, les lignes restaurées
+sont vérifiées et les fichiers préparés/synchronisés puis installés sans écrasement
+par lien physique. Le marqueur devient completed après contrôle des fichiers.
+
+Le test injecte un rollback avant commit, puis termine réellement un sous-processus
+PHP après commit SQL (code 73), puis un autre après installation du fichier (74).
+Un nouveau sous-processus reprend depuis le journal, sans réinsérer données/audit.
+Un objet inattendu à la destination n'est pas écrasé ; l'essai le retire après
+vérification de propriété pour poursuivre. La dérive d'une ligne post-commit est
+sondée dans une transaction annulée et doit bloquer la reprise avant fichier.
+Une seconde reprise completed ne change aucune ligne. Le gel documentaire est un
+marqueur simulé du laboratoire ; une opération purge est seulement enregistrée
+pour éprouver le refus, aucune purge réelle ou simulée n'est exécutée.
+
+Les refus qualifiés couvrent paquet altéré, données Beta, confirmation étrangère,
+colonne non enregistrée, doublon, propriété tenant incorrecte, références tenant
+ou globale absentes, état protégé, tentative de recréer des habilitations, plan
+altéré/obsolète, décision de conflit manquante, gel/purge, ligne restaurée changée
+et contenu de fichier inattendu. Des changements Beta entre plan et application
+Alpha sont permis et restent présents. Les empreintes de toutes les lignes Beta
+des 116 tables tenant et des 20 globales, et les fichiers Beta, sont conservées.
+
+### Validation finale et livraison
+
+**14 tests réussis sans exclusion** : cinq de protocole, six du lanceur partagé,
+restauration globale OPS-004, récupération ciblée du lot 1, graphe des lots 2–4.
+Les trois exercices PostgreSQL finaux passent sur les sources finales, en série,
+environ **224,28 s** au total. OPS-004 : **30,82 s** ; lot 1 : **63,90 s** ;
+graphe : **129,28 s** (sélection/restaurations **51,85 s**, revue/refus **43,48 s**,
+application et reprises **28,70 s**, reste du temps incluant préparation/nettoyage).
+Ces mesures ne définissent ni RPO ni RTO de service.
+
+Les trois rapports ignorés front/reports/recovery-local.json,
+tenant-recovery-local.json et tenant-graph-local.json indiquent passed et nettoyage
+réussi. Le rapport graphe recense 16 lignes/16 tables restaurées et tous les contrôles
+positifs ; aucun contenu privé, plan ou secret n'y figure. Les empreintes des
+sources sont confrontées aux fichiers livrés. Les sept clusters cumulés des trois
+exercices sont arrêtés et leurs répertoires appartenant aux lancements supprimés.
+Pint dirty, PHPStan, lint et cohérence du diff réussis. Aucun changement métier ou
+migration ; la suite applicative complète n'est pas relancée pour ces seules
+fixtures et aides de test.
+
+La CI PostgreSQL lance test:recovery:graph et conserve le nouveau rapport JSON.
+Seule la CI précédente `da068af` est validée par l'utilisateur ; la nouvelle reste
+à confirmer après push. Le README consolide les lots et une procédure de revue,
+reprise, vérifications et arrêt en cas de doute. Le commit unique demandé couvre
+ce travail, sans réécriture des commits validés et sans push.
+
+### Limites avant données réelles
+
+Les quatre lots ont leur couverture locale décrite et testée ; **OPS-005/REC-36
+restent ouverts avant exploitation réelle**. L'essai n'est pas une commande
+opérateur de production ni un import qualifié des 116 tables dans tous leurs
+états. Les états avancés protégés exigent des chemins dédiés ; les autres modules
+ne sont pas déclarés qualifiés du seul fait de leur présence dans le catalogue.
+Perte du parent Node/de ses clés, panne machine, stockage distant, opérateurs
+concurrents, barrière d'écriture réelle, politique de gels/effacements complète,
+gestion durable des clés et RPO/RTO représentatif restent à traiter/valider avec
+OPS-004, OPS-007, CAD-004 et l'hébergement. Aucune protection n'est désactivée ni
+statut d'organisation réactivé pour obtenir les résultats locaux.

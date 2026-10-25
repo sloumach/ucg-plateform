@@ -1376,6 +1376,21 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Périmètre** : export, sélection depuis sauvegarde, réconciliation et procédure de réimport contrôlée.
 - **Acceptation** : récupération sans écraser les mises à jour récentes des autres tenants.
 - **Références CDC** : REC-36.
+- **Consolidation locale lots 1–4 (25/10/2026)** : CI de `da068af` validée par
+  l'utilisateur ; demande d'un seul nouveau commit pour le travail restant.
+  Exercice complémentaire de graphe absent People/profils/compte/période,
+  Teams/affectation/composition, match proposé/participant et contrat brouillon
+  avec partie/obligation/historique/document/version. Catalogue fermé, ordre FK,
+  conflits conservés explicitement, compteurs dérivés laissés aux triggers et
+  absence de réattribution automatique d'accès. Journal chiffré et marqueur SQL
+  pending/completed ; rollback, deux arrêts de sous-processus, reprises sans
+  doublon, dérive post-commit, gel/purge et objet inattendu éprouvés par le scénario.
+  Procédure et limites dans le README, test:recovery:graph et rapport dédié en CI.
+  **Qualification réelle toujours ouverte** : états protégés avancés et modules
+  non peuplés, panne machine/perte de clés, exploitation concurrente, données
+  réelles et infrastructure ne sont pas déclarés validés. Aucun moteur opérateur
+  de production ou désactivation de garde SQL ; les paragraphes suivants retracent
+  les premiers lots locaux.
 - **Premier exercice local (25/10/2026)** : sélection Alpha depuis un cluster
   restauré à partir d'une sauvegarde chiffrée, puis réconciliation ciblée dans
   le cluster fictif courant. Trois champs d'une fiche existante et un artefact

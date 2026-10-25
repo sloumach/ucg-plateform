@@ -5061,3 +5061,103 @@ préservées) en moteur d'import. Réconciliation intermodules, gels/effacements
 autorisés depuis sauvegarde, reprise durable après crash et qualification sur
 infrastructure relèvent des lots suivants ; aucune réactivation automatique ni
 suppression de données réelles n'est autorisée par cette fixture.
+
+### Consolidation locale OPS-005 — lots 1 à 4
+
+La CI du lot 1 (`da068af`) est validée par l'utilisateur. Les lots locaux
+complémentaires sont regroupés dans un seul nouveau changement ; la qualification
+sur l'hébergement futur reste distincte. Le nouvel exercice se lance depuis
+`front`, avec les prérequis PostgreSQL 17 précédents :
+
+```powershell
+npm run test:recovery:graph
+```
+
+| Lot | Couverture locale |
+| --- | --- |
+| 1 — Réparation ciblée | Test précédent conservé : trois champs d'une fiche existante, fichier manquant, Beta préservé. |
+| 2 — Fiche absente et dépendances | Nouvelle personne avec identité chiffrée, profil de jeu, compte externe et période close, réellement absents de la cible. |
+| 3 — Intermodules et conflits | Équipe, affectation, composition et entrée, match proposé/participant, contrat brouillon/partie/obligation/transition, document/version liés à la même personne. Plan explicite et conservation des lignes récentes divergentes. |
+| 4 — Reprise et procédure | Rollback SQL injecté, arrêt du sous-processus après commit SQL puis après installation du fichier, reprise avec un seul marqueur/audit, détection d'une dérive post-commit, fichier inattendu refusé et réexécution sans doublon. |
+
+Le scénario utilise trois clusters **exclusivement fictifs**. Une sauvegarde de
+base permet de construire la cible sans le nouveau graphe ; une seconde
+sauvegarde, enrichie du graphe, est restaurée dans le cluster de lecture. Cela
+simule des lignes absentes sans désactiver les gardes ni supprimer d'historiques.
+Les paquets Alpha/Beta proviennent de ce cluster restauré. La source et le
+cluster de lecture sont arrêtés avant la réconciliation de la cible courante.
+Beta reçoit ensuite des modifications et ajouts, y compris après le plan Alpha.
+
+RecoveryGraphRepository est une **aide de fixture**, non un repository d'import
+enregistré en production. Il vérifie le catalogue fermé et ses colonnes, la
+propriété tenant de chaque ligne, les doublons et références. Les lignes manquantes
+sont ordonnées selon leurs FK réelles, y compris composites ; référence absente,
+collision d'identité ou cycle bloquent la préparation. Aucune ligne globale n'est
+insérée. Une ligne existante différente n'est jamais écrasée : son maintien doit
+figurer explicitement dans les décisions du plan, sinon l'application est refusée.
+
+Les compteurs `dashboard_source_versions` sont signalés comme **dérivés** et
+exclus du rejeu : les triggers les régénèrent lors des insertions métier. Cela
+préserve l'invalidation des indicateurs et évite de réintroduire une ancienne
+génération. Le snapshot conserve ces lignes pour l'inventaire, sans les restaurer.
+Les habilitations manquantes, nouveaux liens à un compte global, divergences du
+ledger/quota et états protégés non pris en charge sont refusés. Notamment, les
+contrats manquants doivent être brouillons et les matchs manquants proposés ;
+aucun état avancé n'est obtenu en contournant les triggers. Les modèles de ces
+états et les autres modules nécessitent leur qualification propre.
+
+Le paquet sélectionné est authentifié avec une clé éphémère de l'exercice, et le
+plan est signé pour la cible. Le plan fige l'état Alpha actuel, sans figer Beta.
+Un changement Alpha impose une nouvelle revue. Les droits sports.write,
+teams.manage et administrative.write sont revérifiés. Un gel documentaire
+**simulé** dans le laboratoire ou la présence d'une opération de purge bloque
+plan/application/reprise ; ces sondes ne remplacent pas les décisions CAD-004 ni
+une intégration de tous les gels/effacements réels.
+
+RecoveryGraphJournal conserve le plan chiffré sous la clé applicative dans le
+répertoire appartenant au lancement. L'écriture est synchronisée avant mutation.
+Les insertions et l'audit sont validés dans une transaction, avec un marqueur
+recovery/pending contenant les empreintes. Les triggers demeurent actifs. Après
+commit, les fichiers sont préparés, vérifiés et installés par lien physique sans
+écrasement. Un fichier déjà identique est accepté à la reprise ; un autre contenu
+est conservé et bloque l'opération. Les lignes insérées sont revérifiées avant
+de reprendre les fichiers. Le marqueur passe à completed seulement après ces
+contrôles ; la reprise ne réinsère ni données ni audit. Les dossiers n'incluent
+ici que des artefacts locaux prêts, sans expiration, dans la limite de 100 fichiers
+de 8 Kio ; paquet limité à 2 Mio et 500 lignes. Ce n'est pas une validation à
+l'échelle de millions de lignes.
+
+#### Procédure de lecture des résultats et décisions opérateur
+
+1. Pour les essais locaux, lancer les tests OPS-004, OPS-005 ciblé et
+   test:recovery:graph. Ils créent leurs propres cibles ; aucun argument ne permet
+   de sélectionner une installation utilisée. Ne pas transformer les fixtures
+   en commandes d'exploitation.
+2. Consulter les rapports recovery-local.json, tenant-recovery-local.json et
+   tenant-graph-local.json dans front/reports : résultat, empreintes des sources
+   et sauvegarde, couverture, durées et cleanup. La CI PostgreSQL les conserve.
+3. Avant toute récupération réelle future, identifier l'organisation, l'incident,
+   la sauvegarde et ses clés, l'acteur habilité, les contraintes de conservation
+   et la barrière d'écriture Alpha. Restaurer d'abord une copie isolée de lecture ;
+   ne pas restaurer la sauvegarde globale sur une base partagée courante.
+4. Examiner les lignes manquantes, divergences, références et états non couverts.
+   Décider explicitement de préserver les lignes courantes ; une décision ancienne
+   ne vaut pas approbation d'un plan renouvelé. Les identités globales et accès
+   nécessitent leurs propres contrôles, sans recréation automatique.
+5. Si l'opération SQL n'a pas commité, la reprise doit retrouver l'état attendu
+   ou s'arrêter pour nouvelle revue. Si un marqueur pending existe, conserver
+   journal/clé/source et reprendre les fichiers après vérification des lignes ;
+   ne pas lancer un second import ou retirer un fichier inattendu sans examen.
+6. Exiger la concordance base/fichiers, l'audit unique, la lisibilité des champs
+   chiffrés et les empreintes Beta/globales inchangées avant décision de reprise
+   de service. Aucun statut d'organisation ou worker n'est réactivé par cet essai.
+7. Conserver les preuves validées selon la politique retenue, puis nettoyer les
+   environnements appartenant à l'exercice après arrêt vérifié. En cas d'échec
+   d'arrêt ou doute de propriété, conserver le chemin et traiter l'incident.
+
+Les étapes pour le réel sont des critères de préparation, **pas une commande
+opérateur de production livrée**. Les reprises testées traversent des arrêts de
+sous-processus PHP avec le même parent de test et ses clés éphémères disponibles.
+Ni panne machine, perte de clés, durabilité du stockage distant, opérations
+simultanées sur Alpha, RPO/RTO représentatif ou import de tous les états métier
+ne sont qualifiés. OPS-005/REC-36 restent ouverts pour ces validations avant réel.
