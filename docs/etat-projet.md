@@ -6,7 +6,16 @@
 ## Point de reprise
 
 - Dernière mise à jour : 25 octobre 2026.
-- Tâche courante : **UCG-CAD-004, consolidation en un seul commit demandé**.
+- Tâche courante : **UCG-OPS-004, exercice local de sauvegarde/restauration**.
+  Après le commit CAD-004 `60ab7f3`, l'utilisateur autorise le démarrage prudent
+  d'un exercice exclusivement fictif et isolé. Deux clusters PostgreSQL 17
+  temporaires, dump complet et fichiers privés, chiffrement d'enveloppe distinct
+  de l'APP_KEY, restauration après arrêt de la source, contrôles et refus.
+  Lanceur/tests dans front/tests/real-api, fixture PHP dédiée, scripts npm,
+  raccordement au job PostgreSQL CI ; aucune modification applicative métier.
+  OPS-004 reste ouvert pour les garanties d'exploitation réelles et OPS-005 reste
+  distinct. Détails et résultats en fin de document ; aucun commit/push demandé.
+- Lot précédent : **UCG-CAD-004, consolidation en un seul commit demandé**.
   Après `f771467`, l'utilisateur confirme qu'UCG est sa véritable structure et que
   l'essai actuel utilise **uniquement des données fictives pour le moment**.
   « Pilote » a été expliqué comme premier essai. La Tunisie définit la première
@@ -7244,3 +7253,78 @@ unique est autorisé pour la consolidation, sans push. **CAD-004 reste ouvert** 
 la préparation est regroupée mais les décisions/validations nécessaires à un
 usage réel ne peuvent pas être déclarées obtenues. Aucun ticket de conformité,
 de purge ou de recette réelle n'est clôturé artificiellement.
+
+## UCG-OPS-004 — Premier exercice local de restauration (25 octobre 2026)
+
+### Mandat et isolation
+
+L'utilisateur autorise le démarrage prudent d'un essai local sur données fictives,
+après `60ab7f3`, arbre propre au début. Aucune base ou fichier utilisé n'est visé.
+Le nouveau test réutilise TemporaryPostgres, isolatedEnvironment et le bootstrap
+browser-application/browser-postgresql : cluster neuf, coordonnées et jeton
+attestés, serveur local 17 et data_directory vérifiés avant Laravel. La fixture
+recovery.php ajoute un profil explicite et refuse une base peuplée avant migration.
+La cible possède un autre répertoire, jeton, port et cluster que la source.
+
+### Réalisation
+
+La source migre le schéma complet et peuple deux organisations Alpha/Beta, chacune
+avec une personne (identité administrative chiffrée) et un artefact privé via
+TenantArtifacts. Aucun HTTP/worker n'est lancé ; la sauvegarde intervient sans
+écriture concurrente. pg_dump custom inclut toutes les tables, séquences et objets
+du schéma public. Le dump et les fichiers sont réunis dans une enveloppe
+AES-256-GCM authentifiée, avec une clé de sauvegarde générée distincte de l'APP_KEY.
+Le format de fixture est borné à 100 fichiers et 32 Mio de JSON déchiffré, en
+mémoire ; il ne s'agit pas d'un outil opérateur de production.
+
+Une modification Alpha postérieure prouve la différence entre état sauvegardé
+et état courant. Le cluster source est arrêté avant restauration dans la cible
+vide, sous single-transaction/no-owner/no-acl et sans clean/create. Toutes les
+empreintes de lignes/comptages, séquences, inventaire de contraintes, définitions
+de déclencheurs/fonctions et octets des fichiers correspondent au point sauvegardé.
+Les CHECK peuvent être reformulés par le déparseur PostgreSQL ; leur inventaire
+est contrôlé et des refus CHECK/FK/historique sont exercés, sans normalisation SQL
+approximative. Le déchiffrement réel et le refus d'un fichier Beta depuis Alpha
+sont vérifiés via les couches applicatives existantes.
+
+Sont aussi éprouvés : mauvais secret de sauvegarde, contenu altéré, mauvaise clé
+applicative, coordonnées étrangères, cible déjà remplie, stockage privé occupé
+laissé intact et fichier restauré manquant. Les tests de protocole couvrent
+chemins sortants, doublons, liens, propriété étrangère, format et bornes. Les
+erreurs de la fixture sont ramenées à un code de sortie non nul sans divulguer
+leurs traces ; cela évite de prendre une exception Laravel hors Artisan pour
+une réussite de sous-processus.
+
+### Résultats vérifiés
+
+Dernier rapport ignoré `front/reports/recovery-local.json` : **passed**, Windows,
+Node 24.21.0, PostgreSQL 17. **136 tables publiques**, deux artefacts privés,
+enveloppe de 1 107 405 octets ; ensemble de l'exercice environ **33,75 s**.
+Phases mesurées : sauvegarde **0,36 s**, création du cluster cible **7,20 s**,
+restauration **2,09 s**, vérifications **5,13 s**. Ces phases ne totalisent pas
+tout l'exercice (source, seed et nettoyage compris dans la durée globale).
+Le rapport porte les empreintes SHA-256 des sources exécutées, aucune clé ni
+contenu privé, et `cleanup=true`. Arrêt des deux clusters et suppression de leurs
+répertoires explicitement vérifiés. Un premier démarrage a été refusé par la
+restriction de processus Windows ; les essais PostgreSQL ont ensuite été
+exécutés avec l'autorisation de lancement nécessaire, sans changer de cible.
+
+**12 tests réussis sans exclusion** : cinq de protocole de sauvegarde, six du
+lanceur partagé, un exercice PostgreSQL complet. Lint, Pint dirty et PHPStan
+réussis. Aucun test métier existant n'est modifié ; la suite applicative complète
+n'est pas relancée pour ces seules fixtures et commandes de test. Le workflow
+frontend exécute les nouveaux scripts npm dans son job PostgreSQL et conserve le
+rapport JSON ; aucune nouvelle CI distante n'est déclarée exécutée.
+
+### Limites et suite
+
+OPS-004 reste ouvert pour copie isolée distante, PITR/WAL, clés durables/rotation,
+rôles/ACL du cluster, rétention validée et qualification RPO/RTO représentative.
+La présence du schéma de tous les modules ne vaut pas scénario métier peuplé
+pour chacun. Les fichiers de travail non enveloppés restent temporaires jusqu'au
+nettoyage ; aucun service de sauvegarde périodique ou rétention n'est activé.
+Les annulations ordinaires déclenchent le nettoyage, mais pas un SIGKILL ou arrêt
+brutal de machine garanti. Les ressources restent conservées en cas de doute de
+propriété/arrêt et le test échoue. OPS-005/REC-36 ne sont pas clôturés par une
+restauration globale dans un nouveau cluster. Aucun commit ni push effectué dans
+ce lot ; aucune modification de code métier, dépendance ou configuration réelle.

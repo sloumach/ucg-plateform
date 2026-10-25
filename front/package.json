@@ -22,6 +22,8 @@
     "test:load:volume": "node tests/real-api/load-run.mjs --profile=volume",
     "test:load:pressure": "node tests/real-api/load-run.mjs --profile=pressure",
     "test:load:harness": "node --test tests/real-api/load-protocol.test.mjs",
+    "test:recovery:harness": "node --test tests/real-api/recovery-protocol.test.mjs",
+    "test:recovery": "node --test tests/real-api/recovery.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

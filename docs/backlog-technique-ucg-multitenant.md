@@ -1355,6 +1355,20 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / XL
 - **Périmètre** : PostgreSQL, fichiers, chiffrement, copie isolée, rétention, PITR, RPO/RTO et tests.
 - **Acceptation** : restauration complète mesurée ; cohérence base/fichiers ; rapport conservé.
+- **Premier lot local (25/10/2026)** : exercice reproductible sur deux clusters
+  PostgreSQL 17 temporaires attestés, source sans écritures concurrentes et données
+  fictives Alpha/Beta. Dump complet et deux artefacts privés dans une enveloppe
+  AES-256-GCM, clé distincte de l'APP_KEY ; source modifiée après sauvegarde puis
+  arrêtée, restauration vers une cible vide. Comparaison de toutes les tables
+  publiques, séquences, inventaire de contraintes, déclencheurs/fonctions, fichiers
+  et déchiffrement ; isolation et refus CHECK/FK/historique exercés. Cibles
+  étrangères/remplies et stockage occupé refusés ; corruption, clés incorrectes
+  et fichier manquant détectés. Commandes npm test:recovery:harness/test:recovery,
+  rapport ignoré recovery-local.json et raccordement au job CI PostgreSQL.
+  **Ticket ouvert** : PITR, copie isolée distante, rôles/ACL, clés durables,
+  rétention et qualification RPO/RTO sur infrastructure restent à traiter.
+  Format borné de fixture, aucune restauration vers une base utilisée ; OPS-005
+  et REC-36 non clôturés. Nouvelle CI distante à confirmer.
 
 ### UCG-OPS-005 — Tester la récupération logique d’un tenant
 

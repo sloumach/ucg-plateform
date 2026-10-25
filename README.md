@@ -4932,3 +4932,69 @@ un choix différé reste ouvert. **ACA-005** porte l'implémentation des mineurs
 **OPS-007** celle de la conservation/purge, **OPS-001/004/005** les environnements
 et copies, **CAD-006/REL-001** le périmètre et la conduite du premier essai.
 Ce dossier ne clôt aucun de ces tickets, REC-35 ou la recette QA-005 différée.
+
+## UCG-OPS-004 — Exercice local de sauvegarde et restauration
+
+Le test `front/tests/real-api/recovery.test.mjs` crée deux clusters PostgreSQL 17
+temporaires distincts avec les garde-fous du lanceur navigateur existant. Il ne
+prend aucun chemin de sauvegarde, URL, base existante ou cible externe en argument.
+Les paramètres applicatifs/PG hérités sont écartés. Le bootstrap PHP vérifie
+testing, jeton, manifeste, coordonnées et data_directory avant chargement de
+Laravel ; le seed exige une base vide. Les clés et mots de passe sont générés
+pour l'exercice, jamais repris de l'installation utilisée.
+
+Depuis `front`, avec PHP 8.5/pdo_pgsql, dépendances installées et outils
+PostgreSQL 17 (`initdb`, `pg_ctl`, `createdb`, `pg_dump`, `pg_restore`) :
+
+```powershell
+$env:UCG_BROWSER_PG_BIN = 'C:\Program Files\PostgreSQL\17\bin'
+npm run test:recovery:harness
+npm run test:recovery
+```
+
+Sur Linux, utiliser le répertoire canonique des binaires 17, par exemple
+`/usr/lib/postgresql/17/bin`, avec un utilisateur ordinaire. Le job PostgreSQL
+de la CI frontend exécute également ces deux commandes et conserve le rapport
+`front/reports/recovery-local.json`. Une CI distante nouvelle reste à confirmer.
+
+L'exercice migre le schéma complet et crée deux organisations fictives Alpha/Beta,
+chacune avec une personne, des champs chiffrés et un fichier privé du ledger.
+Aucun serveur applicatif ou worker n'est démarré : la source est **sans écriture
+concurrente** pendant la sauvegarde base/fichiers. Le dump natif au format custom
+et les deux fichiers sont réunis dans une enveloppe AES-256-GCM authentifiée,
+avec une clé de sauvegarde distincte de la clé applicative. Une modification
+postérieure est apportée à Alpha, puis le cluster source est arrêté avant de
+restaurer dans le second cluster vide. La restauration conserve le point de
+sauvegarde ; elle ne recopie pas la modification postérieure.
+
+Le test compare les empreintes et comptes de lignes de **toutes les tables
+publiques**, y compris celles vides, l'état des séquences, l'inventaire des
+contraintes, les déclencheurs et leurs fonctions. Les définitions CHECK peuvent
+être réécrites de façon équivalente par PostgreSQL : l'inventaire est comparé et
+des refus CHECK/FK/historique sont réellement exercés. Les fichiers sont comparés
+octet par octet, lus via TenantArtifacts et refusés depuis l'autre tenant ; les
+champs sont déchiffrés avec la clé applicative originale.
+
+Les cas négatifs couvrent sauvegarde altérée, mauvaise clé de sauvegarde, mauvaise
+clé applicative, coordonnées étrangères, base cible remplie, stockage cible
+occupé et fichier restauré manquant. Les refus préalables laissent la cible
+intacte. Les liens symboliques, chemins sortants, doublons et entrées hors format
+sont refusés ; le format est limité à 100 artefacts et 32 Mio de JSON déchiffré.
+Les objets sont traités en mémoire pour cette petite fixture : **ce format de
+test n'est pas un outil de sauvegarde de production**. Les dumps de travail non
+enveloppés restent dans les répertoires temporaires jusqu'au nettoyage.
+
+Le rapport ne contient ni contenu privé ni clé : résultat, versions de contexte,
+empreintes des sources, durées techniques, couverture et nettoyage. Les clusters
+sont arrêtés et les répertoires canoniques appartenant au lancement supprimés.
+Un doute de propriété ou échec d'arrêt conserve les ressources et fait échouer
+le test ; un arrêt brutal du système ne garantit pas le nettoyage.
+
+**OPS-004 reste ouvert** : pas de PITR/WAL, copie distante isolée, rotation durable
+des clés, conservation réelle, sauvegarde des rôles/ACL du cluster ou exercice
+de panne sur infrastructure représentative. Le dump utilise no-owner/no-acl et
+la restauration single-transaction, sans clean/create ni désactivation des gardes.
+Les durées locales ne sont ni un RTO de service ni un engagement RPO. Les modules
+autres que People/artefacts ont leur schéma restauré, pas un scénario métier
+peuplé. La récupération sélective d'un tenant avec réconciliation relève
+d'OPS-005/REC-36 ; cet exercice restaure une base complète dans une cible distincte.

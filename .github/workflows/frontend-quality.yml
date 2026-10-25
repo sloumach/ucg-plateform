@@ -124,6 +124,12 @@ jobs:
           npm run test:e2e:postgresql:harness
           npm run test:e2e:postgresql
 
+      - name: Test encrypted backup and isolated PostgreSQL recovery
+        if: matrix.database == 'postgresql'
+        run: |
+          npm run test:recovery:harness
+          npm run test:recovery
+
       - name: Upload Playwright reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -141,5 +147,6 @@ jobs:
             front/reports/playwright-real-postgresql-html
             front/reports/playwright-real-postgresql-results
             front/reports/playwright-real-postgresql-application.log
+            front/reports/recovery-local.json
           if-no-files-found: ignore
           retention-days: 14
