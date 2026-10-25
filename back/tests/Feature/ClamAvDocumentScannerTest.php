@@ -24,7 +24,12 @@ class ClamAvDocumentScannerTest extends TestCase
             'engine error' => ['error', 'failed', 'scanner_response'], 'old database' => ['stale', 'failed', 'scanner_database_stale'],
             'wrong daemon' => ['bad-version', 'failed', 'scanner_response'], 'ambiguous' => ['ambiguous', 'failed', 'scanner_unavailable'],
             'oversized reply' => ['overlong', 'failed', 'scanner_unavailable'], 'truncated' => ['truncated', 'failed', 'scanner_unavailable'],
-            'timeout' => ['timeout', 'failed', 'scanner_unavailable']];
+            'timeout' => ['timeout', 'failed', 'scanner_unavailable'],
+            'split ambiguous records' => ['split-ambiguous', 'failed', 'scanner_unavailable'],
+            'clean record without closure' => ['keep-open', 'failed', 'scanner_unavailable'],
+            'fragmented clean record' => ['fragmented-clean', 'clean', null],
+            'future database' => ['future', 'failed', 'scanner_database_stale'],
+            'invalid database date' => ['invalid-date', 'failed', 'scanner_response']];
     }
 
     #[DataProvider('replies')]
@@ -43,7 +48,7 @@ class ClamAvDocumentScannerTest extends TestCase
             $this->assertSame($status, $verdict->status);
             $this->assertSame($reason, $verdict->reason);
             $peer->wait();
-            if (! in_array($mode, ['stale', 'bad-version'], true)) {
+            if (! in_array($mode, ['stale', 'bad-version', 'future', 'invalid-date'], true)) {
                 $lines = explode("\n", trim($peer->getOutput()));
                 $received = json_decode($lines[1], true, flags: JSON_THROW_ON_ERROR);
                 $this->assertSame(hash('sha256', $contents), $received['hash']);

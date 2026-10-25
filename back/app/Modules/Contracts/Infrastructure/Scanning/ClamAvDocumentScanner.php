@@ -90,7 +90,17 @@ final readonly class ClamAvDocumentScanner implements ContractDocumentScanner
             while (strlen($reply) <= self::REPLY_BYTES) {
                 $this->ready($socket, false, $deadline);
                 $chunk = @fread($socket, self::REPLY_BYTES + 1 - strlen($reply));
-                if ($chunk === false || $chunk === '') {
+                if ($chunk === false) {
+                    throw new RuntimeException('Document scanner reply incomplete.');
+                }
+                if ($chunk === '') {
+                    // Non-session clamd commands end by closing the connection.
+                    // A terminated OK record is provisional until EOF: another
+                    // verdict may arrive in a later TCP packet.
+                    $end = strpos($reply, "\0");
+                    if (feof($socket) && $end !== false && $end === strlen($reply) - 1) {
+                        return substr($reply, 0, $end);
+                    }
                     throw new RuntimeException('Document scanner reply incomplete.');
                 }
                 $reply .= $chunk;
@@ -99,8 +109,6 @@ final readonly class ClamAvDocumentScanner implements ContractDocumentScanner
                     if ($end !== strlen($reply) - 1) {
                         throw new RuntimeException('Document scanner reply ambiguous.');
                     }
-
-                    return substr($reply, 0, $end);
                 }
             }
             throw new RuntimeException('Document scanner reply exceeds its bound.');

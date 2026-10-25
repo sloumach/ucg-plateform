@@ -7,7 +7,9 @@ use Carbon\CarbonImmutable;
 
 final class DocumentSecurity
 {
-    public const string POLICY = 'clamav-pdf-v1';
+    public const string POLICY = 'clamav-pdf-v2';
+
+    public const int MAX_BYTES = 5 * 1024 * 1024;
 
     public const int MAX_ATTEMPTS = 1000;
 
@@ -47,7 +49,7 @@ final class DocumentSecurity
 
     public static function pdf(string $contents): bool
     {
-        return strlen($contents) >= 12 && strlen($contents) <= 5242880
+        return strlen($contents) >= 12 && strlen($contents) <= self::MAX_BYTES
             && preg_match('/\A%PDF-(?:1\.[0-7]|2\.0)[\r\n]/D', $contents) === 1
             && preg_match('/%%EOF[\x09\x0a\x0c\x0d\x20]*\z/D', $contents) === 1;
     }

@@ -1409,6 +1409,16 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / L
 - **Périmètre** : analyse antivirus ou équivalente, MIME réel, tailles, dépendances, scans et correctifs.
 - **Acceptation** : fichiers dangereux mis en quarantaine ; vulnérabilités suivies avec délai de traitement.
+- **Trois lots consolidés (25/10/2026)** : contrôles PDF/MIME/extension/taille et
+  absence d'effets sur refus complétés ; limite 5 Mio partagée. Protocole ClamAV
+  renforcé contre verdicts multiples répartis entre paquets et absence de clôture,
+  tests de quarantaine après rescan négatif. Politique clamav-pdf-v2 : les anciens
+  clean v1 requièrent une nouvelle analyse. Job réel clamd/freshclam/EICAR activé
+  en CI, à valider après push ; pas de moteur réel disponible localement.
+  Audits Composer/npm bloquants avec rapports ; Vite 8.3.2→8.3.5 et Undici
+  8.11.2→8.12.3 corrigent les deux dépendances signalées, réaudit npm vierge.
+  Suivi et délais proposés dans le README, référent à désigner ; ticket ouvert
+  pour recette antivirus réelle et exploitation sur le futur hébergement.
 
 ### UCG-OPS-007 — Implémenter conservation et purge
 

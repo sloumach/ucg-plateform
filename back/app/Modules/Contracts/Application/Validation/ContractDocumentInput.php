@@ -2,6 +2,7 @@
 
 namespace App\Modules\Contracts\Application\Validation;
 
+use App\Modules\Contracts\Domain\DocumentSecurity;
 use Illuminate\Validation\Rule;
 
 final class ContractDocumentInput
@@ -10,7 +11,7 @@ final class ContractDocumentInput
 
     public const int MAX_VERSIONS = 100;
 
-    public const int MAX_BYTES = 5242880;
+    public const int MAX_BYTES = DocumentSecurity::MAX_BYTES;
 
     public const array SIGNED_STATES = ['signed', 'active', 'ended', 'terminated'];
 

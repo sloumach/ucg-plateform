@@ -5161,3 +5161,106 @@ sous-processus PHP avec le même parent de test et ses clés éphémères dispon
 Ni panne machine, perte de clés, durabilité du stockage distant, opérations
 simultanées sur Alpha, RPO/RTO représentatif ou import de tous les états métier
 ne sont qualifiés. OPS-005/REC-36 restent ouverts pour ces validations avant réel.
+
+## UCG-OPS-006 — Fichiers, antivirus et dépendances
+
+Les trois lots sont regroupés dans un changement : vérification des fichiers,
+blocage antivirus/quarantaine et contrôles des dépendances. Les contrôles déjà
+livrés sont conservés : Form Request, droits/MFA/tenant, extension PDF, MIME
+détecté côté serveur, enveloppe bornée, chiffrement des artefacts, empreinte,
+quota et vérification des accès au téléchargement. La limite de **5 Mio** est
+centralisée dans DocumentSecurity ; l'en-tête et la fin PDF ne remplacent pas
+un parseur/assainisseur complet de PDF.
+
+Les tests HTTP refusent le MIME déclaré PDF lorsque les octets sont exécutables,
+les doubles extensions, PDF tronqués, données ajoutées après la fin et fichiers
+trop gros, sans réservation de stockage, version ou scan. La borne exacte de
+5 Mio et le premier octet excédentaire sont contrôlés séparément. Les téléchargements
+restent des pièces jointes avec nosniff et no-store.
+
+### Réponse complète du scanner et renouvellement des verdicts
+
+Le client ClamAV attend désormais la fermeture de la connexion non-session après
+**un unique enregistrement terminé par NUL**, dans les bornes de taille/temps
+existantes. Un OK reçu dans un premier paquet n'est pas définitif : un second
+verdict dans un paquet ultérieur, une fermeture absente, une réponse tronquée ou
+débordante ne peuvent pas autoriser le fichier. Un OK correctement fragmenté
+reste accepté. Le protocole est vérifié avec un pair TCP local déterministe,
+qui n'est pas un antivirus. [Protocole officiel ClamAV](https://docs.clamav.net/manual/Usage/ClamdProtocol.html).
+
+La politique passe à **clamav-pdf-v2**. Les anciens verdicts clean en v1 sont
+considérés périmés pour le téléchargement, même si leur âge serait encore valable.
+Un utilisateur habilité doit demander une nouvelle analyse avec expected_scan_id ;
+aucune analyse en masse ni modification des anciennes lignes d'audit n'est lancée.
+Les nouveaux liens ne sont émis qu'après un verdict clean récent sous la politique
+courante. Un nouveau scan négatif sur la même version bloque aussi les liens
+déjà émis ; le fichier chiffré, son quota et les versions historiques sont conservés.
+
+La quarantaine est **logique** : stockage privé chiffré et refus des octets clairs
+tant que le verdict n'est pas concluant. Elle ne déplace pas les objets vers un
+répertoire public et ne supprime pas automatiquement les fichiers rejetés.
+Malware, indisponibilité, réponse ambiguë et signatures périmées restent bloquants.
+
+### Vérifications locales et antivirus réel en CI
+
+Depuis back :
+
+```powershell
+php vendor/bin/phpunit tests/Unit/DocumentSecurityTest.php tests/Feature/ClamAvDocumentScannerTest.php tests/Feature/ContractDocumentControllerTest.php tests/Feature/ContractDocumentSecurityControllerTest.php
+composer audit --locked --abandoned=fail --format=json
+```
+
+Depuis front :
+
+```powershell
+npm audit --audit-level=low --json
+npm run test:ci
+npm run build
+```
+
+Un job CI backend dédié installe clamd/freshclam sur son runner éphémère, obtient
+les signatures officielles et démarre sa propre instance sur 127.0.0.1:3310, en
+UTC. Sa configuration borne flux/fichiers/temps et active ScanPDF, AlertExceedsMax
+et AlertEncrypted. Le test réel existant est activé explicitement : PDF propre
+accepté et sonde EICAR inoffensive en mémoire rejetée. Version, XML et logs sont
+conservés ; seule l'instance identifiée par le job est arrêtée. Une panne du
+téléchargement de signatures ou du scanner fait échouer le job, sans faux succès
+ou remplacement silencieux par le pair simulé.
+
+Ce job est **à valider après push**. Aucun ClamAV local n'est installé et le
+daemon Docker n'est pas disponible sur ce poste ; les essais locaux TCP ne
+prouvent pas une analyse réelle. Avant activation sur le futur hébergement,
+vérifier les signatures, paramètres effectifs, réseau privé, workers et le parcours
+complet dépôt/analyse/téléchargement. Références : [scan](https://docs.clamav.net/manual/Usage/Scanning.html)
+et [configuration ClamAV](https://github.com/Cisco-Talos/clamav/blob/main/etc/clamd.conf.sample).
+
+### Audits et suivi des dépendances
+
+Les workflows auditent maintenant le verrou Composer (avec paquets de développement
+et abandon bloquant) et l'arbre npm (tous niveaux, développement compris). Les
+rapports composer-audit.json/npm-audit.json sont conservés avec les tests. Un
+échec réseau ou un avis détecté n'est pas converti en succès ; aucune exclusion
+d'avis n'est ajoutée. Les audits sont ceux des commandes natives [Composer](https://getcomposer.org/doc/03-cli.md#audit)
+et [npm](https://docs.npmjs.com/cli/v11/commands/npm-audit/), à l'instant du lancement.
+
+| Constat au 25 octobre 2026 | Traitement dans ce lot |
+| --- | --- |
+| Vite 8.3.2, six avis remontés par npm, gravité agrégée high | Mise à jour compatible vers 8.3.5 et minimum direct relevé à ^8.3.5 ; dépendances associées de la chaîne Vite/Rolldown mises à jour dans le verrou. |
+| Undici 8.11.2, trois avis remontés, gravité agrégée high ; transitif de jsdom | Mise à jour compatible vers 8.12.3, sans ajouter de dépendance directe ni override. [Avis éditeur représentatif](https://github.com/nodejs/undici/security/advisories/GHSA-xjj6-f33q-929c). |
+| Composer | Aucun avis ni paquet abandonné remonté ; aucune dépendance PHP modifiée. |
+| Audit npm après correction | Zéro vulnérabilité remontée ; aucun niveau omis. |
+
+Pour les prochains avis, le référent maintenance UCG reste à désigner. Ouvrir un
+suivi par avis/ensemble de versions avec identifiant, source, date, sévérité,
+exposition réelle (runtime/outillage), responsable, échéance et preuve de clôture.
+Les cibles de traitement proposées sont : critique, évaluation immédiate/correctif
+sous 24 h ; high, évaluation sous un jour/correctif sous sept jours ; moderate,
+sept/trente jours ; low, trente/quatre-vingt-dix jours. Ces cibles opérationnelles
+restent à adopter par le responsable ; elles n'autorisent pas une livraison avec
+un audit rouge. Tester les mises à jour puis réauditer le verrou ; un avis sans
+correctif appelle une décision explicite et des mesures documentées, pas une
+suppression du contrôle CI.
+
+**OPS-006 reste ouvert pour la recette du scanner réel et de son déploiement.**
+Un audit vert ne constitue pas une preuve d'absence de toute vulnérabilité, ni
+une validation d'un moteur antivirus ou des fichiers des autres modules.

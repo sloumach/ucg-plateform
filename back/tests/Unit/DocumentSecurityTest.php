@@ -26,6 +26,15 @@ class DocumentSecurityTest extends TestCase
         $this->assertSame($expected, DocumentSecurity::pdf($contents));
     }
 
+    public function test_five_mebibytes_is_accepted_and_one_extra_byte_is_refused(): void
+    {
+        $header = "%PDF-1.4\n";
+        $end = "\n%%EOF\n";
+        $body = str_repeat('x', 5_242_880 - strlen($header) - strlen($end));
+        $this->assertTrue(DocumentSecurity::pdf($header.$body.$end));
+        $this->assertFalse(DocumentSecurity::pdf($header.$body.'x'.$end));
+    }
+
     /** @return array<string, array{string, int, bool, string, bool}> */
     public static function verdicts(): array
     {
@@ -36,6 +45,7 @@ class DocumentSecurityTest extends TestCase
             'clean future' => ['clean', -10, false, DocumentSecurity::POLICY, false],
             'clean invalidated' => ['clean', 10, true, DocumentSecurity::POLICY, false],
             'clean old policy' => ['clean', 10, false, 'old-policy', false],
+            'clean before complete-reply policy' => ['clean', 10, false, 'clamav-pdf-v1', false],
             'malware' => ['rejected', 10, false, DocumentSecurity::POLICY, false],
             'engine outage' => ['failed', 10, false, DocumentSecurity::POLICY, false]];
     }

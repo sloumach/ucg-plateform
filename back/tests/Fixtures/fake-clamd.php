@@ -8,7 +8,8 @@ if ($server === false) {
 }
 echo stream_socket_get_name($server, false)."\n";
 flush();
-$version = 'ClamAV test/123/'.gmdate('D M j H:i:s Y', time() - ($mode === 'stale' ? 700000 : 60));
+$version = 'ClamAV test/123/'.($mode === 'invalid-date' ? 'Thu Feb 30 00:00:00 2026'
+    : gmdate('D M j H:i:s Y', time() + ($mode === 'future' ? 7200 : ($mode === 'stale' ? -700000 : -60))));
 $read = static function ($socket, int $bytes): string {
     $result = '';
     while (strlen($result) < $bytes) {
@@ -32,7 +33,7 @@ try {
     }
     fwrite($peer, ($mode === 'bad-version' ? 'Unknown daemon' : $version)."\0");
     fclose($peer);
-    if (in_array($mode, ['stale', 'bad-version'], true)) {
+    if (in_array($mode, ['stale', 'bad-version', 'future', 'invalid-date'], true)) {
         exit(0);
     }
     $peer = stream_socket_accept($server, 5);
@@ -69,7 +70,22 @@ try {
     if ($mode === 'timeout') {
         usleep(1500000);
     }
-    @fwrite($peer, $mode === 'truncated' ? 'stream: OK' : $reply."\0");
+    if ($mode === 'split-ambiguous') {
+        fwrite($peer, "stream: OK\0");
+        fflush($peer);
+        usleep(50000);
+        @fwrite($peer, "stream: Test FOUND\0");
+    } elseif ($mode === 'fragmented-clean') {
+        fwrite($peer, 'stream:');
+        fflush($peer);
+        usleep(20000);
+        @fwrite($peer, " OK\0");
+    } else {
+        @fwrite($peer, $mode === 'truncated' ? 'stream: OK' : $reply."\0");
+    }
+    if ($mode === 'keep-open') {
+        usleep(1500000);
+    }
     fclose($peer);
     echo json_encode(['hash' => hash_final($hash), 'bytes' => $total, 'chunks' => $chunks], JSON_THROW_ON_ERROR)."\n";
 } finally {

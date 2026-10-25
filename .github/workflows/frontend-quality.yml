@@ -33,6 +33,11 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Audit locked frontend dependencies including development packages
+        run: |
+          mkdir -p reports
+          npm audit --audit-level=low --json > reports/npm-audit.json
+
       - name: Run frontend lint
         run: npm run lint
 
@@ -47,7 +52,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-test-report
-          path: front/reports/vitest.xml
+          path: |
+            front/reports/vitest.xml
+            front/reports/npm-audit.json
           if-no-files-found: ignore
           retention-days: 14
 

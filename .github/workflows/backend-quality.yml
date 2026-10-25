@@ -59,6 +59,11 @@ jobs:
       - name: Install backend dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
 
+      - name: Audit locked backend dependencies including development packages
+        run: |
+          mkdir -p reports
+          composer audit --locked --abandoned=fail --format=json > reports/composer-audit.json
+
       - name: Prepare Laravel environment
         run: |
           cp .env.example .env
@@ -113,6 +118,122 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: backend-test-report
-          path: back/reports/phpunit*.xml
+          path: |
+            back/reports/phpunit*.xml
+            back/reports/composer-audit.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  antivirus:
+    name: Real ClamAV clean and EICAR verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: back
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: mbstring, pdo_sqlite, sqlite3
+          coverage: none
+
+      - name: Install backend dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare isolated test configuration
+        run: |
+          cp .env.example .env
+          php artisan key:generate --no-interaction
+          mkdir -p reports
+
+      - name: Install ClamAV and obtain current signatures
+        env:
+          TZ: UTC
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends clamav-daemon clamav-freshclam
+          scan_root="$RUNNER_TEMP/ucg-clamav"
+          mkdir -p "$scan_root/db"
+          cat > "$scan_root/freshclam.conf" <<EOF
+          DatabaseDirectory $scan_root/db
+          DatabaseOwner $(id -un)
+          DatabaseMirror database.clamav.net
+          UpdateLogFile $scan_root/freshclam.log
+          EOF
+          freshclam --config-file="$scan_root/freshclam.conf" --stdout
+          clamd --version > reports/clamav-version.txt
+
+      - name: Start an owned loopback-only scanner with bounded scanning
+        env:
+          TZ: UTC
+        run: |
+          scan_root="$RUNNER_TEMP/ucg-clamav"
+          cat > "$scan_root/clamd.conf" <<EOF
+          Foreground yes
+          DatabaseDirectory $scan_root/db
+          LogFile $scan_root/clamd.log
+          TCPAddr 127.0.0.1
+          TCPSocket 3310
+          MaxThreads 2
+          MaxQueue 8
+          StreamMaxLength 8M
+          MaxFileSize 8M
+          MaxScanSize 16M
+          MaxScanTime 15000
+          ScanPDF yes
+          AlertExceedsMax yes
+          AlertEncrypted yes
+          EOF
+          clamd --config-file="$scan_root/clamd.conf" > "$scan_root/stdout.log" 2>&1 &
+          echo $! > "$scan_root/runner.pid"
+          for attempt in $(seq 1 60); do
+            if php -r '$s=@stream_socket_client("tcp://127.0.0.1:3310",$n,$m,1); if(!$s){exit(1);} stream_set_timeout($s,1); fwrite($s,"zPING\0"); $r=fread($s,16); fclose($s); exit($r==="PONG\0"?0:1);'; then
+              exit 0
+            fi
+            if ! kill -0 "$(cat "$scan_root/runner.pid")" 2>/dev/null; then
+              cat "$scan_root/stdout.log"
+              exit 1
+            fi
+            sleep 2
+          done
+          cat "$scan_root/stdout.log"
+          exit 1
+
+      - name: Require the real scanner to accept clean bytes and reject EICAR
+        run: php artisan test --compact tests/Feature/ClamAvIntegrationTest.php --log-junit=reports/phpunit-clamav.xml
+        env:
+          CONTRACT_TEST_CLAMAV: 'true'
+          DOCUMENT_CLAMAV_HOST: 127.0.0.1
+          DOCUMENT_CLAMAV_PORT: 3310
+          TZ: UTC
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+          DB_URL: ''
+
+      - name: Stop only the scanner started by this job
+        if: always()
+        run: |
+          scan_root="$RUNNER_TEMP/ucg-clamav"
+          if test -f "$scan_root/runner.pid"; then
+            scanner_pid=$(cat "$scan_root/runner.pid")
+            if [[ "$scanner_pid" =~ ^[0-9]+$ ]] && ps -p "$scanner_pid" -o args= | grep -F -- "--config-file=$scan_root/clamd.conf"; then
+              kill "$scanner_pid"
+            fi
+          fi
+
+      - name: Upload real antivirus verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clamav-verification
+          path: |
+            back/reports/phpunit-clamav.xml
+            back/reports/clamav-version.txt
+            ${{ runner.temp }}/ucg-clamav/*.log
           if-no-files-found: ignore
           retention-days: 14

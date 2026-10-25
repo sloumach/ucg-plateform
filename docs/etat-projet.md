@@ -6,7 +6,15 @@
 ## Point de reprise
 
 - Dernière mise à jour : 25 octobre 2026.
-- Tâche courante : **UCG-OPS-005, consolidation des quatre lots locaux**.
+- Tâche courante : **UCG-OPS-006, trois lots regroupés en un commit demandé**.
+  CI de `ca42b47` validée par l'utilisateur avant changement de ticket. Tests de
+  fichiers et quarantaine complétés ; ClamAV exige une réponse unique terminée
+  et fermeture de connexion. Politique v2 : anciens clean v1 périmés sans réécrire
+  l'historique. Audits CI Composer/npm ajoutés, Vite/Undici corrigés et réaudités.
+  Job de scanner réel et EICAR préparé en CI, non exécuté localement faute de
+  moteur/daemon Docker. Validation réelle/exploitation restent ouvertes.
+  Détails et résultats en fin de document ; un seul commit autorisé, aucun push.
+- Lot précédent : **UCG-OPS-005, consolidation des quatre lots locaux**.
   L'utilisateur valide la CI de `da068af` et demande les quatre lots dans un seul
   nouveau commit ; le lot 1 déjà commité est conservé. Nouveau graphe réellement
   absent de la cible, People/Teams/Match/Contracts et références, préservation
@@ -7547,3 +7555,68 @@ concurrents, barrière d'écriture réelle, politique de gels/effacements compl�
 gestion durable des clés et RPO/RTO représentatif restent à traiter/valider avec
 OPS-004, OPS-007, CAD-004 et l'hébergement. Aucune protection n'est désactivée ni
 statut d'organisation réactivé pour obtenir les résultats locaux.
+
+## UCG-OPS-006 — Trois lots fichiers, antivirus et dépendances (25 octobre 2026)
+
+L'utilisateur a validé la CI de ca42b47 et demandé les trois lots dans un seul
+commit. Le travail couvre les documents contractuels déjà pris en charge ; il
+ne déclare pas qualifiés les fichiers des autres modules.
+
+### Fichiers et quarantaine
+
+Les refus HTTP couvrent MIME client trompeur, contenu non PDF, extension double,
+nom invalide, dépassement de taille, PDF tronqué et charge après EOF, sans créer
+d'artefact, version ou analyse. La limite de 5 Mio est partagée entre validation
+et domaine ; sa borne exacte et un octet supplémentaire sont testés. Le contrôle
+d'enveloppe PDF ne constitue pas un analyseur complet du format.
+
+Deux régressions ont d'abord reproduit un verdict clean incorrect : une seconde
+réponse dans un autre paquet TCP et une connexion laissée ouverte après OK. Le
+client ClamAV attend maintenant la fermeture de la connexion non-session, dans
+les bornes existantes de temps et de réponse, avec un seul enregistrement NUL.
+Une réponse clean fragmentée valide reste acceptée ; dates invalides/futures,
+signatures périmées, erreurs et pannes restent bloquantes.
+
+La politique clamav-pdf-v2 rend les anciens clean v1 obsolètes sans modifier les
+lignes ni l'historique. Une nouvelle analyse autorisée est nécessaire avant
+téléchargement. Les tests de rescan négatif vérifient le blocage des anciens
+liens et des nouvelles demandes, tout en conservant le fichier privé chiffré,
+le quota et les versions : quarantaine logique, sans suppression automatique.
+
+### Dépendances et CI
+
+L'audit initial remontait deux dépendances npm high : Vite 8.3.2 (six avis) et
+Undici 8.11.2 (trois avis). Mise à jour ciblée vers Vite 8.3.5, minimum direct
+^8.3.5, et Undici transitif 8.12.3, avec les dépendances associées du verrou.
+Aucun paquet direct ni override ajouté. L'audit npm final remonte zéro
+vulnérabilité à tous niveaux ; Composer remonte zéro avis et zéro paquet
+abandonné, sans changement de dépendances PHP.
+
+Les workflows conservent les rapports JSON et échouent sur les audits natifs
+Composer/npm non verts, développement compris. Le README décrit le suivi des
+avis et des délais proposés, à adopter par le référent maintenance à désigner.
+Un job antivirus séparé prépare clamd/freshclam avec signatures actuelles,
+écoute locale, limites et arrêt de sa propre instance. Il exige le test réel
+PDF propre/EICAR en mémoire ; une panne de préparation ou du scanner échoue.
+
+### Validation finale et limites
+
+- Backend complet : **2 763 réussis, 50 exclus, zéro erreur/échec**, 17 830
+  assertions, environ 612 s. Les exclusions concernent PostgreSQL/concurrence,
+  Redis, Reverb et l'intégration ClamAV réelle, activés séparément en CI.
+- Frontend : **493 tests réussis**, lint et compilation TypeScript/Vite réussis.
+- Navigateur avec API réelle sur SQLite isolée : **8 parcours réussis**, environ
+  274 s, arrêt et suppression des ressources de test confirmés.
+- Pint dirty, PHPStan et diff check réussis. YAML des deux workflows et syntaxe
+  Bash de leurs blocs run vérifiés ; ces contrôles n'exécutent pas GitHub Actions.
+- Rapports locaux ignorés : back/reports/phpunit-ops006.xml,
+  back/reports/composer-audit.json, front/reports/npm-audit.json,
+  front/reports/vitest.xml et front/reports/playwright-real.xml.
+
+Le moteur ClamAV réel n'est pas disponible localement et le daemon Docker est
+arrêté : **le nouveau job antivirus reste à valider après push**. Les pairs TCP
+simulés ne prouvent pas une analyse antivirus réelle. OPS-006 reste ouvert pour
+cette recette et le futur déploiement (signatures, paramètres, réseau privé,
+workers, parcours complet). Aucun moteur de production n'est activé, aucune
+migration ni donnée applicative réelle modifiée. Livraison en un seul nouveau
+commit, sans push ni réécriture des commits précédents.

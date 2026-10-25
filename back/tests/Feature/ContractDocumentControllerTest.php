@@ -151,7 +151,10 @@ class ContractDocumentControllerTest extends TestCase
     {
         return ['executable' => ['attack.php', '<?php echo 1;'], 'false PDF' => ['fake.pdf', 'not a pdf'],
             'wrong extension' => ['file.txt', "%PDF-1.4\n%%EOF\n"], 'unsafe filename' => ['bad:name.pdf', "%PDF-1.4\n%%EOF\n"],
-            'long filename' => [str_repeat('x', 157).'.pdf', "%PDF-1.4\n%%EOF\n"], 'too large' => ['large.pdf', "%PDF-1.4\n".str_repeat('x', 5242880)]];
+            'long filename' => [str_repeat('x', 157).'.pdf', "%PDF-1.4\n%%EOF\n"], 'too large' => ['large.pdf', "%PDF-1.4\n".str_repeat('x', 5242880)],
+            'double extension' => ['document.pdf.php', "%PDF-1.4\n%%EOF\n"],
+            'truncated PDF' => ['truncated.pdf', "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n"],
+            'payload after end' => ['suffix.pdf', "%PDF-1.4\n%%EOF\n<?php echo 1;"]];
     }
 
     #[DataProvider('invalidFiles')]
@@ -165,6 +168,28 @@ class ContractDocumentControllerTest extends TestCase
             'purpose' => 'draft', 'file' => UploadedFile::fake()->createWithContent($filename, $content)], ['Accept' => 'application/json'])
             ->assertUnprocessable()->assertJsonValidationErrors('file');
         $this->assertDatabaseCount('tenant_artifacts', 0);
+        $this->assertDatabaseCount('contract_document_versions', 0);
+        $this->assertDatabaseCount('contract_document_scans', 0);
+        $this->assertSame($contract->version, $contract->refresh()->version);
+        Storage::disk('local')->assertDirectoryEmpty('tenants');
+    }
+
+    public function test_a_client_declared_pdf_mime_cannot_admit_executable_contents_returns_422(): void
+    {
+        Storage::fake('local');
+        [$org, $user, $contract, $context] = $this->documentScenario();
+        $document = $this->originalDocument($context, $contract);
+        $this->actingAsWithMfa($user);
+        $temporary = UploadedFile::fake()->createWithContent('payload.pdf', '<?php echo "PRIVATE_PAYLOAD";');
+        $file = new UploadedFile($temporary->getPathname(), 'payload.pdf', 'application/pdf', UPLOAD_ERR_OK, true);
+        $this->assertSame('application/pdf', $file->getClientMimeType());
+        $this->assertNotSame('application/pdf', $file->getMimeType());
+        $this->post($this->documentPath($org, $contract, $document->id).'/versions', ['contract_version' => $contract->version,
+            'purpose' => 'draft', 'file' => $file], ['Accept' => 'application/json'])
+            ->assertUnprocessable()->assertJsonValidationErrors('file');
+        $this->assertDatabaseCount('tenant_artifacts', 0);
+        $this->assertDatabaseCount('contract_document_versions', 0);
+        $this->assertDatabaseCount('contract_document_scans', 0);
         Storage::disk('local')->assertDirectoryEmpty('tenants');
     }
 

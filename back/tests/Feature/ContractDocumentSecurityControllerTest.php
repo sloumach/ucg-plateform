@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Modules\Contracts\Application\Services\ContractDocumentScanProcessor;
 use App\Modules\Contracts\Application\Services\ContractDocumentScanService;
 use App\Modules\Contracts\Application\Services\ContractDocumentService;
 use App\Modules\Contracts\Application\Services\ContractFinancialService;
@@ -55,6 +56,40 @@ class ContractDocumentSecurityControllerTest extends TestCase
         $this->assertStringContainsString('attachment;', $response->headers->get('Content-Disposition'));
         $this->assertSame($this->documentPdf()->getContent(), $response->getContent());
         $this->getJson($path.'/scans?per_page=1')->assertOk()->assertJsonCount(1, 'data')->assertJsonMissingPath('data.0.organization_id');
+    }
+
+    /** @return array<string,array{string,string}> */
+    public static function blockingRescans(): array
+    {
+        return ['malware' => ['rejected', 'malware'], 'outage' => ['failed', 'scanner_unavailable'],
+            'ambiguous reply' => ['failed', 'scanner_response'], 'stale signatures' => ['failed', 'scanner_database_stale']];
+    }
+
+    #[DataProvider('blockingRescans')]
+    public function test_negative_rescan_revokes_an_issued_link_and_keeps_encrypted_quarantine(string $status, string $reason): void
+    {
+        $this->freezeTime();
+        [$org, $user, $contract, $context, $document, $version, $scan] = $this->securityScenario();
+        $this->mock(ContractDocumentScanner::class)->shouldReceive('scan')->twice()
+            ->andReturn(new ScanVerdict('clean', engine: 'ClamAV test/123/fresh'), new ScanVerdict($status, $reason));
+        app(ContractDocumentScanProcessor::class)->process($context, $scan->id);
+        $this->actingAsWithMfa($user);
+        $path = $this->documentPath($org, $contract, $document->id).'/versions/'.$version->id;
+        $url = $this->postJson($path.'/download-link', ['expected_scan_id' => $scan->id])->assertOk()->json('data.url');
+        $this->get($url)->assertOk();
+        $storagePath = 'tenants/'.$org->id.'/artifacts/'.$version->artifact_id;
+        $ciphertext = Storage::disk('local')->get($storagePath);
+        $usage = DB::table('tenant_storage_usage')->where('organization_id', $org->id)->value('bytes');
+        $retry = app(ContractDocumentScanService::class)->request($context, $contract->id, $document->id, $version->id, ['expected_scan_id' => $scan->id]);
+        app(ContractDocumentScanProcessor::class)->process($context, $retry->id);
+        $this->assertSame($status, $retry->refresh()->status);
+        $this->assertSame($reason, $retry->reason);
+        $this->getJson($url)->assertConflict()->assertJsonPath('code', 'CONTRACT_DOCUMENT_NOT_READY');
+        $this->postJson($path.'/download-link', ['expected_scan_id' => $retry->id])->assertConflict()->assertJsonPath('code', 'CONTRACT_DOCUMENT_NOT_READY');
+        $this->assertSame($ciphertext, Storage::disk('local')->get($storagePath));
+        $this->assertSame($usage, DB::table('tenant_storage_usage')->where('organization_id', $org->id)->value('bytes'));
+        $this->assertDatabaseCount('contract_document_versions', 1);
+        $this->assertDatabaseCount('contract_document_scans', 2);
     }
 
     public function test_reader_can_download_but_cannot_enqueue_analysis_and_link_is_bound_to_actor(): void
