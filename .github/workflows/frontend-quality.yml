@@ -114,6 +114,7 @@ jobs:
         if: matrix.database == 'sqlite'
         run: |
           npm run test:e2e:harness
+          npm run test:load:harness
           npm run test:e2e:real
 
       - name: Run isolated PostgreSQL ownership and browser journeys

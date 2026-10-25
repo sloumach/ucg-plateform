@@ -6,6 +6,19 @@
 ## Point de reprise
 
 - Dernière mise à jour : 25 octobre 2026.
+- Tâche courante : **UCG-QA-005, premier lot de mesure locale bornée**.
+  Lanceur PostgreSQL jetable ajouté : trois tenants, trois comptes, 630 fiches,
+  deux sessions, deux serveurs HTTP PHP et un worker database. Rapport final
+  `load-smoke-1792929067358.json` : 100 lectures Beta par phase, p95 332,82 ms
+  au repos, 378,47 ms sous activité Alpha et 381,10 ms après ; 100 lectures Alpha,
+  trois exports réels de 500 lignes, aucune erreur HTTP, zéro job échoué/en attente.
+  Refus du schéma déjà rempli et stabilité des identifiants/versions/horodatages
+  Beta/Gamma vérifiés, nettoyage confirmé. Premier essai plus lent conservé :
+  cette variabilité interdit de qualifier la capacité sur ce poste partagé.
+  Cinq tests du nouveau lanceur et six garde-fous existants réussis ; lint,
+  Pint, PHPStan et YAML verts. QA-005 et REC-34 restent ouverts pour les volumes,
+  imports, concurrence à 100 actifs et infrastructure représentative. Aucun
+  code métier, migration, dépendance ou donnée réelle modifié ; sans commit/push.
 - Reprise courante : **UCG-QA-003 qualifié sur son périmètre convenu**.
   Après autorisation explicite de l'utilisateur, les trois artefacts frontend
   du SHA `b4dd21a` ont été téléchargés et leurs JUnit et données HTML relus :
@@ -6694,3 +6707,121 @@ validés par cette qualification.
 Seuls les deux documents de suivi sont modifiés ; les rapports téléchargés
 restent locaux et ignorés. Aucun test applicatif relancé pour cette revue de
 preuves existantes, aucune base ni donnée réelle modifiée. Pas de commit ni push.
+
+## UCG-QA-005 — Premier lot de mesure locale isolée (25 octobre 2026)
+
+### Objectif et protocole livré
+
+L'utilisateur autorise le démarrage prudent après qualification de QA-003 et
+commit `9dcbb4a`. Ce premier lot crée un outil reproductible de mesure ; il ne
+prétend pas remplir l'enveloppe du CDC (500 comptes, 100 actifs, 100 000 parties,
+2 000 visiteurs publics selon périmètre) ni qualifier REC-34 sur l'hébergement.
+Arbre propre sur `staging` au départ, commit de base `9dcbb4a`.
+
+Commandes depuis `front/` : `npm run test:load:harness` et
+`npm run test:load:smoke`. Aucun paquet ajouté. Réutilisation des garde-fous
+`isolatedEnvironment`, `TemporaryPostgres` et du bootstrap propriétaire déjà
+éprouvés par QA-003. Profil strict `smoke`, aucune URL externe ou connexion DB
+arbitraire acceptée ; PostgreSQL 17 neuf en boucle locale, schéma vide obligatoire,
+stockage/cache/sessions privés au répertoire temporaire. Aucun `.env` de
+développement transmis. Refus du second peuplement et absence de changement
+des snapshots vérifiés avant le démarrage des phases.
+
+Dataset réel de l'essai : trois comptes fictifs (propriétaire et deux acteurs),
+trois organisations, 500 fiches Alpha, 120 Beta, 10 Gamma, aucune partie créée.
+Deux sessions se connectent par HTTP avec CSRF, mot de passe, TOTP et confirmation
+du tenant. Deux processus `php -S` partagent le cluster ; un worker database
+traite les exports. Cache database, pas de Redis/Horizon ni serveur web hébergé.
+
+Après cinq lectures de chauffe, Beta réalise 100 lectures de sa liste avant,
+100 pendant et 100 après l'activité d'Alpha. Chaque phase alterne des pages
+de 25 et 100 fiches (50 échantillons de chaque taille). Alpha lit ses pages
+de 100 en boucle fermée et trois exports `active_people` de 500 lignes sont
+mis en queue, puis réellement générés. Les 100 lectures sous charge doivent
+se trouver dans la fenêtre d'activité HTTP d'Alpha ; l'occupation du worker
+n'est pas supposée continue sur cette fenêtre.
+
+Chaque réponse doit avoir le bon statut, les compteurs d'instrumentation,
+les bons identifiants, le total et la taille paginée attendus, sans doublon.
+Les erreurs ne sont pas exclues des latences ; une phase interrompue ne passe pas.
+Les identifiants/versions/updated_at des fiches Beta et Gamma sont hachés et
+comparés avant/après, avec leurs compteurs d'exports et d'artefacts. Le rapport
+contrôle aussi les trois exports terminés à 500 lignes et zéro job échoué/en queue.
+Il ne constitue pas une comparaison de toutes les colonnes de toutes les tables.
+
+### Mesures et constats
+
+Rapports locaux sous `front/reports/`, ignorés par Git :
+
+| Exécution | Résultat et portée |
+| --- | --- |
+| `load-smoke-1792928551019.json` | PostgreSQL refusé par le jeton Windows restreint avant démarrage ; nettoyage confirmé, aucune mesure positive. |
+| `load-smoke-1792928583792.json` | Premier protocole terminé : p95 Beta 329,35 / 539,87 / 655,73 ms ; seuil 500 ms non tenu, code de sortie 1 ; 398 lectures mesurées réussies, trois exports de 500 lignes, intégrité et nettoyage confirmés. Essai conservé, pas reclassé en réussite de performance. |
+| `load-smoke-1792928900910.json` | Ajout du refus de second peuplement : contrôle en échec avant mesures, nettoyage confirmé. Un refus après bootstrap Laravel pouvait terminer avec code 0 ; le nouveau seeder émet désormais un statut explicite 2, et le lanceur reconnaît son message sûr. |
+| `load-smoke-1792929067358.json` | Exécution finale instrumentée : protocole complet, schéma rempli refusé, cible locale respectée, intégrité et nettoyage confirmés, code de sortie 0. |
+
+Résultats de l'exécution finale :
+
+| Phase | Requêtes réussies / erreurs | p95 global | p95 page 25 / page 100 | Requêtes SQL par réponse |
+| --- | --- | --- | --- | --- |
+| Beta avant | 100 / 0 | 332,82 ms | 332,82 / 364,18 ms | 48 / 48 |
+| Beta pendant Alpha | 100 / 0 | 378,47 ms | 409,00 / 378,47 ms | 48 / 48 |
+| Beta après | 100 / 0 | 381,10 ms | 338,39 / 417,60 ms | 48–52 / 48 |
+| Alpha pendant Beta | 100 / 0 | 382,54 ms | — / 382,54 ms | — / 48 |
+
+Impact observé sur le p95 global Beta : +45,64 ms, ratio 1,137. Aucun seuil
+supplémentaire de ratio n'est inventé. Le nombre de requêtes ne croît pas avec
+le nombre de fiches retournées sur les pages mesurées ; les quatre requêtes
+ponctuelles supplémentaires après charge restent une variation à profiler,
+sans en déduire une cause ou certifier tous les accès contre les N+1.
+
+Les p95 SQL Beta sont 202,27 / 218,02 / 208,21 ms ; bootstrap 167,07 / 132,71 /
+170,70 ms et traitement HTTP 245,05 / 264,74 / 250,92 ms. Le SQL est inclus dans
+le traitement ; ces quantiles ne s'additionnent pas. Les compteurs sont limités
+à la période entre bootstrap et envoi de la réponse : preuve de propriété DB,
+bootstrap et terminaison exclus. La latence client inclut leurs coûts avant
+réponse ainsi que transport et décodage JSON. Aucun SQL ou binding n'est enregistré.
+
+Poste commun aux services et au générateur : Windows 10, Intel i5-9600KF,
+6 processeurs logiques, environ 25,7 Go de mémoire, Node 24.21.0, PHP 8.5,
+Laravel installé 13.34.0. Les latences incluent les serveurs de développement
+et les vérifications de propriété répétées. La différence entre les deux essais
+complets illustre la variabilité de ce poste partagé ; aucune optimisation métier
+n'a été appliquée et aucune amélioration de capacité n'est revendiquée.
+
+### Validation, livraison et limites restantes
+
+- Cinq tests Node du nouveau lanceur réussis : paramètres/cibles refusés,
+  percentiles, erreurs conservées, pagination/tenant et garde PHP avant bootstrap
+  (douze combinaisons sur les trois points d'entrée).
+- Six tests existants du lanceur navigateur réutilisé réussis, sans exclusion.
+- Lint frontend, syntaxe Node/PHP, Pint dirty et PHPStan réussis ; YAML du workflow
+  analysé avec Symfony YAML. La CI est raccordée aux cinq garde-fous seulement,
+  sans exécution automatique de seuils de latence sur un runner partagé.
+- Nouvelle CI distante non exécutée ; aucun commit ni push pendant ce lot.
+
+Les rapports comprennent les échantillons, statuts, p50/p95/max, p95 par taille,
+temps SQL/bootstrap/traitement, environnement, commit de base, checkout modifié,
+empreintes SHA-256 des sources du lanceur, contrôles d'intégrité et nettoyage.
+`completed`, `interactiveTarget.metInAllPhases` et `cleanup` sont trois résultats
+distincts. Une interruption est demandée après cinq minutes, puis les délais
+bornés de fin des requêtes et d'arrêt peuvent s'ajouter. Les processus sont arrêtés
+avant PostgreSQL ; suppression du seul répertoire canonique dont le propriétaire
+est vérifié. En cas de doute, les ressources sont conservées avec un statut d'échec.
+Les deux essais complets et les deux essais refusés ont tous confirmé le nettoyage ;
+aucun répertoire `ucg-browser-*` restant au contrôle final. Le service PostgreSQL
+préexistant n'est ni utilisé ni arrêté.
+
+**QA-005 et REC-34 restent ouverts.** Restent la volumétrie complète, les
+100 utilisateurs actifs avec profil de débit et distribution de rôles définis,
+les imports lourds simultanés, les pics publics applicables, les files/cache
+représentatifs, la mesure sur infrastructure de recette et une durée de charge
+suffisante. Ce lot ne mesure ni rendu d'écran, ni propagation des scores, ni
+disponibilité. La prochaine extension doit distinguer le profilage des 48 requêtes
+du passage à la charge cible ; aucun index/cache n'est ajouté sans preuve.
+QA-002 conserve aussi ses dépendances de rétention et de restauration.
+
+Modifications limitées aux fixtures de test, lanceur/métriques/tests Node,
+scripts npm, raccordement des garde-fous CI et documentation existante.
+Aucun code métier, endpoint public, migration, dépendance, `.env` ou donnée
+réelle modifié. Aucun SMTP, fournisseur externe, Redis ou Horizon sollicité.

@@ -37,6 +37,69 @@ npm run test:e2e
 Le test Playwright démarre automatiquement Laravel et Vite et vérifie notamment
 le parcours de connexion ainsi que son ordre de navigation au clavier.
 
+### Premier essai de charge local — UCG-QA-005
+
+Depuis `front/`, avec PHP/PDO PostgreSQL, les dépendances du dépôt et les binaires
+PostgreSQL 17 accessibles dans PATH :
+
+```powershell
+npm run test:load:harness
+npm run test:load:smoke
+```
+
+Si nécessaire, `UCG_BROWSER_PG_BIN` peut désigner uniquement un répertoire absolu
+canonique de binaires PostgreSQL 17. Aucune URL, connexion de base existante ou
+valeur de volume personnalisée n'est acceptée. Le profil disponible est `smoke`.
+Il ne nécessite ni navigateur ni serveur de développement déjà lancé.
+
+Le lanceur crée son cluster et ses fichiers privés dans un répertoire temporaire
+avec marqueur de propriété, vérifie le serveur réel avant bootstrap, exige un
+schéma vide, puis applique les migrations uniquement à cette nouvelle base.
+Un second peuplement est volontairement refusé et son absence d'effet vérifiée.
+Le `.env` du projet et ses identifiants ne sont pas transmis aux processus.
+
+Jeu fictif : trois comptes, trois organisations, 500 fiches Alpha, 120 Beta et
+10 Gamma. Deux sessions distinctes se connectent réellement avec CSRF et MFA.
+Après cinq lectures de chauffe, Beta effectue 100 lectures avant, 100 pendant
+et 100 après l'activité d'Alpha, avec des pages alternées de 25 et 100 fiches.
+Alpha lit ses pages en boucle (300 requêtes maximum) et trois exports réels de
+500 lignes sont générés par un worker database. Le protocole exige le recouvrement
+des 100 lectures sous charge avec l'activité HTTP d'Alpha ; il ne suppose pas que
+les trois jobs occupent toute cette période.
+
+Chaque réponse mesurée doit contenir les identifiants attendus, le bon total et
+la taille paginée correcte. Les erreurs HTTP, de transport ou de contenu sont
+conservées comme erreurs ; une phase incomplète ne passe pas. Les empreintes des
+fiches et les compteurs d'exports/artefacts Beta et Gamma sont comparés avant/après,
+avec contrôle des exports Alpha et de l'absence de jobs échoués ou encore en queue.
+
+Rapport local ignoré par Git : `reports/load-smoke-<horodatage>.json`, avec
+échantillons, p50/p95/max globaux, p95 par taille de page, statuts, nombres de
+requêtes SQL, temps SQL/bootstrap/traitement, écarts de p95, environnement,
+commit de base, état du checkout, empreintes du lanceur et résultat du nettoyage.
+Les centiles utilisent le rang supérieur (`ceil(n × p)`), erreurs comprises.
+Les compteurs SQL excluent le bootstrap, la preuve de propriété et la terminaison ;
+aucun SQL, binding, cookie ni corps de réponse privé n'est conservé dans ce rapport.
+Le temps SQL est inclus dans le traitement HTTP ; les p95 des sous-temps ne
+s'additionnent pas.
+
+Le code de sortie est non nul en cas d'erreur, nettoyage non confirmé, ou p95
+atteignant 500 ms dans une phase ou une taille de page. `completed=true` signifie
+que le protocole est terminé, pas que l'objectif de performance est atteint :
+lire aussi `interactiveTarget.metInAllPhases` et `cleanup`.
+Une interruption est déclenchée après cinq minutes ; les délais bornés de fin
+de requête et de nettoyage peuvent s'y ajouter. Après arrêt confirmé de ses serveurs,
+worker et cluster, le lanceur supprime son seul répertoire ; en cas de doute,
+il conserve les ressources et leur chemin pour diagnostic. Un arrêt brutal du
+système ou SIGKILL reste hors garantie de nettoyage.
+
+Les mesures incluent les contrôles de propriété et le démarrage Laravel sur deux
+serveurs PHP de développement partageant le poste avec le générateur. Ce premier
+essai ne qualifie pas l'hébergement ni REC-34 : restent les 500 comptes, 100 actifs,
+100 000 parties, imports lourds, pics publics de 2 000 visiteurs selon périmètre,
+Redis/Horizon, profils de débit et recette sur infrastructure représentative.
+La CI exécute les cinq tests de garde-fous, sans seuil de latence sur runner partagé.
+
 ## Fiches et profils — UCG-HUM-003
 
 Le panneau Personnes apparaît dans l’organisation active selon les permissions

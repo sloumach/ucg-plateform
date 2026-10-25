@@ -1641,6 +1641,19 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / L
 - **Périmètre** : 500 comptes, 100 actifs simultanés, 100 000 parties, 2 000 visiteurs publics et charges asymétriques.
 - **Acceptation** : p95 mesuré, nombre de requêtes contrôlé et autres tenants protégés pendant les traitements lourds.
+- **Premier lot local (25/10/2026)** : profil `smoke` sur PostgreSQL 17 jetable,
+  trois tenants, trois comptes, 630 fiches et deux sessions ; 100 lectures Beta
+  avant/pendant/après Alpha, pages 25/100, trois exports réels de 500 lignes et
+  worker database. Dernier essai : p95 332,82 / 378,47 / 381,10 ms, zéro erreur,
+  100 lectures Alpha, intégrité ciblée Beta/Gamma et nettoyage confirmés. Premier
+  essai plus lent conservé (539,87 ms sous charge, 655,73 ms après) : aucune
+  qualification de capacité déduite de la relance. Comptage SQL, diagnostics
+  bootstrap/traitement et rapports reproductibles ajoutés ; cinq tests de
+  garde-fous et six tests du lanceur réutilisé réussis, lint/Pint/PHPStan/YAML verts.
+  **Ticket et REC-34 ouverts** : enveloppe complète, imports simultanés,
+  charge publique applicable et infrastructure représentative restent à prouver.
+  Aucun changement métier ou migration ; sans commit/push. Détails et limites
+  dans la dernière section de `etat-projet.md` et protocole dans le README frontend.
 
 ### UCG-DATA-001 — Auditer et préparer les données UCG
 
