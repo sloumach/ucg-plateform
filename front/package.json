@@ -18,6 +18,9 @@
     "test:e2e:postgresql:harness": "node --test tests/real-api/postgresql.test.mjs",
     "test:e2e:harness": "node --test tests/real-api/environment.test.mjs",
     "test:load:smoke": "node tests/real-api/load-run.mjs --profile=smoke",
+    "test:load:profile": "node tests/real-api/load-run.mjs --profile=profile",
+    "test:load:volume": "node tests/real-api/load-run.mjs --profile=volume",
+    "test:load:pressure": "node tests/real-api/load-run.mjs --profile=pressure",
     "test:load:harness": "node --test tests/real-api/load-protocol.test.mjs",
     "preview": "vite preview"
   },

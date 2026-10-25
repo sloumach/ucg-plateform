@@ -37,7 +37,7 @@ npm run test:e2e
 Le test Playwright démarre automatiquement Laravel et Vite et vérifie notamment
 le parcours de connexion ainsi que son ordre de navigation au clavier.
 
-### Premier essai de charge local — UCG-QA-005
+### Mesures de charge locales — UCG-QA-005
 
 Depuis `front/`, avec PHP/PDO PostgreSQL, les dépendances du dépôt et les binaires
 PostgreSQL 17 accessibles dans PATH :
@@ -45,12 +45,56 @@ PostgreSQL 17 accessibles dans PATH :
 ```powershell
 npm run test:load:harness
 npm run test:load:smoke
+npm run test:load:profile
+npm run test:load:volume
+npm run test:load:pressure
 ```
 
 Si nécessaire, `UCG_BROWSER_PG_BIN` peut désigner uniquement un répertoire absolu
 canonique de binaires PostgreSQL 17. Aucune URL, connexion de base existante ou
-valeur de volume personnalisée n'est acceptée. Le profil disponible est `smoke`.
-Il ne nécessite ni navigateur ni serveur de développement déjà lancé.
+valeur de volume personnalisée n'est acceptée. Les quatre profils sont fixes et
+doivent être exécutés successivement pour éviter de fausser les mesures.
+Ils ne nécessitent ni navigateur ni serveur de développement déjà lancé.
+
+| Profil | Données et activité |
+| --- | --- |
+| `smoke` | Trois comptes, 630 fiches, deux sessions, 100 lectures Beta par phase et trois exports. |
+| `profile` | Même protocole ; agrégation des empreintes SQL, tables, appels et temps, sans SQL ni paramètres enregistrés. L'instrumentation supplémentaire interdit une comparaison directe des latences avec les autres profils. |
+| `volume` | 500 comptes, 1 000 matchs et 100 000 parties jouées synthétiques ; 100 sessions distinctes sur quatre serveurs PHP. 50 lecteurs Beta au repos/après, 99 lecteurs Alpha/Beta et un acteur bruyant pendant la phase concurrente ; trois lectures par lecteur et par phase. |
+| `pressure` | Même volume et 100 sessions que volume, avec trois imports de 1 000 lignes et trois exports de 500 lignes, en queue avant démarrage du worker. Vérification du refus d'un CSV de 1 001 lignes. |
+
+Le peuplement volumineux garde les FK et déclencheurs actifs : participants créés
+avant les transitions, règles et numéros de partie cohérents, mises à jour de
+version avant chaque lot de scores. Les 100 000 parties sont des fixtures jouées
+avec dates passées ; elles ne représentent pas 100 000 résultats approuvés via
+le workflow métier. Les comptes lecteurs ordinaires ne reçoivent que sports.read ;
+le MFA reste imposé aux acteurs privilégiés. Aucun limiteur n'est désactivé.
+
+Les sessions sont distribuées sur le même pool HTTP pour les deux organisations.
+Le pic de requêtes en attente est mesuré ; il ne signifie pas que quatre serveurs
+PHP exécutent 100 requêtes simultanément. Les phases restent en boucle fermée,
+sans débit d'arrivée imposé ni simulation réaliste de temps de réflexion.
+Chaque lecteur des grands profils consulte personnes, matchs et une page des
+parties d'un match commun à son tenant (point chaud explicite). Les identifiants,
+totaux et tailles sont contrôlés sur chaque ressource, y compris les parties.
+Un import agrandit normalement la liste de personnes Alpha : pendant pressure,
+les lecteurs Alpha restent donc sur matchs/parties ; les listes Beta continuent
+à être contrôlées strictement. Les créations Alpha sont vérifiées après les jobs.
+Les exports sont générés avant ces créations ; leur état completed n'atteste pas
+qu'ils seraient encore téléchargeables après invalidation de leur source.
+Les 429 restent comptés comme erreurs et gardent leur latence. Le client attend
+le Retry-After de 1 à 60 secondes avant son opération suivante ; il ne remplace
+pas la requête refusée par une tentative réussie. Les phases complètes continuent
+pour observer récupération et intégrité, mais ces refus empêchent la validation
+de performance. Une réponse 200 au contenu invalide interrompt immédiatement
+le protocole. Le débit réalisé inclut les attentes, les p95 HTTP les excluent.
+
+En pression, exports et imports partagent la queue reports : les trois exports
+sont placés avant les imports pour garder une source de 500 fiches stable, puis
+les chunks d'import de 25 lignes alternent dans le même worker. Ce profil mesure
+la concurrence HTTP avec la queue chargée ; il ne certifie pas plusieurs workers
+traitant simultanément les deux types de job. Les imports doivent terminer et
+créer exactement 3 000 fiches supplémentaires dans Alpha, sans modifier Beta/Gamma.
 
 Le lanceur crée son cluster et ses fichiers privés dans un répertoire temporaire
 avec marqueur de propriété, vérifie le serveur réel avant bootstrap, exige un
@@ -58,7 +102,7 @@ schéma vide, puis applique les migrations uniquement à cette nouvelle base.
 Un second peuplement est volontairement refusé et son absence d'effet vérifiée.
 Le `.env` du projet et ses identifiants ne sont pas transmis aux processus.
 
-Jeu fictif : trois comptes, trois organisations, 500 fiches Alpha, 120 Beta et
+Jeu fictif du profil smoke : trois comptes, trois organisations, 500 fiches Alpha, 120 Beta et
 10 Gamma. Deux sessions distinctes se connectent réellement avec CSRF et MFA.
 Après cinq lectures de chauffe, Beta effectue 100 lectures avant, 100 pendant
 et 100 après l'activité d'Alpha, avec des pages alternées de 25 et 100 fiches.
@@ -73,10 +117,15 @@ conservées comme erreurs ; une phase incomplète ne passe pas. Les empreintes d
 fiches et les compteurs d'exports/artefacts Beta et Gamma sont comparés avant/après,
 avec contrôle des exports Alpha et de l'absence de jobs échoués ou encore en queue.
 
-Rapport local ignoré par Git : `reports/load-smoke-<horodatage>.json`, avec
+Rapport local ignoré par Git : `reports/load-<profil>-<horodatage>.json`, avec
 échantillons, p50/p95/max globaux, p95 par taille de page, statuts, nombres de
 requêtes SQL, temps SQL/bootstrap/traitement, écarts de p95, environnement,
 commit de base, état du checkout, empreintes du lanceur et résultat du nettoyage.
+Les profils volumineux alternent aussi les listes de matchs ; les latences et
+requêtes sont ventilées par ressource et taille de page, ainsi que par tenant.
+Le profil SQL conserve les noms des tables et les emplacements des appels ;
+la première requête peut inclure l'ouverture de connexion et son temps n'est
+donc pas assimilé au seul temps d'exécution PostgreSQL.
 Les centiles utilisent le rang supérieur (`ceil(n × p)`), erreurs comprises.
 Les compteurs SQL excluent le bootstrap, la preuve de propriété et la terminaison ;
 aucun SQL, binding, cookie ni corps de réponse privé n'est conservé dans ce rapport.
@@ -84,21 +133,42 @@ Le temps SQL est inclus dans le traitement HTTP ; les p95 des sous-temps ne
 s'additionnent pas.
 
 Le code de sortie est non nul en cas d'erreur, nettoyage non confirmé, ou p95
-atteignant 500 ms dans une phase ou une taille de page. `completed=true` signifie
+atteignant 500 ms dans une phase ou une combinaison ressource/taille. `completed=true` signifie
 que le protocole est terminé, pas que l'objectif de performance est atteint :
 lire aussi `interactiveTarget.metInAllPhases` et `cleanup`.
-Une interruption est déclenchée après cinq minutes ; les délais bornés de fin
+Une interruption est déclenchée après cinq minutes (smoke/profile) ou quinze
+minutes (volume/pressure) ; les délais bornés de fin
 de requête et de nettoyage peuvent s'y ajouter. Après arrêt confirmé de ses serveurs,
 worker et cluster, le lanceur supprime son seul répertoire ; en cas de doute,
 il conserve les ressources et leur chemin pour diagnostic. Un arrêt brutal du
 système ou SIGKILL reste hors garantie de nettoyage.
 
-Les mesures incluent les contrôles de propriété et le démarrage Laravel sur deux
-serveurs PHP de développement partageant le poste avec le générateur. Ce premier
-essai ne qualifie pas l'hébergement ni REC-34 : restent les 500 comptes, 100 actifs,
-100 000 parties, imports lourds, pics publics de 2 000 visiteurs selon périmètre,
-Redis/Horizon, profils de débit et recette sur infrastructure représentative.
-La CI exécute les cinq tests de garde-fous, sans seuil de latence sur runner partagé.
+Les mesures incluent les contrôles de propriété et le démarrage Laravel sur des
+serveurs PHP de développement partageant le poste avec le générateur. Ces essais
+ne qualifient pas l'hébergement ni REC-34. La CI exécute les neuf tests de garde-fous,
+sans seuil de latence sur runner partagé.
+
+### Recette finale sur infrastructure représentative — à exécuter
+
+L'hébergement reste différé sur décision utilisateur du 25 octobre 2026. Le
+lanceur local refuse les services distants : il ne faut pas supprimer ses
+garde-fous pour viser une base ou un site existant. Avant recette finale, préparer
+un environnement séparé, les données fictives et un générateur de charge autorisé
+adapté au serveur web, aux workers, au cache et au temps réel réellement déployés.
+
+| Vérification finale | Preuve attendue |
+| --- | --- |
+| Topologie et générateur séparé | Configuration, versions, ressources, limites et supervision enregistrées ; aucune donnée réelle. |
+| Activité interne | 500 comptes, 100 actifs, 100 000 parties ; mix de rôles/routes et débit convenus, montée progressive, maintien puis récupération. |
+| Tenant bruyant | Imports et exports avec workers représentatifs, concurrence et budgets réels ; p95/erreurs/débit de Beta, âge/profondeur de queue, mémoire/CPU/IO. |
+| Scénarios publics | Identifier les endpoints effectivement livrés et le périmètre P0/P1 avant la charge de 2 000 visiteurs ; ne pas substituer une route de santé à une vitrine absente. |
+| Rapport et seuils | p95 interactif < 500 ms par ressource, zéro fuite ou perte, refus de quota distingués des pannes ; p95 et ratio Beta avant/pendant/après, sans inventer un seuil de ratio. |
+| Durée et livraison | Durée soutenue et profil d'arrivée convenus, rapports conservés, écarts analysés, décision de recette explicite. |
+
+Les pages publiques sont planifiées au P1 dans le backlog et aucun module public
+n'est livré ici. Leur charge n'est ni validée ni transformée implicitement en
+critère satisfait. Rendu d'écran (2,5 s), propagation des scores (3 s), Redis/Horizon,
+TLS/reverse proxy et longue durée restent à mesurer avec leurs outils adaptés.
 
 ## Fiches et profils — UCG-HUM-003
 

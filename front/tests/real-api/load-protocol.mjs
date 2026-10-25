@@ -1,10 +1,17 @@
 export const smokeProfile = Object.freeze({ name: 'smoke', samples: 100, warmup: 5, exports: 3, targetP95Ms: 500 })
+const profiles = Object.freeze({
+  smoke: smokeProfile,
+  profile: Object.freeze({ ...smokeProfile, name: 'profile' }),
+  volume: Object.freeze({ ...smokeProfile, name: 'volume', samples: 3, httpProcesses: 4, readers: 99, accounts: 500, games: 100000, timeoutMs: 900000 }),
+  pressure: Object.freeze({ ...smokeProfile, name: 'pressure', samples: 3, httpProcesses: 4, readers: 99, accounts: 500, games: 100000, imports: 3, importRows: 1000, timeoutMs: 900000 }),
+})
 
 export function loadProfile(arguments_) {
-  if (arguments_.length > 1 || arguments_.some((value) => value !== '--profile=smoke')) {
-    throw new Error('Only --profile=smoke is supported; external URLs, databases and custom volumes are refused.')
+  const name = arguments_.length === 0 ? 'smoke' : arguments_[0]?.replace(/^--profile=/, '')
+  if (arguments_.length > 1 || (arguments_.length && !arguments_[0].startsWith('--profile=')) || !Object.hasOwn(profiles, name)) {
+    throw new Error('Only fixed smoke, profile, volume and pressure profiles are supported; external URLs, databases and custom volumes are refused.')
   }
-  return smokeProfile
+  return profiles[name]
 }
 
 export function percentile(values, fraction) {
@@ -14,6 +21,19 @@ export function percentile(values, fraction) {
   }
   const sorted = [...values].sort((left, right) => left - right)
   return sorted[Math.ceil(sorted.length * fraction) - 1]
+}
+
+export function backoffMilliseconds(value) {
+  if (typeof value !== 'string' || !/^\d+$/.test(value) || Number(value) < 1 || Number(value) > 60) {
+    throw new Error('Load backpressure must have a bounded Retry-After between 1 and 60 seconds.')
+  }
+  return Number(value) * 1000
+}
+
+export function measurementResource(profile, tenant, iteration) {
+  if (!profile.games) return 'people'
+  const resources = profile.imports && tenant === 'alpha' ? ['matches', 'games'] : ['people', 'matches', 'games']
+  return resources[iteration % resources.length]
 }
 
 export function summarize(samples) {
@@ -32,6 +52,11 @@ export function summarize(samples) {
     diagnostics: Object.fromEntries(['sqlMs', 'bootstrapMs', 'handlerMs'].map((key) => {
       const values = successful.map((sample) => sample[key]).filter(Number.isFinite)
       return [key, values.length ? { samples: values.length, p50: percentile(values, 0.5), p95: percentile(values, 0.95) } : null]
+    })),
+    resources: Object.fromEntries([...new Set(samples.map((sample) => `${sample.resource ?? 'people'}:${sample.pageSize}`))].map((key) => {
+      const rows = samples.filter((sample) => `${sample.resource ?? 'people'}:${sample.pageSize}` === key)
+      const counts = rows.filter((sample) => sample.ok).map((sample) => sample.queries)
+      return [key, { requests: rows.length, errors: rows.filter((sample) => !sample.ok).length, p95Ms: percentile(rows.map((sample) => sample.ms), 0.95), maxQueries: counts.length ? Math.max(...counts) : null }]
     })),
   }
 }

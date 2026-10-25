@@ -2,11 +2,16 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
-import { assertLocalOrigin, loadProfile, percentile, summarize, validatePeople } from './load-protocol.mjs'
+import { assertLocalOrigin, backoffMilliseconds, loadProfile, measurementResource, percentile, summarize, validatePeople } from './load-protocol.mjs'
 
 test('load runner refuses targets, custom volumes and unknown profiles before creating resources', () => {
   assert.equal(loadProfile([]).name, 'smoke')
   assert.equal(loadProfile(['--profile=smoke']).samples, 100)
+  assert.equal(loadProfile(['--profile=volume']).games, 100000)
+  assert.equal(loadProfile(['--profile=volume']).accounts, 500)
+  assert.equal(loadProfile(['--profile=volume']).readers + 1, 100)
+  assert.equal(loadProfile(['--profile=profile']).name, 'profile')
+  assert.equal(loadProfile(['--profile=pressure']).imports, 3)
   for (const args of [['--url=https://example.com'], ['--profile=cdc'], ['--users=100'], ['--profile=smoke', '--profile=smoke']]) {
     assert.throws(() => loadProfile(args))
   }
@@ -64,7 +69,45 @@ test('PHP load fixtures refuse missing profiles, SQLite and foreign roots before
       const env = { ...process.env, ...settings, UCG_BROWSER_TOKEN: 'a'.repeat(64) }
       const result = spawnSync('php', [`tests/Fixtures/${file}`], { cwd, env, encoding: 'utf8', windowsHide: true })
       assert.notEqual(result.status, 0)
-      assert.match(result.stdout + result.stderr, /isolated PostgreSQL smoke load profile|Isolated browser environment required/)
+      assert.match(result.stdout + result.stderr, /isolated PostgreSQL load profile|Isolated browser environment required/)
     }
   }
+})
+
+test('resource metrics retain slow match pages and do not hide errors in a faster people average', () => {
+  const report = summarize([
+    { resource: 'people', pageSize: 25, status: 200, ok: true, ms: 10, queries: 48 },
+    { resource: 'matches', pageSize: 25, status: 200, ok: true, ms: 900, queries: 51 },
+    { resource: 'matches', pageSize: 100, status: 500, ok: false, ms: 1000 },
+  ])
+  assert.equal(report.resources['matches:25'].p95Ms, 900)
+  assert.equal(report.resources['matches:100'].errors, 1)
+  assert.equal(report.resources['matches:100'].p95Ms, 1000)
+  assert.equal(report.errors, 1)
+})
+
+test('every supported PHP profile still refuses a foreign root before database access', () => {
+  const cwd = fileURLToPath(new URL('../../../back', import.meta.url))
+  for (const name of ['profile', 'volume', 'pressure']) {
+    const result = spawnSync('php', ['tests/Fixtures/load-seed.php'], {
+      cwd, env: { ...process.env, UCG_LOAD_PROFILE: name, UCG_BROWSER_ENGINE: 'pgsql', DB_CONNECTION: 'pgsql', UCG_BROWSER_ROOT: cwd, UCG_BROWSER_TOKEN: 'b'.repeat(64) },
+      encoding: 'utf8', windowsHide: true,
+    })
+    assert.notEqual(result.status, 0)
+    assert.match(result.stdout + result.stderr, /Isolated browser environment required/)
+  }
+})
+
+test('backpressure waits are bounded and do not reinterpret malformed Retry-After values', () => {
+  assert.equal(backoffMilliseconds('1'), 1000)
+  assert.equal(backoffMilliseconds('60'), 60000)
+  for (const value of [undefined, '0', '-1', '61', '1.5', '1 seconds', 'Infinity']) assert.throws(() => backoffMilliseconds(value))
+})
+
+test('pressure measurements allow Alpha imports to grow its people list while Beta stays strictly checked', () => {
+  const pressure = loadProfile(['--profile=pressure'])
+  assert.deepEqual(Array.from({ length: 3 }, (_, index) => measurementResource(pressure, 'beta', index)), ['people', 'matches', 'games'])
+  assert.deepEqual(Array.from({ length: 4 }, (_, index) => measurementResource(pressure, 'alpha', index)), ['matches', 'games', 'matches', 'games'])
+  assert.equal(measurementResource(loadProfile([]), 'alpha', 2), 'people')
+  assert.equal(measurementResource(loadProfile(['--profile=volume']), 'alpha', 0), 'people')
 })

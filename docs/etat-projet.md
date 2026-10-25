@@ -6,13 +6,26 @@
 ## Point de reprise
 
 - Dernière mise à jour : 25 octobre 2026.
-- Correctif CI en cours après `704c0f8` : échec de la fenêtre UTC de
+- Reprise courante : **UCG-QA-005, consolidation locale des lots 2–5 dans une tâche**.
+  L'utilisateur confirme la CI de `9637ce9`, autorise cette tâche unique et son
+  commit, puis confirme que l'hébergement reste différé. Profilage SQL, 500 comptes,
+  100 sessions, 1 000 matchs/100 000 parties et pression de trois imports de
+  1 000 lignes avec trois exports de 500 lignes ont été exercés localement.
+  Les rapports complets volume/pression terminent avec intégrité ciblée et
+  nettoyage conformes, mais **la cible de performance n'est pas tenue** : refus
+  429 sous concurrence et p95 Beta de plusieurs secondes. Les refus restent dans
+  les mesures ; les limites d'accès ne sont ni désactivées ni mises en cache.
+  Le protocole de recette représentative est préparé dans le README frontend.
+  QA-005/REC-34 restent ouverts sur ces écarts et l'infrastructure différée ;
+  résultats détaillés et références des rapports dans la dernière section.
+- Correctif CI précédent, livré dans `9637ce9` et CI validée par l'utilisateur :
+  échec de la fenêtre UTC de
   `CalendarSubscriptionTest` reproduit localement. L'horloge est désormais fixée
   avant la création des adhésions/affectations, pour éviter qu'elles deviennent
   futures après le voyage temporel. Les 15 cas du fichier passent (114 assertions),
-  Pint/PHPStan verts. Correctif limité au test et à ce suivi ; sans commit/push,
-  nouvelle CI distante non exécutée. Détails dans la dernière section.
-- Tâche courante : **UCG-QA-005, premier lot de mesure locale bornée**.
+  Pint/PHPStan verts. Correctif limité au test et au suivi ; la validation CI
+  utilisateur est reçue avant cette consolidation.
+- Premier lot livré : **UCG-QA-005, mesure locale bornée**.
   Lanceur PostgreSQL jetable ajouté : trois tenants, trois comptes, 630 fiches,
   deux sessions, deux serveurs HTTP PHP et un worker database. Rapport final
   `load-smoke-1792929067358.json` : 100 lectures Beta par phase, p95 332,82 ms
@@ -6858,3 +6871,159 @@ réussis. Rapports locaux `back/reports/calendar-window-before.xml` et
 `back/reports/calendar-subscriptions-fixed.xml`. La suite backend complète n'est
 pas relancée pour cette modification d'ordre dans le test. Nouvelle CI distante
 à exécuter après livraison ; aucun commit ni push pendant ce correctif.
+
+## UCG-QA-005 — Consolidation locale des lots restants (25 octobre 2026)
+
+### Mandat, périmètre et environnement
+
+L'utilisateur valide la CI du correctif `9637ce9`, demande de réunir les quatre
+lots restants dans une seule tâche et autorise le commit. À la question sur la
+recette représentative, il confirme : « Toujours différé : poursuivre toute la
+validation locale possible ». Au départ, arbre propre sur staging, HEAD et
+référence locale origin/staging sur `9637ce9`. La CI est confirmée par l'utilisateur,
+sans nouvelle lecture distante dans cette tâche.
+
+Quatre profils fixes sont désormais disponibles : smoke, profile, volume et
+pressure. Aucun ciblage distant ou de base existante n'est ajouté. Les garde-fous
+du cluster, le schéma vide, le refus de second peuplement, le filtrage des variables
+héritées, CSRF, MFA des acteurs privilégiés, autorisations et limites restent
+actifs. Les serveurs, worker et PostgreSQL sont natifs sur le même poste Windows.
+Le daemon Docker n'est pas joignable et aucun Redis/Horizon réel n'est qualifié.
+
+### Lot 2 — Profilage mesuré
+
+Le profil profile agrège les empreintes des requêtes, tables, emplacements des
+appels, nombres et temps ; aucun SQL ni binding n'est conservé. Les compteurs
+restent limités à la période après bootstrap et avant envoi. L'instrumentation
+ajoutée a un coût propre ; ses latences ne sont pas une comparaison avant/après
+d'une optimisation applicative.
+
+Premier rapport `load-profile-1792931897026.json` : protocole terminé, aucune erreur,
+nettoyage confirmé ; p95 Beta 382,51 / 306,15 / 318,45 ms. Sur 405 lectures (chauffe
+et activité Alpha comprises), la première lecture users représente environ
+22 677 ms cumulées ; organizations 4 050 exécutions/5 045 ms, memberships 4 050
+exécutions/1 496 ms et vérifications de grants 2 430 exécutions/1 813 ms.
+Les événements de première lecture peuvent inclure l'ouverture de connexion ;
+ces temps ne sont pas assimilés au seul temps d'exécution du plan PostgreSQL.
+
+Les lectures d'organisation/adhésion et de permissions sont répétées par les
+différentes frontières d'accès. Le nombre reste stable avec la taille des pages
+mesurées. Aucune preuve d'index manquant ou de N+1 proportionnel aux lignes n'est
+établie ici. Aucun cache de droits ni suppression d'un contrôle n'est introduit
+pour réduire artificiellement le compteur ; une optimisation ultérieure devra
+préserver les révocations immédiates et être qualifiée sur la vraie topologie.
+
+### Lots 3–4 — Volumétrie, concurrence et pression
+
+Les grands profils créent **500 comptes, 1 000 matchs et 100 000 parties jouées**
+dans les vraies tables PostgreSQL : répartition des matchs Alpha 800, Beta 199,
+Gamma 1, chacun avec deux participants, des règles lobby et 100 parties. Les
+relations, transitions et déclencheurs restent actifs. Les données sont insérées
+par lots bornés, sans désactivation des contraintes. Les parties datées dans le
+passé restent des fixtures synthétiques, pas des résultats approuvés via toute
+la procédure métier. Cette limite n'est pas masquée par le terme historique.
+
+Cent sessions HTTP distinctes sont ouvertes : 99 lecteurs Alpha/Beta et un acteur
+bruyant privilégié. Les lecteurs ordinaires ont seulement sports.read. Les
+sessions sont distribuées dans le même pool de quatre serveurs PHP pour les
+deux tenants. La référence/récupération utilise 50 lecteurs Beta (150 lectures),
+la phase de concurrence 99 lecteurs (297 lectures), avec l'acteur bruyant en plus.
+Le pic de 100 requêtes en attente est enregistré ; il ne représente pas
+100 requêtes PHP exécutées à la même microseconde sur quatre processus.
+
+Les ressources mesurées incluent personnes, matchs et pages de parties d'un
+match commun à chaque tenant, avec tailles 25/100 et vérification des identifiants,
+totaux et doublons. Ce match commun constitue un point chaud explicite. Les
+latences, erreurs, requêtes SQL et débit réalisé sont ventilés par tenant et
+ressource. En pressure, les listes de personnes Alpha grandissent légitimement ;
+ses lectures mesurées restent sur matchs/parties et le contrôle strict des listes
+Beta est conservé. L'augmentation Alpha est vérifiée après la fin des imports.
+
+Trois imports de 1 000 lignes et trois exports de 500 lignes sont confirmés via
+les vraies API et traités par un worker database. Les exports précèdent les
+imports dans la queue reports afin de garder leur source stable pendant leur
+génération. Les chunks d'import de 25 lignes alternent ensuite dans cette queue.
+Ce protocole mesure HTTP concurrent avec queue chargée, pas plusieurs workers
+exécutant les deux types de traitement simultanément. Les exports générés avant
+les imports ne sont pas déclarés encore téléchargeables après invalidation de
+leur source. Le CSV de 1 001 lignes est explicitement refusé en 422.
+
+### Résultats et écarts conservés
+
+| Rapport local sous front/reports | Résultat |
+| --- | --- |
+| load-volume-1792932111265.json | Dataset complet et 100 sessions ; première référence interrompue après 131/150 requêtes, dont 17 refus 429. Nettoyage confirmé. Ce résultat a motivé l'observation complète des refus. |
+| load-volume-1792932511216.json | Trois phases complètes avant ajout des lectures de parties : 150/297/150 requêtes, dont 24/26/17 refus 429. Intégrité ciblée, exports et nettoyage conformes ; performance refusée. |
+| load-volume-1792932850363.json | Trois phases complètes avec pages de parties : 150/297/150 requêtes, dont 15/24/16 refus 429 ; p95 Beta 3 879,89 / 8 489,79 / 3 914 ms environ. Pic 100, exports conformes, zéro job échoué/en attente, intégrité ciblée et nettoyage conformes ; code 1 pour la performance. |
+| load-pressure-1792933086407.json | Contrôle de CSV surdimensionné réussi et jobs en queue ; interruption à 242/297 lectures sous pression, car le validateur attendait encore une liste Alpha fixe malgré les créations normales. Nettoyage confirmé ; ce run n'est pas une preuve positive de pression complète. |
+| load-pressure-1792933424102.json | Pression complète après correction de cette hypothèse du lanceur : 150/297/150 lectures, dont 16/29/11 refus 429 ; p95 Beta 3 474,87 / 8 688,84 / 3 582,15 ms. Pic 100, trois imports terminés et exactement 3 000 créations (Alpha passe de 500 à 3 500), trois exports terminés à 500 lignes, zéro job échoué/en attente. Intégrité ciblée et nettoyage conformes ; performance refusée, code 1. |
+
+Le contrôle d'intégrité compare identifiants/versions/updated_at des personnes
+Beta/Gamma, compte leurs matchs/parties et leurs exports/artefacts ; aucune
+altération ciblée observée. Il ne prétend pas comparer chaque colonne de chaque
+table ni tous les fichiers. Les requêtes 200 validées n'ont aucun identifiant
+étranger dans leurs collections contrôlées.
+
+La contention du verrou non bloquant de LimitTenantRequests peut renvoyer 429
+avant épuisement du budget de 600 requêtes/minute. Les refus observés sous charge
+ne sont pas transformés en succès. Chaque opération suivante respecte le
+Retry-After borné à 1–60 s ; aucune requête refusée n'est remplacée. Les p95 HTTP
+incluent les latences des refus, mais pas l'attente avant l'opération suivante ;
+le débit réalisé inclut ces attentes. Une réponse 200 non conforme interrompt
+immédiatement l'essai. Les limites de sécurité restent en place.
+
+Sur volume, le p95 Beta est multiplié par environ 2,19 ; sur pressure, par 2,50.
+Ces rapports ne satisfont pas la cible de 500 ms. Aucun seuil de ratio arbitraire
+n'est ajouté, aucune capacité de production n'est déduite des quatre serveurs
+de développement ni d'un poste partagé. Les runs interrompus et les versions
+précédentes des protocoles restent conservés avec leurs empreintes propres.
+
+### Lot 5 — Protocole de recette préparé, exécution différée
+
+Le README frontend définit la recette finale : environnement et générateur
+séparés, topologie/ressources/versions enregistrées, montée et charge soutenue,
+mix de routes/rôles et débit convenus, files/cache/workers représentatifs,
+mesures de Beta, profondeur/âge des queues, CPU/mémoire/IO et rapport de décision.
+Le lanceur local n'est pas ouvert à une URL arbitraire pour contourner ces prérequis.
+
+Les vitrines et scores publics sont P1 dans le backlog et aucun module public
+n'est livré ici. La charge de 2 000 visiteurs n'est pas exercée sur une route de
+santé et n'est pas déclarée satisfaite ; son applicabilité exacte doit être
+confirmée avec les endpoints de recette. Redis/Horizon, TLS/reverse proxy,
+longue durée, rendu d'écran et propagation temps réel restent hors preuve locale.
+
+**QA-005 et REC-34 restent ouverts**, à la fois pour les écarts de performance
+observés et pour la recette représentative différée par l'utilisateur. Les lots
+locaux et le protocole sont livrables ; la validation finale n'est pas inventée.
+QA-002 conserve ses dépendances de charge, rétention et restauration.
+
+Les changements concernent uniquement les fixtures, le lanceur et ses tests,
+les scripts npm et la documentation existante. Aucun service métier, route
+publique, migration, dépendance, `.env` ou donnée réelle modifié. Commit autorisé
+dans cette tâche, sans push ; nouvelle CI des changements à exécuter après livraison.
+
+### Vérification finale et livraison
+
+Dernière régression de profilage sur les sources finales :
+`load-profile-1792933785770.json`, protocole complet, zéro erreur, objectif local
+respecté et nettoyage confirmé ; p95 Beta 398,71 / 305,65 / 308,94 ms. Les
+empreintes des sources de ce rapport et du dernier pressure ont été confrontées
+aux fichiers livrés : concordance. Le rapport volume précédent conserve ses
+empreintes de l'itération antérieure à l'extraction du sélecteur de ressources ;
+le dernier pressure réexerce la même volumétrie sur les sources finales.
+
+Validation finale : **15 tests Node réussis, sans exclusion** (neuf du protocole
+de charge et six du lanceur isolé réutilisé), lint et syntaxe Node réussis.
+Pint dirty et PHPStan réussis sur les sources PHP finales. Aucun code métier
+n'ayant changé, la suite applicative complète n'est pas relancée pour ces fixtures.
+Les garde-fous sont déjà raccordés à la CI frontend, mais cette nouvelle CI
+distante n'est pas déclarée exécutée. Aucun répertoire ucg-browser-* restant
+après les derniers essais et les tests. Aucun processus PHP de ces essais restant.
+
+Deux corrections propres au lanceur sont incluses : poursuivre les phases avec
+les refus 429 enregistrés, et ne pas confondre les créations Alpha attendues avec
+une réponse de lecture invalide. Le contrôle strict de Beta reste actif.
+La matrice de qualification distingue ainsi : outils/tests livrés, scénarios
+locaux terminés, performance refusée sous forte concurrence, et recette
+représentative différée. Un commit UCG-QA-005 est demandé pour ces changements ;
+aucun push n'est autorisé ou effectué dans cette tâche.

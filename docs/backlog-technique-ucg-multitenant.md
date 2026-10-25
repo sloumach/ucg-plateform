@@ -1641,6 +1641,18 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / L
 - **Périmètre** : 500 comptes, 100 actifs simultanés, 100 000 parties, 2 000 visiteurs publics et charges asymétriques.
 - **Acceptation** : p95 mesuré, nombre de requêtes contrôlé et autres tenants protégés pendant les traitements lourds.
+- **Consolidation des lots restants (25/10/2026)** : profilage SQL sans texte ni
+  bindings, 500 comptes/100 sessions, 1 000 matchs/100 000 parties avec contraintes
+  actives, lectures réelles personnes/matchs/parties et pression de trois imports
+  de 1 000 lignes avec trois exports de 500 lignes. Dernier pressure : protocole
+  terminé, 3 000 créations Alpha, intégrité ciblée Beta/Gamma et nettoyage
+  conformes, zéro job échoué/en attente. **Performance non validée** : p95 Beta
+  3,47 / 8,69 / 3,58 s et 16/29/11 refus 429 par phase ; aucun refus masqué ou
+  limiteur désactivé. Régression faible concurrence réussie, 15 tests de garde-fous,
+  lint/Pint/PHPStan verts. Protocole de recette représentative préparé ; hébergement
+  toujours différé sur confirmation utilisateur. **QA-005/REC-34 ouverts** sur les
+  écarts mesurés et la qualification représentative/public/Redis/Horizon/longue
+  durée. Commit autorisé, sans push. Détails et rapports dans etat-projet.md.
 - **Premier lot local (25/10/2026)** : profil `smoke` sur PostgreSQL 17 jetable,
   trois tenants, trois comptes, 630 fiches et deux sessions ; 100 lectures Beta
   avant/pendant/après Alpha, pages 25/100, trois exports réels de 500 lignes et
