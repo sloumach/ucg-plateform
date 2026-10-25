@@ -1722,6 +1722,17 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 
 - **Priorité / taille** : P0 / M
 - **Décision attendue** : pays d’établissement, territoires, rôles RGPD, durées, représentants légaux et hébergement.
+- **Préparation dossiers de personnes (25/10/2026)** : après le cadrage OPS-007
+  commité en `83fa8e4`, l'utilisateur confirme l'accueil de mineurs et un périmètre
+  MENA/Europe ; les pays exacts restent à préciser. Fiche dans le README : huit
+  sous-catégories PERS, six tables de noyau, candidats/essais/membres/anciens,
+  événements fiables à définir, accès existants, dépendances et copies. Le statut
+  `former` est distingué du départ enregistré et de l'effacement. Date de naissance
+  facultative et absence de parcours de représentant identifié dans People ne
+  valent pas validation de prise en charge des mineurs. Aucune durée ou seuil
+  d'âge fixé, aucun code ni donnée modifié ; simulations seulement décrites.
+  Ticket ouvert pour les décisions métier, leur validation applicable et les
+  autres familles de données ; OPS-007/REC-35 ouverts également.
 
 ### UCG-CAD-005 — Valider jeux et connecteurs prioritaires
 

@@ -6,7 +6,15 @@
 ## Point de reprise
 
 - Dernière mise à jour : 25 octobre 2026.
-- Tâche courante : **UCG-OPS-007, inventaire et matrice de conservation préparatoires**.
+- Tâche courante : **UCG-CAD-004, fiche de décision des dossiers de personnes**.
+  Le cadrage OPS-007 précédent est commité en `83fa8e4` (aucun push par l'agent).
+  L'utilisateur confirme des mineurs et un périmètre MENA/Europe ; les pays exacts
+  restent à préciser. Fiche ajoutée au README : huit sous-catégories, parcours et
+  événements de départ à décider, six tables du noyau, copies/dépendances et
+  parcours de représentants à définir. Aucune durée ni règle d'âge inventée,
+  aucune configuration, donnée ou protection modifiée. CAD-004/OPS-007/REC-35
+  ouverts ; détails en fin de document. Ce nouveau lot n'est pas commité.
+- Lot précédent : **UCG-OPS-007, inventaire et matrice de conservation préparatoires**.
   L'utilisateur autorise la préparation prudente des règles, sans suppression,
   et confirme l'établissement d'UCG en **Tunisie (TN)**. Inventaire des sources :
   116 tables du catalogue de portabilité, classées en 18 familles, avec événements
@@ -17,7 +25,8 @@
   conservation sans limite préservée, à réexaminer dans le cadrage tunisien ;
   aucune politique de purge activée ou modifiée. Aucune commande de purge,
   migration ou lecture d'une base réelle exécutée. OPS-007/CAD-004/REC-35 ouverts.
-  Préparation documentaire uniquement, sans commit/push ; détails en fin de document.
+  Préparation documentaire commitée depuis en `83fa8e4`, sans push par l'agent ;
+  détails en fin de document.
 - Reprise courante : **UCG-QA-005, consolidation locale des lots 2–5 dans une tâche**.
   L'utilisateur confirme la CI de `9637ce9`, autorise cette tâche unique et son
   commit, puis confirme que l'hébergement reste différé. Profilage SQL, 500 comptes,
@@ -7117,3 +7126,62 @@ avec autorisation explicite ; la préparation actuelle ne l'autorise pas.
 comptages et du diff documentaire ; aucun test applicatif relancé pour ces trois
 documents. Aucun code, configuration, dépendance ou donnée réelle modifié ;
 aucun commit ni push effectué dans ce lot préparatoire.
+
+## UCG-CAD-004 — Dossiers de personnes, mineurs et territoires (25 octobre 2026)
+
+### Mandat et confirmations
+
+Après le commit documentaire `83fa8e4`, l'utilisateur autorise le démarrage
+prudent d'une fiche consacrée aux candidats, membres actifs et anciens membres.
+Il confirme ensuite l'accueil de **mineurs**, des personnes en Tunisie et dans
+d'autres pays, puis précise **zone MENA et Europe**. Ces zones restent à décliner
+en pays ; elles ne déterminent ni l'hébergement ni le régime applicable à tous
+les usages. Aucune modification des fixtures FR ou d'une organisation existante
+n'est demandée ou réalisée.
+
+### Fiche livrée et constats issus des sources
+
+Le README contient la fiche « UCG-CAD-004 — Fiche de décision des dossiers de
+personnes », rattachée au cadrage OPS-007. Huit sous-catégories PERS-01 à PERS-08
+distinguent profil sportif, données administratives, lien au compte global,
+profils/comptes de jeu, périodes, obligations de départ, événement de départ et
+copies d'import/export. Les six tables du noyau restent celles de la matrice
+précédente ; imports et artefacts sont des dépendances, pas des tables ajoutées
+à ce décompte. Les finalités décrites sont proposées, à confirmer.
+
+Sources examinées : migrations People et ajout de birth_date pour l'éligibilité,
+PersonInput, PersonStatus, modèles/projections People, PersonService,
+PersonDepartureService, TeamDepartureParticipant, TenantDepartureAccessService et
+PersonImportService. Aucun accès à une base, migration, commande Artisan ou
+processus de suppression n'est lancé.
+
+Les champs administratifs chiffrés/projetés selon permission, la date de naissance
+facultative, les statuts et les protections de suppression sont consignés sans
+les assimiler à une prise en charge juridique complète des mineurs. Aucun
+parcours dédié de représentant légal n'est identifié dans People examiné.
+Le lien éventuel au compte global n'autorise pas sa suppression pour un tenant.
+
+Les parcours couvrent les six statuts existants : candidate, trial, active,
+unavailable, substitute et former. Une clôture de candidature ou d'essai doit
+encore être définie comme événement vérifiable ; updated_at n'est pas choisi
+comme substitut. L'opération de départ dédiée est distinguée du simple statut
+former : sa date et ses effets d'accès ne sont pas supposés pour toute fiche
+étiquetée former. Les périodes closes, obligations, preuves et références
+intermodules nécessitent des décisions séparées.
+
+### Validation et suite
+
+Les durées, archives/habilitations, actions finales, seuils d'âge, représentants,
+pays précis, responsables et modalités applicables restent à définir/valider.
+La fiche ne réinterprète pas les références juridiques du cadrage précédent et
+n'ajoute pas de durée légale ou d'obligation présentée comme validée. Le plan de
+simulation décrit des fixtures futures Alpha/Beta, les refus sans date fiable,
+comptes partagés, obligations et changements de situation ; il n'est pas exécuté.
+
+Vérification documentaire : cohérence des identifiants PERS, six tables du noyau,
+six statuts et diff. Aucun test applicatif relancé pour ces seuls documents.
+Seuls README.md, le backlog et ce suivi sont modifiés ; aucun fichier applicatif,
+configuration ou donnée réelle modifié. Aucun commit/push effectué dans ce lot.
+**CAD-004, OPS-007 et REC-35 restent ouverts.** Prochaine étape : compléter les
+décisions métier et pays précis, faire valider les règles applicables, puis
+concevoir la simulation et les évolutions nécessaires.

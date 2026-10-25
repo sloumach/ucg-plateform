@@ -4691,3 +4691,103 @@ concevoir les dépendances intermodules, puis tester un inventaire/simulation su
 fixtures avec Alpha/Beta, refus sans politique, reprise, cas gelés et cohérence
 base/fichiers. Toute future exécution réelle doit être une opération distincte,
 explicitement autorisée. **OPS-007, CAD-004 et REC-35 restent ouverts.**
+
+### UCG-CAD-004 — Fiche de décision des dossiers de personnes
+
+**Préparation du 25 octobre 2026, sans règle de suppression exécutable.**
+L'utilisateur confirme l'accueil de **mineurs** et des personnes en **zone MENA
+et en Europe**, en plus de l'établissement tunisien d'UCG. Ces zones ne sont pas
+une liste de pays : les pays exacts, les entités concernées et les lieux de
+traitement restent à identifier. Le périmètre Europe ne permet pas, à lui seul,
+de conclure sur un régime applicable. La fiche prépare des choix métier et leur
+validation locale ; elle n'ajoute ni seuil d'âge, ni durée, ni formalité juridique.
+
+#### Données observées et finalités proposées
+
+Inventaire des sources, sans lecture d'une base réelle. Les finalités sont des
+propositions à confirmer, pas des décisions déjà approuvées.
+
+| Référence | Données observées | Finalité à confirmer et séparation attendue |
+| --- | --- | --- |
+| PERS-01 | `people` : pseudonyme, langue, fuseau, statut, biographie dite publique | Gestion du profil sportif ; le nom du champ `biography_public` ne vaut pas autorisation de publier. Distinguer usage interne et diffusion externe. |
+| PERS-02 | `people` : prénom, nom, courriel, téléphone, biographie interne, date de naissance facultative | Gestion administrative et éligibilité ; justifier chaque champ selon candidat, membre ou ancien membre. Éviter de transformer les notes libres en collecte de pièces ou informations inutiles. |
+| PERS-03 | `people.user_id`, compte Identity et adhésions | Relier le dossier au compte, lorsqu'il existe. Une personne peut ne pas avoir de compte ; le compte global peut servir à plusieurs organisations. |
+| PERS-04 | `person_game_profiles` : jeu, plateforme, région de jeu, rang, rôle, date d'observation, statut ; `person_external_accounts` : fournisseur, identifiant/nom externe et observation | Évaluation et suivi sportifs. Une région de jeu, une langue ou un fuseau ne prouve pas le pays de résidence ; un identifiant externe peut permettre de retrouver la personne. |
+| PERS-05 | `person_periods` : affectations/indisponibilités, rôle, début/fin et statut | Organisation sportive et historique des périodes ; distinguer fin d'une période et fin de relation avec UCG. |
+| PERS-06 | `person_departure_items` : matériel/obligations, titre, notes, échéance, résolution/dispense | Suivi de restitution ou d'obligations ; une obligation ouverte appelle une décision ciblée, pas la conservation automatique de tout le dossier. |
+| PERS-07 | `person_departures` : motif, date de départ, acteur, lien au compte, versions et nombre d'éléments restants | Preuve du départ et cohérence des opérations. Définir le minimum nécessaire séparément des coordonnées et biographies. |
+| PERS-08 | Imports CSV, `person_imports`, `person_import_rows`, exports et copies associées | Acquisition/correction des fiches et remise de copies ; distinguer fichier source, valeurs/erreurs de lignes et dossier créé. Cette ligne recoupe les familles imports/artefacts de la matrice générale, sans ajouter de table au décompte des six tables de dossiers. |
+
+Les six tables du noyau sont `people`, `person_game_profiles`,
+`person_external_accounts`, `person_periods`, `person_departure_items` et
+`person_departures`. Les équipes, compositions, matchs, contrats, compétitions,
+académie, disponibilités et autres modules peuvent conserver des références ou
+copies : cette fiche n'est pas un inventaire exhaustif de leurs données.
+
+Les champs administratifs de PERS-02 sont chiffrés par les casts du modèle et
+projetés selon `administrative.read` ; les champs sportifs sont projetés selon
+`sports.read`. Les titres/notes d'éléments de départ et les valeurs/erreurs
+d'import ont aussi des casts chiffrés. Ces protections ne constituent ni un
+archivage distinct ni une preuve d'effacement. Source principale : `PersonInput`,
+modèles People et `PersonProjectionService`.
+
+#### Parcours et point de départ à décider
+
+Pour chaque ligne, **durée active, archive éventuelle, accès d'archive et action
+finale restent à valider**, par sous-catégorie PERS et contexte de pays. Aucun
+compteur de conservation n'est ajouté par cette fiche.
+
+| Parcours | État constaté dans le code | Événement proposé et décision manquante |
+| --- | --- | --- |
+| Candidat | `candidate` dans le même dossier `people` | Clôture explicite de candidature : retenue, refusée, retirée ou abandonnée. Aucun événement dédié de clôture n'est identifié dans le module examiné ; ne pas utiliser arbitrairement `updated_at` ou la dernière connexion. Décider si une réutilisation pour une autre candidature a une finalité distincte. |
+| Essai | `trial` | Fin/décision d'essai à définir et tracer ; le statut seul ne fournit pas une date de clôture vérifiée. Déterminer si le parcours rejoint candidature ou membre. |
+| Membre en activité | `active`, `unavailable`, `substitute` | Besoin courant à justifier ; une indisponibilité ou un changement d'effectif ne signifie pas automatiquement fin de relation. Limiter les champs conservés à chaque usage. |
+| Ancien membre | `former`, avec ou sans opération de départ | Utiliser une date de départ métier validée ; `person_departures.departed_at` existe si l'opération dédiée a été exécutée. Un simple statut `former` ne prouve pas ce départ ni la révocation des accès. Prévoir les dossiers sans événement fiable. |
+| Obligation ou contestation en cours | Éléments de départ ouverts et dépendances à examiner | Définir périmètre, responsable, justification, revue et fin du gel éventuel. Le suivi de matériel n'est pas un moteur général de gel de conservation. |
+
+`PersonStatus` précise qu'un statut ne donne ni ne retire de droit de connexion
+ou d'adhésion. Le parcours `PersonDepartureService`, distinct du changement de
+statut, clôture des périodes et appelle les participants de départ (dont les
+effectifs d'équipe), puis passe à `former` et enregistre l'événement. Son service
+d'accès traite les habilitations du tenant ; il ne supprime pas le compte global
+ni le dossier. Les déclencheurs interdisent actuellement la suppression ordinaire
+de `people` et des historiques de cycle de vie. Ne pas contourner ces gardes pour
+appliquer une future durée ; une évolution dédiée devra être conçue et testée.
+
+#### Mineurs et territoires : décisions à compléter
+
+- **Confirmé par l'utilisateur** : établissement en Tunisie, mineurs accueillis,
+  périmètre MENA et Europe. **À préciser** : pays exacts des personnes, entités
+  responsables, prestataires, hébergement, accès distants et transferts.
+- **Âge et représentants** : définir le parcours applicable par pays, les
+  informations nécessaires, qui vérifie quoi et les preuves réellement requises.
+  La date de naissance facultative ne prouve ni vérification d'âge ni qualité de
+  représentant. Aucun parcours dédié de représentant légal n'est identifié dans
+  le module People examiné ; ne pas stocker ces preuves dans la biographie libre.
+- **Information et autorisations** : décider des usages internes, contacts,
+  publication du profil et partage avec fournisseurs/compétitions, puis des
+  modalités à faire valider pour chaque contexte. Un compte utilisateur ou une
+  adhésion ne vaut pas preuve d'autorisation pour tous ces usages.
+- **Changement de situation** : prévoir correction d'une date, changement de
+  représentant, passage à la majorité, changement de pays et fin de relation.
+  Les conséquences et seuils restent à définir ; aucune règle automatique n'est
+  déduite de cette fiche.
+
+#### Décision attendue et préparation de la simulation
+
+Pour chaque couple parcours/PERS, compléter la fiche générale de conservation :
+responsable et finalité, pays/population, champs utiles, événement vérifiable,
+durée active, archive/habilitations, justification, action finale et dépendances,
+gel éventuel, version/date/validateur. À ce stade, ces valeurs sont **non décidées**,
+hors faits explicitement confirmés ci-dessus ; la conservation d'audit existante
+reste inchangée. Faire examiner les choix et formalités applicables avant de
+les transformer en paramètres.
+
+Après validation, préparer des fixtures Alpha/Beta sans données réelles :
+candidature clôturée et sans date fiable, essai terminé, indisponibilité encore
+active, départ enregistré et simple statut `former`, obligation ouverte puis
+résolue, compte partagé entre tenants, mineur/date inconnue et changement de
+situation. La simulation devra expliquer chaque sélection et refus, vérifier
+les copies/imports et dépendances, ainsi que l'absence d'effet sur Beta. Ces cas
+sont un **plan futur**, pas des tests exécutés ni un moteur livré dans ce lot.
+**CAD-004, OPS-007 et REC-35 restent ouverts.**
