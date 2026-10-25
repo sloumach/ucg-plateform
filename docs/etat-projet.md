@@ -6,6 +6,18 @@
 ## Point de reprise
 
 - Dernière mise à jour : 25 octobre 2026.
+- Tâche courante : **UCG-OPS-007, inventaire et matrice de conservation préparatoires**.
+  L'utilisateur autorise la préparation prudente des règles, sans suppression,
+  et confirme l'établissement d'UCG en **Tunisie (TN)**. Inventaire des sources :
+  116 tables du catalogue de portabilité, classées en 18 familles, avec événements
+  de départ proposés, dépendances et durées à valider. Matrice et fiche de décision
+  ajoutées au README. Les comptes/journaux globaux, caches, jobs, logs, fichiers,
+  fournisseurs et sauvegardes/réplicas sont distingués du catalogue tenant.
+  Les expirations techniques ne sont pas des durées métier. Décision IAM-006 de
+  conservation sans limite préservée, à réexaminer dans le cadrage tunisien ;
+  aucune politique de purge activée ou modifiée. Aucune commande de purge,
+  migration ou lecture d'une base réelle exécutée. OPS-007/CAD-004/REC-35 ouverts.
+  Préparation documentaire uniquement, sans commit/push ; détails en fin de document.
 - Reprise courante : **UCG-QA-005, consolidation locale des lots 2–5 dans une tâche**.
   L'utilisateur confirme la CI de `9637ce9`, autorise cette tâche unique et son
   commit, puis confirme que l'hébergement reste différé. Profilage SQL, 500 comptes,
@@ -7027,3 +7039,81 @@ La matrice de qualification distingue ainsi : outils/tests livrés, scénarios
 locaux terminés, performance refusée sous forte concurrence, et recette
 représentative différée. Un commit UCG-QA-005 est demandé pour ces changements ;
 aucun push n'est autorisé ou effectué dans cette tâche.
+
+## UCG-OPS-007 — Inventaire et préparation de la conservation (25 octobre 2026)
+
+### Mandat et pays confirmé
+
+Après la consolidation QA-005 livrée dans `f70cce6`, l'utilisateur autorise le
+démarrage prudent de la préparation des règles, sans suppression de données.
+Il confirme que l'établissement d'UCG est en **Tunisie**. Cette réponse est une
+information métier de cadrage, pas une instruction de modifier les organisations
+ou les fixtures actuellement configurées FR. Les pays des utilisateurs, les
+mineurs éventuels, les responsables des traitements et l'hébergement restent
+à préciser. QA-005 reste ouvert sur les écarts de performance et la recette différée.
+
+Arbre propre sur staging au début. Travail limité à README.md, au backlog et à
+ce suivi. Aucune connexion à une base, commande Artisan, migration, mise en queue,
+expiration ou purge n'est lancée. Les constantes, configurations et procédures
+sont examinées dans les fichiers ; leurs valeurs effectives sur une installation
+utilisée ne sont pas déduites des seuls défauts du code.
+
+### Livrable documentaire et constats techniques
+
+La section « Conservation des données — cadrage UCG-OPS-007 » du README est le
+support de travail. La matrice couvre exactement les **116 entrées** de
+DatabasePortabilityRepository::TABLES, réparties en **18 familles sans doublon**.
+Le classement est confronté aux noms du catalogue, sans table non classée.
+Ce décompte de sources ne certifie pas le schéma d'une base réelle.
+
+Chaque famille mentionne un événement de départ possible, les liens métier à
+préserver et les décisions restantes. Les durées actives/archives demeurent
+à valider, sans valeur juridique chiffrée inventée. Une fiche précise les champs
+attendus : finalité, responsable, périmètre/pays, événement, durée active, archive
+et habilitations, justification applicable, action finale, éventuel gel,
+dépendances, version, date et validateur. Une durée non définie ne signifie ni
+illimité ni suppression immédiate. Cette fiche n'est pas une configuration exécutée.
+
+Les principales limites observées sont explicites :
+
+- AuditRetentionPolicy et config/audit.php imposent unlimited sans purge, sur
+  décision utilisateur IAM-006 antérieure. Ce choix technique reste intact et
+  n'est pas présenté comme une conservation juridiquement validée.
+- OrganizationPurgeService ne traite que six catégories opérateur ; les chemins
+  supprimant des données concernent paramètres, objets privés et archives
+  techniques. Les historiques d'accès/cycle de vie et la racine sont protégés ;
+  les comptes globaux ne sont pas supprimés. Le service n'efface pas toutes les
+  tables métier du catalogue. Les fichiers documentaires partagent le ledger
+  avec des exports : leur durée devra dépendre de leur finalité, pas du seul disque.
+- La liste livrée de politiques de purge est vide. Une politique opérateur
+  complète, un tenant archivé, une confirmation et un export source sont exigés
+  par le chemin existant, sans constituer une preuve de formalités remplies ou
+  d'effacement exhaustif. Aucun réglage de ce chemin n'est modifié.
+- Les liens de téléchargement, analyses antivirus, invitations, sessions et
+  archives/export temporaires ont des échéances techniques distinctes. Le README
+  consigne leurs valeurs par défaut et leurs limites, sans les transformer en
+  durée de conservation des dossiers ni présumer un scheduler actif.
+- Les copies hors application (stockage/versioning, téléchargements, prestataires,
+  logs, sauvegardes/PITR et réplicas) nécessitent leurs propres responsables et
+  preuves. Aucune stratégie réelle de sauvegarde ou d'effacement n'est inventée.
+
+### Références et suite
+
+Le cadrage pointe vers le [texte officiel tunisien de la loi n° 2004-63](https://www.mtc.gov.tn/fileadmin/texte_juridiques/L2004-0063.pdf),
+consulté le 25 octobre 2026, pour la validation locale des délais et formalités.
+La source INPDP indexée renvoie au même texte, mais son téléchargement direct
+expire lors de la consultation ; aucune actualité ou réforme juridique non
+vérifiée n'est supposée acquise. Les exemples CNIL du CDC ne sont pas convertis
+en règles françaises imposées à UCG. L'applicabilité exacte et les références
+sectorielles restent à confirmer avant une politique exécutable.
+
+Prochaine étape : compléter la fiche par sous-catégorie avec les finalités,
+responsables et durées applicables ; concevoir ensuite les évolutions nécessaires
+pour les historiques protégés et l'effacement intermodules, puis les éprouver
+en simulation sur fixtures. Une exécution réelle serait une opération distincte
+avec autorisation explicite ; la préparation actuelle ne l'autorise pas.
+
+**OPS-007, CAD-004 et REC-35 restent ouverts.** Vérification de cohérence des
+comptages et du diff documentaire ; aucun test applicatif relancé pour ces trois
+documents. Aucun code, configuration, dépendance ou donnée réelle modifié ;
+aucun commit ni push effectué dans ce lot préparatoire.

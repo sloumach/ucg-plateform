@@ -1369,6 +1369,16 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / L
 - **Périmètre** : matrice par catégorie/tenant, archivage restreint, purge, exports temporaires, réplicas et cycle des sauvegardes.
 - **Acceptation** : soft delete non confondu avec effacement ; opération auditée et testée.
+- **Préparation documentaire (25/10/2026)** : établissement UCG en Tunisie confirmé
+  par l'utilisateur. Inventaire des 116 entrées du catalogue en 18 familles,
+  événements de départ proposés et fiche de décision dans le README ; aucune
+  durée métier chiffrée validée. Conservation d'audit illimitée existante préservée,
+  à réexaminer selon le cadrage tunisien. Purge opérateur actuelle limitée aux
+  catégories techniques ; expirations, effacement métier, comptes globaux et
+  copies/sauvegardes distingués. Aucune configuration ou donnée réelle modifiée,
+  aucune commande de purge exécutée. **Ticket/CAD-004/REC-35 ouverts** ; suite :
+  validation des finalités/durées/formalités, puis simulation sur fixtures avant
+  tout moteur ou opération réelle. Préparation sans commit/push.
 
 ### UCG-OPS-008 — Rédiger les procédures d’incident et support
 

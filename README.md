@@ -4564,3 +4564,130 @@ périmètre ; API-002 reste prévu pour une future intégration. QA-002 reste ou
 asymétrique (QA-005), politique de purge exhaustive (OPS-007) et restauration
 avec réconciliation (OPS-004/005). Le test Reverb local ne certifie pas le proxy,
 TLS, workers hébergés ou l'éviction des sockets déjà abonnées après révocation.
+
+## Conservation des données — cadrage UCG-OPS-007
+
+**Brouillon de travail du 25 octobre 2026, sans autorisation de suppression.**
+L'utilisateur confirme que l'établissement d'UCG est en **Tunisie (TN)**.
+Cette information de cadrage ne remplace pas automatiquement les valeurs FR
+des fixtures ou la configuration d'une organisation existante. Les pays des
+utilisateurs, les responsables des traitements, les éventuels mineurs et le
+lieu de l'hébergement restent à préciser. L'inventaire ci-dessous porte sur les
+sources du dépôt, pas sur les données ou paramètres effectifs d'une base réelle.
+
+### Référence et décisions existantes
+
+La [loi organique tunisienne n° 2004-63, texte publié par le ministère](https://www.mtc.gov.tn/fileadmin/texte_juridiques/L2004-0063.pdf)
+constitue une référence de cadrage à faire confirmer pour UCG. Ses articles 31
+et 45 portent notamment sur l'information relative à la durée, la fin de
+conservation et les formalités de destruction ; les cas des articles 46 et
+51–52 doivent aussi être examinés selon destinataires et transferts. Le
+responsable doit faire valider les délais et modalités applicables avant
+paramétrage. Aucune durée juridique chiffrée n'est déduite de ce seul texte.
+La [méthode CNIL de détermination des durées](https://www.cnil.fr/fr/passer-laction/les-durees-de-conservation-des-donnees)
+reste une aide de classement, pas une règle française appliquée automatiquement
+à UCG. L'établissement tunisien ne suffit pas à qualifier tous les traitements.
+
+La décision antérieure IAM-006 conserve actuellement les journaux **sans limite**,
+avec `audit.retention.mode=unlimited` et `purge_enabled=false`. Cette décision
+technique provisoire est préservée ; elle ne constitue pas une validation de sa
+conformité et doit être réexaminée dans le cadrage tunisien. La préparation de
+OPS-007 ne la remplace pas et ne désactive aucun garde append-only.
+
+### Matrice technique à compléter avant politique exécutable
+
+Le catalogue fermé `DatabasePortabilityRepository::TABLES` recense **116 tables**.
+Le classement suivant couvre chacune une seule fois. Il décrit les données à
+examiner ; il ne signifie pas que leur suppression est disponible ou autorisée.
+Toutes les durées actives et d'archive de cette matrice restent **à valider**.
+Les événements proposés servent à préparer le calcul futur, pas à lancer un délai.
+
+| Famille | Tables du catalogue | Événement de départ proposé | Dépendances et décision à prendre |
+| --- | ---: | --- | --- |
+| Organisation et habilitations | 7 | Fin d'adhésion, expiration d'invitation, clôture de l'organisation | Racine, paramètres, membres, invitations, rôles/affectations et accès support. Distinguer révocation d'accès et effacement ; ne pas supprimer un compte global partagé. |
+| Journaux et historique tenant | 5 | Événement ou clôture du dossier associé | Accès, cycle de vie, support, audit et accès sensibles. Conservation illimitée actuelle à réexaminer ; protéger preuves et références sans supposer une conservation perpétuelle justifiée. |
+| Dossiers de personnes | 6 | Candidature clôturée, départ ou fin de relation, selon le dossier | Séparer candidats, actifs et anciens membres ; profils de jeu, comptes externes, périodes et départs. Préserver les références aux équipes/matchs sans conserver automatiquement toute l'identité. |
+| Imports de personnes | 2 | Import terminé, abandonné ou en échec | Distinguer CSV source, rapport d'erreurs, lignes et personnes créées. La fin de vie du fichier ne supprime pas les fiches issues de l'import. |
+| Équipes, effectifs et compositions | 9 | Fin de saison, d'affectation ou de composition | Historique des mouvements, éligibilité et lineups. Maintenir la cohérence des matchs et statistiques en cas d'évolution de l'identité d'une personne. |
+| Jeux activés dans l'organisation | 1 | Désactivation du jeu ou clôture du tenant | `organization_games` ; désactiver n'efface pas les références sportives ni le catalogue global. |
+| Adversaires et snapshots | 2 | Dernière utilisation ou clôture de la relation | Distinguer fiche courante et copie historique utilisée dans un match. |
+| Matchs, parties et résultats | 10 | Fin de rencontre, validation ou clôture d'une contestation | Participants, scores, preuves, carnet, corrections et recalculs. Définir les données nécessaires à l'historique avant toute anonymisation ou suppression. |
+| Compétitions et inscriptions | 7 | Fin de compétition/inscription et des obligations associées | Documents, révisions, rappels et résultats ; ne pas effacer une inscription encore liée à un contrat ou un résultat conservé. |
+| Contrats, conditions et documents | 13 | Fin du contrat et des obligations/contentieux applicables | Parties, obligations, conditions financières, avenants, versions, signatures déclarées, scans, rappels et copies approuvées. Définir les sous-catégories et leurs justifications, pas une durée unique pour tout contrat. |
+| Statistiques et observations | 8 | Fin de finalité ou de période d'analyse | Imports, calculs, sources et révisions. Distinguer agrégat effectivement anonyme et données encore rattachables à une personne. |
+| Académie et suivi pédagogique | 10 | Fin de cohorte, cycle ou inscription | Séances, présences, objectifs, retours, notes et révisions ; qualifier les mineurs et les accès restreints. |
+| Calendrier et disponibilités | 12 | Fin d'activité, d'invitation ou d'abonnement | Ressources, réservations, conflits, disponibilités, changements, livraisons et jetons de flux ; expiration d'un accès distincte de l'historique. |
+| Communication | 5 | Retrait/expiration de l'annonce ou fin de relation | Annonces, commentaires, événements, préférences et reçus. Traiter les copies et destinataires déjà servis séparément. |
+| Sponsors et partenariats | 11 | Fin de relation, accord, campagne ou livrable | Contacts individuels, opportunités, interactions, conditions, expositions et événements ; distinguer prospection et obligations contractuelles. |
+| Médias référencés | 1 | Dépublication ou fin d'autorisation/finalité | Le retrait d'un lien dans la plateforme ne supprime pas le contenu chez son fournisseur. |
+| Tableaux de bord et exports métier | 4 | Export demandé/généré ou fin de période d'indicateur | Rapports temporaires, indicateurs, révisions et versions de sources ; supprimer un export ne supprime pas ses sources. |
+| Artefacts et portabilité | 3 | Échéance technique du fichier ou opération de portabilité | Ledger privé, quotas et opérations ; relier chaque objet physique à sa catégorie métier. Un fichier contractuel ne devient pas jetable parce qu'il utilise le même stockage qu'un export. |
+
+En dehors de ces 116 entrées, inclure les comptes et journaux Identity globaux,
+catalogues communs, sessions, jetons, cache/verrous, jobs/échecs, logs serveur,
+rapports de tests et copies hors application. `TableOwnership::GLOBAL_TABLES`
+recense les exceptions d'architecture ; `organizations` est aussi la racine
+explicitement incluse dans la portabilité. Une demande tenant ne vaut pas
+autorisation d'effacer ces données partagées.
+
+### Expirations techniques existantes, sans durée métier implicite
+
+| Élément | Valeur livrée observée dans le code | Portée réelle |
+| --- | --- | --- |
+| Archive de portabilité | 24 heures par défaut ; réglage borné entre 1 et 168 heures | Durée de l'archive privée, pas des dossiers exportés. |
+| Export de tableau de bord | 60 minutes | Échéance du rapport et de son artefact, pas de la source métier. |
+| Lien documentaire temporaire | 300 secondes | Fin de validité du lien ; le document reste stocké selon sa propre règle. |
+| Fraîcheur d'un résultat antivirus | 86 400 secondes | Condition de téléchargement/scannage ; aucune suppression automatique du document. |
+| Invitation d'organisation | 7 jours par défaut | Fin du droit d'accepter ; ce n'est pas une durée de conservation de la ligne ou de son audit. |
+| Session | 120 minutes d'inactivité par défaut | Accès et nettoyage technique selon driver ; pas une politique de dossier personnel. |
+| Journal applicatif | Rotation `daily` configurable, valeur 14 fichiers ; pile livrée utilisant `single` par défaut | Aucun effacement général garanti par le simple réglage du canal daily. |
+
+Les valeurs ci-dessus sont les défauts des sources ; les overrides et services
+réellement exécutés ne sont pas inspectés. La planification d'expiration des
+archives est désactivée par défaut, et celle des artefacts dépend d'un flag faux
+par défaut. L'absence d'un flag actif n'est pas une durée de conservation validée.
+Un fichier expiré peut être inaccessible avant son enlèvement physique.
+
+### Limites de la purge disponible
+
+`OrganizationPurgeService` accepte seulement six choix de catégorie : settings,
+artifacts, exports, access_history, lifecycle_history et organization_identity.
+Les trois dernières doivent rester à retain ; les comptes globaux sont protégés.
+Les chemins de suppression concernent les paramètres d'organisation, les objets
+privés du ledger et les archives techniques. Ils ne suppriment pas les tables
+de personnes, contrats, matchs ou autres modules métier recensés ci-dessus.
+
+La configuration livrée `tenancy.portability.purge_policies` est vide : aucune
+politique opérateur n'y est autorisée par défaut. Une configuration ultérieure
+exige tenant, confirmation, organisation archivée, export source adéquat,
+référence de politique, échéance not_before et procédure de sauvegarde, avec
+vérification du catalogue et reprise bornée. La présence de ces champs ne prouve
+pas que les formalités applicables sont remplies ni que l'effacement est exhaustif.
+
+Certaines FK et protections d'historique empêchent volontairement des suppressions
+physiques ordinaires. OPS-007 doit prévoir une évolution dédiée de ces chemins,
+sans désactiver globalement les déclencheurs et sans transformer le soft delete,
+le statut former, l'archivage ou la révocation en preuve d'effacement.
+
+### Fiche de décision et copies hors application
+
+Pour chaque sous-catégorie de la matrice, renseigner : organisation et responsable,
+finalité, périmètre des personnes/pays, événement de départ, durée active,
+archivage éventuel et habilitations, justification/référence applicable, action
+finale, dépendances conservées, éventuel gel documenté, version de politique,
+date et validateur. **Non défini** signifie décision manquante, pas illimité,
+zéro jour ou autorisation de suppression. Cette fiche reste documentaire ici.
+
+Compléter la chaîne des copies : base principale, fichiers/versions d'objets,
+exports, caches, jobs/rapports d'erreur, réplicas, journaux techniques et
+sauvegardes/PITR, ainsi que fournisseurs et téléchargements déjà remis.
+Identifier qui peut agir sur chaque copie et quel constat permettra de prouver
+sa disparition. Pour une restauration, prévoir comment réappliquer les décisions
+d'effacement déjà autorisées ; aucune procédure de sauvegarde réelle n'est
+supposée exister dans ce dépôt. OPS-004/005 restent nécessaires.
+
+Avant tout moteur exécutable : faire valider les durées et formalités pour UCG,
+concevoir les dépendances intermodules, puis tester un inventaire/simulation sur
+fixtures avec Alpha/Beta, refus sans politique, reprise, cas gelés et cohérence
+base/fichiers. Toute future exécution réelle doit être une opération distincte,
+explicitement autorisée. **OPS-007, CAD-004 et REC-35 restent ouverts.**
