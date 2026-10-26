@@ -5,25 +5,31 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 25 octobre 2026.
-- Correctif courant : **sonde EICAR PDF après 8a60f40**. La CI atteint désormais
-  le moteur réel mais le commentaire PDF contenant EICAR est déclaré clean.
+- Dernière mise à jour : 26 octobre 2026.
+- Tâche courante : **UCG-OPS-008, trois lots en un seul commit demandé**.
+  La CI de `50e4b37` est validée par l’utilisateur, y compris les deux sondes
+  ClamAV réelles. Dossier incident/support : sept fiches, rôles/seuils/escalade,
+  preuves/messages et huit exercices sur table. Hébergement différé et données
+  fictives maintenus ; titulaires/contacts et cibles de délais restent à adopter.
+  Résultats en fin de document ; un commit autorisé, aucun push demandé.
+- Correctif précédent, livré en `50e4b37` : **sonde EICAR PDF après 8a60f40**.
+  La première sonde, placée dans un commentaire PDF, était déclarée clean.
   Sonde remplacée par une véritable pièce jointe PDF non compressée ; contrôle
   indépendant EICAR brut via INSTREAM ajouté. Résultats et limites en fin de
-  document ; pas de nouvelle validation CI ni de commit/push à ce stade.
-- Correctif courant : **CI après UCG-OPS-006 / 50062b0**. L'utilisateur signale
+  document ; correctif poussé et CI maintenant validée par l’utilisateur.
+- Correctif précédent, livré en `8a60f40` : **CI après UCG-OPS-006 / 50062b0**. L'utilisateur signale
   deux échecs : Playwright datetime-local à secondes nulles et lecture de la
   configuration FreshClam sous RUNNER_TEMP. Correction du format navigateur avec
   borne :00 exercée à chaque passage, et chemins ClamAV standards compatibles
   AppArmor sur Ubuntu 24.04. Vérifications et limites en fin de document.
-- Tâche courante : **UCG-OPS-006, trois lots regroupés en un commit demandé**.
+- Lot précédent : **UCG-OPS-006, trois lots regroupés en `50062b0`**.
   CI de `ca42b47` validée par l'utilisateur avant changement de ticket. Tests de
   fichiers et quarantaine complétés ; ClamAV exige une réponse unique terminée
   et fermeture de connexion. Politique v2 : anciens clean v1 périmés sans réécrire
   l'historique. Audits CI Composer/npm ajoutés, Vite/Undici corrigés et réaudités.
   Job de scanner réel et EICAR préparé en CI, non exécuté localement faute de
-  moteur/daemon Docker. Validation réelle/exploitation restent ouvertes.
-  Détails et résultats en fin de document ; un seul commit autorisé, aucun push.
+  moteur/daemon Docker. Après les deux correctifs ci-dessus, CI réelle validée ;
+  qualification du futur hébergement toujours ouverte. Détails en fin de document.
 - Lot précédent : **UCG-OPS-005, consolidation des quatre lots locaux**.
   L'utilisateur valide la CI de `da068af` et demande les quatre lots dans un seul
   nouveau commit ; le lot 1 déjà commité est conservé. Nouveau graphe réellement
@@ -7713,3 +7719,46 @@ sondes réelles restent à confirmer en CI, y compris l'extraction de la pièce
 jointe. Aucun verdict simulé ne vaut validation de ClamAV ; tous les formats et
 modes de compression PDF ne sont pas déclarés qualifiés. Code applicatif,
 configuration du scanner et dépendances inchangés. Aucun commit/push effectué.
+
+## UCG-OPS-008 — Trois lots documentaires en un commit (26 octobre 2026)
+
+L’utilisateur valide la CI de `50e4b37`, dont les deux sondes ClamAV réelles, puis
+demande les trois lots OPS-008 dans un seul commit. Aucun push demandé. Le dossier
+[procédures d’incident et de support](procedures-incident-support.md) regroupe :
+
+1. Sept fiches : service indisponible, fuite suspectée, dépendance en panne, file
+   bloquée, restauration/récupération, fichier suspect et accès support exceptionnel.
+   Les mécanismes existants sont distingués de l’exploitation future. Le statut
+   HTTP operational ne teste pas les dépendances ; aucune reprise ou purge globale
+   n’est prescrite. Une relance ciblée nécessite de préserver sa preuve d’échec.
+2. Cinq rôles fonctionnels avec titulaires/suppléants/contacts à désigner, trois
+   niveaux avec seuils et délais proposés, escalade et canal de secours à éprouver,
+   fiche privée, minimisation des preuves, messages à préparer et critères de
+   clôture. Aucun engagement d’astreinte ni règle juridique n’est inventé.
+3. Huit exercices fictifs sur table confrontés aux sources : faux signal de santé,
+   soupçon inter-tenant, timeout fournisseur, acteur révoqué avant reprise, document
+   refusé, sauvegarde sans clé, support expiré et absence de contact/canal de secours.
+   La revue est effectuée par l’agent, sans participant UCG ni panne injectée.
+
+### Vérification et livraison
+
+**83 tests existants réussis, 611 assertions, zéro échec/exclusion**, environ
+37,39 s sur SQLite en mémoire : SystemStatusControllerTest,
+PlatformSupportAccessTest, ContractDocumentSecurityControllerTest et
+Modules/Tenancy/TenantJobRunnerTest. Rapport ignoré back/reports/phpunit-ops008.xml.
+Ces tests étayent les mécanismes cités, pas une répétition de l’astreinte ni une
+mesure de disponibilité de l’hébergement. Aucune nouvelle dépendance ou test
+recopiant le document n’est ajouté ; aucune suite frontend complète relancée.
+
+Les commandes de diagnostic/reprise sont confrontées à la liste Artisan et à
+l’aide locale ; seuls list/--help ont été exécutés. Le comportement de queue:retry
+(réenfilage et retrait de l’entrée failed) et queue:restart (marqueur partagé)
+est confirmé dans le framework installé. Aucune relance de job, modification
+d’accès, commande de restauration, purge, envoi ou lecture de base réelle.
+
+README et backlog enregistrent la validation CI reçue et les limites restantes.
+Diff check et liens locaux/ancres du nouveau dossier vérifiés sans erreur.
+Le dossier local des trois lots est livré en un seul commit. **OPS-008 reste
+ouvert avant exploitation réelle** : désigner les personnes/contacts, adopter
+les seuils, éprouver le canal de secours, les preuves et les procédures sur
+l’hébergement. OPS-004/005/006/007 et CAD-004 conservent leurs autres réserves.

@@ -1419,6 +1419,9 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   8.11.2→8.12.3 corrigent les deux dépendances signalées, réaudit npm vierge.
   Suivi et délais proposés dans le README, référent à désigner ; ticket ouvert
   pour recette antivirus réelle et exploitation sur le futur hébergement.
+- **Validation CI (26/10/2026)** : l’utilisateur valide `50e4b37`, y compris les
+  deux sondes ClamAV réelles (EICAR brut et pièce jointe PDF). Cette attente CI
+  est levée ; la qualification du futur hébergement reste ouverte.
 
 ### UCG-OPS-007 — Implémenter conservation et purge
 
@@ -1441,6 +1444,16 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / M
 - **Périmètre** : indisponibilité, fuite suspectée, intégration en panne, file bloquée, restauration et accès exceptionnel.
 - **Acceptation** : responsables, seuils, escalade, communication et preuves de clôture définis.
+- **Trois lots locaux (26/10/2026)** : dossier dédié
+  [procédures d’incident et de support](procedures-incident-support.md), sept
+  fiches rattachées aux mécanismes existants, rôles fonctionnels, seuils et délais
+  proposés, escalade, fiche privée, messages à préparer et critères de clôture.
+  Huit scénarios fictifs revus sur table, sans panne injectée ni envoi réel.
+  Contrôles techniques ciblés dans etat-projet.md. CI de `50e4b37` validée par
+  l’utilisateur, y compris ClamAV réel ; hébergement toujours différé.
+  **Ticket ouvert avant exploitation** : désigner titulaires/suppléants/contacts,
+  adopter les seuils, éprouver canal de secours, preuves et procédures sur
+  l’hébergement. Dossier local livré en un commit, pas d’astreinte déclarée active.
 
 ## 22 Module Tests, données et livraison
 

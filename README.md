@@ -5227,7 +5227,8 @@ conservés ; seule l'instance identifiée par le job est arrêtée. Une panne du
 téléchargement de signatures ou du scanner fait échouer le job, sans faux succès
 ou remplacement silencieux par le pair simulé.
 
-Ce job est **à valider après push**. Aucun ClamAV local n'est installé et le
+La CI de `50e4b37` est validée par l’utilisateur le 26 octobre 2026, avec les deux
+sondes réelles décrites ci-dessous. Aucun ClamAV local n'est installé et le
 daemon Docker n'est pas disponible sur ce poste ; les essais locaux TCP ne
 prouvent pas une analyse réelle. Avant activation sur le futur hébergement,
 vérifier les signatures, paramètres effectifs, réseau privé, workers et le parcours
@@ -5256,7 +5257,7 @@ pour distinguer reconnaissance des signatures et extraction PDF. Les deux tests
 réels sont obligatoires dans le job opt-in, sans verdict simulé ni modification
 des signatures. Le contenu EICAR reste décodé en mémoire, sans fixture en clair
 sur disque. Ces sondes ne qualifient pas tous les formats ou modes de compression
-que peut contenir un PDF ; leur validation avec le moteur réel reste attendue.
+que peut contenir un PDF ; le parcours sur le futur hébergement reste à qualifier.
 
 ### Audits et suivi des dépendances
 
@@ -5285,6 +5286,22 @@ un audit rouge. Tester les mises à jour puis réauditer le verrou ; un avis san
 correctif appelle une décision explicite et des mesures documentées, pas une
 suppression du contrôle CI.
 
-**OPS-006 reste ouvert pour la recette du scanner réel et de son déploiement.**
+La CI de `50e4b37`, dont les deux tests ClamAV réels, est validée par l’utilisateur
+le 26 octobre 2026. **OPS-006 reste ouvert pour la recette de son déploiement sur
+le futur hébergement.**
 Un audit vert ne constitue pas une preuve d'absence de toute vulnérabilité, ni
-une validation d'un moteur antivirus ou des fichiers des autres modules.
+une qualification exhaustive du scanner ou des fichiers des autres modules.
+
+## UCG-OPS-008 — Procédures d’incident et de support
+
+Les [procédures d’incident et de support](docs/procedures-incident-support.md)
+regroupent les trois lots : sept fiches d’intervention, rôles/seuils/escalade et
+preuves/messages, puis huit exercices fictifs sur table. Les parcours couvrent
+indisponibilité, fuite suspectée, dépendance, file, restauration, fichier et accès
+exceptionnel. Les commandes et barrières sont confrontées au code existant ;
+aucun incident réel ni envoi de message n’est déclenché.
+
+Les fonctions sont définies, mais les personnes, suppléants et contacts restent
+à désigner. Les délais proposés doivent être adoptés ; ils ne constituent pas
+une astreinte déjà disponible. **OPS-008 reste ouvert avant exploitation réelle**
+sur ces validations et la qualification de l’hébergement, toujours différé.
