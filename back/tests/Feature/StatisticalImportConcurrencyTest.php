@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Modules\Performance\Application\Services\StatisticalImportConfirmation;
+use App\Modules\Performance\Application\Services\StatisticalImportProcessor;
 use App\Modules\Performance\Application\Services\StatisticalImportService;
 use App\Modules\Performance\Domain\Models\StatisticalImportExecution;
 use App\Modules\Performance\Infrastructure\Queue\ProcessStatisticalImport;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\Process\Process;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesMetricCatalogue;
@@ -22,7 +24,14 @@ class StatisticalImportConcurrencyTest extends TestCase
 {
     use AuthenticatesWithMfa, ProvidesMetricCatalogue, ProvidesObservations, ProvidesPeopleAccess;
 
-    public function test_two_imports_of_the_same_observation_create_only_one_record(): void
+    /** @return array<string, array{bool}> */
+    public static function executions(): array
+    {
+        return ['two files' => [false], 'same queued generation' => [true]];
+    }
+
+    #[DataProvider('executions')]
+    public function test_two_imports_of_the_same_observation_create_only_one_record(bool $sameExecution): void
     {
         if (DB::getDriverName() !== 'pgsql') {
             $this->markTestSkipped('Real observation concurrency runs in the PostgreSQL CI selection.');
@@ -38,6 +47,7 @@ class StatisticalImportConcurrencyTest extends TestCase
             config(['database.connections.match001_race' => [...$config, 'url' => null, 'database' => $database]]);
             DB::setDefaultConnection('match001_race');
             $this->assertSame(0, Artisan::call('migrate', ['--force' => true, '--no-interaction' => true]));
+            $this->freezeTime();
             config(['statistical_imports.processing_enabled' => true]);
             $s = $this->observationScenario();
             $role = $s['assignment']->role;
@@ -46,7 +56,7 @@ class StatisticalImportConcurrencyTest extends TestCase
             Storage::fake('local');
             $context = $this->personContext($s['org'], $s['writer']);
             $runs = [];
-            foreach ([',', ';'] as $delimiter) {
+            foreach ($sameExecution ? [','] : [',', ';'] as $delimiter) {
                 $stream = fopen('php://temp', 'w+');
                 if ($stream === false) {
                     throw new \RuntimeException('Cannot allocate CSV concurrency fixture.');
@@ -60,12 +70,13 @@ class StatisticalImportConcurrencyTest extends TestCase
                 app(StatisticalImportConfirmation::class)->confirm($context, $run->id, ['version' => $run->id, 'confirm' => true]);
                 $runs[] = ['id' => $run->id, 'version' => StatisticalImportExecution::query()->where('import_id', $run->id)->firstOrFail()->version];
             }
+            Queue::assertPushed(ProcessStatisticalImport::class, $sameExecution ? 1 : 2);
             $environment = ['APP_ENV' => 'testing', 'APP_KEY' => config('app.key'), 'DB_CONNECTION' => 'pgsql', 'DB_DATABASE' => $database, 'DB_URL' => '',
                 'DB_HOST' => $config['host'], 'DB_PORT' => (string) $config['port'], 'DB_USERNAME' => $config['username'], 'DB_PASSWORD' => $config['password'],
                 'CACHE_STORE' => 'array', 'SESSION_DRIVER' => 'array', 'QUEUE_CONNECTION' => 'sync', 'MAIL_MAILER' => 'array', 'STATISTICAL_IMPORT_PROCESSING_ENABLED' => 'true'];
             for ($i = 0; $i < 2; $i++) {
                 $payload = ['operation' => 'statistical_import', 'org' => $s['org']->id, 'actor' => $s['writer']->id,
-                    'import' => $runs[$i]['id'], 'version' => $runs[$i]['version'], 'now' => CarbonImmutable::now()->toIso8601String()];
+                    'import' => $runs[$sameExecution ? 0 : $i]['id'], 'version' => $runs[$sameExecution ? 0 : $i]['version'], 'now' => CarbonImmutable::now()->toIso8601String()];
                 $worker = new Process([PHP_BINARY, base_path('tests/Fixtures/match-worker.php'), json_encode($payload, JSON_THROW_ON_ERROR), $barrier], base_path(), $environment, null, 60);
                 $worker->start();
                 $workers[] = $worker;
@@ -104,10 +115,21 @@ class StatisticalImportConcurrencyTest extends TestCase
             $this->assertDatabaseCount('statistical_observations', 1);
             $this->assertDatabaseCount('observation_revisions', 1);
             $this->assertDatabaseCount('statistical_import_receipts', 1);
-            $executions = StatisticalImportExecution::query()->get();
+            $this->assertDatabaseCount('statistical_import_executions', $sameExecution ? 1 : 2);
+            $executions = StatisticalImportExecution::query()->limit(2)->get();
             $outcomes = $executions->map(fn ($execution) => $execution->results[2]['status'])->all();
             sort($outcomes);
-            $this->assertSame(['created', 'duplicate'], $outcomes);
+            $this->assertSame($sameExecution ? ['created'] : ['created', 'duplicate'], $outcomes);
+            foreach ($executions as $execution) {
+                $this->assertSame('completed', $execution->status);
+                $this->assertSame(1, $execution->processed_count);
+                $snapshot = $execution->getRawOriginal();
+                $this->assertFalse(app(StatisticalImportProcessor::class)->process($context, $execution->import_id, $execution->version));
+                $this->assertSame($snapshot, $execution->refresh()->getRawOriginal());
+            }
+            $this->assertDatabaseCount('statistical_observations', 1);
+            $this->assertDatabaseCount('observation_revisions', 1);
+            $this->assertDatabaseCount('statistical_import_receipts', 1);
         } finally {
             foreach ($workers as $worker) {
                 if ($worker->isRunning()) {

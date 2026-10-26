@@ -5305,3 +5305,90 @@ Les fonctions sont définies, mais les personnes, suppléants et contacts resten
 à désigner. Les délais proposés doivent être adoptés ; ils ne constituent pas
 une astreinte déjà disponible. **OPS-008 reste ouvert avant exploitation réelle**
 sur ces validations et la qualification de l’hébergement, toujours différé.
+
+## UCG-QA-004 — Concurrence et idempotence, trois lots locaux
+
+Le périmètre vérifié est celui des parcours P0 existants : versions de scores et
+résultats, réservations, imports, rappels et reprises de jobs. L’inventaire part
+des tests déjà présents ; il ne recrée pas une suite parallèle pour les mêmes
+invariants. Aucun webhook entrant n’est prévu au P0 selon la décision utilisateur
+du 25 octobre ; une future intégration nécessitera ses propres preuves.
+
+### Lot 1 — Inventaire et choix des compléments
+
+| Parcours | Preuves existantes conservées | Complément retenu |
+| --- | --- | --- |
+| Scores et validation des résultats | MatchScoreConcurrencyTest : deux règles, deux écritures de partie, score/annulation ; MatchResultConcurrencyTest : soumissions, approbations, approbation/litige, score/soumission. Une même version ne permet qu’une mutation, conflit explicite pour l’autre. | Réexécution PostgreSQL, sans dupliquer ces cas. |
+| Réservation calendrier | CalendarConflictConcurrencyTest : deux prévisualisations du même créneau puis sauvegardes concurrentes, personne/équipe/ressource. CalendarInvitationConcurrencyTest et CalendarChangeConcurrencyTest couvrent les mutations concurrentes associées. | Deux tenants réservent leurs propres ressources au même horaire : deux succès, une activité et son audit par tenant, aucun conflit global. |
+| Import statistique | Deux fichiers portant la même observation : une création, un doublon déclaré. StatisticalImportProcessingTest couvre également reprise partielle, anciennes générations et callback de panne obsolète. | Deux workers sur la même génération : un seul résultat, compteur à un, exécution terminée ; rejeu après achèvement sans modification de l’exécution ni nouveau reçu/révision. |
+| Import de personnes | PersonImportProcessorTest : chunks, reprise après rollback, rejeu et refus d’un identifiant d’un autre tenant. | Réexécution des preuves existantes, sans prétendre à une course de deux processus sur ce parcours. |
+| Rappels | ContractReminderTest : rejeux, changement de responsable/droits et accusé SMTP incertain ; CalendarInvitationWorkerTest, CalendarChangeWorkerTest et CompetitionRegistrationConcurrencyTest : unicité et réévaluation des destinataires. | Trois courses de rappels contractuels : deux runs Alpha, Alpha/Beta simultanés, accusé incertain Alpha. Un appel au transport simulé par occurrence ; reprise après 16 minutes sans renvoi automatique. |
+| Infrastructure de jobs | TenantJobRunnerTest et TenantScheduledTaskTest : contexte sérialisé, retry opérateur, refus après révocation, tâche occupée et progression des autres tenants. | Réexécution de la portée existante ; le cache de fin de tâche n’est pas une garantie universelle exactly-once. |
+
+Les autres suites `*ConcurrencyTest.php` existantes sont également exécutées pour
+détecter une régression du worker de test partagé, notamment Académie, compétitions,
+observations, métriques et calculs statistiques.
+
+### Lot 2 — Collisions réelles et absence de perte silencieuse
+
+Les tests PostgreSQL créent une base dédiée par course, effectuent les migrations
+dans cette base et démarrent deux processus PHP indépendants. Une barrière ne les
+libère qu’après leur signal READY ; le calendrier effectue les deux prévisualisations
+avant cette libération. Les services et transactions SQL sont réels, avec contraintes
+et verrous actifs. Les conflits de domaine sont observés par le worker ; les tests
+HTTP métier existants portent la traduction en réponse API.
+
+Les branches historiques restent inchangées dans leur attente de conflit. Pour les
+deux tenants du calendrier, les ressources et permissions sont propres à chacun,
+le même horaire est utilisé et le résultat exige deux créations sans override.
+Les imports exigent le statut completed, le compteur traité exact, l’unicité des
+observations/révisions/reçus et une exécution inchangée après rejeu terminal.
+
+### Lot 3 — Reprises et rappels sans double tentative automatique
+
+ContractReminderConcurrencyTest contourne volontairement le verrou de distribution
+du scheduler pour confronter directement deux exécutions du handler métier. Chaque
+contrat témoin est préparé, doté d’un plan puis approuvé par un autre compte. Les
+workers utilisent des run IDs distincts. Le transport FakeContractReminderMailer
+déjà présent compte les appels en mémoire dans chaque processus ; leurs clés sont
+réunies et comparées aux occurrences persistées. Aucun SMTP réel n’est contacté.
+
+Un accusé simulé perdu doit laisser email_status=uncertain et attempts=1. Une
+nouvelle exécution après le délai de sweep ne doit pas renvoyer cet e-mail. Le
+cas normal exige sent et attempts=1. L’inbox reste unique ; une course Alpha garde
+le contrat Beta inchangé et son plan non balayé, et la course Alpha/Beta produit une seule
+occurrence par tenant. Les replays ne modifient pas les lignes de livraison.
+Ces preuves portent sur la coordination et les décisions de l’application, sans
+promettre une livraison SMTP exactement une fois chez un fournisseur externe.
+
+### Rejouer et lire les résultats
+
+La CI backend exécute les suites existantes dans sa sélection PostgreSQL et ajoute
+une étape explicite pour ContractReminderConcurrencyTest. Son JUnit
+phpunit-contract-reminder-concurrency.xml est conservé avec les autres rapports.
+La découverte SQLite de ces tests exclut les courses réelles : un succès avec des
+exclusions ne constitue pas une preuve de concurrence PostgreSQL.
+
+Pour une reproduction manuelle, utiliser uniquement un PostgreSQL 17 jetable avec
+compte autorisé à créer les bases de course, une APP_KEY de test, des sessions et
+e-mails en array, et les origines de test attendues par les fixtures MFA. Ne pas
+pointer ce lancement vers une base partagée ou des données réelles. Exemple depuis
+back, après préparation de cet environnement isolé :
+
+```text
+php vendor/bin/phpunit tests/Feature/MatchScoreConcurrencyTest.php tests/Feature/MatchResultConcurrencyTest.php tests/Feature/CalendarConflictConcurrencyTest.php tests/Feature/StatisticalImportConcurrencyTest.php tests/Feature/ContractReminderConcurrencyTest.php --log-junit=reports/phpunit-qa004-focused.xml
+```
+
+Le lancement local réutilise TemporaryPostgres du laboratoire existant avec un
+répertoire temporaire attesté, port et identifiants propres, puis arrête le cluster
+et supprime uniquement ses ressources. Les résultats complets, exclusions et limites
+sont consignés dans [l’état du projet](docs/etat-projet.md). Les fichiers de rapport
+locaux restent ignorés par Git. L’hébergement différé, les arrêts brutaux de machine,
+les transports réels et les futures intégrations conservent leur recette distincte.
+
+Résultat local du 26 octobre 2026 : **178 tests réussis, 1 654 assertions, aucune
+erreur/échec/exclusion**, sur 25 suites PostgreSQL 17 (environ 262 s). Elles
+comprennent 50 cas dans 17 suites de concurrence et 128 cas de traitement/reprise.
+Les cinq compléments sont un cas calendrier, un cas import et trois cas de rappel.
+Les sources finales passent aussi Pint complet, PHPStan et les contrôles du diff
+et du workflow. La nouvelle CI distante reste à confirmer après push.

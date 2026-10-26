@@ -12,6 +12,8 @@ use App\Modules\Competition\Application\Services\MatchResultService;
 use App\Modules\Competition\Application\Services\MatchScoreService;
 use App\Modules\Competition\Application\Services\MatchService;
 use App\Modules\Competition\Application\Services\ProcessCompetitionRegistrationReminders;
+use App\Modules\Contracts\Application\Services\ProcessContractReminders;
+use App\Modules\Contracts\Domain\Contracts\ContractReminderMailer;
 use App\Modules\Performance\Application\Services\MetricCatalogueService;
 use App\Modules\Performance\Application\Services\ObservationService;
 use App\Modules\Performance\Application\Services\StatisticalCalculationProcessor;
@@ -21,6 +23,7 @@ use App\Modules\Tenancy\Application\Contracts\TenantExecutionContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Str;
+use Tests\Fixtures\FakeContractReminderMailer;
 
 require dirname(__DIR__, 2).'/vendor/autoload.php';
 $app = require dirname(__DIR__, 2).'/bootstrap/app.php';
@@ -48,8 +51,15 @@ while (! is_file($barrier)) {
     clearstatcache(true, $barrier);
 }
 try {
+    $result = ['status' => 200];
     $service = app(MatchService::class);
-    if ($payload['operation'] === 'statistical_calculation') {
+    if ($payload['operation'] === 'contract_reminders') {
+        $mailer = new FakeContractReminderMailer;
+        $mailer->fail = $payload['ambiguous'] ?? false;
+        app()->instance(ContractReminderMailer::class, $mailer);
+        app(ProcessContractReminders::class)->run(new TenantExecutionContext($context->organizationId, $context->requestId, 'UTC', 'fr'), $context->requestId);
+        $result['sent_keys'] = array_column($mailer->sent, 'key');
+    } elseif ($payload['operation'] === 'statistical_calculation') {
         app(StatisticalCalculationProcessor::class)->process($context, $payload['calculation'], $payload['version']);
     } elseif ($payload['operation'] === 'statistical_import') {
         app(StatisticalImportProcessor::class)->process($context, $payload['import'], $payload['version']);
@@ -84,7 +94,7 @@ try {
     } else {
         $service->transition($context, $payload['match'], $payload['input']);
     }
-    fwrite(STDOUT, 'RESULT:'.json_encode(['status' => 200], JSON_THROW_ON_ERROR)."\n");
+    fwrite(STDOUT, 'RESULT:'.json_encode($result, JSON_THROW_ON_ERROR)."\n");
 } catch (DomainConflictException $exception) {
     fwrite(STDOUT, 'RESULT:'.json_encode(['status' => 409, 'code' => $exception->errorCode()], JSON_THROW_ON_ERROR)."\n");
 }

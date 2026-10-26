@@ -1714,6 +1714,22 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / L
 - **Périmètre** : validation de score, réservation, imports, rappels, webhooks et jobs relancés.
 - **Acceptation** : conflits explicites, aucune perte silencieuse et aucun double effet métier.
+- **Trois lots locaux (26/10/2026)** : inventaire des preuves existantes dans le
+  README, sans recréer les courses de scores/résultats déjà couvertes. Calendrier :
+  ressources propres à deux tenants au même horaire, deux créations sans conflit
+  global. Import statistique : deux workers sur la même génération, compteur et
+  résultat uniques, exécution inchangée après rejeu terminal. Rappels contractuels :
+  trois courses (même tenant, Alpha/Beta, accusé SMTP incertain) avec un appel par
+  occurrence au transport simulé et aucun renvoi automatique après relance.
+  Étape CI PostgreSQL dédiée aux rappels ; suites existantes de reprise conservées.
+  Données fictives, aucun SMTP réel ni changement applicatif. Résultats et limites
+  dans etat-projet.md ; les recettes de transports réels/hébergement et futures
+  intégrations restent distinctes, webhooks entrants hors du P0 confirmé.
+- **Résultat local** : 178 tests PostgreSQL 17 réussis sur 25 suites, 1 654
+  assertions, zéro erreur/échec/exclusion ; 50 cas de concurrence et 128 de
+  traitement/reprise. Cinq cas supplémentaires, code métier/migrations inchangés.
+  Qualification locale ciblée des trois lots livrée ; nouvelle CI à confirmer,
+  sans déduire une garantie exactly-once de tous les effets externes.
 
 ### UCG-QA-005 — Tester performances et tenant bruyant
 

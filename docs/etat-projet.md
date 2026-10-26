@@ -6,7 +6,14 @@
 ## Point de reprise
 
 - Dernière mise à jour : 26 octobre 2026.
-- Tâche courante : **UCG-OPS-008, trois lots en un seul commit demandé**.
+- Tâche courante : **UCG-QA-004, trois lots en un seul commit puis push demandés**.
+  Inventaire des tests existants, compléments PostgreSQL calendrier/imports et
+  courses de rappels contractuels avec reprise et accusé simulé incertain. Les
+  scores/résultats et les tests de reprise existants sont conservés/réexécutés.
+  Données exclusivement fictives et cluster jetable ; hébergement différé.
+  La CI de `a5805b1` n’a pas reçu de confirmation utilisateur supplémentaire ;
+  cette tâche est néanmoins explicitement autorisée. Résultats en fin de document.
+- Lot précédent : **UCG-OPS-008, trois lots livrés en `a5805b1` et poussés**.
   La CI de `50e4b37` est validée par l’utilisateur, y compris les deux sondes
   ClamAV réelles. Dossier incident/support : sept fiches, rôles/seuils/escalade,
   preuves/messages et huit exercices sur table. Hébergement différé et données
@@ -7762,3 +7769,65 @@ Le dossier local des trois lots est livré en un seul commit. **OPS-008 reste
 ouvert avant exploitation réelle** : désigner les personnes/contacts, adopter
 les seuils, éprouver le canal de secours, les preuves et les procédures sur
 l’hébergement. OPS-004/005/006/007 et CAD-004 conservent leurs autres réserves.
+
+## UCG-QA-004 — Trois lots, commit unique et push demandés (26 octobre 2026)
+
+Après le push OPS-008 `a5805b1`, l’utilisateur autorise explicitement les trois
+lots QA-004 dans un seul commit puis leur push. La CI de `a5805b1` n’est pas
+déclarée validée sans confirmation supplémentaire. L’hébergement reste différé,
+les données exclusivement fictives.
+
+### Inventaire et compléments retenus
+
+Le README contient une matrice de preuves : scores/résultats, réservations,
+imports statistiques et personnes, rappels, contexte et reprises de jobs. Les
+courses de scores, approbations et réservations existantes sont conservées ;
+aucun webhook entrant n’est prévu au P0 sur décision utilisateur antérieure.
+L’inventaire ne prétend pas couvrir toutes les futures intégrations.
+
+Cinq cas sont ajoutés sans modifier les services : calendrier, deux tenants
+réservent chacun leur ressource au même horaire avec deux succès et audits
+distincts ; import statistique, deux processus traitent la même génération sans
+double résultat/compteur/reçu ; rappels contractuels, deux runs du même tenant,
+deux tenants simultanés et accusé SMTP incertain. Le transport de rappel est la
+fixture simulée existante, ses clés d’appel réunies depuis les deux processus
+doivent correspondre exactement aux occurrences persistées. Le cas incertain
+reste uncertain avec une tentative et aucun renvoi automatique après 16 minutes.
+Le cas normal reste sent avec une tentative ; Alpha ne modifie pas le contrat
+Beta et ne fait pas avancer le checked_at de son plan. Le rejeu terminal des
+imports et rappels conserve les résultats/livraisons existants.
+
+Les processus reprennent le worker de test partagé, limité aux bases de course
+et barrières nommées de test. La CI ajoute une étape PostgreSQL pour le nouveau
+ContractReminderConcurrencyTest ; les compléments aux fichiers existants passent
+dans la sélection PostgreSQL déjà en place. JUnit dédié conservé par le glob
+existant ; aucun nouveau paquet, changement métier, migration ou réglage réel.
+
+### Résultats finaux
+
+- Sélection ciblée : **16 tests, 248 assertions**, zéro échec/erreur/exclusion,
+  environ 68,20 s, cinq suites scores/résultats/calendrier/import/rappels.
+- Sélection élargie : **178 tests, 1 654 assertions**, zéro échec/erreur/exclusion,
+  environ **261,67 s**, 25 suites. Dix-sept suites de concurrence (50 cas), plus
+  PersonImportProcessorTest, StatisticalImportProcessingTest, ContractReminderTest,
+  ContractReminderMailTest, CalendarInvitationWorkerTest, CalendarChangeWorkerTest,
+  TenantJobRunnerTest et TenantScheduledTaskTest (128 cas de traitement/reprise).
+- PostgreSQL 17 local neuf via TemporaryPostgres, port et identifiants propres,
+  base de course neuve et deux processus indépendants par cas de concurrence ;
+  arrêt du cluster et suppression de ses ressources possédées confirmés. Les
+  paramètres du lanceur PHPUnit sont distincts des paramètres navigateur, en
+  particulier chemins de cache Windows, sessions array et origines des fixtures MFA.
+- Pint ciblé et contrôle **complet** composer format:check, PHPStan (zéro erreur),
+  parsing YAML, syntaxe Bash des blocs run et git diff --check réussis.
+- Rapports locaux ignorés : back/reports/phpunit-qa004-focused.xml et
+  back/reports/phpunit-qa004-postgresql.xml. Pas de suite applicative complète ni
+  de frontend relancés : aucun code applicatif ou interface n’a changé.
+
+La qualification locale ciblée des trois lots est terminée. Les conflits de
+domaine sont produits par les services SQL réels ; les fixtures de concurrence
+ne sont pas deux requêtes HTTP réseau simultanées. Les tests HTTP et de transport
+existants complètent cette preuve sans la transformer en certification hébergée.
+Les envois SMTP réels, interruption de machine, limites du cache de fin de tâche
+et futures intégrations n’acquièrent aucune garantie exactly-once universelle.
+Aucune restauration, purge, intervention ou donnée réelle n’a été touchée.
+Livraison en un seul commit puis push demandés ; la nouvelle CI reste à valider.
