@@ -1736,6 +1736,19 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / L
 - **Périmètre** : 500 comptes, 100 actifs simultanés, 100 000 parties, 2 000 visiteurs publics et charges asymétriques.
 - **Acceptation** : p95 mesuré, nombre de requêtes contrôlé et autres tenants protégés pendant les traitements lourds.
+- **Trois lots de corrections (26/10/2026)** : références profile/pressure reprises
+  avant modification ; lectures d'affichage multi-classifications regroupées dans
+  un snapshot frais par projection, sans cache de droits entre appels et sans
+  surcoût du snapshot pour les seuls champs de base. Verrou HTTP réessayé au plus
+  onze fois avec dix pauses de 5 ms, quota/fenêtre/verrou inchangés, refus persistant
+  et panne toujours bloquants. Diagnostic quota/contention/unclassified uniquement
+  dans le serveur de charge isolé, chaque refus conservé dans les mesures.
+  Tests des plafonds de requêtes, révocations et scopes, contention et budgets
+  concurrents PostgreSQL ; rapports comparatifs et contrôles dans etat-projet.md.
+  **QA-005/REC-34 restent ouverts** : le pressure final termine sans refus
+  (53 avant), mais son p95 Beta pendant charge atteint 16,56 s contre 14,51 s
+  avant ; aucun gain global de latence n'est établi. La recette
+  représentative demeure différée. Aucun seuil ou volume diminué.
 - **Consolidation des lots restants (25/10/2026)** : profilage SQL sans texte ni
   bindings, 500 comptes/100 sessions, 1 000 matchs/100 000 parties avec contraintes
   actives, lectures réelles personnes/matchs/parties et pression de trois imports

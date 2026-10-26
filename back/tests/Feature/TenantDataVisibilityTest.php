@@ -212,6 +212,46 @@ class TenantDataVisibilityTest extends TestCase
         DB::disableQueryLog();
     }
 
+    public function test_organization_projection_has_a_bounded_query_budget_for_multiple_classifications(): void
+    {
+        $membership = OrganizationMembership::factory()->withMfaAccount()->create();
+        $this->grant($membership, ['sports.read', 'administrative.read', 'financial.read']);
+        $context = $this->context($membership);
+        $record = new TenantDataRecord($membership->organization_id, ['name' => 'Alice', 'rank' => 'Gold', 'address' => 'Tunis', 'salary' => 500]);
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        try {
+            $result = app(TenantDataVisibility::class)->project($context, $record, $this->fields());
+            $queries = count(DB::getQueryLog());
+        } finally {
+            DB::disableQueryLog();
+            DB::flushQueryLog();
+        }
+
+        $this->assertSame(['name' => 'Alice', 'rank' => 'Gold', 'address' => 'Tunis', 'salary' => 500], $result);
+        $this->assertLessThanOrEqual(9, $queries, 'Organization fields should share one fresh permission read per projection.');
+    }
+
+    public function test_public_only_projection_does_not_load_unneeded_permission_grants(): void
+    {
+        $membership = OrganizationMembership::factory()->create();
+        $context = $this->context($membership);
+        $fields = ['name' => new FieldVisibility('organization.view'), 'version' => new FieldVisibility('organization.view')];
+        $record = new TenantDataRecord($membership->organization_id, ['name' => 'Alice', 'version' => 'public-reference']);
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        try {
+            $result = app(TenantDataVisibility::class)->project($context, $record, $fields);
+            $queries = count(DB::getQueryLog());
+        } finally {
+            DB::disableQueryLog();
+            DB::flushQueryLog();
+        }
+
+        $this->assertSame(['name' => 'Alice', 'version' => 'public-reference'], $result);
+        $this->assertLessThanOrEqual(4, $queries);
+    }
+
     /** @return array<string, array{mixed, bool}> */
     public static function invalidNestedData(): array
     {

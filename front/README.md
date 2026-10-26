@@ -129,6 +129,12 @@ donc pas assimilé au seul temps d'exécution PostgreSQL.
 Les centiles utilisent le rang supérieur (`ceil(n × p)`), erreurs comprises.
 Les compteurs SQL excluent le bootstrap, la preuve de propriété et la terminaison ;
 aucun SQL, binding, cookie ni corps de réponse privé n'est conservé dans ce rapport.
+Les rapports ajoutent les empreintes des deux composants optimisés
+(TenantDataProjectionService et LimitTenantRequests). `rateRefusals` distingue
+quota, contention et unclassified ; chaque 429 reste dans les erreurs et les
+centiles, même si sa cause n'est pas observée. Le marqueur X-UCG-Rate-Refusal est
+ajouté uniquement par le serveur de test isolé depuis un attribut interne, jamais
+par une donnée du client ou par le middleware de production en tant qu'en-tête.
 Le temps SQL est inclus dans le traitement HTTP ; les p95 des sous-temps ne
 s'additionnent pas.
 
@@ -145,7 +151,7 @@ système ou SIGKILL reste hors garantie de nettoyage.
 
 Les mesures incluent les contrôles de propriété et le démarrage Laravel sur des
 serveurs PHP de développement partageant le poste avec le générateur. Ces essais
-ne qualifient pas l'hébergement ni REC-34. La CI exécute les neuf tests de garde-fous,
+ne qualifient pas l'hébergement ni REC-34. La CI exécute les dix tests de garde-fous,
 sans seuil de latence sur runner partagé.
 
 ### Recette finale sur infrastructure représentative — à exécuter

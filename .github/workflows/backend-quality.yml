@@ -100,6 +100,17 @@ jobs:
           DB_PASSWORD: test-only-password
           DB_URL: ''
 
+      - name: Verify strict tenant rate admission under PostgreSQL concurrency
+        run: php artisan test --compact tests/Feature/Modules/Tenancy/TenantRateLimitConcurrencyTest.php --log-junit=reports/phpunit-rate-concurrency.xml
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: ucg_platform_test
+          DB_USERNAME: ucg_test
+          DB_PASSWORD: test-only-password
+          DB_URL: ''
+
       - name: Set up Node for real Reverb transport
         uses: actions/setup-node@v4
         with:

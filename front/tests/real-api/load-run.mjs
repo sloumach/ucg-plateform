@@ -35,6 +35,8 @@ const report = {
     '../back/tests/Fixtures/load-application.php', '../back/tests/Fixtures/load-seed.php', '../back/tests/Fixtures/load-server.php',
     '../back/tests/Fixtures/load-audit.php', '../back/tests/Fixtures/browser-application.php', '../back/tests/Fixtures/browser-postgresql.php', '../back/tests/Fixtures/browser-worker.php',
     '../back/tests/Fixtures/load-volume.php',
+    '../back/app/Modules/Tenancy/Application/Services/TenantDataProjectionService.php',
+    '../back/app/Modules/Tenancy/Presentation/Http/Middleware/LimitTenantRequests.php',
   ].map((path) => [path, createHash('sha256').update(readFileSync(resolve(front, path))).digest('hex')])),
   startedAt: new Date().toISOString(), completed: false, cleanup: false,
   topology: { database: 'PostgreSQL 17 disposable', httpServer: 'PHP built-in development server', httpProcesses: profile.httpProcesses ?? 2, workers: 1, queue: 'database', cache: 'database', loadModel: 'closed-loop authenticated sessions', tls: false },
@@ -154,12 +156,17 @@ async function peopleSample(actor_, organization, ids, pageSize, resource = 'peo
   let response
   let status = 0
   let backoffMs = 0
+  let rateRefusal = 'unclassified'
   try {
     if (abort.signal.aborted) throw new Error('Interrupted')
     const path = resource === 'games' ? `matches/${parent}/games` : resource
     response = await actor_.context.get(`/api/v1/tenants/${organization}/${path}?per_page=${pageSize}`, { headers: { 'X-Tenant-Revision': actor_.revision } })
     status = response.status()
-    if (status === 429) backoffMs = backoffMilliseconds(response.headers()['retry-after'])
+    if (status === 429) {
+      backoffMs = backoffMilliseconds(response.headers()['retry-after'])
+      const reason = response.headers()['x-ucg-rate-refusal']
+      if (['quota', 'contention'].includes(reason)) rateRefusal = reason
+    }
     const payload = await response.json()
     const header = response.headers()['x-ucg-query-count']
     const queries = Number(header)
@@ -172,7 +179,7 @@ async function peopleSample(actor_, organization, ids, pageSize, resource = 'peo
     return { status, ok: true, ms: performance.now() - started, startedMs: started, endedMs: performance.now(), queries, sqlMs, bootstrapMs, handlerMs, pageSize, resource }
   } catch {
     if (status === 200 || (status === 429 && backoffMs === 0)) abort.abort()
-    return { status, ok: false, ms: performance.now() - started, startedMs: started, endedMs: performance.now(), pageSize, resource, backoffMs }
+    return { status, ok: false, ms: performance.now() - started, startedMs: started, endedMs: performance.now(), pageSize, resource, backoffMs, rateRefusal }
   } finally { activeRequests--; if (response) await response.dispose() }
 }
 

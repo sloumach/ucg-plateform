@@ -5,8 +5,11 @@ namespace Tests\Feature\Modules\Tenancy;
 use App\Modules\Identity\Domain\Models\User;
 use App\Modules\Tenancy\Domain\Exceptions\TenantLimitExceededException;
 use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Support\Cache\TenantCacheStore;
+use App\Support\Storage\TenantResourceNamespace;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Sleep;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\TestCase;
 
@@ -65,5 +68,49 @@ class TenantRateLimitTest extends TestCase
 
         $this->actingAsWithMfa($owner)->getJson('/api/v1/tenants/'.$organization->id.'/context')
             ->assertInternalServerError()->assertJsonPath('code', 'INTERNAL_ERROR');
+    }
+
+    public function test_short_lock_contention_is_retried_without_losing_the_rate_budget(): void
+    {
+        $this->freezeTime();
+        config(['tenancy.cache_store' => 'database', 'tenancy.limits.requests_per_minute' => 1]);
+        $org = Organization::factory()->withMfaOwner()->create();
+        $held = app(TenantCacheStore::class)->lock(TenantResourceNamespace::key($org->id, 'lock', 'http-rate'), 5);
+        $this->assertTrue($held->get());
+        Sleep::fake();
+        Sleep::whenFakingSleep(fn () => $held->release());
+        try {
+            $this->actingAsWithMfa(User::findOrFail($org->owner_user_id))->getJson('/api/v1/tenants/'.$org->id.'/context')
+                ->assertOk()->assertHeader('X-RateLimit-Remaining', '0');
+            Sleep::assertSleptTimes(1);
+            $this->getJson('/api/v1/tenants/'.$org->id.'/context')->assertTooManyRequests();
+        } finally {
+            $held->release();
+            Sleep::fake(false);
+        }
+    }
+
+    public function test_persistent_contention_is_bounded_preserves_the_budget_and_does_not_block_beta(): void
+    {
+        $this->freezeTime();
+        config(['tenancy.cache_store' => 'database', 'tenancy.limits.requests_per_minute' => 1]);
+        $owner = User::factory()->withMfa()->create();
+        $alpha = Organization::factory()->create(['owner_user_id' => $owner->id]);
+        $beta = Organization::factory()->create(['owner_user_id' => $owner->id]);
+        $held = app(TenantCacheStore::class)->lock(TenantResourceNamespace::key($alpha->id, 'lock', 'http-rate'), 5);
+        $this->assertTrue($held->get());
+        Sleep::fake();
+        try {
+            $this->actingAsWithMfa($owner)->getJson('/api/v1/tenants/'.$alpha->id.'/context')
+                ->assertTooManyRequests()->assertHeader('Retry-After', '1');
+            Sleep::assertSleptTimes(10);
+            $this->getJson('/api/v1/tenants/'.$beta->id.'/context')->assertOk();
+            $held->release();
+            $this->getJson('/api/v1/tenants/'.$alpha->id.'/context')->assertOk()->assertHeader('X-RateLimit-Remaining', '0');
+            $this->getJson('/api/v1/tenants/'.$alpha->id.'/context')->assertTooManyRequests();
+        } finally {
+            $held->release();
+            Sleep::fake(false);
+        }
     }
 }

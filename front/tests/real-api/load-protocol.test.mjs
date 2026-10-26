@@ -111,3 +111,16 @@ test('pressure measurements allow Alpha imports to grow its people list while Be
   assert.equal(measurementResource(loadProfile([]), 'alpha', 2), 'people')
   assert.equal(measurementResource(loadProfile(['--profile=volume']), 'alpha', 0), 'people')
 })
+
+test('rate refusal reasons keep every 429 and never infer an unobserved quota or contention', () => {
+  const report = summarize([
+    { status: 200, ok: true, ms: 5, pageSize: 25, queries: 1 },
+    { status: 429, ok: false, ms: 10, pageSize: 25, rateRefusal: 'contention' },
+    { status: 429, ok: false, ms: 10, pageSize: 25, rateRefusal: 'quota' },
+    { status: 429, ok: false, ms: 10, pageSize: 25 },
+    { status: 429, ok: false, ms: 10, pageSize: 25, rateRefusal: 'unknown' },
+  ])
+  assert.deepEqual(report.rateRefusals, { quota: 1, contention: 1, unclassified: 2 })
+  assert.equal(report.errors, 4)
+  assert.equal(Object.values(report.rateRefusals).reduce((sum, value) => sum + value, 0), report.statusCounts['429'])
+})

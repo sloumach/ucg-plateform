@@ -5392,3 +5392,81 @@ comprennent 50 cas dans 17 suites de concurrence et 128 cas de traitement/repris
 Les cinq compléments sont un cas calendrier, un cas import et trois cas de rappel.
 Les sources finales passent aussi Pint complet, PHPStan et les contrôles du diff
 et du workflow. La nouvelle CI distante reste à confirmer après push.
+
+## UCG-QA-005 — Corrections ciblées et comparaison locale
+
+Le travail du 26 octobre 2026 reprend les écarts mesurés, avec le même protocole
+fixe. Les seuils, volumes, refus comptés et protections restent actifs ; la
+capacité de l'hébergement différé n'est pas déduite de ces essais.
+
+### Lot 1 — Diagnostic avant modification
+
+La nouvelle référence profile termine sans erreur avec 48 requêtes SQL par
+lecture courante de personnes, pour 25 comme pour 100 lignes. Les p95 Beta des
+trois phases sont 328,02 / 336,15 / 400,20 ms. Le profil conserve des lectures
+d'autorisation répétées ; la première requête users inclut potentiellement
+l'ouverture de connexion et ne suffit pas à justifier un nouvel index.
+
+La référence pressure utilise 500 comptes, 100 sessions, 1 000 matchs et
+100 000 parties, quatre processus HTTP de développement et un worker database,
+avec trois imports de 1 000 lignes et trois exports de 500 lignes. Les p95 Beta
+sont 4 745,58 / 14 509,29 / 5 822,79 ms. Les phases comptent 17 / 23 / 13 refus
+429 (tous lecteurs mesurés), sans les remplacer par des réussites. Le protocole,
+l'intégrité ciblée et le nettoyage terminent correctement ; la performance échoue.
+
+Trois tests reproduisent les points ciblés avant correction : 18 requêtes pour
+une projection multi-classifications, refus immédiat sur contention courte, et
+absence d'attente bornée avant refus persistant. Une quatrième régression protège
+ensuite le chemin léger des projections publiques seules.
+
+### Lot 2 — Corrections et protections
+
+TenantDataProjectionService utilise une lecture fraîche des permissions
+d'affichage pour une projection non vide, purement organisationnelle et composée
+de plusieurs classifications au niveau racine. Les décisions sont locales à cet
+appel, sans cache d'autorisation entre deux appels ou requêtes. Les projections
+limitées aux champs de base organization.view, vides ou à portée équipe/autre scope
+gardent leurs vérifications
+existantes. Les mutations conservent leurs appels authorize indépendants. Les
+tests exigent au plus neuf requêtes pour plusieurs classifications, au plus quatre
+pour les seuls champs de base (toujours réservés à un membre autorisé), et
+conservent révocations/MFA/tenant/scopes.
+
+LimitTenantRequests garde le verrou par tenant, son bail de cinq secondes,
+l'admission atomique, le quota configuré et la fenêtre de 60 secondes. Il tente
+l'acquisition au plus onze fois, avec dix pauses de 5 ms au maximum : 50 ms de
+pauses cumulées, auxquelles s'ajoutent les appels au cache. Ce n'est pas une borne
+murale de 50 ms sur une dépendance lente. Si la contention persiste, le 429 et le
+Retry-After d'une seconde restent appliqués, sans consommer le budget ni libérer
+le verrou d'un autre propriétaire. Un quota épuisé reste refusé normalement.
+Les erreurs de cache continuent à échouer sans bascule permissive.
+
+Les causes quota/contention sont portées par un attribut interne de la requête ;
+seul le serveur de charge isolé les expose en diagnostic. Aucune nouvelle donnée
+n'est ajoutée à l'API de production. Les rapports classent les autres 429 comme
+unclassified et les gardent dans les erreurs, sans déduire leur cause.
+
+### Lot 3 — Vérifications et nouvelle mesure
+
+Les courses PostgreSQL du limiteur utilisent deux/quatre processus sur un budget
+de une/deux admissions, puis deux tenants aux budgets distincts. Le résultat
+exige exactement le nombre autorisé, les refus de quota restants et aucun verrou
+résiduel. Les tests HTTP contrôlent en plus contention persistante, reprise après
+libération, séparation Beta, quota inchangé et fermeture en cas de cache invalide.
+La CI backend ajoute ces courses et conserve leur JUnit.
+
+La suite complète finale passe : 2 767 tests réussis, 17 852 assertions et
+59 exclusions conditionnelles. Les suites PostgreSQL ciblées passent séparément
+sans exclusion. Le pressure final termine avec 597 lectures réussies, aucun
+refus 429 (53 dans la référence), imports/exports et nettoyage conformes.
+Le p95 Beta pendant charge atteint toutefois 16,56 s contre 14,51 s avant :
+aucun gain global de latence n'est établi, la cible 500 ms reste non atteinte.
+
+La comparaison finale et les chemins des rapports sont consignés dans
+[l'état du projet](docs/etat-projet.md). Les rapports intermédiaires sont conservés
+sans les reclasser comme résultats des sources finales. Le poste est partagé avec
+le générateur ; les quatre serveurs HTTP de développement exécutent chacun les
+requêtes en série. Les latences incluent donc attente, bootstrap et connexion.
+Les gains sur ces composants ne certifient ni 100 utilisateurs sur le futur
+hébergement, ni le p95 de 500 ms sous forte charge. QA-005/REC-34 restent ouverts
+tant que ces critères et la recette représentative ne sont pas satisfaits.

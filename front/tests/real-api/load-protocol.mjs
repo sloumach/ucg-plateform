@@ -44,6 +44,8 @@ export function summarize(samples) {
     requests: samples.length, successful: successful.length, errors: samples.length - successful.length,
     p50Ms: percentile(timings, 0.5), p95Ms: percentile(timings, 0.95), maxMs: Math.max(...timings),
     statusCounts: Object.fromEntries([...new Set(samples.map((sample) => String(sample.status)))].map((status) => [status, samples.filter((sample) => String(sample.status) === status).length])),
+    rateRefusals: Object.fromEntries(['quota', 'contention', 'unclassified'].map((reason) => [reason,
+      samples.filter((sample) => sample.status === 429 && (['quota', 'contention'].includes(sample.rateRefusal) ? sample.rateRefusal : 'unclassified') === reason).length])),
     queryCounts: Object.fromEntries([25, 100].map((size) => {
       const counts = successful.filter((sample) => sample.pageSize === size).map((sample) => sample.queries)
       const rows = successful.filter((sample) => sample.pageSize === size)

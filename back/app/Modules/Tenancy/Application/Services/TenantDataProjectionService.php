@@ -41,6 +41,17 @@ final readonly class TenantDataProjectionService implements TenantDataVisibility
         }
         $this->authorization->authorize($context, 'organization.view');
         $decisions = [];
+        $organizationScope = json_encode(['organization', $context->organizationId], JSON_THROW_ON_ERROR);
+        if ($records !== [] && count($verifiedScopes) === 1 && isset($verifiedScopes[$organizationScope])
+            && count(array_unique(array_column($fields, 'permission'))) > 1) {
+            // Display-only decisions share a fresh snapshot within this projection,
+            // never across calls; scoped records keep their individual checks.
+            $permissions = array_fill_keys($this->authorization->permissions($context), true);
+            foreach (Permission::cases() as $permission) {
+                $key = json_encode([$permission->value, 'organization', $context->organizationId], JSON_THROW_ON_ERROR);
+                $decisions[$key] = isset($permissions[$permission->value]);
+            }
+        }
         $result = [];
         foreach ($records as $record) {
             $result[] = $this->filter($context, $record, $record->data, $fields, $decisions);

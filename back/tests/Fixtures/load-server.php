@@ -1,5 +1,6 @@
 <?php
 
+use App\Modules\Tenancy\Presentation\Http\Middleware\LimitTenantRequests;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Database\Events\QueryExecuted;
@@ -45,6 +46,10 @@ $response->headers->set('X-UCG-Query-Count', (string) $queries);
 $response->headers->set('X-UCG-Query-Ms', (string) round($queryMilliseconds, 3));
 $response->headers->set('X-UCG-Bootstrap-Ms', (string) round($bootstrapMilliseconds, 3));
 $response->headers->set('X-UCG-Handler-Ms', (string) round((microtime(true) - $handlingStarted) * 1000, 3));
+$refusal = $request->attributes->get(LimitTenantRequests::REFUSAL_ATTRIBUTE);
+if (is_string($refusal)) {
+    $response->headers->set('X-UCG-Rate-Refusal', $refusal);
+}
 $response->send();
 if ($profiling && str_ends_with($request->path(), '/people')) {
     $root = getenv('UCG_BROWSER_ROOT');

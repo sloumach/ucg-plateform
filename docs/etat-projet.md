@@ -6,7 +6,15 @@
 ## Point de reprise
 
 - Dernière mise à jour : 26 octobre 2026.
-- Tâche courante : **UCG-QA-004, trois lots en un seul commit puis push demandés**.
+- Tâche courante : **UCG-QA-005, trois lots de corrections réalisés, livraison en commit unique et push**.
+  Références profile/pressure refaites avant modification ; optimisation locale
+  des projections multi-classifications et attente bornée du verrou HTTP sans
+  hausse de quota. Diagnostic des 429 dans le seul serveur de charge isolé.
+  Tests de droits/révocations, projections publiques et concurrence stricte du
+  limiteur ; suite complète verte et mesures finales en fin de document.
+  Pressure sans refus mais latence non qualifiée : QA-005/REC-34 restent ouverts. Hébergement différé,
+  données fictives ; la CI de `434d3a6` n'est pas déclarée validée sans confirmation.
+- Lot précédent : **UCG-QA-004, trois lots livrés en `434d3a6` et poussés**.
   Inventaire des tests existants, compléments PostgreSQL calendrier/imports et
   courses de rappels contractuels avec reprise et accusé simulé incertain. Les
   scores/résultats et les tests de reprise existants sont conservés/réexécutés.
@@ -7831,3 +7839,133 @@ Les envois SMTP réels, interruption de machine, limites du cache de fin de tâc
 et futures intégrations n’acquièrent aucune garantie exactly-once universelle.
 Aucune restauration, purge, intervention ou donnée réelle n’a été touchée.
 Livraison en un seul commit puis push demandés ; la nouvelle CI reste à valider.
+
+## UCG-QA-005 — Diagnostic, corrections et comparaison (26 octobre 2026)
+
+L'utilisateur autorise les trois lots dans un seul commit puis push après
+`434d3a6`. Sa CI ne reçoit pas de validation implicite par ce changement de tâche.
+Hébergement toujours différé, données exclusivement fictives.
+
+### Références avant changement
+
+Le protocole profile est relancé sur le code applicatif inchangé :
+load-profile-1793048559981.json, p95 Beta avant/pendant/après de
+328,02 / 336,15 / 400,20 ms, zéro erreur, 48 requêtes courantes par lecture
+pour 25 comme 100 personnes. La première requête users inclut potentiellement
+la connexion ; aucun index spéculatif n'est ajouté à partir de cette durée seule.
+
+La référence pressure load-pressure-1793048688601.json termine avec intégrité
+ciblée et nettoyage conformes, zéro job échoué/en attente, mais performance
+refusée : p95 Beta 4 745,58 / 14 509,29 / 5 822,79 ms ; 17 / 23 / 13 refus
+sur l'ensemble des phases mesurées (Beta seul : 17 / 12 / 13). Les causes ne
+sont pas inventées dans cet ancien format de rapport non instrumenté pour cela.
+Les deux références sont prises depuis 434d3a6 avant modification applicative.
+
+### Corrections ciblées et vérifications fonctionnelles
+
+Les trois premières régressions échouent avant correction : projection de quatre
+classifications à 18 requêtes au lieu d'au plus neuf ; contention libérée après
+une courte pause toujours refusée ; aucune attente bornée lors d'une contention
+persistante. La projection regroupe ensuite les permissions d'affichage dans une
+lecture fraîche par appel pour les collections organisationnelles non vides et
+multi-classifications racine. Les mutations ne réutilisent pas ce snapshot.
+Portées équipe/autres scopes, tenant, MFA et révocations gardent leurs contrôles.
+Un quatrième test détecte le surcoût du premier ajustement pour les seuls champs
+organization.view (sept requêtes au lieu d'au plus quatre) ; ce cas garde donc
+son chemin initial. Aucun cache d'autorisation inter-appels n'est ajouté.
+
+Le limiteur HTTP conserve bail cinq secondes, verrou atomique par tenant,
+maximum configuré, fenêtre 60 secondes et réponses existantes. Il réessaie
+jusqu'à onze acquisitions avec dix pauses de 5 ms : au plus 50 ms de pauses
+volontaires, hors temps des appels au cache. Contention persistante : 429 avec
+Retry-After=1 sans consommation du budget ni libération d'un verrou étranger.
+Quota épuisé ou cache invalide restent bloquants. Le diagnostic interne ne devient
+un en-tête que dans le serveur de charge isolé ; les rapports conservent tous les
+429 avec leur cause observée, ou unclassified sans la deviner.
+
+Trois courses PostgreSQL vérifient les quotas avec deux/quatre processus et
+deux tenants, les compteurs exacts et l'absence de verrou résiduel. Un worker de
+test dédié refuse les bases hors du préfixe jetable, les barrières étrangères et
+les scénarios hors du schéma fermé. Son appel direct au middleware ne remplace
+pas les tests HTTP d'authentification/MFA exécutés séparément. Étape CI dédiée
+et rapport phpunit-rate-concurrency.xml conservé par l'artefact backend existant.
+
+### Essais intermédiaires conservés
+
+load-pressure-1793049171027.json : protocole complet et nettoyage conformes,
+3 000 créations Alpha, trois exports de 500 lignes, zéro job échoué/en attente.
+P95 Beta 4 939,03 / 13 394,02 / 5 673,22 ms ; aucun refus dans les trois phases.
+L'objectif 500 ms reste refusé. load-profile-1793049495462.json termine sans
+erreur avec p95 308,57 / 413,54 / 314,52 ms et 47 requêtes courantes par lecture.
+Ces rapports précèdent le garde-fou du chemin organisation.view seul ; ils ne
+sont pas présentés comme preuves des dernières sources. Aucun résultat lent
+n'est supprimé ou reclassé en réussite de performance.
+
+### Vérifications des sources finales
+
+Les suites ciblées de projection, limitation HTTP et liste de personnes passent :
+83 tests, 246 assertions. Les deux cas HTTP de contention sont ensuite rejoués
+avec une horloge figée pour stabiliser leur bail : deux tests, 16 assertions.
+Les dix suites PostgreSQL de droits, révocations, scopes, listes et cache passent
+avec 224 tests, 1 531 assertions, aucune exclusion ; les trois courses du limiteur
+sont rejouées après validation fermée des arguments du worker : trois tests,
+34 assertions, aucune exclusion. Rapports locaux ignorés par Git :
+back/reports/phpunit-qa005-focused.xml, phpunit-qa005-postgresql.xml et
+phpunit-qa005-rate-postgresql.xml.
+
+Les 16 tests Node du protocole et de l'environnement isolé passent. Le lint
+frontend, PHPStan sans erreur, Pint complet et la syntaxe YAML/shell du workflow
+passent également. Le premier passage complet rencontre une erreur JSON dans
+le test TCP simulé ClamAV « oversized reply » ; ses 15 cas passent ensuite
+isolément. Cette erreur intermittente reste consignée et n'est pas attribuée
+aux corrections sans preuve. La relance complète passe : 2 767 tests réussis,
+17 852 assertions, zéro erreur/échec et 59 exclusions conditionnelles sur
+2 826 cas, en 510,98 secondes. Rapport :
+back/reports/phpunit-qa005-all-final.xml. Les exclusions locales incluent les
+intégrations nécessitant leurs services dédiés ; les courses PostgreSQL ont
+été exécutées séparément sans exclusion, comme indiqué ci-dessus.
+
+### Comparaison finale pressure
+
+Rapport front/reports/load-pressure-1793050968784.json : protocole terminé,
+intégrité ciblée et nettoyage conformes. Les empreintes des sources du rapport
+correspondent aux fichiers finaux. Le sourceCommit reste 434d3a6 avec arbre
+modifié, puisque les mesures précèdent le commit de livraison.
+
+| Mesure | Avant | Intermédiaire | Sources finales |
+| --- | ---: | ---: | ---: |
+| p95 Beta avant charge (ms) | 4 745,58 | 4 939,03 | 5 635,45 |
+| p95 Beta pendant charge (ms) | 14 509,29 | 13 394,02 | 16 563,77 |
+| p95 Beta après charge (ms) | 5 822,79 | 5 673,22 | 4 327,46 |
+| Refus 429, toutes phases | 53 | 0 | 0 |
+| Objectif p95 < 500 ms | non | non | non |
+
+Les 597 lectures finales réussissent (150 / 297 / 150 par phase) ; aucune erreur
+ni refus quota/contention/unclassified. Trois imports terminent avec 3 000
+créations Alpha et trois exports de 500 lignes ; zéro job échoué/en attente,
+Beta/Gamma inchangés selon les contrôles ciblés. La sortie 1 du protocole exprime
+l'échec de performance, pas un arrêt incomplet ou un nettoyage oublié.
+
+La disparition des refus observés et la réduction prouvée des lectures de droits
+ne constituent pas un gain global de latence : le dernier p95 pendant charge est
+plus élevé que la référence. Les essais utilisent un poste partagé avec le
+générateur et quatre serveurs HTTP de développement séquentiels ; ils ne
+permettent pas d'attribuer toute variation à une seule correction. Aucun seuil,
+volume ou quota n'est diminué. **QA-005/REC-34 restent ouverts**, sur les écarts
+de latence et la qualification représentative/public/Redis/Horizon/longue durée.
+
+### Profilage final et livraison
+
+front/reports/load-profile-1793051310403.json termine sans erreur, avec
+nettoyage conforme et empreintes correspondant aux sources finales. Ses p95
+Beta sont 312,19 / 297,23 / 299,44 ms (avant : 328,02 / 336,15 / 400,20 ms).
+Les 300 lectures réussissent ; 47 requêtes SQL courantes pour 25 comme 100
+personnes (contre 48 avant), avec quelques lectures supplémentaires lors des
+expirations en phase de reprise (maxima 48 / 50). Le plafond 500 ms passe dans
+ce seul scénario à faible concurrence ; il ne remplace pas le résultat pressure.
+
+Les trois lots locaux sont réalisés et regroupés dans la livraison unique
+demandée avec push sur staging. La nouvelle CI distante reste à valider après
+push. La suite complète verte ne supprime pas l'incident ClamAV intermittent
+du premier passage ni les limites de performance documentées. Aucun hébergement,
+service réel ou donnée personnelle n'a été utilisé pour ces essais.
