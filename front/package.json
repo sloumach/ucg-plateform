@@ -26,6 +26,8 @@
     "test:recovery": "node --test tests/real-api/recovery.test.mjs",
     "test:recovery:tenant": "node --test tests/real-api/tenant-recovery.test.mjs",
     "test:recovery:graph": "node --test tests/real-api/tenant-graph.test.mjs",
+    "test:retention:harness": "node --test tests/real-api/retention-review.test.mjs",
+    "test:retention:simulation": "node tests/real-api/retention-run.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

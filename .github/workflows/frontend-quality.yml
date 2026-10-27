@@ -41,6 +41,11 @@ jobs:
       - name: Run frontend lint
         run: npm run lint
 
+      - name: Test fictional retention decisions without application access
+        run: |
+          npm run test:retention:harness
+          node tests/real-api/retention-run.mjs > reports/retention-review.json
+
       - name: Run frontend tests
         run: npm run test:ci
 
@@ -55,6 +60,7 @@ jobs:
           path: |
             front/reports/vitest.xml
             front/reports/npm-audit.json
+            front/reports/retention-review.json
           if-no-files-found: ignore
           retention-days: 14
 

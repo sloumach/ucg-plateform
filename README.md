@@ -4845,17 +4845,118 @@ durée métier ou avis juridique n'est réputé acquis à partir du nom UCG.
 | Décision | État confirmé | Élément nécessaire pour clôturer le cadrage réel | Porteur attendu |
 | --- | --- | --- | --- |
 | CAD4-01 — Pays et territoires | UCG établie en Tunisie ; première population cible vivant en Tunisie ; MENA/Europe ensuite ; essai actuel fictif | Liste des pays et usages examinés avant toute extension ; lieux de traitement couverts par CAD4-06 | Direction UCG |
-| CAD4-02 — Responsabilités | UCG est une véritable structure ; vérificateur parents/tuteurs à désigner dans l'équipe | Identifier l'entité/personne qui décide des finalités et moyens, son contact et la répartition avec exploitant/prestataires. Distinguer compte propriétaire technique, vérificateur et responsable des traitements ; qualifier séparément la plateforme et chaque organisation | Direction UCG avec validation compétente |
+| CAD4-02 — Responsabilités | L'utilisateur confirme le 27/10/2026 qu'il décide des informations demandées aux membres et de qui peut les voir ; vérificateur parents/tuteurs à désigner | Préciser en quelle qualité il agit, l'identité de la personne/structure, son contact et la répartition avec exploitant/prestataires. Distinguer décision opérationnelle, compte propriétaire technique et qualification juridique ; qualifier séparément la plateforme et chaque organisation | Utilisateur, décideur opérationnel UCG, avec validation compétente |
 | CAD4-03 — Mineurs | Accueil futur confirmé ; date de naissance facultative dans le code ; aucun parcours complet de représentant livré | Nommer vérificateur/remplaçant, valider la procédure ci-dessous, l'âge pertinent, les éléments nécessaires et les formalités ; rattacher la décision à ACA-005 | Direction UCG et personne compétente en droit tunisien |
 | CAD4-04 — Conservation | Inventaire des 116 tables en 18 familles, huit sous-catégories PERS et expirations techniques disponibles | Décision datée sur chaque catégorie utilisée : finalité, événement, durée active, archive/accès, justification, action finale, copies, gel et validateur. Documenter aussi les catégories hors périmètre du premier essai réel et le contrôle avant leur activation | Responsables métier et validation locale |
 | CAD4-05 — Information et demandes | Usages internes/publics et copies distingués dans la fiche | Texte adapté aux usages retenus, destinataires, contact de demande, vérification du demandeur, traitement des corrections/retraits/départs et procédure de décision tracée | Direction UCG et référent à désigner |
 | CAD4-06 — Hébergement et prestataires | Choix différé par l'utilisateur | Prestataire, pays des bases/fichiers/sauvegardes/logs, accès support, services externes, transferts et responsabilités contractuelles ; vérifier la chaîne effective dans OPS-001/004/005 | Direction UCG et exploitation |
 
-Les rôles juridiques ne sont pas attribués automatiquement : la question de
-l'entité qui choisit les données et leurs usages n'a pas encore reçu de réponse.
+Le décideur opérationnel est désormais identifié par sa réponse : l'utilisateur.
+Les rôles juridiques ne sont pas attribués automatiquement ; la qualité dans
+laquelle il agit et l'identité de la personne/structure restent à préciser.
 Le vérificateur des parents/tuteurs n'est pas non plus une personne déjà nommée.
 La résidence tunisienne des personnes n'identifie pas le pays d'un futur service
 d'e-mail, d'un stockage ou d'un accès de support.
+
+#### Premier lot de décision opérationnelle — 27 octobre 2026
+
+**Base de travail présentée simplement, puis accueillie par « ok » :**
+informations sportives accessibles aux personnes autorisées pour le sportif ;
+coordonnées/identité aux personnes autorisées pour l'administration ; contrats et
+montants avec accès séparé. Au départ d'un membre, retirer ses accès et examiner
+les informations encore nécessaires. Identifier les informations devenues inutiles
+avant toute suppression ; aucune nouvelle suppression automatique à ce stade.
+Ces principes servent à préparer la liste des informations à garder, restreindre
+ou supprimer. Ils ne fixent aucune durée et ne changent aucune permission réelle.
+
+Dans cette fiche, UCG désigne Ultra Cyber Game, la structure esport de l'utilisateur.
+Les données désignent les informations enregistrées dans l'application : pseudonymes,
+identité/contact lorsque nécessaires, équipes, présences, résultats et autres dossiers.
+Le premier essai réel désigne un essai avec quelques membres et leurs véritables
+informations ; il est distinct de l'essai fictif actuel.
+
+Après reformulation, l'utilisateur confirme le 27 octobre 2026 : « c'est moi qui
+décide ». Cette réponse identifie qui choisit les informations demandées aux
+membres et qui peut les voir. Elle ne précise pas encore la qualité dans laquelle
+il agit ni l'identité de la personne/structure. Le choix des fonctions à essayer
+en premier avec quelques membres réels reste à confirmer.
+L'option de travail proposée est une gestion interne des personnes, équipes,
+planning et matchs ; elle n'est ni un périmètre approuvé ni une exclusion des
+mineurs déjà envisagés. Académie, contrats/finances et diffusion publique doivent
+être décidés explicitement avant leur ajout au périmètre réel. Le pilote actuel
+reste entièrement fictif et aucun module n'est activé ou désactivé par cette fiche.
+
+Le premier lot porte sur PERS-01 à PERS-08. Les propositions suivantes précisent
+les décisions à prendre sans choisir une durée, une base juridique ou un seuil
+d'âge à la place d'UCG et de la validation applicable.
+
+| Décision | Proposition opérationnelle à examiner | Source disponible et travail restant |
+| --- | --- | --- |
+| PERS-D01 — Données courantes | Pour la gestion sportive interne, partir du pseudonyme, langue, fuseau, statut et des références de jeu utiles. Justifier séparément nom, prénom, contact, date de naissance et chaque biographie ; la disponibilité d'un champ ne suffit pas à le rendre nécessaire. | `PersonInput::SPORTS_FIELDS` / `ADMINISTRATIVE_FIELDS`, projection par permissions. Les biographies restent facultatives ; aucun formulaire ni champ obligatoire n'est modifié. |
+| PERS-D02 — Candidature et essai | Définir une clôture explicite et datée, avec résultat et auteur ; distinguer retrait, refus, abandon et intégration. Choisir ensuite les règles de conservation par sous-catégorie. | `candidate` et `trial` sont des statuts ; aucun événement dédié de clôture de candidature/essai n'est identifié. Ne pas démarrer un délai sur `updated_at`, la dernière connexion ou une date supposée. |
+| PERS-D03 — Membre et départ | Maintenir le dossier utile tant que la relation définie par UCG continue. Au départ enregistré, revoir les coordonnées, biographies, accès et références historiques séparément. | `PersonDepartureService` enregistre `person_departures.departed_at`. `unavailable`, `substitute` ou `former` seul ne prouvent pas une fin de relation ; un dossier sans événement fiable nécessite une revue. |
+| PERS-D04 — Obligation ouverte | Définir précisément quelles données restent nécessaires, pour quelle obligation, qui revoit le besoin et ce qui marque sa résolution. | Éléments de départ et `pending_items_count` disponibles. Un élément ouvert ne justifie pas automatiquement le maintien de tout le dossier et ne constitue pas un gel juridique général. |
+| PERS-D05 — Mineur ou situation inconnue | Séparer la revue du dossier, la qualité du représentant et l'accord pour chaque usage. Fixer les preuves, accès et réexamens dans la procédure approuvée ; ne pas placer de justificatifs dans les biographies. | La date de naissance est facultative ; aucun état de vérification du représentant ne peut être déduit du dossier actuel. ACA-005 reste à concevoir après décision et validation locale. |
+| PERS-D06 — Liens et copies | Décider des données minimales encore nécessaires dans équipes/matchs/contrats, imports, exports et sauvegardes ; prévoir le traitement d'une restauration. | Le compte global et les autres organisations restent distincts. Les gardes SQL et historiques ne doivent pas être contournés ; effacer une copie ne prouve pas l'effacement de sa source. |
+
+Pour chaque décision retenue, compléter dans la fiche CAD4-04 existante :
+responsable, finalité précise, population/pays, champs, événement fiable, durée
+active, éventuelle durée/permission d'archive, justification et validation,
+action finale, copies, exceptions ciblées et date de réexamen. Une durée non
+définie reste une décision manquante ; elle ne devient ni zéro ni illimitée.
+Le rôle d'archive est à définir : `administrative.read` n'est pas supposé donner
+automatiquement un accès à toute future archive.
+
+#### Simulation OPS-007 — premier laboratoire fictif
+
+Le premier laboratoire est livré dans `front/tests/real-api/retention-review.mjs`
+et `retention-run.mjs`. Il utilise un instant explicite et seulement les organisations
+fictives fixture-alpha/fixture-beta. Il explique chaque décision sans identité ni
+contenu privé. Les exemples ont un délai fictif de 30 jours uniquement pour tester
+l'arithmétique ; ce n'est ni une proposition ni une règle de conservation UCG.
+Les résultats ci-dessous sont des décisions de laboratoire, pas des états de
+dossiers réels ni une autorisation de supprimer :
+
+| Cas fictif | Résultat attendu du laboratoire |
+| --- | --- |
+| Politique fictive, référence, durée ou revue manquante | Décision à compléter ; aucune échéance ou suppression autorisée déduite. |
+| Candidat/essai sans événement de clôture fiable | Revue de l'événement ; aucun délai inventé. |
+| Indisponibilité ou simple statut `former` | Aucun départ présumé ; examen du parcours et de ses preuves. |
+| Départ enregistré avec règle complète | Calcul expliqué de l'échéance ; ce résultat ne donne aucun droit d'exécuter une purge. |
+| Obligation ou contestation documentée | Examen du périmètre retenu, du responsable et de la prochaine revue ; aucun gel global implicite. |
+| Mineur, âge ou représentation non établis | Revue de la procédure et des usages ; aucune autorisation déduite d'une date de naissance. |
+| Identité rattachée à un compte utilisé par Beta | Conservation des droits et données de Beta ; aucun effacement du compte global par décision Alpha. |
+| Document copié dans un export ou une sauvegarde | Suivi distinct de la source et des copies ; pas de preuve d'effacement exhaustif limitée à la base active. |
+
+Exécution depuis `front` :
+
+```powershell
+npm run test:retention:harness
+npm run test:retention:simulation
+```
+
+Le lanceur refuse tout argument, URL, fichier ou base externe. Il n'importe aucun
+code de l'application, ne lit ni données ni configuration UCG et ne possède aucun
+adaptateur de suppression. Il écrit seulement son rapport JSON sur la sortie
+standard. Toute règle fictive manquante/incomplète ou tout cas nécessitant une revue
+reste à examiner, sans échéance déduite ; même une échéance atteinte n'autorise pas
+de suppression. Les fixtures sont bornées et la politique doit être marquée fictive.
+
+Résultat local : 11 cas, dont 3 usages courants à réexaminer, 7 revues requises
+et 1 échéance fictive atteinte. Neuf tests Node passent, dont UTC/bissextile,
+événement absent, mineur/âge inconnu, copies, compte partagé, schéma fermé et
+refus inter-organisation. Ils ne prouvent pas un effacement réel, une isolation
+SQL ou la prise en charge des 116 tables. Le workflow frontend ajoute ces tests
+et un rapport `retention-review.json` ; son exécution distante reste à confirmer.
+Un besoin courant doit être explicitement renseigné dans la fixture : un simple
+statut actif ne le prouve pas. La revue fictive d'une règle ne valide ni responsable,
+procédure mineurs, copies réelles, durées UCG ou formalités applicables.
+
+Le plan opérateur déjà disponible dans `OrganizationPurgeService::plan()` inventorie des
+tables après autorisation ; il ne calcule pas cette politique métier. Son chemin
+`execute()` est distinct et ne doit pas être appelé pour simuler PERS-D01–06.
+La configuration `tenancy.portability.purge_policies` reste vide et les paramètres
+de conservation de l'audit restent inchangés.
 
 #### Point juridique à intégrer avant données réelles
 
@@ -4868,6 +4969,10 @@ l'applicabilité exacte ni l'état exhaustif du droit. La [fiche officielle ARP
 095/2025](https://www.arp.tn/loi/project/4237) affiche une proposition en commission ;
 elle ne constitue pas une loi de remplacement promulguée. Faire confirmer les
 textes et modalités en vigueur avant collecte réelle.
+Les deux pages officielles ci-dessus ont été relues le 27 octobre 2026 : le texte
+publié par l'INS conserve les points signalés et la fiche ARP affiche toujours
+un examen en commission. Cette vérification ciblée ne constitue pas un examen
+exhaustif des textes applicables ni une validation juridique du pilote.
 
 #### Procédure proposée pour les mineurs — à valider, non implémentée
 

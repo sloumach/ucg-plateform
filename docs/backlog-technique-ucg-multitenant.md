@@ -1428,6 +1428,15 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / L
 - **Périmètre** : matrice par catégorie/tenant, archivage restreint, purge, exports temporaires, réplicas et cycle des sauvegardes.
 - **Acceptation** : soft delete non confondu avec effacement ; opération auditée et testée.
+- **Premier laboratoire fictif (27/10/2026)** : module pur Node et lanceur fixe
+  dans front/tests/real-api, 11 exemples et 9 tests réussis. Politique de 30 jours
+  exclusivement fictive pour tester le calcul UTC, aucune durée UCG choisie.
+  Absence de règle/date, obligations, mineurs/âge inconnu, copies et compte partagé
+  demandent une revue ; même une échéance atteinte ne permet aucune suppression.
+  Schéma/organisations fermés, arguments externes refusés, aucune lecture de l'app,
+  de sa configuration ou de ses bases. Rapport JSON et tests raccordés à la CI,
+  exécution distante non confirmée. **Ticket/CAD-004/REC-35 ouverts** : ce laboratoire
+  n'est ni une politique validée, ni un moteur métier, ni un test d'effacement réel.
 - **Préparation documentaire (25/10/2026)** : établissement UCG en Tunisie confirmé
   par l'utilisateur. Inventaire des 116 entrées du catalogue en 18 familles,
   événements de départ proposés et fiche de décision dans le README ; aucune
@@ -1830,6 +1839,19 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 
 - **Priorité / taille** : P0 / M
 - **Décision attendue** : pays d’établissement, territoires, rôles RGPD, durées, représentants légaux et hébergement.
+- **Décideur confirmé (27/10/2026)** : l'utilisateur choisit les informations
+  demandées aux membres et qui peut les voir. CAD4-02 actualisé ; qualité dans
+  laquelle il agit, identité personne/structure et contact restent à préciser,
+  sans attribution automatique d'une qualification juridique. Fonctions du
+  premier essai réel, durées et procédure mineurs encore à confirmer.
+- **Reprise opérationnelle (27/10/2026)** : deux questions transmises à l'utilisateur
+  sur le décideur des usages/données et le périmètre du premier essai réel.
+  Six décisions PERS-D01–06 préparées dans le dossier README, avec sources du code,
+  événements manquants, accès d'archive à décider et huit résultats attendus d'une
+  future simulation OPS-007. Aucun événement, durée ou responsable inventé ;
+  aucune simulation nouvelle exécutée, aucun moteur/politique de purge activé.
+  Deux sources officielles déjà citées revérifiées ; validation locale, réponses
+  UCG, durées et hébergement restent ouverts.
 - **État consolidé (25/10/2026)** : préparation documentaire consolidée, **ticket
   ouvert pour validation avant données réelles**. L'utilisateur confirme UCG comme
   sa véritable structure et des essais uniquement fictifs pour le moment ; la

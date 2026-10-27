@@ -6,7 +6,42 @@
 ## Point de reprise
 
 - Dernière mise à jour : 27 octobre 2026.
-- Tâche courante : **UCG-QA-005, réduction des lectures répétées et diagnostic de latence ; commit et push demandés**.
+- Tâche courante : **UCG-OPS-007, premier laboratoire de revue fictif**.
+  L'utilisateur demande ensuite « ok commit & push » : préparation d'un commit
+  unique regroupant le cadrage CAD-004 et ce laboratoire, puis push sur la branche
+  staging du dépôt origin configuré. La nouvelle CI reste à valider après livraison.
+  Après « ok on continue ? », module pur Node et lanceur fixe ajoutés dans
+  front/tests/real-api. Onze exemples fictifs : trois usages courants, sept revues
+  requises, une échéance fictive atteinte ; aucun résultat n'autorise de suppression.
+  Neuf tests Node et lint verts, rapport local ignoré retention-review-local.json,
+  scripts npm et étape CI/report ajoutés. Aucune lecture d'application/base réelle,
+  aucun choix de durée UCG, aucune configuration de purge modifiée. Les 30 jours
+  servent exclusivement à l'arithmétique des fixtures. Résultats et limites en fin
+  de document ; CAD-004, OPS-007 et REC-35 restent ouverts.
+- Préparation précédente : **UCG-CAD-004 puis préparation OPS-007, premier lot opérationnel**.
+  Après plusieurs demandes d'explication, une proposition simple par exemples
+  (sportif, coordonnées, contrats, départ, informations inutiles) est présentée ;
+  l'utilisateur répond « ok ». Elle est retenue comme base de travail dans le
+  README, sans nouvelle suppression automatique, durée ou permission appliquée.
+  Privilégier les exemples concrets et ne pas répéter les questions de cadrage
+  abstraites déjà incomprises ; aucune nouvelle réponse n'est requise à ce stade.
+  L'utilisateur autorise le démarrage. Dossier existant relu ; questions envoyées
+  sur le décideur des données/usages et les modules du premier essai réel.
+  L'utilisateur demande d'expliquer UCG, données et pilote : questions reformulées
+  en termes d'informations des membres et de fonctions à essayer. Il confirme
+  ensuite « c'est moi qui décide » : décideur opérationnel identifié, qualité et
+  identité personne/structure encore à préciser, périmètre réel non confirmé.
+  Fiche PERS-D01–06 et contrat de simulation en huit cas ajoutés au
+  README, sources applicatives examinées et deux références officielles relues.
+  Aucun code/configuration, événement de clôture, durée ou donnée modifié ; pas de
+  purge ni de nouvelle simulation exécutée. Détails en fin de document ; CAD-004,
+  OPS-007/REC-35 restent ouverts sur les décisions/validations nécessaires.
+- Lot précédent : **UCG-QA-005, commit `c1d3fb7` créé localement sur staging**.
+  Le push vers origin/staging a été rejeté par le contrôle automatique, qui exige
+  une autorisation explicite de la destination github.com/sloumach/ucg-plateform.
+  La demande de commit/push est renouvelée après le laboratoire OPS-007 ; vérifier
+  le résultat effectif de l'envoi avant de déclarer ce commit publié.
+- Livraison QA-005 précédente : **réduction des lectures répétées et diagnostic de latence**.
   Références locales profile/pressure reprises sur `83607c9`. Optimisation de la
   liste People et des projections, décisions locales aux appels et projection
   revalidée après lecture. Tests, vérifications et mesures finales terminés,
@@ -8108,3 +8143,94 @@ selon le protocole déjà préparé. Aucun quota, volume ou seuil n'est diminué
 Livraison unique avec commit et push sur staging demandés ; la nouvelle CI reste
 à valider après push. Aucun changement de migration, de dépendance, de configuration
 de production ou de donnée réelle. Les essais restent exclusivement fictifs.
+
+## UCG-CAD-004 / OPS-007 — Premier lot de décision opérationnelle (27 octobre 2026)
+
+Après QA-005, l'utilisateur autorise le démarrage du cadrage conservation/mineurs.
+Le dossier existant couvre déjà les six décisions CAD4, 18 familles et huit
+sous-catégories PERS ; aucune réponse manquante n'est remplacée par une supposition.
+Le README reçoit six propositions PERS-D01–06, reliées à PersonInput, PersonStatus,
+PersonDepartureService et au plan opérateur OrganizationPurgeService.
+
+La fiche distingue les champs utiles, les événements de candidature/essai manquants,
+le départ réellement enregistré, les obligations ouvertes, le parcours des mineurs
+et les copies/références intermodules. Un contrat de simulation en huit cas explicite
+les résultats attendus, notamment politique incomplète, événement absent, compte
+partagé et copies ; ces scénarios ne sont pas implémentés ni déclarés exécutés.
+
+Deux questions ont été transmises : qui choisit les informations demandées aux
+membres et leur accès, puis quelles fonctions essayer avec quelques membres réels.
+L'utilisateur demande une explication des termes UCG/données/pilote ; aucun choix
+de responsable ou de périmètre n'est déduit de cette demande. L'option interne
+personnes/équipes/planning/matchs reste une proposition, pas une décision du pilote.
+L'essai actuel demeure fictif, avec mineurs envisagés pour la population réelle
+tunisienne et hébergement toujours différé.
+
+Les deux références officielles déjà citées (texte INS de 2004 et fiche ARP 095/2025)
+sont relues ; la fiche ARP affiche un examen en commission. Ce contrôle ciblé ne
+prouve pas un examen juridique exhaustif. Durées, finalités, responsabilités,
+procédure mineurs, validation applicable et copies restent à décider.
+
+Trois fichiers documentaires existants modifiés : README, backlog et état du projet.
+Contrôle `git diff --check` ; aucun code, migration, configuration ou donnée modifié,
+aucune commande de purge et aucun nouveau test de simulation exécuté. Les politiques
+de purge restent vides et la conservation technique d'audit reste inchangée.
+CAD-004, OPS-007 et REC-35 restent ouverts ; pas de nouveau commit/push demandé.
+
+Précision utilisateur suivante, le 27 octobre 2026 : « c'est moi qui décide », en
+réponse à la question sur les informations demandées aux membres et qui peut les
+voir. README/CAD4-02 et backlog actualisés : décideur opérationnel identifié,
+sans inventer une forme juridique, un nom, une délégation ou un contact. La qualité
+dans laquelle il agit et les fonctions du premier essai réel restent à préciser.
+Cette réponse ne valide ni les durées, ni le parcours mineurs, ni l'hébergement.
+
+## UCG-OPS-007 — Premier laboratoire de revue fictif (27 octobre 2026)
+
+L'utilisateur demande de continuer après la proposition simple sur les informations
+des membres. Un laboratoire de raisonnement est livré, sans moteur de purge ni
+branchement à une application/base réelle : retention-review.mjs (fonction pure),
+retention-run.mjs (onze cas fixes) et retention-review.test.mjs dans
+front/tests/real-api. La présence dans ce dossier partagé avec les exercices
+d'exploitation ne signifie pas que des API réelles sont appelées.
+
+Schéma fermé et organisations fixture-alpha/fixture-beta uniquement. Toute règle
+doit être marquée fictive ; URL, fichier, base ou argument de commande externes
+sont refusés. L'instant 2026-10-27 est explicite. La règle exemple de 30 jours et
+la référence fixture-policy-example servent aux calculs UTC/bissextiles ; aucune
+durée UCG ou qualification juridique n'est choisie. Le rapport ne contient que
+références fictives, catégories de raisons, échéance éventuelle et protections.
+
+Sans règle/revue, durée ou événement fiable, le résultat demande un examen sans
+calculer d'échéance. Les obligations ouvertes, mineurs/âge inconnu, comptes partagés
+et copies à examiner restent distincts. Un besoin courant est explicitement déclaré
+dans la fixture : le seul statut actif n'en fournit pas la preuve. Un besoin encore
+présent après clôture exige aussi un examen. Même l'échéance fictive atteinte ne
+donne aucun droit de supprimer ; deletionAuthorized et deletionSupported restent faux.
+
+### Résultat et vérification
+
+Exécution locale : 11 cas, 3 keep_for_current_use, 7 review_required, 1 review_due.
+Le départ fictif du 1er septembre avec délai exemple de 30 jours donne une revue
+au 1er octobre ; il ne donne aucune autorisation d'effacement. Rapport régénéré
+après les dernières modifications : front/reports/retention-review-local.json,
+ignoré par Git. Aucun contenu privé réel, aucune base ou configuration de l'app lus.
+
+Neuf tests Node passent, sans échec/exclusion : règles incomplètes, événements
+absents, usages courants, statut seul insuffisant, UTC/borne/bissextile et entrées
+non mutées, obligations/âge/copies/compte partagé, refus inter-organisation et de
+schéma, dates invalides/futures, exécution CLI et arguments externes refusés.
+Lint frontend vert. Les scripts test:retention:harness et test:retention:simulation
+sont ajoutés ; le job quality du workflow frontend exécute les tests et conserve
+retention-review.json avec ses artefacts. La nouvelle CI distante reste à confirmer.
+
+Le README décrit l'usage et le backlog reflète ce périmètre. Aucun PHP, modèle,
+migration, permission, endpoint, suppression ou configuration métier n'est modifié.
+Les tests PHP ne sont pas rejoués pour ce laboratoire autonome. Ce passage ne
+prouve ni isolation SQL, ni accès réel, ni effacement des 116 tables, fichiers,
+copies/sauvegardes ou restaurations. Les décisions CAD-004 et le moteur OPS-007
+réel restent ouverts ; ce laboratoire ne remplace aucune validation applicable.
+Après le bilan local, l'utilisateur demande « ok commit & push ». Le cadrage et
+le laboratoire sont regroupés dans un commit, avec push demandé vers origin/staging
+(https://github.com/sloumach/ucg-plateform.git). Le commit QA-005 c1d3fb7 encore
+local fait également partie des commits à envoyer. Ne pas confondre préparation,
+succès effectif du push et validation de la nouvelle CI.
