@@ -1428,6 +1428,16 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / L
 - **Périmètre** : matrice par catégorie/tenant, archivage restreint, purge, exports temporaires, réplicas et cycle des sauvegardes.
 - **Acceptation** : soft delete non confondu avec effacement ; opération auditée et testée.
+- **Lots natifs de préparation (27/10/2026)** : catalogue fermé 18 familles/116
+  tables, registre de revue versionné et empreinte, commande serveur protégée par
+  compte/tenant, Service/Repository/DTO, inventaire et dossiers People paginés.
+  Dépendances SQL groupées, copies/âge/besoin non établis signalés, aucune donnée
+  privée textuelle exposée, droits/règles revérifiés avant rapport. Registres vides
+  par défaut, aucune durée UCG choisie, aucun --execute ni pont vers la purge.
+  Tests natifs et garde-fous de maintenance/reprise existants réexercés, CI dédiée.
+  **Lots non clôturés** : règles/validations CAD-004, archivage restreint et gel
+  métier, effacement exhaustif des modules/copies, cycle des sauvegardes et recette
+  d'hébergement. Le tableau de lots du README distingue explicitement ces limites.
 - **Premier laboratoire fictif (27/10/2026)** : module pur Node et lanceur fixe
   dans front/tests/real-api, 11 exemples et 9 tests réussis. Politique de 30 jours
   exclusivement fictive pour tester le calcul UTC, aucune durée UCG choisie.

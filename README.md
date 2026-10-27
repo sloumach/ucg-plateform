@@ -4958,6 +4958,77 @@ tables après autorisation ; il ne calcule pas cette politique métier. Son chem
 La configuration `tenancy.portability.purge_policies` reste vide et les paramètres
 de conservation de l'audit restent inchangés.
 
+#### Lots OPS-007 — aperçu Laravel et limites d'exécution
+
+L'aperçu natif suit le parcours Console → Service → Repository → DTO JSON.
+Il est réservé à un accès opérateur au serveur, sans route HTTP ni permission
+implicite du propriétaire. `config/retention.php` livre deux registres vides :
+`review_operators` (identifiant du compte → liste explicite d'UUID tenant) et
+`review_policies` (UUID tenant → règles versionnées). Aucun compte n'est inscrit
+par défaut et aucune durée métier n'est fournie. Les comptes doivent être vérifiés
+et enrôlés MFA ; les comptes techniques plateforme sont refusés. Cette vérification
+d'enrôlement ne constitue pas un challenge TOTP de session : l'accès serveur reste
+une condition distincte, comme pour les autres commandes opérateur.
+
+Après revue et configuration serveur des accès appropriés, exemples de lecture
+(remplacer les identifiants ; aucune commande n'a été exécutée ici sur une base utilisée) :
+
+```powershell
+php artisan organizations:retention-review UUID_ORGANISATION --actor=ID_COMPTE --reason="Revue periodique" --section=inventory --page=1 --per-page=6 --as-of=2026-10-27
+php artisan organizations:retention-review UUID_ORGANISATION --actor=ID_COMPTE --reason="Revue periodique" --section=people --page=1 --per-page=25 --as-of=2026-10-27
+```
+
+Le rapport contient mode review_only, date UTC, version/empreinte de règle,
+request_id, pagination et raisons de revue. La section inventory couvre exactement
+les 18 familles/116 tables de portabilité, une seule fois par table. Une dérive
+non revue de schéma bloque le résultat. La section people lit seulement identifiant,
+statut, date de départ et présence d'un lien au compte global ; aucun pseudonyme,
+nom, contact, naissance, texte de contrat ou montant n'est sélectionné pour le rapport.
+Les références directes sont comptées en bloc, dont équipes, matchs, contrats,
+calendrier, académie, statistiques et imports. Les comptes externes passent par
+leur profil de jeu, avec égalité de tenant des deux côtés. Les comptes globaux
+ne sont jamais suivis vers les autres organisations pour en révéler l'activité.
+
+Les règles serveur ont les clés fermées version, reviewed_on,
+responsible_reference, validation_reference, reviewed et rules. Chaque règle
+de famille précise event, active_days, archive_days et final_action=review.
+L'événement recorded_departure est calculable uniquement pour la famille people ;
+les autres familles restent en manual_review. Les jours sont des jours calendaires
+UTC ; null ne devient pas zéro ni une conservation illimitée. Une durée explicitement
+égale à zéro est distincte d'une décision absente. reviewed=true et les références de
+configuration ne prouvent pas une validation juridique : le statut retourné reste
+configured_review_only, jamais une autorisation d'effacement.
+
+Les copies/imports, historiques embarqués, caches, journaux, jobs, réplicas,
+sauvegardes/PITR, prestataires et téléchargements remis doivent être examinés
+séparément. L'absence de référence directe ne prouve pas l'absence de copie ;
+dependency_inventory_complete et deletion_authorized restent faux. Les dates
+active_review_on/archive_review_on ne prouvent ni archivage effectué ni accès
+d'archive restreint. L'aperçu ne donne pas de garantie de snapshot d'exécution.
+L'accès et l'empreinte de règle sont revérifiés avant publication du rapport ;
+une dérive le refuse sans émettre un résultat partiel. La trace structurée
+tenant.retention.review contient identifiants techniques, page, taille et empreinte,
+sans motif libre ni contenu de dossier. Le JSON produit doit rester un rapport privé.
+
+| Lot | Travail réalisé | Ce qui ne peut pas être déclaré terminé |
+| --- | --- | --- |
+| Catalogue | Classement fermé des 18 familles/116 tables, contrôle de dérive, inventaire paginé | Une durée propre à chaque sous-catégorie n'est pas décidée par ce classement. |
+| Règles et accès | Configuration versionnée fermée, empreinte, accès opérateur par compte/tenant, valeurs manquantes signalées | Responsabilités, usages, durées et validations CAD-004 restent à compléter. |
+| Aperçu de dossiers | Lecture Laravel réelle sur fixtures, événements fiables, dépendances groupées, dates de revue conditionnelles | Les autres familles ont un inventaire, pas un moteur de décision par dossier. |
+| Copies et reprise | Copies non vérifiées explicites ; protections existantes de maintenance, quotas, reprise/idempotence et refus de restauration après purge réexercés | Pas de preuve d'effacement chez un fournisseur, dans un réplica ou une sauvegarde ; qualification d'hébergement différée. |
+| Archivage et purge métier | Aucune activation ; séparation vérifiée entre aperçu et commande de purge technique existante | Archivage restreint par dossier, gel juridique général et effacement exhaustif des 116 tables ne sont pas implémentés par cet aperçu. |
+| Validation/livraison | Tests SQLite/PostgreSQL, analyse statique, documentation et étape CI dédiée | La nouvelle CI distante et la recette réelle restent à confirmer. |
+
+La purge technique existante garde son propre registre de politiques, ses
+confirmations, export d'organisation archivée, lots bornés et reprises. Ajouter
+une règle review_policies n'y inscrit aucune politique et ne peut pas la déclencher.
+La nouvelle commande refuse --execute. Aucune garde SQL, conservation d'audit,
+planification d'expiration ou politique de purge existante n'est désactivée.
+Lors d'une future restauration, les décisions d'effacement devront être réconciliées
+avant remise en service ; cet aperçu ne réalise pas cette réapplication métier.
+**OPS-007/CAD-004/REC-35 restent ouverts.** Les lots de préparation ne doivent pas
+être confondus avec une purge métier complète et qualifiée.
+
 #### Point juridique à intégrer avant données réelles
 
 Référence consultée le 25 octobre 2026 : [loi n° 2004-63 publiée par l'INS](https://www.ins.tn/sites/default/files-ftp3/files/2020-04/Loi%2063-2004%20Fr.pdf).

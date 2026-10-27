@@ -6,7 +6,21 @@
 ## Point de reprise
 
 - Dernière mise à jour : 27 octobre 2026.
-- Tâche courante : **UCG-OPS-007, premier laboratoire de revue fictif**.
+- Tâche courante : **UCG-OPS-007, demande de tous les lots ; préparation native Laravel**.
+  L'utilisateur demande « fait tous les lots de la ops 007 ». Catalogue fermé
+  18 familles/116 tables, règles de revue et empreinte, aperçu opérateur serveur
+  paginé (Console/Service/Repository/DTO), dépendances People et copies non vérifiées.
+  Accès explicites compte/tenant, vérification du compte/MFA enrôlé, refus technique
+  plateforme, contrôle d'accès/règle avant publication ; aucun --execute ni lien
+  automatique avec une politique de purge. Registres livrés vides, durées UCG
+  toujours indéfinies. Suite complète verte : 2 815 réussites, 59 exclusions
+  conditionnelles, 18 023 assertions ; tests ciblés finaux et PostgreSQL verts.
+  Lots d'exécution non déclarés terminés : archivage restreint/gel métier, purge
+  exhaustive des modules/copies, règles CAD-004 et recette d'hébergement. Tableau
+  précis dans le README ; OPS-007/REC-35 restent ouverts. L'utilisateur demande
+  ensuite « ok commit and push, et on va avancer sur quoi ? » : livraison de ce
+  lot en commit unique puis push vers origin/staging, nouvelle CI à confirmer.
+- Lot précédent : **UCG-OPS-007, premier laboratoire de revue fictif livré en 9a56dfc**.
   L'utilisateur demande ensuite « ok commit & push » : préparation d'un commit
   unique regroupant le cadrage CAD-004 et ce laboratoire, puis push sur la branche
   staging du dépôt origin configuré. La nouvelle CI reste à valider après livraison.
@@ -8234,3 +8248,109 @@ le laboratoire sont regroupés dans un commit, avec push demandé vers origin/st
 (https://github.com/sloumach/ucg-plateform.git). Le commit QA-005 c1d3fb7 encore
 local fait également partie des commits à envoyer. Ne pas confondre préparation,
 succès effectif du push et validation de la nouvelle CI.
+
+## UCG-OPS-007 — Lots natifs de préparation et limites d'exécution (27 octobre 2026)
+
+### Mandat et périmètre réellement livré
+
+Après le commit/push 9a56dfc, l'utilisateur demande tous les lots OPS-007.
+Les préparations locales réalisables sont consolidées : inventaire fermé,
+configuration de revue, aperçu Laravel réel sur fixtures, dépendances/copies,
+contrôles d'accès et tests de maintenance. Le tableau de lots ajouté au README
+distingue ces travaux de l'exécution non livrée. Aucun délai UCG, choix de champs
+à effacer, formalité applicable ou hébergement n'est réputé validé par cette demande.
+
+Nouveaux composants Tenancy : RetentionCatalog, RetentionReviewPolicy,
+RetentionReviewQuery/Report, contrat RetentionReviewRepository, implémentation
+DatabaseRetentionReviewRepository, RetentionReviewService et commande
+organizations:retention-review. Wiring dans TenancyServiceProvider, configuration
+retention.php et messages français dédiés. Aucune migration ni dépendance ajoutée,
+aucun endpoint ou rôle plateforme créé, aucune activation automatique.
+
+### Catalogue, règles et données lues
+
+Les 18 familles couvrent exactement les 116 tables du catalogue de portabilité,
+sans doublon. Le schéma est vérifié avant le rapport : colonne/table non revue
+bloquante. L'inventaire est paginé ; les comptes sont filtrés par organisation,
+avec traitement particulier de la racine organizations. Les dossiers People sont
+triés par UUID et paginés de 1 à 100 ; dépendances groupées sur les seuls IDs de
+la page. Vingt références directes et le lien indirect des comptes externes via
+GameProfile sont examinés, en plus du compteur d'obligations ouvertes. Les deux
+côtés du lien indirect portent le même tenant. La lecture et ces compteurs font
+24 requêtes métier pour une comme pour 21 personnes, hors contrôles d'accès/schéma.
+
+Le rapport contient seulement UUID de dossier, statut, jour UTC de départ et
+compteurs/raisons ; ni pseudonyme, identité, contact, naissance, texte de contrat,
+montant ou identifiant de compte global. Un compte lié est signalé comme protégé,
+sans requête révélant son activité dans une autre organisation. Les snapshots
+embarqués, âge/représentation, besoin courant et copies non vérifiés restent
+explicitement à examiner ; dependency_inventory_complete reste faux.
+
+Les deux registres review_operators et review_policies sont vides par défaut.
+L'accès est une permission opérateur serveur explicite par compte et UUID tenant,
+distincte des rôles web : propriété du tenant seule insuffisante, compte vérifié
+et MFA enrôlé requis, compte technique plateforme refusé. Le terminal serveur est
+une condition préalable ; l'enrôlement n'est pas présenté comme challenge de session.
+Accès et configuration sont relus avant publication ; retrait d'accès ou empreinte
+de règle changée pendant lecture bloque le rapport sans résultat partiel.
+
+Les règles ont un schéma fermé, version, date de revue, références de responsable
+et validation, durées explicites et final_action=review uniquement. Les références
+ne sont pas une attestation juridique fournie par le logiciel. État absent/invalide
+ne fournit ni durée ni échéance. Une valeur explicitement égale à zéro reste
+distincte d'une durée absente. Seul le départ enregistré de People fournit un
+événement calculable ; les autres familles ont un inventaire et une revue manuelle.
+Le JSON porte request_id, version et empreinte de configuration et annonce une
+revue bornée, pas un snapshot d'exécution. Trace structurée tenant.retention.review
+sans motif libre ni données privées du dossier ; elle ne devient pas un audit
+append-only d'effacement ou une preuve de réception du rapport.
+
+### Séparation des opérations et copies
+
+La nouvelle commande n'a aucun --execute. Son résultat garde deletion_supported
+et deletion_authorized à faux, même après échéance. Elle ne crée aucune politique
+tenancy.portability.purge_policies et ne déclenche ni job, archivage ou suppression.
+Le test de séparation vérifie qu'une règle de revue complète ne permet pas de
+passer la garde RETENTION_POLICY_REQUIRED de l'ancien parcours technique.
+Les protections existantes de maintenance sont réexercées : histoire/comptes
+protégés, confirmation et export archivé requis, quotas conservés sur panne de
+stockage, reprise bornée sans nouvelle opération et récupération refusée après purge.
+
+Le rapport signale exports, versions d'artefacts, historiques embarqués, imports,
+caches, jobs, logs, réplicas, sauvegardes/PITR, fournisseurs et téléchargements comme
+non vérifiés. Il ne les parcourt pas sur un hébergement ni n'en certifie l'effacement.
+Les éventuelles dates active_review_on et archive_review_on sont des dates de
+revue : elles ne signifient pas qu'un dossier a été archivé ou anonymisé.
+
+### Vérifications exécutées
+
+- Suite ciblée finale SQLite, règles et architecture : 62 tests, 323 assertions,
+  aucune erreur/échec/exclusion, rapports phpunit-ops007-focused.xml ; Pint vert
+  et PHPStan sans erreur.
+- PostgreSQL 17 jetable : aperçu, maintenance et portabilité, 62 tests,
+  338 assertions sans exclusion, phpunit-ops007-postgresql.xml. Après ajout du
+  marqueur explicite des caches dans les copies non vérifiées, seule la suite
+  d'aperçu concernée est rejouée : 25 tests, 103 assertions, aucune exclusion,
+  phpunit-ops007-postgresql-final.xml. Les deux clusters sont arrêtés/supprimés.
+- Suite PHP complète avant ce complément de métadonnée : 2 874 cas, 2 815 réussites,
+  18 023 assertions, 59 exclusions conditionnelles existantes, aucune erreur/échec,
+  504,49 s, phpunit-ops007-all.xml. Aucun test existant désactivé.
+- YAML du workflow backend parsé avec Symfony Yaml déjà installé ; diff --check
+  vert. Étape PostgreSQL de revue/maintenance ajoutée en CI, JUnit conservé par
+  la collecte existante. Aucune exécution distante de cette version n'est confirmée.
+
+Rapports locaux ignorés sous back/reports. Les seuls appels de revue/purge de cette
+intervention passent par PHPUnit et ses bases/fichiers fictifs ; aucun migrate,
+seed, effacement ou aperçu opérateur sur une base utilisée. Après bilan, l'utilisateur
+demande le commit et le push de ce lot vers origin/staging ; cette livraison ne
+clôture pas OPS-007 et la nouvelle CI reste à confirmer.
+
+### Travail restant pour terminer réellement OPS-007
+
+OPS-007/CAD-004/REC-35 ne sont pas clôturés : décisions de conservation par
+sous-catégorie, validations applicables, archivage restreint par dossier et gel
+métier général, handlers d'effacement exhaustifs des modules et de leurs copies,
+réconciliation des décisions après restauration et cycle réel des sauvegardes
+restent à concevoir/implémenter ou qualifier. L'hébergement demeure différé.
+Les tests de l'aperçu ne prouvent pas ces fonctions absentes. Ne pas annoncer
+« tous les lots terminés » sur la base de ce seul outil de préparation.

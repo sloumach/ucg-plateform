@@ -42,6 +42,7 @@ use App\Modules\Tenancy\Domain\Contracts\OrganizationRepository;
 use App\Modules\Tenancy\Domain\Contracts\PortabilityArchive;
 use App\Modules\Tenancy\Domain\Contracts\PortabilityQueue;
 use App\Modules\Tenancy\Domain\Contracts\PortabilityRepository;
+use App\Modules\Tenancy\Domain\Contracts\RetentionReviewRepository;
 use App\Modules\Tenancy\Domain\Contracts\RoleRepository;
 use App\Modules\Tenancy\Domain\Contracts\SupportAccessRepository;
 use App\Modules\Tenancy\Domain\Contracts\TenantWorkRepository;
@@ -55,6 +56,7 @@ use App\Modules\Tenancy\Domain\Models\OrganizationSupportAccess;
 use App\Modules\Tenancy\Infrastructure\Mail\MailInvitationNotifier;
 use App\Modules\Tenancy\Infrastructure\Persistence\DatabaseArtifactLedger;
 use App\Modules\Tenancy\Infrastructure\Persistence\DatabasePortabilityRepository;
+use App\Modules\Tenancy\Infrastructure\Persistence\DatabaseRetentionReviewRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentAccessAuditRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentCommunicationRolesRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentInvitationRepository;
@@ -79,6 +81,7 @@ use App\Modules\Tenancy\Presentation\Console\ExpireOrganizationExportsCommand;
 use App\Modules\Tenancy\Presentation\Console\ExpireTenantArtifactsCommand;
 use App\Modules\Tenancy\Presentation\Console\OrganizationPortabilityCommand;
 use App\Modules\Tenancy\Presentation\Console\ProvisionOrganizationCommand;
+use App\Modules\Tenancy\Presentation\Console\ReviewOrganizationRetentionCommand;
 use App\Modules\Tenancy\Presentation\Console\TransitionOrganizationCommand;
 use App\Modules\Tenancy\Presentation\Policies\InvitationPolicy;
 use App\Modules\Tenancy\Presentation\Policies\MembershipPolicy;
@@ -116,6 +119,7 @@ final class TenancyServiceProvider extends ServiceProvider
         $this->app->bind(AuthorizationScopeDirectory::class, RegisteredAuthorizationScopes::class);
         $this->app->bind(PrivilegedAccountDirectory::class, EloquentPrivilegedAccountDirectory::class);
         $this->app->bind(PortabilityRepository::class, DatabasePortabilityRepository::class);
+        $this->app->bind(RetentionReviewRepository::class, DatabaseRetentionReviewRepository::class);
         $this->app->bind(PortabilityArchive::class, PrivatePortabilityArchive::class);
         $this->app->bind(PortabilityQueue::class, LaravelPortabilityQueue::class);
         $this->app->scoped(TenantExecutionScope::class);
@@ -174,6 +178,7 @@ final class TenancyServiceProvider extends ServiceProvider
             $this->commands([ProvisionOrganizationCommand::class, TransitionOrganizationCommand::class,
                 CheckTenantSchemaCommand::class, DispatchTenantSchedulesCommand::class]);
             $this->commands([OrganizationPortabilityCommand::class, ExpireOrganizationExportsCommand::class, ExpireTenantArtifactsCommand::class]);
+            $this->commands([ReviewOrganizationRetentionCommand::class]);
         }
     }
 }

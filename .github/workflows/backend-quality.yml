@@ -89,6 +89,17 @@ jobs:
           DB_PASSWORD: test-only-password
           DB_URL: ''
 
+      - name: Verify retention review, operator isolation and maintenance on PostgreSQL
+        run: php artisan test --compact tests/Unit/RetentionReviewPolicyTest.php tests/Feature/Modules/Tenancy/RetentionReviewTest.php tests/Feature/Modules/Tenancy/OrganizationMaintenanceTest.php --log-junit=reports/phpunit-retention.xml
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: ucg_platform_test
+          DB_USERNAME: ucg_test
+          DB_PASSWORD: test-only-password
+          DB_URL: ''
+
       - name: Verify concurrent contract reminder claims and replay isolation
         run: php artisan test --compact tests/Feature/ContractReminderConcurrencyTest.php --log-junit=reports/phpunit-contract-reminder-concurrency.xml
         env:
