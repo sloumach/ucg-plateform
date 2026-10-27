@@ -51,8 +51,13 @@ export function summarize(samples) {
       const rows = successful.filter((sample) => sample.pageSize === size)
       return [size, counts.length ? { samples: counts.length, min: Math.min(...counts), max: Math.max(...counts), p95Ms: percentile(rows.map((sample) => sample.ms), 0.95) } : null]
     })),
-    diagnostics: Object.fromEntries(['sqlMs', 'bootstrapMs', 'handlerMs'].map((key) => {
-      const values = successful.map((sample) => sample[key]).filter(Number.isFinite)
+    diagnostics: Object.fromEntries(['sqlMs', 'bootstrapMs', 'handlerMs', 'outsideApplicationMs'].map((key) => {
+      // This residual includes server admission, fixture guards, transport and client work.
+      // SQL is already inside handlerMs; it must not be subtracted a second time.
+      const values = successful.map((sample) => key === 'outsideApplicationMs'
+        ? [sample.ms, sample.bootstrapMs, sample.handlerMs].every(Number.isFinite)
+          ? Math.max(0, sample.ms - sample.bootstrapMs - sample.handlerMs) : null
+        : sample[key]).filter(Number.isFinite)
       return [key, values.length ? { samples: values.length, p50: percentile(values, 0.5), p95: percentile(values, 0.95) } : null]
     })),
     resources: Object.fromEntries([...new Set(samples.map((sample) => `${sample.resource ?? 'people'}:${sample.pageSize}`))].map((key) => {

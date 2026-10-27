@@ -5470,3 +5470,33 @@ requêtes en série. Les latences incluent donc attente, bootstrap et connexion.
 Les gains sur ces composants ne certifient ni 100 utilisateurs sur le futur
 hébergement, ni le p95 de 500 ms sous forte charge. QA-005/REC-34 restent ouverts
 tant que ces critères et la recette représentative ne sont pas satisfaits.
+
+## UCG-QA-005 — Lectures de liste et diagnostic de latence (27 octobre 2026)
+
+Le service de liste People garde son contrôle d'entrée, puis lit un snapshot
+frais des permissions organisationnelles pour ses filtres et colonnes. Il ne
+conserve aucune décision entre appels et la projection revérifie les droits après
+la requête. Les mutations continuent leurs autorisations indépendantes. Le test
+qui révoque les affectations pendant la lecture exige une réponse limitée aux
+identifiants/version, sans champ sportif ou administratif.
+
+Une projection organisationnelle multi-classifications vérifie l'accès de base
+dans son propre snapshot ; les autres projections réutilisent uniquement leur
+décision organization.view déjà autorisée. Les budgets testés passent de 7 à 5
+requêtes pour plusieurs classifications, de 4 à 2 pour les seuls champs de base,
+et de 22 à 16 pour une liste directe avec les deux permissions de lecture.
+Tenant, MFA, scopes, révocations et projection indépendante restent contrôlés.
+
+Le rapport de charge ajoute outsideApplicationMs : résidu calculé par lecture
+réussie entre durée client et bootstrap/traitement mesurés. Il inclut attente et
+admission du serveur, garde-fous des fixtures, transport et travail client ; il
+ne mesure pas exclusivement une file d'attente. Le SQL est inclus dans le
+traitement, sans seconde soustraction. Les erreurs restent dans les mesures
+globales et aucun quota, volume ou seuil n'est réduit.
+
+Les références, résultats finaux et limites de qualification sont consignés dans
+[l'état du projet](docs/etat-projet.md). L'hébergement reste différé et les données
+fictives ; cette optimisation locale ne clôture pas la recette représentative.
+Mesures finales : 41 requêtes courantes par lecture People contre 47 avant ;
+pressure sans erreur HTTP et p95 Beta pendant charge 10,20 s contre 18,06 s.
+La cible de 500 ms reste dépassée ; QA-005/REC-34 restent ouverts.

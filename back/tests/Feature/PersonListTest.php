@@ -10,6 +10,9 @@ use App\Modules\People\Application\Services\PersonService;
 use App\Modules\People\Domain\Models\GameProfile;
 use App\Modules\People\Domain\Models\Person;
 use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -213,6 +216,63 @@ class PersonListTest extends TestCase
     public static function cacheStores(): array
     {
         return ['memory' => ['array'], 'database' => ['database']];
+    }
+
+    public function test_service_listing_has_a_bounded_query_budget_with_both_read_permissions(): void
+    {
+        $this->freezeTime();
+        [$organization, $user] = $this->reader(['sports.read', 'administrative.read']);
+        $person = Person::factory()->withAdministrativeIdentity()->create(['organization_id' => $organization->id]);
+        $context = $this->personContext($organization, $user);
+        $service = app(PersonService::class);
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        try {
+            $page = $service->paginate($context, new PersonListQuery([]));
+            $queries = count(DB::getQueryLog());
+        } finally {
+            DB::disableQueryLog();
+            DB::flushQueryLog();
+        }
+
+        $this->assertSame($person->pseudonym, $page->items()[0]['pseudonym']);
+        $this->assertSame($person->first_name, $page->items()[0]['first_name']);
+        $this->assertLessThanOrEqual(16, $queries);
+    }
+
+    public function test_same_listing_service_rechecks_revoked_permissions_on_the_next_call(): void
+    {
+        $this->freezeTime();
+        [$organization, $user] = $this->reader(['sports.read', 'administrative.read']);
+        Person::factory()->withAdministrativeIdentity()->create(['organization_id' => $organization->id]);
+        $service = app(PersonService::class);
+        $context = $this->personContext($organization, $user);
+        $this->assertSame(1, $service->paginate($context, new PersonListQuery([]))->total());
+        OrganizationRoleAssignment::query()
+            ->where('organization_id', $organization->id)->where('user_id', $user->id)->update(['status' => 'revoked']);
+
+        $this->expectException(AuthorizationException::class);
+        $service->paginate($context, new PersonListQuery([]));
+    }
+
+    public function test_listing_projection_rechecks_grants_revoked_after_the_people_query(): void
+    {
+        $this->freezeTime();
+        [$organization, $user] = $this->reader(['sports.read', 'administrative.read']);
+        $person = Person::factory()->withAdministrativeIdentity()->create(['organization_id' => $organization->id]);
+        $revoked = false;
+        DB::listen(function (QueryExecuted $query) use ($organization, $user, &$revoked): void {
+            if (! $revoked && str_contains($query->sql, '"people"."id"')) {
+                $revoked = true;
+                OrganizationRoleAssignment::query()->where('organization_id', $organization->id)
+                    ->where('user_id', $user->id)->update(['status' => 'revoked']);
+            }
+        });
+
+        $page = app(PersonService::class)->paginate($this->personContext($organization, $user), new PersonListQuery([]));
+
+        $this->assertTrue($revoked);
+        $this->assertSame([['id' => $person->id, 'version' => $person->version]], $page->items());
     }
 
     #[DataProvider('cacheStores')]

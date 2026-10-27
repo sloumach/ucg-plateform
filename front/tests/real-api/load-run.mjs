@@ -37,6 +37,7 @@ const report = {
     '../back/tests/Fixtures/load-volume.php',
     '../back/app/Modules/Tenancy/Application/Services/TenantDataProjectionService.php',
     '../back/app/Modules/Tenancy/Presentation/Http/Middleware/LimitTenantRequests.php',
+    '../back/app/Modules/People/Application/Services/PersonService.php',
   ].map((path) => [path, createHash('sha256').update(readFileSync(resolve(front, path))).digest('hex')])),
   startedAt: new Date().toISOString(), completed: false, cleanup: false,
   topology: { database: 'PostgreSQL 17 disposable', httpServer: 'PHP built-in development server', httpProcesses: profile.httpProcesses ?? 2, workers: 1, queue: 'database', cache: 'database', loadModel: 'closed-loop authenticated sessions', tls: false },

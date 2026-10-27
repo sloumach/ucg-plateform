@@ -10,6 +10,7 @@ use App\Modules\Tenancy\Application\Contracts\TenantDataRecord;
 use App\Modules\Tenancy\Application\Contracts\TenantDataVisibility;
 use App\Modules\Tenancy\Domain\Permission;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use InvalidArgumentException;
 
 final readonly class TenantDataProjectionService implements TenantDataVisibility
@@ -39,18 +40,28 @@ final readonly class TenantDataProjectionService implements TenantDataVisibility
                 throw new AuthorizationException;
             }
         }
-        $this->authorization->authorize($context, 'organization.view');
         $decisions = [];
         $organizationScope = json_encode(['organization', $context->organizationId], JSON_THROW_ON_ERROR);
         if ($records !== [] && count($verifiedScopes) === 1 && isset($verifiedScopes[$organizationScope])
             && count(array_unique(array_column($fields, 'permission'))) > 1) {
             // Display-only decisions share a fresh snapshot within this projection,
             // never across calls; scoped records keep their individual checks.
-            $permissions = array_fill_keys($this->authorization->permissions($context), true);
+            try {
+                $permissions = array_fill_keys($this->authorization->permissions($context), true);
+            } catch (ModelNotFoundException) {
+                throw new AuthorizationException;
+            }
+            if (! isset($permissions['organization.view'])) {
+                throw new AuthorizationException;
+            }
             foreach (Permission::cases() as $permission) {
                 $key = json_encode([$permission->value, 'organization', $context->organizationId], JSON_THROW_ON_ERROR);
                 $decisions[$key] = isset($permissions[$permission->value]);
             }
+        } else {
+            $this->authorization->authorize($context, 'organization.view');
+            $key = json_encode(['organization.view', 'organization', $context->organizationId], JSON_THROW_ON_ERROR);
+            $decisions[$key] = true;
         }
         $result = [];
         foreach ($records as $record) {

@@ -229,7 +229,7 @@ class TenantDataVisibilityTest extends TestCase
         }
 
         $this->assertSame(['name' => 'Alice', 'rank' => 'Gold', 'address' => 'Tunis', 'salary' => 500], $result);
-        $this->assertLessThanOrEqual(9, $queries, 'Organization fields should share one fresh permission read per projection.');
+        $this->assertLessThanOrEqual(5, $queries, 'Organization fields should share one fresh permission read per projection.');
     }
 
     public function test_public_only_projection_does_not_load_unneeded_permission_grants(): void
@@ -249,7 +249,27 @@ class TenantDataVisibilityTest extends TestCase
         }
 
         $this->assertSame(['name' => 'Alice', 'version' => 'public-reference'], $result);
-        $this->assertLessThanOrEqual(4, $queries);
+        $this->assertLessThanOrEqual(2, $queries);
+    }
+
+    #[DataProvider('closedAccess')]
+    public function test_public_projection_rechecks_access_between_calls(string $change): void
+    {
+        $this->freezeTime();
+        $membership = OrganizationMembership::factory()->create();
+        $context = $this->context($membership);
+        $service = app(TenantDataVisibility::class);
+        $record = new TenantDataRecord($membership->organization_id, ['name' => 'Alice']);
+        $fields = ['name' => new FieldVisibility('organization.view')];
+        $this->assertSame(['name' => 'Alice'], $service->project($context, $record, $fields));
+        if ($change === 'tenant') {
+            Organization::findOrFail($membership->organization_id)->forceFill(['status' => 'suspended'])->save();
+        } else {
+            $membership->forceFill(['status' => 'revoked'])->save();
+        }
+
+        $this->expectException(AuthorizationException::class);
+        $service->project($context, $record, $fields);
     }
 
     /** @return array<string, array{mixed, bool}> */

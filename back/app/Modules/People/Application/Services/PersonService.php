@@ -22,6 +22,7 @@ use App\Support\Audit\AuditWriteData;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Validation\Factory;
 use Illuminate\Database\ConnectionInterface;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Str;
@@ -54,16 +55,28 @@ final readonly class PersonService implements PeopleDirectory
             throw ValidationException::withMessages(array_fill_keys($unknown, __('people.validation.immutable')));
         }
         $filters = $this->validator->make($input->attributes, PersonListInput::rules(), PersonListInput::messages())->validate();
+        // One fresh display snapshot governs filters and selected columns only.
+        // The projection rechecks permissions after fetching the page.
+        try {
+            $permissions = $this->authorization->permissions($context);
+        } catch (ModelNotFoundException) {
+            throw new AuthorizationException;
+        }
+        $canReadSports = in_array('sports.read', $permissions, true);
+        $canReadAdministrative = in_array('administrative.read', $permissions, true);
+        if (! $canReadSports && ! $canReadAdministrative) {
+            throw new AuthorizationException;
+        }
         $view = $filters['view'] ?? 'general';
-        if (array_intersect(array_keys($filters), PersonListInput::SPORTS_FILTERS) !== []
-            || in_array($filters['sort'] ?? 'id', ['pseudonym', 'status'], true) || $view === 'sports') {
-            $this->authorization->authorize($context, 'sports.read');
+        if (! $canReadSports && (array_intersect(array_keys($filters), PersonListInput::SPORTS_FILTERS) !== []
+            || in_array($filters['sort'] ?? 'id', ['pseudonym', 'status'], true) || $view === 'sports')) {
+            throw new AuthorizationException;
         }
-        if (isset($filters['account_linked']) || $view === 'administrative') {
-            $this->authorization->authorize($context, 'administrative.read');
+        if (! $canReadAdministrative && (isset($filters['account_linked']) || $view === 'administrative')) {
+            throw new AuthorizationException;
         }
-        $sports = $view !== 'administrative' && $this->authorization->allows($context, 'sports.read');
-        $administrative = $view !== 'sports' && $this->authorization->allows($context, 'administrative.read');
+        $sports = $view !== 'administrative' && $canReadSports;
+        $administrative = $view !== 'sports' && $canReadAdministrative;
         $page = $this->people->paginate($context->organizationId, $filters, $sports, $administrative);
         $page->setCollection(collect($this->projection->summaries($context, array_values($page->items()), $sports, $administrative)));
 

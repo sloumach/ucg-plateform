@@ -129,14 +129,20 @@ donc pas assimilé au seul temps d'exécution PostgreSQL.
 Les centiles utilisent le rang supérieur (`ceil(n × p)`), erreurs comprises.
 Les compteurs SQL excluent le bootstrap, la preuve de propriété et la terminaison ;
 aucun SQL, binding, cookie ni corps de réponse privé n'est conservé dans ce rapport.
-Les rapports ajoutent les empreintes des deux composants optimisés
-(TenantDataProjectionService et LimitTenantRequests). `rateRefusals` distingue
+Les rapports ajoutent les empreintes des composants optimisés
+(TenantDataProjectionService, LimitTenantRequests et PersonService). `rateRefusals` distingue
 quota, contention et unclassified ; chaque 429 reste dans les erreurs et les
 centiles, même si sa cause n'est pas observée. Le marqueur X-UCG-Rate-Refusal est
 ajouté uniquement par le serveur de test isolé depuis un attribut interne, jamais
 par une donnée du client ou par le middleware de production en tant qu'en-tête.
 Le temps SQL est inclus dans le traitement HTTP ; les p95 des sous-temps ne
 s'additionnent pas.
+`diagnostics.outsideApplicationMs` mesure, pour chaque lecture réussie et
+instrumentée, `max(0, durée client - bootstrap - traitement)`, puis ses centiles.
+Ce résidu comprend admission/attente du serveur, contrôles des fixtures, transport
+et travail client ; il ne constitue pas une mesure exclusive de file d'attente.
+Le SQL n'est pas soustrait une seconde fois. Les erreurs restent dans les centiles
+globaux et les anciens échantillons non instrumentés ne reçoivent pas un zéro fictif.
 
 Le code de sortie est non nul en cas d'erreur, nettoyage non confirmé, ou p95
 atteignant 500 ms dans une phase ou une combinaison ressource/taille. `completed=true` signifie

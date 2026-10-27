@@ -5,8 +5,17 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 26 octobre 2026.
-- Tâche courante : **UCG-QA-005, trois lots de corrections réalisés, livraison en commit unique et push**.
+- Dernière mise à jour : 27 octobre 2026.
+- Tâche courante : **UCG-QA-005, réduction des lectures répétées et diagnostic de latence ; commit et push demandés**.
+  Références locales profile/pressure reprises sur `83607c9`. Optimisation de la
+  liste People et des projections, décisions locales aux appels et projection
+  revalidée après lecture. Tests, vérifications et mesures finales terminés,
+  résultats en fin de document : lectures courantes People 47 → 41 requêtes,
+  pressure sans erreur mais p95 Beta sous charge 10,20 s, cible 500 ms non tenue.
+  CI de `83607c9` en cours de
+  vérification par l'utilisateur, sans résultat confirmé. Hébergement différé,
+  données fictives ; QA-005/REC-34 ne sont pas déclarés clôturés.
+- Lot précédent : **UCG-QA-005, trois lots de corrections réalisés, livraison en commit unique et push**.
   Références profile/pressure refaites avant modification ; optimisation locale
   des projections multi-classifications et attente bornée du verrou HTTP sans
   hausse de quota. Diagnostic des 429 dans le seul serveur de charge isolé.
@@ -7969,3 +7978,133 @@ demandée avec push sur staging. La nouvelle CI distante reste à valider après
 push. La suite complète verte ne supprime pas l'incident ClamAV intermittent
 du premier passage ni les limites de performance documentées. Aucun hébergement,
 service réel ou donnée personnelle n'a été utilisé pour ces essais.
+
+## UCG-QA-005 — Lectures de liste et temps hors traitement (27 octobre 2026)
+
+### Mandat et références
+
+L'utilisateur demande de poursuivre QA-005, puis de commiter et pousser. Départ
+propre sur staging, `83607c9`, synchronisé avec origin/staging après fetch. La CI
+de cette référence est en cours de vérification par l'utilisateur ; aucun résultat
+supplémentaire n'est reçu. Hébergement toujours différé, données fictives et
+clusters PostgreSQL 17 jetables uniquement.
+
+Références avant modification applicative :
+
+- `front/reports/load-profile-1793096429215.json` : 300 lectures réussies, 47
+  requêtes courantes pour 25 comme 100 personnes, p95 383,49 / 360,77 / 300,10 ms.
+- `front/reports/load-pressure-1793096578540.json` : protocole et nettoyage
+  terminés, zéro erreur HTTP ; p95 Beta 5 461,71 / 18 060,42 / 6 677,97 ms.
+  Les premiers tests de régression sont déjà modifiés, sans modification des
+  services applicatifs pendant ces références. Le protocole fixe est conservé.
+
+### Corrections et contrôles de sécurité
+
+PersonService conserve son autorisation d'entrée et sa validation. Un snapshot
+frais de permissions organisationnelles sert ensuite aux filtres et à la sélection
+des colonnes. Il n'est stocké ni dans le service ni dans un cache et n'est pas
+transmis à la projection : celle-ci revérifie les droits après lecture de la page.
+Les mutations gardent leurs autorisations indépendantes. Une disparition d'accès
+entre contrôles devient un refus d'autorisation, sans repli permissif.
+
+TenantDataProjectionService vérifie organization.view dans le snapshot déjà
+nécessaire aux projections organisationnelles multi-classifications, sans lecture
+supplémentaire préalable. Pour les autres projections, il réutilise seulement la
+décision organization.view obtenue au début du même appel. Les scopes restent
+validés et les autres permissions scoped continuent leurs contrôles individuels.
+Les budgets de régression passent de 7 à 5 requêtes (plusieurs classifications),
+de 4 à 2 (champs de base) et de 22 à 16 (liste directe avec les deux droits).
+
+Les tests conservent MFA, scopes, refus inter-tenant, filtres réservés et révocations.
+Cinq cas sont ajoutés : budget de liste, même service après révocation, révocation
+déclenchée pendant la requête People, projection de base après suspension du tenant
+et après révocation d'adhésion. Dans la révocation en cours de lecture, la réponse
+ne conserve que id/version ; aucune ancienne permission n'est réutilisée pour
+exposer les champs sportifs ou administratifs.
+
+### Diagnostic du banc local
+
+Le protocole calcule outsideApplicationMs par lecture réussie instrumentée :
+`max(0, durée client - bootstrap - traitement)`, puis les centiles de ces résidus.
+Ce n'est ni une soustraction de p95, ni une mesure exclusive de file d'attente :
+admission du serveur, garde-fous de test, transport et travail client peuvent y
+contribuer. Le SQL est déjà compris dans le traitement ; il n'est pas soustrait
+de nouveau. Les échecs restent dans les centiles globaux, les mesures manquantes
+restent absentes. Un test numérique protège ces règles et les anciens rapports.
+L'empreinte PersonService est ajoutée aux rapports pour tracer cette correction.
+
+Sur les échantillons Beta bruts de la référence pressure, recalculés hors ligne
+avec cette formule, le p95 du résidu vaut 5 099,72 / 17 623,33 / 6 190,44 ms.
+Pendant charge, les p95 bootstrap et traitement valent 467,64 et 761,01 ms ;
+ils ne s'additionnent pas au centile du résidu. L'attente hors des portions
+instrumentées est donc un axe majeur du diagnostic, sans attribution exclusive
+à une dépendance ni qualification de capacité sur les quatre serveurs séquentiels.
+
+### Validation des sources
+
+- Ciblé SQLite : 82 tests, 216 assertions, zéro erreur/échec/exclusion,
+  `back/reports/phpunit-qa005-followup-focused.xml`.
+- Dix suites PostgreSQL (projections, listes/services/policies People, rôles,
+  comptes plateforme, scopes équipes, dashboards, recherche) : 252 tests,
+  1 211 assertions, zéro erreur/échec/exclusion,
+  `back/reports/phpunit-qa005-followup-postgresql.xml`.
+- Suite PHP complète : 2 831 cas, 2 772 réussites, 17 864 assertions, 59 exclusions
+  conditionnelles, zéro erreur/échec, 582,21 s,
+  `back/reports/phpunit-qa005-followup-all.xml`. Les services dédiés non activés
+  restent exclus selon leurs conditions existantes ; aucun test n'est désactivé.
+- Protocole/environnement Node : 17 tests réussis ; lint frontend, Pint des
+  fichiers PHP modifiés et PHPStan sans erreur.
+
+Le premier démarrage du profil est bloqué par pg_ctl dans le sandbox Windows
+(jeton restreint, erreur 87) ; la relance autorisée utilise le même cluster jetable.
+Le lanceur ponctuel PHPUnit PostgreSQL est corrigé après deux erreurs de préparation :
+chemins absolus Windows de cache non reconnus par le bootstrap standard, puis
+driver de session navigateur incompatible avec les helpers de test MFA. Le passage
+final utilise l'environnement PHPUnit attendu et uniquement la connexion jetable.
+Tous ces clusters sont arrêtés et supprimés ; aucune configuration applicative
+ou base de développement n'a été modifiée pour contourner ces problèmes.
+
+### Mesures finales
+
+Profil final `front/reports/load-profile-1793097658986.json` : 300 lectures
+réussies, zéro erreur HTTP, protocole et nettoyage conformes. Les lectures courantes
+passent de 47 à 41 requêtes SQL pour 25 comme 100 personnes. P95 avant/pendant/après :
+317,49 / 376,20 / 333,30 ms ; les trois phases respectent la cible de 500 ms.
+Le résidu hors bootstrap/traitement a un p95 de 7,66 / 8,02 / 7,50 ms. Ce scénario
+de faible concurrence ne remplace pas le scénario pressure ni la recette hébergée.
+Quelques lectures de 25 personnes après reprise montent à 45 requêtes, contre
+41 courantes ; les maxima sont conservés, sans les remplacer par le minimum.
+
+Pressure final `front/reports/load-pressure-1793097769801.json` : 597 lectures
+réussies (150 / 297 / 150), aucune erreur HTTP ni refus quota/contention/unclassified.
+Les trois imports terminent avec 3 000 créations Alpha, les trois exports avec
+500 lignes chacun, zéro job échoué/en attente. Les empreintes ciblées Beta/Gamma
+restent identiques ; protocole et nettoyage conformes. Les empreintes de tous les
+fichiers tracés dans les deux rapports finaux correspondent aux sources livrées.
+Le commit de base est `83607c9`, avec checkout modifié avant le commit de livraison.
+
+| P95 Beta (ms) | Référence | Sources finales |
+| --- | ---: | ---: |
+| Avant charge | 5 461,71 | 4 416,41 |
+| Pendant charge | 18 060,42 | 10 198,44 |
+| Après charge | 6 677,97 | 3 965,50 |
+| Résidu hors bootstrap/traitement, pendant charge | 17 623,33 | 9 820,83 |
+
+Pendant charge, les p95 bootstrap et traitement finaux valent 187,36 et 381,78 ms ;
+le p95 SQL vaut 282,53 ms et fait partie du traitement. Ces centiles sont calculés
+sur les mêmes 150 lectures Beta, mais ne s'additionnent pas. Le protocole sort 1
+parce que la cible de latence est dépassée, pas pour une erreur HTTP ou un nettoyage
+incomplet. Le gain observé sur ce poste partagé ne s'attribue pas intégralement
+aux six requêtes supprimées : charge du poste, connexions et admission séquentielle
+des quatre serveurs de développement restent des facteurs non contrôlés.
+
+**QA-005/REC-34 restent ouverts.** La réduction des lectures est démontrée et les
+contrôles fonctionnels passent, mais 10,20 s reste supérieur à 500 ms. Le diagnostic
+montre un résidu important hors bootstrap/traitement ; les sous-temps ne suffisent
+pas à qualifier un hébergement. La suite demande une topologie représentative,
+un générateur séparé, Redis/Horizon, durée soutenue et scénarios publics applicables,
+selon le protocole déjà préparé. Aucun quota, volume ou seuil n'est diminué.
+
+Livraison unique avec commit et push sur staging demandés ; la nouvelle CI reste
+à valider après push. Aucun changement de migration, de dépendance, de configuration
+de production ou de donnée réelle. Les essais restent exclusivement fictifs.

@@ -57,6 +57,19 @@ test('latency success requires complete paginated responses from the expected te
   ]) assert.throws(() => validatePeople(invalid, ids, 25))
 })
 
+test('application residual is computed per successful sample without subtracting SQL twice', () => {
+  const report = summarize([
+    { status: 200, ok: true, ms: 1000, bootstrapMs: 20, handlerMs: 80, sqlMs: 40, pageSize: 25, queries: 8 },
+    { status: 200, ok: true, ms: 200, bootstrapMs: 30, handlerMs: 170.001, sqlMs: 50, pageSize: 25, queries: 8 },
+    { status: 200, ok: true, ms: 300, pageSize: 25, queries: 8 },
+    { status: 429, ok: false, ms: 5000, bootstrapMs: 10, handlerMs: 20, pageSize: 25 },
+  ])
+  assert.deepEqual(report.diagnostics.outsideApplicationMs, { samples: 2, p50: 0, p95: 900 })
+  assert.equal(report.p95Ms, 5000)
+  assert.equal(report.errors, 1)
+  assert.equal(summarize([{ status: 200, ok: true, ms: 5, pageSize: 25, queries: 1 }]).diagnostics.outsideApplicationMs, null)
+})
+
 test('PHP load fixtures refuse missing profiles, SQLite and foreign roots before boot', () => {
   const cwd = fileURLToPath(new URL('../../../back', import.meta.url))
   for (const file of ['load-seed.php', 'load-server.php', 'load-audit.php']) {

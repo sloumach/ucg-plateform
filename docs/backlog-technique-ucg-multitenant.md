@@ -1736,6 +1736,16 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / L
 - **Périmètre** : 500 comptes, 100 actifs simultanés, 100 000 parties, 2 000 visiteurs publics et charges asymétriques.
 - **Acceptation** : p95 mesuré, nombre de requêtes contrôlé et autres tenants protégés pendant les traitements lourds.
+- **Lectures et diagnostic (27/10/2026)** : snapshot local pour les filtres/colonnes
+  People, projection fraîche après lecture, accès de base sans doublon dans la
+  projection. Lectures courantes 47 → 41 requêtes SQL, budgets de services et
+  révocations testés. Suite PHP : 2 772 réussites/59 exclusions conditionnelles,
+  zéro erreur/échec ; dix suites PostgreSQL : 252 tests verts. Pressure final :
+  597 lectures réussies sans refus, 3 000 créations et trois exports, intégrité
+  ciblée et nettoyage conformes. P95 Beta pendant charge 18,06 → 10,20 s sur le
+  poste partagé ; résidu hors bootstrap/traitement instrumentés mesuré séparément.
+  **QA-005/REC-34 ouverts** : cible 500 ms non tenue, hébergement représentatif
+  toujours différé. Commit et push demandés ; nouvelle CI à confirmer.
 - **Trois lots de corrections (26/10/2026)** : références profile/pressure reprises
   avant modification ; lectures d'affichage multi-classifications regroupées dans
   un snapshot frais par projection, sans cache de droits entre appels et sans
