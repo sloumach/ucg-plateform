@@ -21,6 +21,7 @@ final readonly class RetentionReviewReport extends DataTransferObject implements
             'request_id' => $this->requestId, 'policy_fingerprint' => $this->policyFingerprint,
             'consistency' => 'bounded_review_not_execution_snapshot',
             'deletion_supported' => false, 'data' => $this->items,
+            'person_disposition' => RetentionCatalog::PERSON_DISPOSITION,
             'pagination' => ['page' => $this->query->page, 'per_page' => $this->query->perPage, 'total' => $this->total,
                 'last_page' => max(1, (int) ceil($this->total / $this->query->perPage))],
             'unverified_copies' => RetentionCatalog::UNVERIFIED_COPIES,

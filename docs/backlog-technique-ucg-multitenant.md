@@ -1428,6 +1428,26 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / L
 - **Périmètre** : matrice par catégorie/tenant, archivage restreint, purge, exports temporaires, réplicas et cycle des sauvegardes.
 - **Acceptation** : soft delete non confondu avec effacement ; opération auditée et testée.
+- **Décision utilisateur intégrée (27/10/2026)** : les informations des personnes
+  sont conservées sans limite, soft delete réversible jusqu'à effacement manuel
+  ultérieur. API People DELETE/restore et liste paginée archive=only ajoutées,
+  droits sportifs+administratifs, départ enregistré/obligations clôturées,
+  validation, versions et audit atomique. Données chiffrées, liens et historiques
+  conservés, aucun compteur d'effacement. Registre de revue compatible avec une
+  conservation illimitée explicite. L'effacement physique exhaustif et sa
+  réconciliation sur copies restent à construire/qualifier ; pas de corbeille SPA.
+- **Demande des six blocs en un commit (27/10/2026)** : contrôles opérateur natifs
+  ajoutés : gels indépendants d'organisation sur les suppressions techniques,
+  restriction d'archive d'organisation, quarantaine manuelle et levée liée à une
+  revue versionnée des 18 familles/11 catégories de copies. Journal append-only
+  avec reçu de revue figé, versions attendues et rejeu idempotent. Garde commune
+  reliée aux expirations/fichiers/exports/purge existants et aux reprises, catalogue
+  étendu à 117 tables, commande désactivée et accès vide par défaut. Bilan des six
+  blocs explicite, `business_deletion_supported=false`, `production_qualified=false`.
+  **Ticket toujours ouvert** : hors décision People ci-dessus, règles métier à
+  compléter ; pas d'archive par
+  dossier, de gel général des réécritures, d'effacement métier exhaustif, de
+  réconciliation automatique des copies ou de qualification de l'hébergement.
 - **Lots natifs de préparation (27/10/2026)** : catalogue fermé 18 familles/116
   tables, registre de revue versionné et empreinte, commande serveur protégée par
   compte/tenant, Service/Repository/DTO, inventaire et dossiers People paginés.

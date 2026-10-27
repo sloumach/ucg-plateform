@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 
 /**
  * @property string $id
@@ -28,11 +30,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $contact_phone
  * @property string|null $birth_date
  * @property string $version
+ * @property Carbon|null $deleted_at
  */
 final class Person extends Model
 {
     /** @use HasFactory<PersonFactory> */
     use HasFactory, HasUuids;
+
+    use SoftDeletes;
 
     protected $table = 'people';
 

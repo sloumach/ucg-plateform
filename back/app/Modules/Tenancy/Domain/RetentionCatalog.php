@@ -4,10 +4,13 @@ namespace App\Modules\Tenancy\Domain;
 
 final class RetentionCatalog
 {
+    // Product decision explicitly supplied by the user on 2026-10-27; no legal certification inferred.
+    public const array PERSON_DISPOSITION = ['retention' => 'indefinite', 'deletion' => 'soft_delete', 'erasure' => 'manual_only', 'decision_reference' => 'user-2026-10-27'];
+
     /** Closed inventory; a new table must receive an explicit family before review. */
     public const array FAMILIES = [
         'organization' => ['organizations', 'organization_settings', 'organization_memberships', 'organization_invitations', 'organization_roles', 'organization_role_assignments', 'organization_support_accesses'],
-        'history' => ['organization_sensitive_access_events', 'organization_lifecycle_events', 'organization_access_events', 'organization_support_events', 'organization_audit_events'],
+        'history' => ['organization_sensitive_access_events', 'organization_lifecycle_events', 'organization_access_events', 'organization_support_events', 'organization_audit_events', 'organization_retention_events'],
         'people' => ['people', 'person_game_profiles', 'person_external_accounts', 'person_periods', 'person_departure_items', 'person_departures'],
         'people_imports' => ['person_imports', 'person_import_rows'],
         'teams' => ['team_eligibility_rulesets', 'team_lineup_rule_bindings', 'team_lineup_eligibility_reports', 'team_lineups', 'team_lineup_entries', 'team_memberships', 'team_movements', 'team_scope_grants', 'teams'],

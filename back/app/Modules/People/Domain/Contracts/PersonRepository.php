@@ -57,6 +57,10 @@ interface PersonRepository
 
     public function find(string $organizationId, string $personId, bool $lock = false): Person;
 
+    public function findIncludingArchived(string $organizationId, string $personId): Person;
+
+    public function setArchived(Person $person, bool $archived): Person;
+
     /** @param array<string, mixed> $attributes */
     public function create(string $organizationId, array $attributes): Person;
 

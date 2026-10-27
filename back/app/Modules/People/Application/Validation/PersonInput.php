@@ -32,10 +32,16 @@ final class PersonInput
         ];
     }
 
+    /** @return array<string, array<mixed>> */
+    public static function archiveRules(): array
+    {
+        return ['version' => ['required', 'uuid'], 'confirm' => ['required', 'accepted']];
+    }
+
     /** @return array<string, string> */
     public static function messages(): array
     {
-        return ['required' => __('people.validation.required'), 'string' => __('people.validation.string'),
+        return ['required' => __('people.validation.required'), 'accepted' => __('people.validation.accepted'), 'string' => __('people.validation.string'),
             'max' => __('people.validation.max'), 'in' => __('people.validation.choice'),
             'enum' => __('people.validation.choice'), 'integer' => __('people.validation.integer'),
             'min' => __('people.validation.min'), 'regex' => __('people.validation.format'),

@@ -23,6 +23,7 @@ final readonly class TenantArtifactService implements TenantArtifacts
     public function __construct(
         private ArtifactLedger $ledger, private Factory $filesystems, private Repository $config,
         private TenantTechnicalLimits $limits, private TenantResolver $resolver,
+        private RetentionGuard $retention,
     ) {}
 
     public function store(TenantContext $context, string $name, string $contents, ?\DateTimeImmutable $expiresAt = null): TenantArtifactData
@@ -90,7 +91,7 @@ final readonly class TenantArtifactService implements TenantArtifacts
         $this->authorize($context);
         $this->record($context, $artifactId);
         $organizationId = strtolower($context->organizationId);
-        $this->ledger->locked($organizationId, $artifactId, function (array $record) use ($context, $artifactId, $organizationId): void {
+        $this->retention->destructive($organizationId, fn () => $this->ledger->locked($organizationId, $artifactId, function (array $record) use ($context, $artifactId, $organizationId): void {
             $this->authorize($context);
             try {
                 $disk = $this->privateDisk($record['disk']);
@@ -102,7 +103,7 @@ final readonly class TenantArtifactService implements TenantArtifacts
                 throw new ArtifactStorageException('Unable to remove the tenant artifact.', previous: $exception);
             }
             $this->ledger->release($organizationId, $artifactId);
-        });
+        }));
     }
 
     public function usedBytes(TenantContext $context): int
@@ -123,7 +124,7 @@ final readonly class TenantArtifactService implements TenantArtifacts
                 break;
             }
             try {
-                $this->ledger->locked($candidate['organization_id'], $candidate['id'], function (array $record) use ($candidate): void {
+                $this->retention->destructive($candidate['organization_id'], fn () => $this->ledger->locked($candidate['organization_id'], $candidate['id'], function (array $record) use ($candidate): void {
                     if (! $this->ledger->expired($candidate['organization_id'], $candidate['id'])) {
                         return;
                     }
@@ -133,7 +134,7 @@ final readonly class TenantArtifactService implements TenantArtifacts
                         throw new ArtifactStorageException('Unable to expire tenant artifact.');
                     }
                     $this->ledger->release($candidate['organization_id'], $candidate['id']);
-                });
+                }));
             } catch (ModelNotFoundException) {
                 // Another cleanup process already removed this candidate.
             } catch (Throwable $exception) {

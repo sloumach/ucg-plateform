@@ -19,7 +19,7 @@ class RetentionReviewPolicyTest extends TestCase
         sort($expected);
 
         $this->assertCount(18, RetentionCatalog::FAMILIES);
-        $this->assertCount(116, $tables);
+        $this->assertCount(117, $tables);
         $this->assertSame($expected, $tables);
         $this->assertSame(count($tables), count(array_unique($tables)));
     }
@@ -59,6 +59,24 @@ class RetentionReviewPolicyTest extends TestCase
         $this->assertSame($first->version, $changed->version);
         $this->assertNotNull($first->fingerprint);
         $this->assertNotSame($first->fingerprint, $changed->fingerprint);
+    }
+
+    public function test_indefinite_preservation_is_explicit_and_does_not_interpret_an_absent_duration_as_unlimited(): void
+    {
+        $value = self::policy();
+        $value['rules']['people'] = ['event' => 'manual_review', 'active_days' => null, 'archive_days' => null, 'final_action' => 'preserve'];
+        $date = CarbonImmutable::parse('2026-10-27', 'UTC');
+        $policy = RetentionReviewPolicy::fromConfiguration($value, $date);
+        $this->assertSame('configured_review_only', $policy->status);
+        $rule = $policy->rule('people');
+        $this->assertNotNull($rule);
+        $this->assertSame('preserve', $rule['final_action']);
+        $this->assertNull($rule['active_days']);
+        $value['rules']['people']['final_action'] = 'review';
+        $this->assertSame('invalid', RetentionReviewPolicy::fromConfiguration($value, $date)->status);
+        $value['rules']['people']['final_action'] = 'preserve';
+        $value['rules']['people']['event'] = 'recorded_departure';
+        $this->assertSame('invalid', RetentionReviewPolicy::fromConfiguration($value, $date)->status);
     }
 
     /** @return array<string, array{array<string, mixed>}> */

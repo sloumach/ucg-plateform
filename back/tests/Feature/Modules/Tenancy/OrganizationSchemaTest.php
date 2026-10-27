@@ -88,6 +88,11 @@ class OrganizationSchemaTest extends TestCase
     public function test_migrations_can_be_reversed_and_reapplied_in_the_test_database(): void
     {
         $this->assertTrue(Schema::hasTable('users'));
+        $softDeletes = require database_path('migrations/2026_10_27_213817_add_soft_deletes_to_people_table.php');
+        $softDeletes->down();
+        $retention = require database_path('migrations/2026_10_27_211707_create_organization_retention_events_table.php');
+        $retention->down();
+        $this->assertFalse(Schema::hasTable('organization_retention_events'));
         $organizationMigration = require database_path('migrations/2026_10_10_085921_create_organizations_and_settings_tables.php');
         $auditMigration = require database_path('migrations/2026_10_10_085922_create_organization_lifecycle_events_table.php');
         $accessMigration = require database_path('migrations/2026_10_10_122134_create_organization_memberships_invitations_and_access_events.php');
@@ -218,6 +223,7 @@ class OrganizationSchemaTest extends TestCase
         $supportMigration->up();
         $transverseAuditMigration->up();
         $peopleMigration->up();
+        $softDeletes->up();
         $profilesMigration->up();
         $lifecycleMigration->up();
         $importMigration->up();
@@ -266,6 +272,8 @@ class OrganizationSchemaTest extends TestCase
         $academy->up();
         $sessions->up();
         $coaching->up();
+        $retention->up();
+        $this->assertTrue(Schema::hasTable('organization_retention_events'));
         $this->assertTrue(Schema::hasTable('dashboard_source_versions'));
         $this->assertTrue(Schema::hasTable('dashboard_indicators'));
         $this->assertTrue(Schema::hasTable('dashboard_indicator_revisions'));

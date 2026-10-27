@@ -21,6 +21,7 @@ final readonly class OrganizationRecoveryService
         private OrganizationRepository $organizations, private TenantWorkRepository $work,
         private AccountDirectory $accounts, private MembershipAdmissionService $admission,
         private ConnectionInterface $database,
+        private RetentionGuard $retention,
     ) {}
 
     /** Explicit unarchive of preserved data; never imports an archive or resumes business jobs automatically. */
@@ -39,6 +40,7 @@ final readonly class OrganizationRecoveryService
                 throw new InvalidOrganizationAccountException;
             }
             $organization = $this->portability->authorize($organizationId, $audit);
+            $this->retention->assertReactivationAllowed($organizationId);
             $source = $this->operations->find($organizationId, $sourceExport);
             if ($organization->status !== OrganizationStatus::Archived || $this->operations->hasPurge($organizationId)
                 || ($this->operations->counts($organizationId)['organization_settings'] ?? 0) !== 1

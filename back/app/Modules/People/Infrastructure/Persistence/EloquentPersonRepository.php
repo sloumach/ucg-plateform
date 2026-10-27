@@ -121,6 +121,9 @@ final class EloquentPersonRepository implements PersonRepository
             $columns = [...$columns, 'people.user_id', 'people.first_name', 'people.last_name', 'people.contact_email'];
         }
         $query = Person::query()->forOrganization($organizationId)->select($columns);
+        if (($filters['archive'] ?? 'exclude') === 'only') {
+            $query->onlyTrashed();
+        }
         if ($sports) {
             $query->withCount('gameProfiles');
         }
@@ -175,6 +178,23 @@ final class EloquentPersonRepository implements PersonRepository
     {
         $person = new Person;
         $person->forceFill([...$attributes, 'organization_id' => strtolower($organizationId)])->save();
+
+        return $person;
+    }
+
+    public function findIncludingArchived(string $organizationId, string $personId): Person
+    {
+        if (! Str::isUuid($organizationId) || ! Str::isUuid($personId)) {
+            throw new ModelNotFoundException;
+        }
+
+        return Person::withTrashed()->forOrganization($organizationId)->whereKey(strtolower($personId))->lockForUpdate()->firstOrFail();
+    }
+
+    public function setArchived(Person $person, bool $archived): Person
+    {
+        // Keep direct model delete/forceDelete prohibited; all logical removal goes through the audited service.
+        $person->forceFill(['deleted_at' => $archived ? now() : null, 'version' => (string) Str::uuid7()])->save();
 
         return $person;
     }

@@ -24,6 +24,7 @@ final readonly class OrganizationPurgeService
         private OrganizationPortabilityService $portability, private PortabilityRepository $operations,
         private PortabilityArchive $archives, private ArtifactLedger $ledger, private Repository $config,
         private ConnectionInterface $database, private TenantCacheStore $locks, private LoggerInterface $logger,
+        private RetentionGuard $retention,
     ) {}
 
     /**
@@ -62,6 +63,7 @@ final readonly class OrganizationPurgeService
             }
             $operation = $this->database->transaction(function () use ($organizationId, $operationId, $sourceExport, $audit, $policy, $policyHash): PortabilityOperation {
                 $organization = $this->portability->authorize($organizationId, $audit);
+                $this->retention->assertRemovalAllowed($organizationId);
                 $this->operations->assertCatalog();
                 if ($organization->status !== OrganizationStatus::Archived) {
                     throw new DomainConflictException(__('tenancy.portability.archived_required'), 'PURGE_ARCHIVED_REQUIRED');
@@ -116,7 +118,7 @@ final readonly class OrganizationPurgeService
                     $this->operations->update($organizationId, $export->id, ['status' => 'expired', 'bytes' => 0]);
                 }
             }
-            $this->database->transaction(function () use ($organizationId, $audit, $categories): void {
+            $this->retention->destructive($organizationId, function () use ($organizationId, $audit, $categories): void {
                 $this->portability->authorize($organizationId, $audit);
                 if ($categories['settings'] === 'delete') {
                     $this->operations->removeSettings($organizationId);

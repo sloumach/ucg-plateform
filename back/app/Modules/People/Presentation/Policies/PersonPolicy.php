@@ -21,6 +21,12 @@ final readonly class PersonPolicy
         return (int) $user->getAuthIdentifier() === $context->actorUserId && $this->authorization->allows($context, 'sports.write');
     }
 
+    public function archive(Authenticatable $user, TenantContext $context): bool
+    {
+        return (int) $user->getAuthIdentifier() === $context->actorUserId
+            && $this->authorization->allows($context, 'sports.write') && $this->authorization->allows($context, 'administrative.write');
+    }
+
     public function update(Authenticatable $user, TenantContext $context): bool
     {
         return (int) $user->getAuthIdentifier() === $context->actorUserId

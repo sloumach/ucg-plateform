@@ -3,8 +3,10 @@
 namespace App\Modules\People\Presentation\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Modules\People\Application\Services\PersonArchiveService;
 use App\Modules\People\Application\Services\PersonService;
 use App\Modules\People\Domain\Models\Person;
+use App\Modules\People\Presentation\Http\Requests\Api\V1\ChangePersonArchiveRequest;
 use App\Modules\People\Presentation\Http\Requests\Api\V1\ListPeopleRequest;
 use App\Modules\People\Presentation\Http\Requests\Api\V1\SavePersonRequest;
 use App\Modules\People\Presentation\Http\Requests\Api\V1\ShowPersonRequest;
@@ -16,7 +18,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 final class PersonController extends Controller
 {
-    public function __construct(private readonly PersonService $people, private readonly Gate $gate) {}
+    public function __construct(private readonly PersonService $people, private readonly Gate $gate, private readonly PersonArchiveService $archives) {}
 
     public function index(ListPeopleRequest $request, TenantContext $context): AnonymousResourceCollection
     {
@@ -47,5 +49,21 @@ final class PersonController extends Controller
 
         return PersonResource::make($this->people->update($context, $person, $request->toData(), $request->ip()))
             ->additional(['notification' => ['type' => 'success', 'message' => __('people.updated')]]);
+    }
+
+    public function destroy(ChangePersonArchiveRequest $request, TenantContext $context, string $tenant, string $person): PersonResource
+    {
+        $this->gate->authorize('archive', [Person::class, $context]);
+
+        return PersonResource::make($this->archives->change($context, $person, $request->toData(), true, $request->ip()))
+            ->additional(['notification' => ['type' => 'success', 'message' => __('people.archived')]]);
+    }
+
+    public function restore(ChangePersonArchiveRequest $request, TenantContext $context, string $tenant, string $person): PersonResource
+    {
+        $this->gate->authorize('archive', [Person::class, $context]);
+
+        return PersonResource::make($this->archives->change($context, $person, $request->toData(), false, $request->ip()))
+            ->additional(['notification' => ['type' => 'success', 'message' => __('people.restored')]]);
     }
 }

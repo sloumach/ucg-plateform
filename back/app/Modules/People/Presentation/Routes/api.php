@@ -48,9 +48,11 @@ Route::prefix('tenants/{tenant}/people')->whereUuid('tenant')->middleware('tenan
         Route::patch('departure-items/{record}', [PersonDepartureItemController::class, 'update'])->whereUuid('record')->middleware('tenant.confirmed')->block(10, 10)->name('people.departure-items.update');
         Route::get('departure', [PersonDepartureController::class, 'show'])->name('people.departure.show');
         Route::post('departure', [PersonDepartureController::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('people.departure.store');
+        Route::post('restore', [PersonController::class, 'restore'])->middleware('tenant.confirmed')->block(10, 10)->name('people.restore');
     });
     Route::get('/', [PersonController::class, 'index'])->name('people.index');
     Route::get('{person}', [PersonController::class, 'show'])->whereUuid('person')->block(10, 10)->name('people.show');
     Route::post('/', [PersonController::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('people.store');
     Route::patch('{person}', [PersonController::class, 'update'])->whereUuid('person')->middleware('tenant.confirmed')->block(10, 10)->name('people.update');
+    Route::delete('{person}', [PersonController::class, 'destroy'])->whereUuid('person')->middleware('tenant.confirmed')->block(10, 10)->name('people.destroy');
 });

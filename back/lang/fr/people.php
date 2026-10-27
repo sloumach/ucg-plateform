@@ -5,6 +5,10 @@ return [
     'list_max' => 'La limite autorisée de :max est dépassée.',
     'created' => 'La fiche personne a été créée.',
     'updated' => 'La fiche personne a été mise à jour.',
+    'archived' => 'La fiche est masquée. Ses informations sont conservées sans limite de durée.',
+    'restored' => 'La fiche est de nouveau visible. Son départ reste enregistré.',
+    'archive_state_conflict' => 'La fiche est déjà dans cet état. Rechargez la liste.',
+    'archive_departure_required' => 'Enregistrez le départ et clôturez les obligations avant de masquer cette fiche.',
     'immutable' => 'L’identifiant et l’organisation de la fiche sont immuables.',
     'history_retained' => 'La fiche doit être conservée. Utilisez son statut pour préserver l’historique.',
     'stale' => 'Cette fiche a été modifiée. Rechargez-la avant de réessayer.',
@@ -12,6 +16,7 @@ return [
     'account_duplicate' => 'Ce compte est déjà lié à une fiche dans cette organisation.',
     'validation' => [
         'required' => 'Ce champ est obligatoire.',
+        'accepted' => 'Confirmez explicitement cette opération.',
         'string' => 'Ce champ doit être un texte.',
         'max' => 'Ce champ ne doit pas dépasser :max caractères.',
         'choice' => 'La valeur sélectionnée n’est pas autorisée.',

@@ -4,6 +4,7 @@ namespace App\Modules\Tenancy\Infrastructure\Resources;
 
 use App\Exceptions\ArtifactStorageException;
 use App\Exceptions\DomainConflictException;
+use App\Modules\Tenancy\Application\Services\RetentionGuard;
 use App\Modules\Tenancy\Domain\Contracts\PortabilityArchive;
 use App\Modules\Tenancy\Domain\Data\PortabilityArchiveData;
 use App\Modules\Tenancy\Domain\Data\PortabilityOperation;
@@ -19,7 +20,7 @@ final readonly class PrivatePortabilityArchive implements PortabilityArchive
 {
     private const int BLOCK_BYTES = 1048576;
 
-    public function __construct(private Factory $filesystems, private Repository $config) {}
+    public function __construct(private Factory $filesystems, private Repository $config, private RetentionGuard $retention) {}
 
     public function validateDisk(string $disk): void
     {
@@ -118,7 +119,7 @@ final readonly class PrivatePortabilityArchive implements PortabilityArchive
 
     public function delete(PortabilityOperation $operation): void
     {
-        $this->remove((string) $operation->disk, $this->path($operation));
+        $this->retention->destructive($operation->organizationId, fn () => $this->remove((string) $operation->disk, $this->path($operation)));
     }
 
     public function deleteArtifact(string $organizationId, array $artifact): void
@@ -126,7 +127,8 @@ final readonly class PrivatePortabilityArchive implements PortabilityArchive
         if (! Str::isUuid($artifact['id'])) {
             throw new LogicException('Invalid artifact identity.');
         }
-        $this->remove($artifact['disk'], TenantResourceNamespace::path($organizationId, 'artifacts/'.strtolower($artifact['id'])));
+        $this->retention->destructive($organizationId,
+            fn () => $this->remove($artifact['disk'], TenantResourceNamespace::path($organizationId, 'artifacts/'.strtolower($artifact['id']))));
     }
 
     /**

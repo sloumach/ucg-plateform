@@ -13,6 +13,7 @@ final class PersonListInput
     public static function rules(): array
     {
         return [
+            'archive' => ['sometimes', 'required', Rule::in(['exclude', 'only'])],
             'page' => ['sometimes', 'required', 'integer', 'min:1', 'max:10000'],
             'per_page' => ['sometimes', 'required', 'integer', 'min:1', 'max:100'],
             'view' => ['sometimes', 'required', Rule::in(['general', 'sports', 'administrative'])],

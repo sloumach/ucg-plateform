@@ -41,6 +41,7 @@ final readonly class OrganizationPortabilityService
         private TenantTechnicalLimits $limits, private TenantCacheStore $locks,
         private TenantExecutionScope $scope, private LoggerInterface $logger, private Application $app,
         private TenantSensitiveAccessJournal $sensitive,
+        private RetentionGuard $retention,
     ) {}
 
     /** Operator-server entry point only; declaring an actor does not grant a platform role. */
@@ -65,6 +66,7 @@ final readonly class OrganizationPortabilityService
     {
         $operation = $this->database->transaction(function () use ($organizationId, $audit): PortabilityOperation {
             $organization = $this->authorize($organizationId, $audit);
+            $this->retention->assertArchiveReadAllowed($organizationId, $audit->actorUserId);
             $this->operations->assertCatalog();
             $this->assertNoPurge($organization->id);
             $disk = $this->config->get('filesystems.artifacts');
@@ -103,6 +105,7 @@ final readonly class OrganizationPortabilityService
     {
         $this->database->transaction(function () use ($organizationId, $operationId, $audit): void {
             $this->authorize($organizationId, $audit);
+            $this->retention->assertArchiveReadAllowed($organizationId, $audit->actorUserId);
             $this->assertNoPurge($organizationId);
             $operation = $this->operations->find($organizationId, $operationId);
             $this->assertLive($operation);
@@ -128,6 +131,7 @@ final readonly class OrganizationPortabilityService
                 $operation = $this->operations->find($organizationId, $operationId);
                 $organization = $this->authorize($organizationId,
                     new OrganizationAuditData($operation->actorUserId, $operation->reason, $operation->requestId));
+                $this->retention->assertArchiveReadAllowed($organizationId, $operation->actorUserId);
                 $this->assertNoPurge($organizationId);
                 $this->assertLive($operation);
                 if ($operation->status === 'ready') {
@@ -168,6 +172,7 @@ final readonly class OrganizationPortabilityService
     public function read(string $organizationId, string $operationId, OrganizationAuditData $audit)
     {
         $operation = $this->inspect($organizationId, $operationId, $audit);
+        $this->retention->assertArchiveReadAllowed($organizationId, $audit->actorUserId);
         $this->assertLive($operation);
         if ($operation->status !== 'ready') {
             throw new DomainConflictException(__('tenancy.portability.not_ready'), 'EXPORT_NOT_READY');
@@ -176,6 +181,7 @@ final readonly class OrganizationPortabilityService
         try {
             $this->database->transaction(function () use ($organizationId, $operationId, $audit): void {
                 $this->authorize($organizationId, $audit);
+                $this->retention->assertArchiveReadAllowed($organizationId, $audit->actorUserId);
                 $current = $this->operations->find($organizationId, $operationId);
                 $this->assertLive($current);
                 if ($current->status !== 'ready') {

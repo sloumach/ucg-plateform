@@ -55,6 +55,10 @@ final readonly class PersonService implements PeopleDirectory
             throw ValidationException::withMessages(array_fill_keys($unknown, __('people.validation.immutable')));
         }
         $filters = $this->validator->make($input->attributes, PersonListInput::rules(), PersonListInput::messages())->validate();
+        if (($filters['archive'] ?? 'exclude') === 'only') {
+            $this->authorization->authorize($context, 'sports.write');
+            $this->authorization->authorize($context, 'administrative.write');
+        }
         // One fresh display snapshot governs filters and selected columns only.
         // The projection rechecks permissions after fetching the page.
         try {
@@ -79,6 +83,10 @@ final readonly class PersonService implements PeopleDirectory
         $administrative = $view !== 'sports' && $canReadAdministrative;
         $page = $this->people->paginate($context->organizationId, $filters, $sports, $administrative);
         $page->setCollection(collect($this->projection->summaries($context, array_values($page->items()), $sports, $administrative)));
+        if (($filters['archive'] ?? 'exclude') === 'only') {
+            $this->authorization->authorize($context, 'sports.write');
+            $this->authorization->authorize($context, 'administrative.write');
+        }
 
         return $page;
     }

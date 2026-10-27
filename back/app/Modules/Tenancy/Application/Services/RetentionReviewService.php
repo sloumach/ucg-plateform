@@ -115,12 +115,13 @@ final readonly class RetentionReviewService
         }
         $rule = $policy->rule('people');
         $active = $archive = null;
-        if ($rule !== null && $rule['event'] === 'recorded_departure' && $departed !== null && $departed->lessThanOrEqualTo($query->asOf)) {
+        if ($rule !== null && $rule['event'] === 'recorded_departure' && $rule['active_days'] !== null && $departed !== null && $departed->lessThanOrEqualTo($query->asOf)) {
             $active = $departed->addDays($rule['active_days']);
             $archive = $rule['archive_days'] === null ? null : $active->addDays($rule['archive_days']);
         }
 
         return ['person_id' => $person['id'], 'status' => $person['status'], 'outcome' => 'review_required', 'reasons' => $reasons,
+            'soft_deleted' => $person['deleted_at'] !== null, 'retention' => 'indefinite', 'automatic_erasure' => false,
             'closure_on' => $departed?->toDateString(), 'active_review_on' => $active?->toDateString(),
             'archive_review_on' => $archive?->toDateString(),
             'review_date_reached' => $active !== null && $active->lessThanOrEqualTo($query->asOf),

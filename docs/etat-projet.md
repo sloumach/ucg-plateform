@@ -6,7 +6,29 @@
 ## Point de reprise
 
 - Dernière mise à jour : 27 octobre 2026.
-- Tâche courante : **UCG-OPS-007, demande de tous les lots ; préparation native Laravel**.
+- Tâche courante : **UCG-OPS-007, six blocs demandés en un seul commit**.
+  Nouvelle commande serveur `organizations:retention-control` : gels indépendants
+  sur les suppressions techniques, restriction d'archive d'organisation, quarantaine
+  manuelle avec reprise bloquée et reçu de revue versionné. Journal append-only
+  SQL et catalogue désormais à 117 tables ; contrôles reliés aux chemins existants
+  de fichiers/expiration/exports/purge et reprise, activation désactivée par défaut.
+  Pendant ce travail, l'utilisateur décide de conserver les informations People
+  indéfiniment, avec soft delete jusqu'à suppression manuelle ultérieure. API
+  DELETE/restore et liste archive=only ajoutées, données/historiques conservés,
+  versions, droits et audit atomique ; aucun effacement automatique. Les six blocs
+  restent non clôturés : autres règles, effacement exhaustif et gel métier général,
+  réconciliation automatique des copies et hébergement non qualifiés. Livraison en
+  un seul commit sur staging ; aucun push demandé dans cette intervention.
+  Validation finale : 2 912 cas, 2 853 réussites, 59 exclusions conditionnelles,
+  18 210 assertions, zéro erreur/échec, 522,04 s ; PostgreSQL 139 tests/662 assertions.
+  Pint, PHPStan et YAML CI verts. **Ne pas annoncer six blocs terminés.**
+  Correctif CI avant push : le journal fourni par l'utilisateur montre 40 échecs
+  SQLSTATE[42723], fonction ucg_organization_identity_guard déjà présente. Cause
+  reproduite : seconde suite RefreshDatabase sur la même base PostgreSQL dans un
+  nouveau processus. Couverture OPS-007 réunie à la suite PostgreSQL existante,
+  cibles conservées, YAML valide ; vérification groupée 158 tests/725 assertions.
+  Correctif intégré au même commit local non poussé ; CI distante à confirmer.
+- Lot précédent : **UCG-OPS-007, préparation native Laravel livrée en 20b55e6**.
   L'utilisateur demande « fait tous les lots de la ops 007 ». Catalogue fermé
   18 familles/116 tables, règles de revue et empreinte, aperçu opérateur serveur
   paginé (Console/Service/Repository/DTO), dépendances People et copies non vérifiées.
@@ -8354,3 +8376,97 @@ réconciliation des décisions après restauration et cycle réel des sauvegarde
 restent à concevoir/implémenter ou qualifier. L'hébergement demeure différé.
 Les tests de l'aperçu ne prouvent pas ces fonctions absentes. Ne pas annoncer
 « tous les lots terminés » sur la base de ce seul outil de préparation.
+
+## 27 octobre 2026 — contrôles de conservation, demande des six blocs
+
+L'utilisateur demande « ok fait ces 6 bloc en un seul commit » après le bilan des
+six travaux restants. Cette intervention ajoute des opérations réelles de
+préservation technique ; elle ne clôture pas les six blocs par simple renommage.
+
+- `organizations:retention-control` : inspection et décisions par organisation,
+  activation serveur explicite, accès distinct par compte/tenant, compte vérifié
+  et MFA enrôlé, refus des comptes techniques plateforme. Écritures confirmées,
+  version attendue, références techniques et requêtes idempotentes.
+- Plusieurs gels indépendants, jamais libérés par une date ; contrôle et retrait
+  physique sérialisés sur la racine tenant. Les chemins de fichiers, expirations,
+  exports et purge technique existants utilisent cette protection, y compris une
+  purge des seuls paramètres. Une tentative bloquée ne crée pas de purge pendante.
+- Archive restreinte de l'organisation déjà archivée : demande/génération/relance
+  et lecture d'export protégées ; accès relu avant livraison du flux. La levée de
+  restriction ne réactive pas l'organisation.
+- Quarantaine volontaire d'une organisation inactive ; retour actif/récupération
+  et retrait technique bloqués. Levée liée au tenant, à la quarantaine, à la version
+  courante, à l'empreinte de politique et à des références de revue des 11 catégories
+  de copies et de l'hébergement. Les 18 familles doivent avoir une règle de revue.
+  Le reçu est figé dans le journal ; il reste une déclaration opérateur.
+- Nouveau journal `organization_retention_events` append-only PostgreSQL/SQLite,
+  rollback refusé s'il est peuplé, catalogue et export privé étendus à 117 tables.
+  Configuration livrée désactivée/vide, aucune donnée utilisée modifiée. La migration
+  doit précéder le nouveau code ; aucun déploiement n'est effectué ici.
+
+Validation intermédiaire : tests ciblés SQLite 133 réussites/1 exclusion, 606
+assertions ; PostgreSQL temporaire 114 tests/542 assertions, cluster arrêté et
+supprimé après contrôle de son propriétaire. Pint, PHPStan et YAML CI verts.
+La suite complète et la livraison sont consignées au point de reprise une fois
+terminées. Rapports locaux ignorés sous `back/reports`.
+
+Après intégration de la décision de soft delete : 189 tests ciblés SQLite/1 063
+assertions, puis 56 tests de livraison/240 assertions ; PostgreSQL final 139 tests/
+662 assertions, cluster temporaire arrêté et supprimé. Ses fichiers fictifs
+utilisent le token de test Laravel distinct `ops007_pg_*`, vérifié dans le
+framework installé, pour ne pas partager les disques Storage::fake de la suite
+SQLite complète lancée en parallèle. Derniers Pint/PHPStan verts ; aucune
+erreur masquée par une nouvelle baseline. Suite complète finale : 2 912 cas,
+2 853 réussites, 59 exclusions conditionnelles, 18 210 assertions, zéro erreur/échec,
+522,04 s. Rapports finaux `phpunit-ops007-final.xml` et
+`phpunit-ops007-final-postgresql.xml` dans `back/reports` (ignorés). L'étape PostgreSQL
+OPS-007 de la CI inclut désormais PersonArchiveTest ; son exécution distante reste
+à confirmer après une prochaine livraison distante.
+
+L'utilisateur a répondu à la question de conservation : « on conserve ses info
+pour toujour avec soft delete jusqua suppression manuelle ulterieurement ».
+La décision People est désormais intégrée : conservation illimitée et suppression
+logique réversible via API, droits sports.write+administrative.write, départ
+enregistré et obligations clôturées, version/confirmation, état audité atomiquement.
+Les listes/recherches ordinaires masquent les fiches ; archive=only est paginé et
+réservé aux gestionnaires des deux domaines. La restauration ne défait pas le
+départ. Export privé/revue incluent le marqueur et conservent les champs chiffrés.
+Un registre de revue peut représenter preserve/null/null explicitement. Pas de
+corbeille SPA ni d'effacement physique ajouté. Les deux migrations sont à appliquer
+avant le nouveau code, sur le futur déploiement ; aucun migrate sur base utilisée ici.
+
+Les limitations du README restent opposables au bilan : pas de gel général des
+réécritures métier, pas de handlers
+d'effacement exhaustifs préservant les historiques selon des règles validées, pas
+de réconciliation automatique après restauration ni de preuve sur les copies
+externes. Le futur hébergement reste à qualifier. OPS-007/CAD-004/REC-35 ouverts.
+
+## 27 octobre 2026 — correction de l'enchaînement PostgreSQL en CI avant push
+
+Le journal transmis signale 40 échecs RetentionReviewTest/OrganizationMaintenanceTest
+et 18 réussites unitaires : la fonction ucg_organization_identity_guard existe déjà.
+L'étape de conservation ajoutée relançait des tests déjà couverts par le répertoire
+Tenancy de la première étape PostgreSQL. Dans un nouveau processus, le premier
+LazilyRefreshDatabase relance migrate:fresh ; Laravel efface les tables PostgreSQL,
+mais les fonctions des déclencheurs persistent. La migration échoue dès sa première
+tentative de recréer la fonction, puis chaque cas suivant réessaie la même initialisation.
+
+Le workflow regroupe ces tests dans l'étape PostgreSQL existante : ajout explicite
+de RetentionReviewPolicyTest et PersonArchiveTest à sa sélection, suppression du
+second processus redondant. Le répertoire Tenancy couvre revue, contrôles,
+maintenance et artefacts. Les étapes de concurrence conservent leurs bases
+temporaires indépendantes. La correction porte sur l'orchestration CI.
+
+Vérifications sur PostgreSQL 17 temporaire : un premier processus PHPUnit réussit,
+un second sur la même base reproduit exactement SQLSTATE[42723] et la fonction
+en double. Sur une seconde base du même cluster dédié, l'exécution groupée réussit :
+**158 tests, 725 assertions, 159,14 s**, zéro échec/erreur. Cluster arrêté puis
+supprimé après contrôle de propriété. YAML valide, 164 cibles existantes vérifiées ;
+comparaison avec le workflow précédent : les 168 cibles des deux étapes sont
+toujours incluses explicitement ou couvertes par les répertoires. JUnit reste
+collecté via phpunit*.xml. Logs/rapports ignorés sous back/reports.
+
+Avant correction, staging contenait un seul commit local non poussé au-dessus de
+origin/staging. Le correctif est intégré à ce commit pour conserver la livraison
+unique demandée. Aucun push effectué lors de ce correctif ; la prochaine exécution
+GitHub reste à confirmer après push.

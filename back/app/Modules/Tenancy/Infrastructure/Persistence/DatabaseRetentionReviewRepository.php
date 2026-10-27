@@ -55,7 +55,7 @@ final readonly class DatabaseRetentionReviewRepository implements RetentionRevie
         $result = $this->database->table('people as p')->where('p.organization_id', $organizationId)
             ->leftJoin('person_departures as d', function (JoinClause $join): void {
                 $join->on('d.person_id', '=', 'p.id')->on('d.organization_id', '=', 'p.organization_id');
-            })->select(['p.id', 'p.status', 'd.departed_at'])
+            })->select(['p.id', 'p.status', 'p.deleted_at', 'd.departed_at'])
             ->selectRaw('CASE WHEN p.user_id IS NULL THEN 0 ELSE 1 END AS account_linked')
             ->orderBy('p.id')->paginate($perPage, ['*'], 'page', $page);
         $items = [];
@@ -70,7 +70,7 @@ final readonly class DatabaseRetentionReviewRepository implements RetentionRevie
     private function personRow(stdClass $row): array
     {
         return ['id' => (string) $row->id, 'status' => (string) $row->status,
-            'departed_at' => $row->departed_at, 'account_linked' => (bool) $row->account_linked];
+            'departed_at' => $row->departed_at, 'deleted_at' => $row->deleted_at, 'account_linked' => (bool) $row->account_linked];
     }
 
     public function dependencies(string $organizationId, array $personIds): array

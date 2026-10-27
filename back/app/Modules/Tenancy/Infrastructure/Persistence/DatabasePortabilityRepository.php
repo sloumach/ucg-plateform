@@ -64,6 +64,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
         'organization_roles' => 'id', 'organization_role_assignments' => 'id',
         'organization_support_accesses' => 'id', 'organization_support_events' => 'id',
         'organization_audit_events' => 'id',
+        'organization_retention_events' => 'id',
         'people' => 'id',
         'person_game_profiles' => 'id', 'person_external_accounts' => 'id',
         'person_periods' => 'id', 'person_departure_items' => 'id', 'person_departures' => 'id',
@@ -73,6 +74,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'organization_retention_events' => ['id', 'organization_id', 'actor_user_id', 'version', 'action', 'reference', 'state', 'evidence', 'reason', 'request_id', 'occurred_at'],
         'academy_objectives' => ['id', 'organization_id', 'cohort_id', 'cycle_id', 'target_enrollment_id', 'responsible_enrollment_id', 'title', 'description', 'due_on', 'status', 'version', 'created_at', 'updated_at'],
         'academy_feedback' => ['id', 'organization_id', 'cycle_id', 'objective_id', 'audience', 'content', 'justification', 'author_user_id', 'status', 'version', 'created_at', 'updated_at'],
         'academy_coaching_revisions' => ['id', 'organization_id', 'objective_id', 'kind', 'resource_id', 'audience', 'actor_user_id', 'snapshot', 'recorded_at'],
@@ -183,7 +185,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
         'organization_support_accesses' => ['id', 'organization_id', 'actor_user_id', 'platform_role_version', 'reason', 'actions', 'status', 'starts_at', 'expires_at', 'created_at', 'updated_at'],
         'organization_support_events' => ['id', 'organization_id', 'support_access_id', 'actor_user_id', 'action', 'request_id', 'ip_address', 'occurred_at'],
         'organization_audit_events' => ['id', 'organization_id', 'actor_user_id', 'action', 'target_type', 'target_id', 'reason_code', 'before', 'after', 'request_id', 'ip_address', 'occurred_at'],
-        'people' => ['id', 'organization_id', 'user_id', 'pseudonym', 'language', 'timezone', 'status', 'biography_public', 'biography_internal', 'first_name', 'last_name', 'contact_email', 'contact_phone', 'birth_date', 'version', 'created_at', 'updated_at'],
+        'people' => ['id', 'organization_id', 'user_id', 'pseudonym', 'language', 'timezone', 'status', 'biography_public', 'biography_internal', 'first_name', 'last_name', 'contact_email', 'contact_phone', 'birth_date', 'version', 'created_at', 'updated_at', 'deleted_at'],
         'person_game_profiles' => ['id', 'organization_id', 'person_id', 'game_key', 'platform_key', 'region_key', 'rank', 'game_role', 'observed_at', 'status', 'version', 'created_at', 'updated_at'],
         'person_external_accounts' => ['id', 'organization_id', 'game_profile_id', 'game_key', 'platform_key', 'region_key', 'provider_key', 'external_id', 'display_name', 'observed_at', 'status', 'version', 'created_at', 'updated_at'],
         'tenant_storage_usage' => ['organization_id', 'bytes'],

@@ -971,6 +971,8 @@ Aucune fiche ni aucun lien n’est créé automatiquement pour les comptes exist
 Les identifiants/tenants sont immuables en Eloquent et SQL ; la suppression physique
 est refusée. Le statut `former` conserve la fiche ; le départ et la révocation
 des accès restent HUM-004. Le rollback d’une table non vide est refusé.
+OPS-007 ajoute ensuite une suppression logique réversible avec `deleted_at` : voir
+la décision de conservation illimitée et les API de suppression logique ci-dessous.
 
 Les changements sont audités dans la même transaction : `domain.changed`, cible
 organisation, UUID de personne dans l’état fermé, statut, présence d’un lien,
@@ -4980,7 +4982,8 @@ php artisan organizations:retention-review UUID_ORGANISATION --actor=ID_COMPTE -
 
 Le rapport contient mode review_only, date UTC, version/empreinte de règle,
 request_id, pagination et raisons de revue. La section inventory couvre exactement
-les 18 familles/116 tables de portabilité, une seule fois par table. Une dérive
+les 18 familles/117 tables de portabilité, une seule fois par table (dont le journal
+de conservation ajouté après le premier aperçu à 116 tables). Une dérive
 non revue de schéma bloque le résultat. La section people lit seulement identifiant,
 statut, date de départ et présence d'un lien au compte global ; aucun pseudonyme,
 nom, contact, naissance, texte de contrat ou montant n'est sélectionné pour le rapport.
@@ -5012,12 +5015,13 @@ sans motif libre ni contenu de dossier. Le JSON produit doit rester un rapport p
 
 | Lot | Travail réalisé | Ce qui ne peut pas être déclaré terminé |
 | --- | --- | --- |
-| Catalogue | Classement fermé des 18 familles/116 tables, contrôle de dérive, inventaire paginé | Une durée propre à chaque sous-catégorie n'est pas décidée par ce classement. |
+| Catalogue | Classement fermé des 18 familles/117 tables, contrôle de dérive, inventaire paginé | Une durée propre à chaque sous-catégorie n'est pas décidée par ce classement. |
 | Règles et accès | Configuration versionnée fermée, empreinte, accès opérateur par compte/tenant, valeurs manquantes signalées | Responsabilités, usages, durées et validations CAD-004 restent à compléter. |
 | Aperçu de dossiers | Lecture Laravel réelle sur fixtures, événements fiables, dépendances groupées, dates de revue conditionnelles | Les autres familles ont un inventaire, pas un moteur de décision par dossier. |
-| Copies et reprise | Copies non vérifiées explicites ; protections existantes de maintenance, quotas, reprise/idempotence et refus de restauration après purge réexercés | Pas de preuve d'effacement chez un fournisseur, dans un réplica ou une sauvegarde ; qualification d'hébergement différée. |
-| Archivage et purge métier | Aucune activation ; séparation vérifiée entre aperçu et commande de purge technique existante | Archivage restreint par dossier, gel juridique général et effacement exhaustif des 116 tables ne sont pas implémentés par cet aperçu. |
-| Validation/livraison | Tests SQLite/PostgreSQL, analyse statique, documentation et étape CI dédiée | La nouvelle CI distante et la recette réelle restent à confirmer. |
+| Copies et reprise | Quarantaine manuelle d'organisation inactive, reprise bloquée sans reçu versionné de revue des 11 catégories de copies ; reçu conservé dans l'audit | Pas de réconciliation automatique des effacements ni de preuve chez un fournisseur, dans un réplica ou une sauvegarde ; qualification d'hébergement différée. |
+| Archivage et gels | Restriction d'archive pour toute l'organisation ; soft delete/restauration People par fiche ; accès export réservé aux opérateurs de conservation ; gels indépendants sur suppressions techniques | Archivage par dossier des autres familles et gel général couvrant aussi les réécritures métier restent absents. |
+| Purge métier | Purge technique existante soumise aux gels/quarantaine, lots/reprises préservés, aucun pont depuis les règles de revue | Aucun handler d'effacement exhaustif des données métier ou des historiques immuables n'est livré. |
+| Validation/livraison | Tests SQLite/PostgreSQL, analyse statique, documentation et couverture PostgreSQL regroupée en CI | La nouvelle CI distante et la recette réelle restent à confirmer. |
 
 La purge technique existante garde son propre registre de politiques, ses
 confirmations, export d'organisation archivée, lots bornés et reprises. Ajouter
@@ -5028,6 +5032,156 @@ Lors d'une future restauration, les décisions d'effacement devront être récon
 avant remise en service ; cet aperçu ne réalise pas cette réapplication métier.
 **OPS-007/CAD-004/REC-35 restent ouverts.** Les lots de préparation ne doivent pas
 être confondus avec une purge métier complète et qualifiée.
+
+#### OPS-007 — contrôles opérateur des six blocs
+
+La commande `organizations:retention-control` complète l'aperçu. Elle retourne
+l'état et un bilan explicite des six blocs : règles, gels, archives, effacement,
+copies/reprise et qualification. Le bilan ne déclare jamais `production_qualified`
+ou `business_deletion_supported` vrai dans cette version. Il distingue une revue
+déclarée par l'opérateur d'une vérification indépendante sur l'hébergement réel.
+
+Les écritures exigent `retention.control_enabled=true` et un registre serveur
+`control_operators` (compte → UUID tenant), distinct de `review_operators`.
+Les deux sont livrés désactivé/vide. L'accès exige un compte vérifié, enrôlé MFA,
+sans rôle technique plateforme. Chaque décision exige un motif, une référence
+technique sans contenu personnel, l'UUID confirmé et la version attendue.
+`--request-id` peut être conservé pour une reprise identique ; une requête réutilisée
+avec d'autres paramètres est refusée. Une ancienne levée rejouée ne lève jamais un
+gel acquis plus récemment. L'inspection reste en lecture seule.
+
+Exemples opérateur, à adapter après revue de configuration ; non exécutés sur une
+base utilisée. Le dernier exemple ne fonctionne qu'après activation explicite :
+
+```powershell
+php artisan organizations:retention-control UUID_ORGANISATION --actor=ID_COMPTE --reason="Etat de conservation"
+php artisan organizations:retention-control UUID_ORGANISATION --action=hold --actor=ID_COMPTE --reason="Preservation du dossier de revue" --reference=REVUE-001 --expected-version=0 --confirm=UUID_ORGANISATION --request-id=UUID_REQUETE
+```
+
+- `hold` ajoute un gel nommé ; `release-hold` retire exclusivement ce gel. Aucune
+  échéance ne libère un gel automatiquement. Les gels portent sur toute
+  l'organisation, avec au plus 1 000 références actives ; ils bloquent les suppressions
+  techniques de fichiers, leurs expirations, la suppression des exports et la purge technique des
+  paramètres. Ils ne rendent pas immuables toutes les modifications métier.
+- La vérification et la suppression physique partagent le verrou transactionnel
+  de l'organisation avec l'acquisition des gels. Les E/S externes n'ont pas de retry
+  transactionnel automatique. Un échec conserve les métadonnées pour reprise ; les
+  autres tenants peuvent poursuivre leur nettoyage. Désactiver la commande ne
+  désactive pas les gels déjà enregistrés. La migration doit précéder le nouveau code.
+- `restrict-archive` exige une organisation déjà archivée. Les usages ordinaires
+  restent refusés par le statut ; demande, génération, relance et lecture d'export
+  exigent alors l'opérateur explicitement autorisé. Le droit de lire est revérifié
+  après la mise en mémoire du flux ; un refus ferme le flux. `release-archive`
+  retire cette restriction mais ne réactive pas l'organisation.
+- `quarantine` exige une organisation inactive. Elle bloque suppression technique,
+  récupération et retour au statut actif. Elle est volontaire : aucune détection
+  automatique d'une restauration externe n'est revendiquée.
+- `release-quarantine` exige un reçu serveur `restoration_approvals[UUID]` fermé :
+  `reviewed=true`, `reference`, `quarantine`, `control_version`, `policy_fingerprint`,
+  `hosting_reference`, `copies`. Les trois références sont techniques, la version
+  correspond exactement à l'état courant et l'empreinte à la configuration actuelle.
+  Les 18 familles doivent avoir une règle de revue et `copies` doit contenir les
+  11 clés de `UNVERIFIED_COPIES`, chacune avec une référence de revue non vide.
+  Le reçu complet est figé dans l'audit lors de la levée. Cette déclaration manuelle
+  n'atteste pas un effacement fournisseur et ne déclenche aucune reprise de jobs.
+
+`organization_retention_events` garde chaque décision, son auteur, sa requête,
+sa version et son état résultant. UPDATE/DELETE sont refusés par PostgreSQL/SQLite ;
+un rollback refuse de supprimer ce journal s'il contient des décisions. La table
+est comprise dans l'export privé et le catalogue de conservation. Le JSON
+de commande n'inclut ni motif libre ni reçu détaillé ; la trace structurée ne contient
+que tenant, acteur, requête, version et indicateur de rejeu. Les sorties restent privées.
+
+Avant un exercice de restauration, arrêter l'admission métier et les workers,
+conserver hors du jeu restauré les décisions les plus récentes, restaurer en
+environnement isolé/inactif, puis ouvrir la quarantaine. Comparer l'ensemble des
+effacements et gels au registre conservé hors sauvegarde, examiner les 11 catégories
+de copies et consigner les références de revue avant toute levée. Ce parcours doit
+encore être exercé sur le futur hébergement ; le code ne réapplique pas les décisions
+d'effacement et ne remplace pas ce registre externe.
+
+**Les six blocs ne sont donc pas clôturés.** Pour People, la décision ci-dessous
+fixe désormais une conservation illimitée. Restent le cadrage des autres
+sous-catégories, les événements fiables des autres modules, les règles de champs
+et de conservation des historiques, l'archivage des autres familles et l'effacement définitif par dossier,
+le gel de leurs réécritures, la réconciliation effective des copies et les essais
+sur les stockages, réplicas et sauvegardes du futur hébergement.
+
+Validation locale du lot : 2 912 cas backend, 2 853 réussites, 59 exclusions
+conditionnelles, 18 210 assertions, aucune erreur/échec ; PostgreSQL temporaire
+139 tests/662 assertions. Pint, PHPStan et syntaxe YAML CI verts. La qualification
+de l'hébergement et la nouvelle exécution distante restent distinctes de ces tests.
+
+Correctif CI avant push : les tests OPS-007 sont intégrés à la suite PostgreSQL
+existante dans un seul processus PHPUnit. Une seconde initialisation de la même
+base vidait les tables mais conservait les fonctions de déclencheurs, provoquant
+SQLSTATE[42723]. Le problème a été reproduit avec deux processus ; l'exécution
+groupée corrigée passe 158 tests/725 assertions. Les 168 cibles des deux anciennes
+étapes restent couvertes par les 164 cibles regroupées (dont le répertoire Tenancy).
+Les rapports PostgreSQL restent collectés par le glob JUnit existant.
+
+#### Décision utilisateur — conserver sans limite et supprimer logiquement
+
+Le 27/10/2026, l'utilisateur précise : « on conserve ses info pour toujour avec
+soft delete jusqua suppression manuelle ulterieurement ». La règle produit pour
+les fiches People est donc **conservation illimitée, suppression logique réversible,
+effacement définitif uniquement manuel**. Aucun compte à rebours d'effacement
+métier n'est ajouté. Les contrats, résultats et historiques restent conservés.
+Cette décision produit ne certifie pas le cadrage CAD-004 et n'est pas extrapolée
+à des règles de destruction des autres modules.
+
+Le registre de revue peut représenter une conservation illimitée explicitement :
+`event=manual_review`, `active_days=null`, `archive_days=null`, `final_action=preserve`.
+Un `null` isolé avec `final_action=review` reste invalide ; aucune absence de durée
+n'est transformée implicitement en politique illimitée. Les anciennes durées de
+fixtures servent uniquement à éprouver le calcul de dates de revue.
+
+La migration additive `2026_10_27_213817_add_soft_deletes_to_people_table` ajoute
+`deleted_at` et un index tenant/date/identifiant. L'API offre :
+
+| Appel | Comportement |
+| --- | --- |
+| `DELETE /api/v1/tenants/{tenant}/people/{person}` | Suppression logique après un départ enregistré, statut former et absence d'obligation de départ ouverte ; conserve les champs et les références. |
+| `GET /api/v1/tenants/{tenant}/people?archive=only&per_page=20` | Liste paginée des fiches masquées, avec la projection de droits existante. |
+| `POST /api/v1/tenants/{tenant}/people/{person}/restore` | Retire le marqueur logique ; conserve le statut former et l'événement de départ. |
+
+Les deux écritures exigent `{ "version": "UUID_VERSION_ACTUELLE", "confirm": true }`.
+Form Requests et Service partagent les règles fermées ; les champs supplémentaires
+sont refusés. Le droit de modifier les données sportives **et** administratives
+est requis pour masquer/restaurer et lire la liste masquée ; aucune permission
+implicite du propriétaire. Sessions MFA, confirmation récente, isolation tenant,
+garde métier et CSRF restent requis. Une version périmée donne 409 et impose une
+relecture. Une panne d'audit annule la mutation dans la même transaction.
+
+Exemple avec le client Axios déjà configuré pour la session applicative et le CSRF
+(racine d'API à adapter au baseURL du client) :
+
+```javascript
+const root = `/api/v1/tenants/${tenantId}/people`;
+const removed = await client.delete(`${root}/${personId}`, {
+  data: { version: currentVersion, confirm: true },
+});
+const archives = await client.get(root, { params: { archive: 'only', per_page: 20 } });
+await client.post(`${root}/${personId}/restore`, {
+  version: removed.data.data.version, confirm: true,
+});
+```
+
+Les listes ordinaires, recherches, accès directs et nouveaux choix métier utilisent
+le scope Eloquent qui masque les fiches supprimées logiquement. L'export opérateur
+privé et l'inventaire de conservation incluent toujours la ligne, ses champs
+chiffrés et son marqueur logique. Les réponses de mutation ne contiennent que
+UUID/version/marqueur et mode de conservation, avec notification localisée ;
+l'audit fermé contient `person_archived`, sans recopier l'identité. Aucun écran
+SPA de corbeille n'est ajouté dans ce lot : ce parcours est livré par l'API.
+
+Une suppression logique ne supprime ni profil de jeu, contrat, résultat, compte
+global, ni copie d'historique ; elle n'est pas un effacement physique. Les gardes
+SQL DELETE et le refus de suppression directe du modèle restent actifs. Le rollback
+refuse de retirer le marqueur s'il existe des fiches masquées. La restauration
+rend la fiche visible sans réadmission sportive, retour d'adhésion ni reprise de job.
+Les exports temporaires gardent leur expiration technique ; le nettoyage d'une
+copie temporaire ne constitue pas l'effacement du dossier conservé.
 
 #### Point juridique à intégrer avant données réelles
 

@@ -26,6 +26,7 @@ final readonly class OrganizationService
         private Factory $validator,
         private OrganizationAccessService $access,
         private MembershipAdmissionService $admission,
+        private RetentionGuard $retention,
     ) {}
 
     /** @return LengthAwarePaginator<int, Organization> */
@@ -120,6 +121,9 @@ final readonly class OrganizationService
 
         return $this->database->transaction(function () use ($id, $target, $audit): Organization {
             $organization = $this->organizations->lock($id);
+            if ($target === OrganizationStatus::Active) {
+                $this->retention->assertReactivationAllowed($id);
+            }
             $previous = $organization->status;
             if (! $previous->canTransitionTo($target)) {
                 throw new DomainConflictException(__('tenancy.errors.invalid_transition'), 'ORGANIZATION_TRANSITION_DENIED');

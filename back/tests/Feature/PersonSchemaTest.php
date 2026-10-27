@@ -177,6 +177,8 @@ class PersonSchemaTest extends TestCase
         $migration->down();
         $this->assertFalse(Schema::hasTable('people'));
         $migration->up();
+        $softDeletes = require database_path('migrations/2026_10_27_213817_add_soft_deletes_to_people_table.php');
+        $softDeletes->up();
         $profilesMigration->up();
         $lifecycleMigration->up();
         $importMigration->up();
