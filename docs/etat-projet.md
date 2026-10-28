@@ -6,7 +6,16 @@
 ## Point de reprise
 
 - Dernière mise à jour : 28 octobre 2026.
-- Tâche courante : **UCG-DATA-001 — audit local des CSV Statistiques**.
+- Tâche courante : **UCG-DATA-001 — préparation complémentaire et revue, un seul commit demandé**.
+  L’utilisateur confirme le 28/10 : aucun fichier réel disponible pour le moment.
+  Ajout des audits JSON Équipes/Matchs/Contrats, contrôles explicites en base via
+  `data:references` (administration, MFA et droits métier), et revue déclarée via
+  `data:review`, liée aux empreintes actuelles. Inventaire de disponibilité des
+  18 familles et modèles fictifs fournis. Aucun import ni audit de données réelles.
+  Validation : 265 cas ciblés distincts, 264 réussites, 1 exclusion de lien symbolique
+  Windows, 1 555 assertions ; Pint/PHPStan verts. Livraison en un seul commit local,
+  sans push. **DATA-001 reste en attente de sources réelles et de validation métier.**
+- Lot précédent : **UCG-DATA-001 — audit local des CSV Statistiques**, commit fc8f5ab.
   Démarrage prudent autorisé. Format canonique de l’import existant, validation
   des champs et valeurs, date de référence déclarée, doublons et contradictions
   entre fichiers. Aucun import ni lecture de la base ; références réelles, droits,
@@ -8714,3 +8723,86 @@ observations, audit Personnes et architecture réexercés. Pint/PHPStan verts.
 Aucune affirmation de suite complète ni de CI distante. Commit local demandé ensuite
 par l’utilisateur, sans push. DATA-001 reste ouvert : inventaire réel, formats restants, responsables,
 finalités/conservation et validation métier avant DATA-002.
+
+## UCG-DATA-001 — Compléments préparatoires regroupés (28 octobre 2026)
+
+L’utilisateur demande le reste de DATA-001 en un seul commit et confirme :
+« aucun fichier pour le moment ». Cette disponibilité est enregistrée dans la
+fixture no-real-sources.inventory.json pour les 18 familles. Elle ne constitue
+pas un inventaire réel exhaustif ni une déclaration définitive d’absence de données.
+
+Trois nouveaux audits de jeux JSON version 1 : Équipes, Matchs et Contrats. Ce
+sont des formats d’audit, pas de nouveaux imports. Le manifeste porte le périmètre ;
+le jeu JSON confirme organization_id et contient records[source_key,data]. Les
+champs métier réutilisent TeamInput, MatchInput et ContractInput par contrats
+publics, avec JSON fermé, clés techniques uniques, 100 enregistrements/fichier,
+1 Mio/fichier et budgets partagés existants. JsonDatasetAuditor fournit parsing,
+validation, normalisation déterministe et contrôle des formules. Les règles de
+catégorie personnalisée, calendrier/fuseau, participants distincts, dates et parties
+contractuelles sont contrôlées hors base. Les documents de signature et les
+transitions contractuelles ne sont pas absorbés silencieusement.
+
+Les doublons et contradictions sont distingués entre fichiers par identité et
+contenu normalisés. Les numéros sont ceux des enregistrements JSON, explicités
+par position_kind ; les CSV gardent leurs lignes physiques. Le service Reporting
+réutilise les contrats publics de Teams, Competition et Contracts, sans accès à
+leurs validations internes. Les données sources, noms, chemins, identifiants métier
+et clés de rapprochement ne sont pas sérialisés dans le rapport. Les statuts de
+paramétrage CSV Statistiques existants restent compatibles.
+
+Commande data:references MANIFESTE CONTROLES --organization=UUID --actor=ID :
+vérification en base distincte et explicite, jamais activée par data:audit. Le
+manifeste et les sources sont réaudités avant toute connexion ; la liste JSON
+fermée doit correspondre au plan_digest courant, aux sources et positions réelles.
+Maximum 500 demandes/64 Kio. TenantContext est résolu côté serveur, organisation
+active, administration et MFA configurée requises ; les permissions métier sont
+revérifiées par chaque passerelle publique. La gouvernance seule ne donne aucun
+droit métier. Le CLI suppose un opérateur serveur autorisé et ne réalise pas de
+challenge MFA interactif. Les repositories lisent des colonnes explicitement
+choisies, groupées par type, sans verrou ni écriture métier.
+
+Types vérifiés : personne/pseudonyme, équipe/slug, match, contrat/référence et
+métrique du catalogue global. Les identifiants d’un autre tenant et absents
+produisent le même échec. Les pseudonymes archivés participent au contrôle de
+collision ; les références id excluent les personnes supprimées logiquement.
+Les contrôles de clés sont conservateurs : slug recherché dans toute l’organisation,
+pseudonyme avec LOWER SQL dont les possibilités Unicode dépendent du moteur.
+Un succès ne prouve que la liste demandée, pas sa complétude ni l’éligibilité à
+l’import. Versions/unités/agrégations des métriques, compatibilités de jeu, cycles
+de vie, autres identités partagées, doublons de matchs et quotas restent à vérifier.
+Le résultat indique database_checked=true uniquement pour cette commande réussie
+à exécuter ses lectures, coverage_verified=false et import_authorized=false.
+
+Commande data:review MANIFESTE REVUE --organization=UUID : réaudit et validation
+du digest avant examen d’une revue déclarée. Chaque famille doit être incluse,
+sans source justifiée ou reportée, sans contradiction avec les sources présentes.
+Chaque source a ses références responsable/finalité/conservation et sa décision.
+Six rubriques avec références de preuve : références, doublons, quotas, données
+inutiles, conservation, inventaire complet. Les décisions et références sont des
+déclarations d’opérateur, jamais une signature authentifiée ou une preuve de
+contrôle en base. Le rapport conserve data001_closed=false, import_authorized=false,
+business_signature_verified=false et database_checked=false. Une source fictive
+approuvée reste awaiting_real_sources ; une source invalide reste bloquée. La
+modification du manifeste ou d’une source rend la revue précédente caduque.
+
+Fixtures complètes fictives : structured-clean.manifest.json et trois jeux JSON,
+review.template.json et references.template.json à compléter avec le digest actuel.
+La démonstration structurée donne 3 enregistrements conformes, 0 blocage et 3 revues
+applicatives ; rapport ignoré back/reports/data001-structured-report.json. Aucun
+fichier réel ni base utilisée n’a été audité. Les accès SQL ont été exercés dans
+les bases isolées de tests uniquement.
+
+Validation distincte : 265 cas, 264 réussites, 1 exclusion conditionnelle de lien
+symbolique Windows, 1 555 assertions. Audits CSV et JSON, revue, vérifications en
+base, permissions, MFA, périmètre tenant, paramètres SQL, absence d’écritures,
+requêtes groupées, fraîcheur des fichiers, import statistique et traitement,
+services équipes/contrats, contrôleurs matchs et architecture réexercés. Trois
+cas supplémentaires de compatibilité de statut statistique réexécutés, déjà
+compris dans les 265. Pint/PHPStan verts ; pas de prétention de suite complète,
+de qualification hébergée ou de CI distante. Livraison en un seul commit local
+demandé, sans push.
+
+DATA-001 reste en attente : les sources réelles lorsqu’elles seront disponibles,
+leurs formats supplémentaires nécessaires, les contrôles complémentaires et la
+validation métier vérifiable. DATA-002 ne doit pas être engagé comme une reprise
+réelle sur la seule base des fixtures ou de documents déclaratifs.

@@ -4570,7 +4570,8 @@ TLS, workers hébergés ou l'éviction des sockets déjà abonnées après révo
 ## Préparation des données — UCG-DATA-001
 
 Premier lot : **audit local en lecture seule avant import**, avec inventaire des
-fichiers explicitement déclarés et contrôle des CSV Personnes et Statistiques existants. Aucun
+fichiers explicitement déclarés et contrôle des CSV Personnes/Statistiques ainsi
+que des jeux JSON Équipes/Matchs/Contrats. Aucun
 balayage automatique des dossiers. Le manifeste lie chaque source à l’UUID attendu,
 à une catégorie et à des références de responsable, de finalité et de conservation.
 Ces références sont des déclarations à valider ; elles ne désignent pas à elles
@@ -4592,8 +4593,8 @@ et `ignored_columns[]` (`column`, `reason_reference`). Les choix fr/Africa-Tunis
 candidate des exemples sont exclusivement fictifs, pas des réglages métier imposés.
 
 Les catégories reprennent les 18 familles de l’inventaire. Dans cette version,
-**les CSV Personnes et Statistiques sont contrôlés hors base**. Tableurs, contrats et
-autres familles reçoivent une empreinte et un signalement d’audit dédié nécessaire,
+**les CSV Personnes/Statistiques et JSON Équipes/Matchs/Contrats sont contrôlés hors base**.
+Tableurs, documents contractuels et autres familles reçoivent une empreinte et un signalement d’audit dédié nécessaire,
 sans conversion ni import implicites. Le contrôle Personnes réutilise son parseur,
 ses champs d’import autorisés et ses règles actuelles. `user_id` et `birth_date`
 ne sont pas des champs de ce format CSV ; leur présence nécessite un mapping
@@ -4658,7 +4659,7 @@ dossier, chemins réseau, URL et wrappers de flux sont refusés. Lecture `rb` so
 verrou partagé, contrôles de taille et de stabilité du fichier ; aucune réécriture
 des sources. Limites : manifeste 64 Kio, 20 sources, 1 Mio par fichier, 10 Mio par
 lot, au plus 1 000 lignes par CSV Personnes, 100 par CSV Statistiques et 10 000
-lignes analysées au total par lot ; les limites
+lignes analysées au total par lot, avec 100 enregistrements par jeu JSON ; les limites
 Personnes configurées peuvent être plus strictes. Les détails sont limités à 200
 écarts, avec compteurs complets pour la portion analysée et indicateur de troncature.
 Les sources non lues sont signalées, jamais assimilées à des fichiers valides.
@@ -4669,6 +4670,95 @@ cellule manquante, responsable/règle à préciser et schéma statistique incomp
 Le lot propre reste soumis à la validation métier. DATA-001 reste ouvert pour
 l’inventaire réel, les autres formats et la validation des responsables ; DATA-002
 sera une reprise à blanc distincte. Aucun fichier réel n’a été audité dans ce lot.
+
+### Suite DATA-001 : autres sources, références et revue finale
+
+Le 28/10/2026, l’utilisateur confirme **aucun fichier réel disponible pour le moment**.
+L’inventaire de disponibilité des 18 familles est conservé dans
+`back/tests/Fixtures/data-preparation/no-real-sources.inventory.json`. Il ne prouve
+pas l’absence définitive de données à reprendre. La préparation technique peut
+avancer ; l’audit réel et la validation métier restent en attente.
+
+Les jeux JSON sont des **formats d’audit version 1**, pas de nouveaux imports :
+`version`, `organization_id`, `records[]` contenant `source_key` (référence technique
+unique) et `data` (champs métier de création existants). Aucun champ d’organisation,
+version de mise à jour ou transition de signature n’est ajouté implicitement à `data`.
+Le manifeste garde la catégorie `teams`, `matches` ou `contracts` et un fichier
+`.json`, sans mapping, valeurs par défaut ou colonnes écartées non vides.
+Les exemples complets sont `teams-clean.json`, `matches-clean.json`,
+`contracts-clean.json` et `structured-clean.manifest.json`, tous fictifs.
+
+```powershell
+php artisan data:audit tests/Fixtures/data-preparation/structured-clean.manifest.json --organization=10000000-0000-4000-8000-000000000001
+```
+
+Les validations des modules restent la référence : catégorie personnalisée des
+équipes, périodes/fuseaux des matchs et participants distincts, parties des contrats
+et ordre des dates. Les parties, participants et obligations restent des listes
+JSON fermées. Les identités comparées sont jeu/slug/saison pour une équipe,
+jeu/début UTC/participants pour un match, référence pour un contrat. À identité
+égale, les contenus normalisés distinguent doublon et contradiction. Un signalement
+ne décide jamais d’une fusion. `line` représente le numéro d’enregistrement JSON
+à partir de 1 lorsque `position_kind=record_number` ; le CSV garde sa ligne physique.
+
+Une vérification en base est **distincte et explicite** :
+
+```powershell
+php artisan data:references CHEMIN_MANIFESTE.json references.json --organization=UUID_ORGANISATION --actor=ID_COMPTE
+```
+
+`references.json` doit rester dans le dossier du manifeste. Copier et compléter
+`references.template.json` : `version`, `organization_id`, `plan_digest` issu de
+l’audit actuel, `items[]` avec `source_id`, `line`, `kind`, `value`, `expect`.
+Les types sont `person_id`, `person_pseudonym`, `team_id`, `team_slug`, `match_id`,
+`contract_id`, `contract_reference`, `metric_id` ; `expect=present|absent`.
+Maximum 500 contrôles, 64 Kio. Les sources doivent passer l’audit de forme et
+chaque position doit exister. Un changement de source/manifeste invalide le digest.
+Ne pas exécuter le modèle fictif comme une vérification de données réelles.
+
+Le compte est résolu dans l’organisation active, doit pouvoir l’administrer,
+avoir la MFA confirmée et les droits métier explicites du module (`sports.read`,
+`administrative.read`, et `sports.statistics.read` pour les métriques). Le CLI est
+destiné à un opérateur serveur autorisé ; `--actor` identifie le compte de contrôle,
+sans constituer une authentification interactive. Un propriétaire ne reçoit pas
+automatiquement les permissions métier. Les requêtes sont bornées, groupées par
+type et sans verrou d’écriture. Les ressources d’un autre tenant et absentes donnent
+le même échec ; les métriques appartiennent au catalogue global. Le pseudonyme
+recherche aussi les fiches archivées, avec comparaison `LOWER` SQL ; ses possibilités
+Unicode dépendent du moteur et ne prouvent pas l’absence de toute identité similaire.
+Les slugs d’équipes sont recherchés dans toute l’organisation : un résultat peut
+nécessiter une revue du jeu/saison, sans preuve d’unicité métier à lui seul.
+
+Le résultat n’énumère pas les valeurs ni les identifiants recherchés. Un succès
+`requested_checks_passed` (sortie 0) ne concerne que la liste fournie :
+`coverage_verified=false`, `import_authorized=false`. Écarts : sortie 2 ; document
+invalide, périmètre ou droits insuffisants : sortie 1. Restent à vérifier la
+complétude de cette liste, les versions/unités/agrégations des métriques, états et
+compatibilités de jeu des références, rapprochements d’identité, matchs et quotas.
+Ce contrôle ponctuel ne remplace pas la validation transactionnelle de l’import.
+
+La revue déclarée se vérifie ensuite contre les fichiers actuels :
+
+```powershell
+php artisan data:review CHEMIN_MANIFESTE.json review.json --organization=UUID_ORGANISATION
+```
+
+Compléter `review.template.json` avec le digest actuel, un responsable de revue et
+une date, puis les 18 catégories (`included`, `no_source` justifié ou `deferred`).
+Chaque source doit avoir sa décision et ses références de responsable/finalité/
+conservation. Les six contrôles portent sur références, doublons, quotas, données
+inutiles, conservation et inventaire complet, chacun avec une référence de preuve.
+Les références de preuve restent des déclarations d’opérateur à vérifier ; ne pas
+recopier des données personnelles dans ces références techniques.
+
+Le rapport distingue source fictive, revue incomplète, blocage et approbation
+**déclarée** (`business_approval_declared`, sortie 0). Les autres états donnent 2 ;
+une revue invalide ou périmée donne 1. Une déclaration ne vaut ni signature
+authentifiée ni preuve d’exécution en base : `business_signature_verified=false`,
+`database_checked=false`, `data001_closed=false` et `import_authorized=false`.
+Une fixture ne ferme jamais le ticket, même déclarée approuvée. La clôture réelle
+exige les fichiers réels, les contrôles complémentaires applicables et une
+validation métier vérifiable. DATA-002 reste une opération distincte.
 
 ## Conservation des données — cadrage UCG-OPS-007
 

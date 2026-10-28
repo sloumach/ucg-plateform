@@ -2,16 +2,20 @@
 
 namespace App\Modules\Reporting\Application\Services;
 
+use App\Modules\Competition\Application\Contracts\MatchSourceAudit;
+use App\Modules\Contracts\Application\Contracts\ContractSourceAudit;
 use App\Modules\People\Application\Contracts\PersonSourceAudit;
 use App\Modules\Performance\Application\Contracts\StatisticalSourceAudit;
 use App\Modules\Reporting\Application\Data\DataPreparationReport;
 use App\Modules\Reporting\Application\Validation\DataPreparationInput;
 use App\Modules\Reporting\Domain\Contracts\DataSourceBundle;
+use App\Modules\Teams\Application\Contracts\TeamSourceAudit;
 use Illuminate\Validation\ValidationException;
 
 final readonly class DataPreparationService
 {
-    public function __construct(private DataSourceBundle $files, private DataPreparationInput $input, private PersonSourceAudit $people, private StatisticalSourceAudit $statistics) {}
+    public function __construct(private DataSourceBundle $files, private DataPreparationInput $input, private PersonSourceAudit $people, private StatisticalSourceAudit $statistics,
+        private TeamSourceAudit $teams, private MatchSourceAudit $matches, private ContractSourceAudit $contracts) {}
 
     public function audit(string $path, string $organizationId): DataPreparationReport
     {
@@ -39,6 +43,7 @@ final readonly class DataPreparationService
         $totalRows = 0;
         $peopleRows = 0;
         $statisticsRows = 0;
+        $structuredRows = 0;
         $readFiles = 0;
         $manifestHash = hash('sha256', $bundle['contents']);
         $digest = hash_init('sha256');
@@ -55,7 +60,7 @@ final readonly class DataPreparationService
                 'owner_declared' => $source['owner_reference'] !== null, 'purpose_declared' => $source['purpose_reference'] !== null,
                 'retention_declared' => $source['retention_reference'] !== null];
             $remainingBytes = DataPreparationInput::MAX_TOTAL_BYTES - $totalBytes;
-            if ($remainingBytes <= 0 || (in_array($source['category'], ['people', 'statistics'], true) && $totalRows >= DataPreparationInput::MAX_ROWS)) {
+            if ($remainingBytes <= 0 || (in_array($source['category'], ['people', 'statistics', 'teams', 'matches', 'contracts'], true) && $totalRows >= DataPreparationInput::MAX_ROWS)) {
                 $add($id, 'BUNDLE_LIMIT');
                 $entry['status'] = 'bundle_limit';
                 $inventory[] = $entry;
@@ -87,7 +92,9 @@ final readonly class DataPreparationService
             } else {
                 $seenFiles[$fingerprint] = $id;
             }
-            if (! in_array($source['category'], ['people', 'statistics'], true) || strtolower(pathinfo($source['file'], PATHINFO_EXTENSION)) !== 'csv') {
+            $isStructured = in_array($source['category'], ['teams', 'matches', 'contracts'], true);
+            $extension = strtolower(pathinfo($source['file'], PATHINFO_EXTENSION));
+            if (($isStructured && $extension !== 'json') || (! $isStructured && (! in_array($source['category'], ['people', 'statistics'], true) || $extension !== 'csv'))) {
                 $entry['status'] = 'dedicated_audit_required';
                 $add($id, 'FORMAT_REQUIRES_DEDICATED_AUDIT');
                 $inventory[] = $entry;
@@ -95,20 +102,28 @@ final readonly class DataPreparationService
                 continue;
             }
             $isStatistics = $source['category'] === 'statistics';
-            if ($isStatistics && ($source['mapping'] !== [] || $source['defaults'] !== [] || $source['ignored_columns'] !== [])) {
-                $entry['status'] = 'statistics_settings_invalid';
+            if (($isStatistics || $isStructured) && ($source['mapping'] !== [] || $source['defaults'] !== [] || $source['ignored_columns'] !== [])) {
+                $entry['status'] = $isStatistics ? 'statistics_settings_invalid' : 'source_settings_invalid';
                 $add($id, 'MAPPING_INVALID');
                 $inventory[] = $entry;
 
                 continue;
             }
-            $analysis = $isStatistics
+            $remainingRows = DataPreparationInput::MAX_ROWS - $totalRows;
+            $analysis = $isStructured ? match ($source['category']) {
+                'teams' => $this->teams->analyze($contents, $organizationId, $remainingRows),
+                'matches' => $this->matches->analyze($contents, $organizationId, $remainingRows),
+                'contracts' => $this->contracts->analyze($contents, $organizationId, $remainingRows),
+            } : ($isStatistics
                 ? $this->statistics->analyze($contents, $source['delimiter'], $source['statistics_context']['as_of'] ?? null, DataPreparationInput::MAX_ROWS - $totalRows)
-                : $this->people->analyze($contents, $source['delimiter'], $source['mapping'], $source['defaults'], $source['ignored_columns'], DataPreparationInput::MAX_ROWS - $totalRows);
-            $entry['status'] = $isStatistics ? 'statistics_csv_audited' : 'people_csv_audited';
+                : $this->people->analyze($contents, $source['delimiter'], $source['mapping'], $source['defaults'], $source['ignored_columns'], DataPreparationInput::MAX_ROWS - $totalRows));
+            $entry['status'] = $isStructured ? 'structured_json_audited' : ($isStatistics ? 'statistics_csv_audited' : 'people_csv_audited');
+            $entry['position_kind'] = $isStructured ? 'record_number' : 'physical_line';
             $entry['rows'] = $analysis['row_count'];
             $totalRows += $analysis['row_count'];
-            if ($isStatistics) {
+            if ($isStructured) {
+                $structuredRows += $analysis['row_count'];
+            } elseif ($isStatistics) {
                 $statisticsRows += $analysis['row_count'];
             } else {
                 $peopleRows += $analysis['row_count'];
@@ -133,13 +148,17 @@ final readonly class DataPreparationService
                 foreach ($row['issues'] as $issue) {
                     $add($id, $issue['code'], $issue['severity'], $row['line'], $issue['field'], $issue['column']);
                 }
-                if ($isStatistics) {
-                    if (isset($row['keys']['statistical_identity'], $row['keys']['statistical_payload'])) {
-                        $key = hash_hmac('sha256', $organizationId."\0statistics\0".$row['keys']['statistical_identity'], $secret);
-                        $payload = hash_hmac('sha256', $row['keys']['statistical_payload'], $secret);
+                if ($isStatistics || $isStructured) {
+                    $identityKind = $isStructured ? 'record_identity' : 'statistical_identity';
+                    $payloadKind = $isStructured ? 'record_payload' : 'statistical_payload';
+                    if (isset($row['keys'][$identityKind], $row['keys'][$payloadKind])) {
+                        $key = hash_hmac('sha256', $organizationId."\0".$source['category']."\0".$row['keys'][$identityKind], $secret);
+                        $payload = hash_hmac('sha256', $row['keys'][$payloadKind], $secret);
                         if (isset($seenObservations[$key])) {
                             $first = $seenObservations[$key];
-                            $add($id, $first['payload'] === $payload ? 'DUPLICATE_OBSERVATION' : 'CONFLICTING_OBSERVATION',
+                            $add($id, $isStructured
+                                ? ($first['payload'] === $payload ? 'DUPLICATE_RECORD' : 'CONFLICTING_RECORD')
+                                : ($first['payload'] === $payload ? 'DUPLICATE_OBSERVATION' : 'CONFLICTING_OBSERVATION'),
                                 line: $row['line'], relatedSourceId: $first['source_id'], relatedLine: $first['line']);
                         } else {
                             $seenObservations[$key] = ['source_id' => $id, 'line' => $row['line'], 'payload' => $payload];
@@ -177,7 +196,7 @@ final readonly class DataPreparationService
             'status' => $counts['blocking'] > 0 ? 'blocked' : 'ready_for_business_review', 'import_authorized' => false,
             'manifest_sha256' => $manifestHash, 'plan_digest' => hash_final($digest),
             'summary' => ['declared_files' => count($manifest['sources']), 'read_files' => $readFiles, 'unprocessed_files' => $unprocessed,
-                'bytes' => $totalBytes, 'people_rows' => $peopleRows, 'statistics_rows' => $statisticsRows, 'blocking_issues' => $counts['blocking'], 'review_issues' => $counts['review']],
+                'bytes' => $totalBytes, 'people_rows' => $peopleRows, 'statistics_rows' => $statisticsRows, 'structured_rows' => $structuredRows, 'blocking_issues' => $counts['blocking'], 'review_issues' => $counts['review']],
             'sources' => $inventory, 'issue_counts' => $byCode, 'issues' => $issues,
             'issues_truncated' => array_sum($counts) > count($issues),
             'unrepresented_categories' => array_values(array_diff(DataPreparationInput::CATEGORIES, array_column($manifest['sources'], 'category'))),

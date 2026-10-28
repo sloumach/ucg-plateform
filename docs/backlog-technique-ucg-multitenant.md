@@ -1853,6 +1853,16 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 ### UCG-DATA-001 — Auditer et préparer les données UCG
 
 - **Priorité / taille** : P0 / L
+- **Compléments préparatoires (28/10/2026), un seul commit demandé** : utilisateur
+  confirme aucun fichier réel pour le moment. Audits JSON Équipes/Matchs/Contrats
+  avec règles des modules, contrôles ponctuels de références/clés en base sous
+  administration + MFA + droits métier, revue déclarée liée aux empreintes du lot
+  et couverture explicite des 18 familles. Modèles et inventaire de disponibilité
+  fictifs ; aucun import. 265 cas ciblés distincts, 264 réussites, 1 exclusion Windows,
+  1 555 assertions ; Pint/PHPStan verts. **Ticket en attente des sources réelles** :
+  formats supplémentaires seulement s’ils sont nécessaires à ces sources, contrôles
+  métier complémentaires et validation vérifiable avant DATA-002. Une approbation
+  déclarée ou une liste partielle de vérifications ne vaut pas clôture.
 - **Deuxième lot prudent (28/10/2026)** : audit local des CSV Statistiques au format
   canonique existant, date de référence explicite, décimales exactes, disponibilité,
   périodes et identifiants ; doublons et contradictions entre fichiers sans fusion.

@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "objective": "UCG-DATA-001",
+  "real_source_inventory": "none_available",
+  "decision_reference": "USER-NO-SOURCES-20261028",
+  "categories": [
+    {
+      "category": "organization",
+      "state": "no_source_available"
+    },
+    {
+      "category": "history",
+      "state": "no_source_available"
+    },
+    {
+      "category": "people",
+      "state": "no_source_available"
+    },
+    {
+      "category": "people_imports",
+      "state": "no_source_available"
+    },
+    {
+      "category": "teams",
+      "state": "no_source_available"
+    },
+    {
+      "category": "games",
+      "state": "no_source_available"
+    },
+    {
+      "category": "opponents",
+      "state": "no_source_available"
+    },
+    {
+      "category": "matches",
+      "state": "no_source_available"
+    },
+    {
+      "category": "competitions",
+      "state": "no_source_available"
+    },
+    {
+      "category": "contracts",
+      "state": "no_source_available"
+    },
+    {
+      "category": "statistics",
+      "state": "no_source_available"
+    },
+    {
+      "category": "academy",
+      "state": "no_source_available"
+    },
+    {
+      "category": "calendar",
+      "state": "no_source_available"
+    },
+    {
+      "category": "communication",
+      "state": "no_source_available"
+    },
+    {
+      "category": "sponsors",
+      "state": "no_source_available"
+    },
+    {
+      "category": "media",
+      "state": "no_source_available"
+    },
+    {
+      "category": "reporting",
+      "state": "no_source_available"
+    },
+    {
+      "category": "artifacts",
+      "state": "no_source_available"
+    }
+  ],
+  "data001_closed": false,
+  "import_authorized": false
+}

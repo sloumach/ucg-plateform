@@ -5,9 +5,12 @@ namespace App\Modules\Contracts\Providers;
 use App\Modules\Contracts\Application\Contracts\ContractDocumentScanQueue;
 use App\Modules\Contracts\Application\Contracts\ContractDocumentSearch;
 use App\Modules\Contracts\Application\Contracts\ContractsDashboard;
+use App\Modules\Contracts\Application\Contracts\ContractSourceAudit;
+use App\Modules\Contracts\Application\Contracts\DataPreparationReferences;
 use App\Modules\Contracts\Application\Contracts\PartnershipContractDirectory;
 use App\Modules\Contracts\Application\Services\ContractDocumentSearchService;
 use App\Modules\Contracts\Application\Services\ContractsDashboardService;
+use App\Modules\Contracts\Application\Services\ContractSourceAuditService;
 use App\Modules\Contracts\Application\Services\PartnershipContractService;
 use App\Modules\Contracts\Domain\Contracts\ContractDocumentRepository;
 use App\Modules\Contracts\Domain\Contracts\ContractDocumentScanner;
@@ -23,6 +26,7 @@ use App\Modules\Contracts\Infrastructure\Persistence\EloquentContractDocumentSca
 use App\Modules\Contracts\Infrastructure\Persistence\EloquentContractGovernanceRepository;
 use App\Modules\Contracts\Infrastructure\Persistence\EloquentContractReminderRepository;
 use App\Modules\Contracts\Infrastructure\Persistence\EloquentContractRepository;
+use App\Modules\Contracts\Infrastructure\Persistence\EloquentDataPreparationReferences;
 use App\Modules\Contracts\Infrastructure\Queue\LaravelContractDocumentScanQueue;
 use App\Modules\Contracts\Infrastructure\Scanning\ClamAvDocumentScanner;
 use App\Modules\Contracts\Presentation\Policies\ContractPolicy;
@@ -37,6 +41,8 @@ final class ContractsServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(DataPreparationReferences::class, EloquentDataPreparationReferences::class);
+        $this->app->bind(ContractSourceAudit::class, ContractSourceAuditService::class);
         $this->app->bind(ContractDocumentSearch::class, ContractDocumentSearchService::class);
         $this->app->bind(ContractsDashboard::class, ContractsDashboardService::class);
         $this->app->bind(PartnershipContractDirectory::class, PartnershipContractService::class);

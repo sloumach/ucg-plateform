@@ -2,6 +2,7 @@
 
 namespace App\Modules\Performance\Providers;
 
+use App\Modules\Performance\Application\Contracts\DataPreparationReferences;
 use App\Modules\Performance\Application\Contracts\PerformanceDashboard;
 use App\Modules\Performance\Application\Contracts\StatisticalCalculationQueue;
 use App\Modules\Performance\Application\Contracts\StatisticalImportQueue;
@@ -17,6 +18,7 @@ use App\Modules\Performance\Domain\Models\MetricDefinition;
 use App\Modules\Performance\Domain\Models\StatisticalCalculation;
 use App\Modules\Performance\Domain\Models\StatisticalImport;
 use App\Modules\Performance\Domain\Models\StatisticalObservation;
+use App\Modules\Performance\Infrastructure\Persistence\EloquentDataPreparationReferences;
 use App\Modules\Performance\Infrastructure\Persistence\EloquentMetricCatalogueRepository;
 use App\Modules\Performance\Infrastructure\Persistence\EloquentObservationRepository;
 use App\Modules\Performance\Infrastructure\Persistence\EloquentStatisticalCalculationRepository;
@@ -35,6 +37,7 @@ final class PerformanceServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(DataPreparationReferences::class, EloquentDataPreparationReferences::class);
         $this->app->bind(PerformanceDashboard::class, PerformanceDashboardService::class);
         $this->app->bind(StatisticalSourceAudit::class, StatisticalSourceAuditService::class);
         $this->app->bind(StatisticalProfileRepository::class, EloquentStatisticalProfileRepository::class);

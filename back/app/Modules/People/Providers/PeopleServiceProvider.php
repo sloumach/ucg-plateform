@@ -7,6 +7,7 @@ use App\Modules\People\Application\Contracts\AdministrativePeopleDirectory;
 use App\Modules\People\Application\Contracts\AvailabilityPeopleDirectory;
 use App\Modules\People\Application\Contracts\CalendarPeopleDirectory;
 use App\Modules\People\Application\Contracts\CompetitionRegistrationPeople;
+use App\Modules\People\Application\Contracts\DataPreparationReferences;
 use App\Modules\People\Application\Contracts\EligibilityPeopleDirectory;
 use App\Modules\People\Application\Contracts\LinkedPersonAccountDirectory;
 use App\Modules\People\Application\Contracts\PartnershipPeopleDirectory;
@@ -44,6 +45,7 @@ use App\Modules\People\Domain\Models\PersonDepartureItem;
 use App\Modules\People\Domain\Models\PersonImport;
 use App\Modules\People\Domain\Models\PersonPeriod;
 use App\Modules\People\Infrastructure\Persistence\EloquentCalendarPeopleRepository;
+use App\Modules\People\Infrastructure\Persistence\EloquentDataPreparationReferences;
 use App\Modules\People\Infrastructure\Persistence\EloquentExternalGameAccountRepository;
 use App\Modules\People\Infrastructure\Persistence\EloquentGameProfileRepository;
 use App\Modules\People\Infrastructure\Persistence\EloquentPersonImportRepository;
@@ -62,6 +64,7 @@ final class PeopleServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(DataPreparationReferences::class, EloquentDataPreparationReferences::class);
         $this->app->bind(PersonSourceAudit::class, PersonSourceAuditService::class);
         $this->app->bind(AcademyPeopleDirectory::class, AcademyPeopleService::class);
         $this->app->bind(PeopleSearch::class, PeopleSearchService::class);

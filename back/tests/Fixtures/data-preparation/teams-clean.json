@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "organization_id": "10000000-0000-4000-8000-000000000001",
+  "records": [
+    {
+      "source_key": "TEAM-FICTIF-01",
+      "data": {
+        "game_id": "a0000000-0000-4000-8000-000000000001",
+        "slug": "fictif-alpha",
+        "season": "2026",
+        "name": "FICTIF Equipe Alpha",
+        "kind": "first"
+      }
+    }
+  ]
+}

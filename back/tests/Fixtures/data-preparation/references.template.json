@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "organization_id": "10000000-0000-4000-8000-000000000001",
+  "plan_digest": "REPLACE_WITH_CURRENT_AUDIT_PLAN_DIGEST",
+  "items": [
+    {
+      "source_id": "STRUCT-2",
+      "line": 1,
+      "kind": "person_id",
+      "value": "b0000000-0000-4000-8000-000000000001",
+      "expect": "present"
+    },
+    {
+      "source_id": "STRUCT-1",
+      "line": 1,
+      "kind": "team_slug",
+      "value": "fictif-alpha",
+      "expect": "absent"
+    },
+    {
+      "source_id": "STRUCT-3",
+      "line": 1,
+      "kind": "contract_reference",
+      "value": "fictif-player-01",
+      "expect": "absent"
+    }
+  ]
+}

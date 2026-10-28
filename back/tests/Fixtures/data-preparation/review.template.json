@@ -1,0 +1,149 @@
+{
+  "version": 1,
+  "organization_id": "10000000-0000-4000-8000-000000000001",
+  "plan_digest": "REPLACE_WITH_CURRENT_AUDIT_PLAN_DIGEST",
+  "reviewer_reference": "REVIEWER-FICTIF-001",
+  "reviewed_on": "2026-10-28",
+  "categories": [
+    {
+      "category": "organization",
+      "state": "no_source",
+      "evidence_reference": "INVENTORY-FICTIF-001"
+    },
+    {
+      "category": "history",
+      "state": "no_source",
+      "evidence_reference": "INVENTORY-FICTIF-001"
+    },
+    {
+      "category": "people",
+      "state": "no_source",
+      "evidence_reference": "INVENTORY-FICTIF-001"
+    },
+    {
+      "category": "people_imports",
+      "state": "no_source",
+      "evidence_reference": "INVENTORY-FICTIF-001"
+    },
+    {
+      "category": "teams",
+      "state": "included",
+      "evidence_reference": "INVENTORY-FICTIF-001"
+    },
+    {
+      "category": "games",
+      "state": "no_source",
+      "evidence_reference": "INVENTORY-FICTIF-001"
+    },
+    {
+      "category": "opponents",
+      "state": "no_source",
+      "evidence_reference": "INVENTORY-FICTIF-001"
+    },
+    {
+      "category": "matches",
+      "state": "included",
+      "evidence_reference": "INVENTORY-FICTIF-001"
+    },
+    {
+      "category": "competitions",
+      "state": "no_source",
+      "evidence_reference": "INVENTORY-FICTIF-001"
+    },
+    {
+      "category": "contracts",
+      "state": "included",
+      "evidence_reference": "INVENTORY-FICTIF-001"
+    },
+    {
+      "category": "statistics",
+      "state": "no_source",
+      "evidence_reference": "INVENTORY-FICTIF-001"
+    },
+    {
+      "category": "academy",
+      "state": "no_source",
+      "evidence_reference": "INVENTORY-FICTIF-001"
+    },
+    {
+      "category": "calendar",
+      "state": "no_source",
+      "evidence_reference": "INVENTORY-FICTIF-001"
+    },
+    {
+      "category": "communication",
+      "state": "no_source",
+      "evidence_reference": "INVENTORY-FICTIF-001"
+    },
+    {
+      "category": "sponsors",
+      "state": "no_source",
+      "evidence_reference": "INVENTORY-FICTIF-001"
+    },
+    {
+      "category": "media",
+      "state": "no_source",
+      "evidence_reference": "INVENTORY-FICTIF-001"
+    },
+    {
+      "category": "reporting",
+      "state": "no_source",
+      "evidence_reference": "INVENTORY-FICTIF-001"
+    },
+    {
+      "category": "artifacts",
+      "state": "no_source",
+      "evidence_reference": "INVENTORY-FICTIF-001"
+    }
+  ],
+  "source_reviews": [
+    {
+      "source_id": "STRUCT-1",
+      "owner_reference": "OWNER-FICTIF-001",
+      "purpose_reference": "PURPOSE-FICTIF-001",
+      "retention_reference": "RETENTION-FICTIF-001",
+      "decision": "pending"
+    },
+    {
+      "source_id": "STRUCT-2",
+      "owner_reference": "OWNER-FICTIF-001",
+      "purpose_reference": "PURPOSE-FICTIF-001",
+      "retention_reference": "RETENTION-FICTIF-001",
+      "decision": "pending"
+    },
+    {
+      "source_id": "STRUCT-3",
+      "owner_reference": "OWNER-FICTIF-001",
+      "purpose_reference": "PURPOSE-FICTIF-001",
+      "retention_reference": "RETENTION-FICTIF-001",
+      "decision": "pending"
+    }
+  ],
+  "checks": {
+    "references": {
+      "state": "pending",
+      "evidence_reference": "PENDING-FICTIF-001"
+    },
+    "duplicates": {
+      "state": "pending",
+      "evidence_reference": "PENDING-FICTIF-001"
+    },
+    "quotas": {
+      "state": "pending",
+      "evidence_reference": "PENDING-FICTIF-001"
+    },
+    "unnecessary_data": {
+      "state": "pending",
+      "evidence_reference": "PENDING-FICTIF-001"
+    },
+    "retention": {
+      "state": "pending",
+      "evidence_reference": "PENDING-FICTIF-001"
+    },
+    "inventory_complete": {
+      "state": "pending",
+      "evidence_reference": "PENDING-FICTIF-001"
+    }
+  },
+  "decision": "pending"
+}

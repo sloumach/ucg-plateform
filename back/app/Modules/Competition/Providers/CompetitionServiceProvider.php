@@ -4,11 +4,14 @@ namespace App\Modules\Competition\Providers;
 
 use App\Modules\Competition\Application\Contracts\CompetitionDashboard;
 use App\Modules\Competition\Application\Contracts\CompetitionSearch;
+use App\Modules\Competition\Application\Contracts\DataPreparationReferences;
 use App\Modules\Competition\Application\Contracts\MatchRecalculationQueue;
 use App\Modules\Competition\Application\Contracts\MatchScorePublisher;
+use App\Modules\Competition\Application\Contracts\MatchSourceAudit;
 use App\Modules\Competition\Application\Contracts\ObservationMatchDirectory;
 use App\Modules\Competition\Application\Services\CompetitionDashboardService;
 use App\Modules\Competition\Application\Services\CompetitionSearchService;
+use App\Modules\Competition\Application\Services\MatchSourceAuditService;
 use App\Modules\Competition\Application\Services\ObservationMatchService;
 use App\Modules\Competition\Domain\Contracts\CompetitionOutcomeRepository;
 use App\Modules\Competition\Domain\Contracts\CompetitionRegistrationRepository;
@@ -26,6 +29,7 @@ use App\Modules\Competition\Domain\Models\MatchRecord;
 use App\Modules\Competition\Infrastructure\Broadcasting\LaravelMatchScorePublisher;
 use App\Modules\Competition\Infrastructure\Persistence\EloquentCompetitionOutcomeRepository;
 use App\Modules\Competition\Infrastructure\Persistence\EloquentCompetitionRegistrationRepository;
+use App\Modules\Competition\Infrastructure\Persistence\EloquentDataPreparationReferences;
 use App\Modules\Competition\Infrastructure\Persistence\EloquentExternalCompetitionRepository;
 use App\Modules\Competition\Infrastructure\Persistence\EloquentMatchCorrectionRepository;
 use App\Modules\Competition\Infrastructure\Persistence\EloquentMatchLineupRepository;
@@ -46,6 +50,8 @@ final class CompetitionServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(DataPreparationReferences::class, EloquentDataPreparationReferences::class);
+        $this->app->bind(MatchSourceAudit::class, MatchSourceAuditService::class);
         $this->app->bind(CompetitionSearch::class, CompetitionSearchService::class);
         $this->app->bind(CompetitionDashboard::class, CompetitionDashboardService::class);
         $this->app->bind(ObservationMatchDirectory::class, ObservationMatchService::class);

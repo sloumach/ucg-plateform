@@ -6,6 +6,7 @@ use App\Http\Api\RequestId;
 use App\Modules\Identity\Application\Contracts\PrivilegedAccountDirectory;
 use App\Modules\Tenancy\Application\Contracts\AuthorizationScopeDirectory;
 use App\Modules\Tenancy\Application\Contracts\CommunicationRolesDirectory;
+use App\Modules\Tenancy\Application\Contracts\DataPreparationContext;
 use App\Modules\Tenancy\Application\Contracts\PartnershipMemberDirectory;
 use App\Modules\Tenancy\Application\Contracts\TenantArtifacts;
 use App\Modules\Tenancy\Application\Contracts\TenantAuditJournal;
@@ -22,6 +23,7 @@ use App\Modules\Tenancy\Application\Contracts\TenantResourceLimits;
 use App\Modules\Tenancy\Application\Contracts\TenantScheduleQueue;
 use App\Modules\Tenancy\Application\Contracts\TenantSensitiveAccessJournal;
 use App\Modules\Tenancy\Application\Services\CommunicationRolesService;
+use App\Modules\Tenancy\Application\Services\DataPreparationContextService;
 use App\Modules\Tenancy\Application\Services\PartnershipMemberService;
 use App\Modules\Tenancy\Application\Services\TenantArtifactService;
 use App\Modules\Tenancy\Application\Services\TenantBusinessGuardService;
@@ -114,6 +116,7 @@ final class TenancyServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(DataPreparationContext::class, DataPreparationContextService::class);
         $this->app->bind('db.connector.sqlite', RetentionSqliteConnector::class);
         $this->app->bind(CommunicationRolesDirectory::class, CommunicationRolesService::class);
         $this->app->bind(CommunicationRolesRepository::class, EloquentCommunicationRolesRepository::class);

@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "organization_id": "10000000-0000-4000-8000-000000000001",
+  "records": [
+    {
+      "source_key": "CONTRACT-FICTIF-01",
+      "data": {
+        "reference": "fictif-player-01",
+        "type": "player",
+        "title": "FICTIF Contrat Prive",
+        "responsible_person_id": "b0000000-0000-4000-8000-000000000001",
+        "starts_on": "2026-10-01",
+        "ends_on": "2026-12-01",
+        "parties": [
+          {
+            "kind": "person",
+            "person_id": "d0000000-0000-4000-8000-000000000001",
+            "name": "FICTIF Personne Privee"
+          }
+        ]
+      }
+    }
+  ]
+}

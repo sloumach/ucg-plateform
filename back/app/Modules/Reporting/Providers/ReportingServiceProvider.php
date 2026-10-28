@@ -13,6 +13,8 @@ use App\Modules\Reporting\Infrastructure\Persistence\EloquentReportExportReposit
 use App\Modules\Reporting\Infrastructure\Queue\LaravelDashboardIndicatorQueue;
 use App\Modules\Reporting\Infrastructure\Queue\LaravelReportExportQueue;
 use App\Modules\Reporting\Presentation\Console\AuditDataPreparationCommand;
+use App\Modules\Reporting\Presentation\Console\AuditDataReferencesCommand;
+use App\Modules\Reporting\Presentation\Console\ReviewDataPreparationCommand;
 use App\Modules\Reporting\Presentation\Policies\DashboardPolicy;
 use App\Modules\Reporting\Presentation\Policies\ReportExportPolicy;
 use App\Modules\Reporting\Presentation\Policies\TenantSearchPolicy;
@@ -37,7 +39,7 @@ final class ReportingServiceProvider extends ServiceProvider
     public function boot(): void
     {
         if ($this->app->runningInConsole()) {
-            $this->commands([AuditDataPreparationCommand::class]);
+            $this->commands([AuditDataPreparationCommand::class, AuditDataReferencesCommand::class, ReviewDataPreparationCommand::class]);
         }
         Gate::define('reporting.exports', [ReportExportPolicy::class, 'manage']);
         RateLimiter::for('report-exports', fn (Request $request) => Limit::perMinute(12)->by('report-exports:'.strtolower((string) $request->route('tenant')).':'.(string) $request->user()?->getAuthIdentifier()));

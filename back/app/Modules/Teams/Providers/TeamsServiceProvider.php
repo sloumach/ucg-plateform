@@ -5,6 +5,7 @@ namespace App\Modules\Teams\Providers;
 use App\Modules\People\Application\Contracts\GameProfileCatalogue;
 use App\Modules\Teams\Application\Contracts\CalendarTeamsDirectory;
 use App\Modules\Teams\Application\Contracts\CommunicationTeamsDirectory;
+use App\Modules\Teams\Application\Contracts\DataPreparationReferences;
 use App\Modules\Teams\Application\Contracts\ExternalCompetitionGames;
 use App\Modules\Teams\Application\Contracts\ExternalOpponents;
 use App\Modules\Teams\Application\Contracts\HistoricalLineups;
@@ -15,6 +16,7 @@ use App\Modules\Teams\Application\Contracts\MetricGameDirectory;
 use App\Modules\Teams\Application\Contracts\OrganizationGameCatalogue;
 use App\Modules\Teams\Application\Contracts\PartnershipTeamsDirectory;
 use App\Modules\Teams\Application\Contracts\TeamSearch;
+use App\Modules\Teams\Application\Contracts\TeamSourceAudit;
 use App\Modules\Teams\Application\Services\CalendarTeamsService;
 use App\Modules\Teams\Application\Services\CommunicationTeamsService;
 use App\Modules\Teams\Application\Services\EffectiveGameCatalogue;
@@ -29,6 +31,7 @@ use App\Modules\Teams\Application\Services\PartnershipTeamsService;
 use App\Modules\Teams\Application\Services\TeamDepartureParticipant;
 use App\Modules\Teams\Application\Services\TeamLineupService;
 use App\Modules\Teams\Application\Services\TeamSearchService;
+use App\Modules\Teams\Application\Services\TeamSourceAuditService;
 use App\Modules\Teams\Domain\Contracts\ExternalOpponentRepository;
 use App\Modules\Teams\Domain\Contracts\GameCatalogueRepository;
 use App\Modules\Teams\Domain\Contracts\MatchReferenceRepository;
@@ -43,6 +46,7 @@ use App\Modules\Teams\Domain\Models\Team;
 use App\Modules\Teams\Domain\Models\TeamEligibilityRuleset;
 use App\Modules\Teams\Domain\Models\TeamLineup;
 use App\Modules\Teams\Domain\Models\TeamMembership;
+use App\Modules\Teams\Infrastructure\Persistence\EloquentDataPreparationReferences;
 use App\Modules\Teams\Infrastructure\Persistence\EloquentExternalOpponentRepository;
 use App\Modules\Teams\Infrastructure\Persistence\EloquentGameCatalogueRepository;
 use App\Modules\Teams\Infrastructure\Persistence\EloquentMatchReferenceRepository;
@@ -66,6 +70,8 @@ final class TeamsServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(DataPreparationReferences::class, EloquentDataPreparationReferences::class);
+        $this->app->bind(TeamSourceAudit::class, TeamSourceAuditService::class);
         $this->app->bind(TeamSearch::class, TeamSearchService::class);
         $this->app->bind(MetricGameDirectory::class, MetricGameDirectoryService::class);
         $this->app->bind(ExternalCompetitionGames::class, ExternalCompetitionGameService::class);

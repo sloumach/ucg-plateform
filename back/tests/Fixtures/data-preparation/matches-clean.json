@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "organization_id": "10000000-0000-4000-8000-000000000001",
+  "records": [
+    {
+      "source_key": "MATCH-FICTIF-01",
+      "data": {
+        "game_id": "a0000000-0000-4000-8000-000000000001",
+        "title": "FICTIF Rencontre Privee",
+        "kind": "scrim",
+        "format": "bo1",
+        "starts_at": "2026-10-01T12:00:00+00:00",
+        "ends_at": "2026-10-01T13:00:00+00:00",
+        "origin_timezone": "UTC",
+        "responsible_person_id": "b0000000-0000-4000-8000-000000000001",
+        "participants": [
+          {
+            "kind": "team",
+            "source_id": "c0000000-0000-4000-8000-000000000001"
+          },
+          {
+            "kind": "person",
+            "source_id": "d0000000-0000-4000-8000-000000000001"
+          }
+        ]
+      }
+    }
+  ]
+}
