@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/Rehearsal/bootstrap.php"
+         colors="false"
+         failOnWarning="true"
+         failOnRisky="true">
+    <testsuites>
+        <testsuite name="DATA-002 isolated fictitious rehearsal">
+            <directory>tests/Rehearsal</directory>
+        </testsuite>
+    </testsuites>
+    <php>
+        <ini name="memory_limit" value="512M"/>
+    </php>
+</phpunit>

@@ -6,7 +6,18 @@
 ## Point de reprise
 
 - Dernière mise à jour : 28 octobre 2026.
-- Tâche courante : **UCG-DATA-001 — préparation complémentaire et revue, un seul commit demandé**.
+- Tâche courante : **UCG-DATA-002 — reprise fictive isolée, un seul commit demandé**.
+  Commande `data:rehearse`, services et imports existants exécutés dans un enfant
+  SQLite en mémoire, disque privé de test, queues/mails/notifications neutralisés.
+  Cinq contrôles obligatoires : chaîne complète, reprise et doublons, rejets et
+  conflits, droits et périmètre tenant, interruption puis rollback. Rapport privé
+  sans cellules/identifiants, totaux/échantillons/liens vérifiés et comparaison de
+  toutes les tables/fichiers après retour arrière. CI et procédure de recette
+  réelle documentées. 148 cas distincts : 147 réussites, 1 exclusion Windows,
+  717 assertions ; Pint/PHPStan verts. Livraison en un commit local, sans push.
+  **DATA-001/002 restent en attente des sources réelles et de la validation métier ;
+  aucune qualification d’hébergement ni de restauration distante n’est acquise.**
+- Lot précédent : **UCG-DATA-001 — préparation complémentaire et revue**, commit aec6bd4.
   L’utilisateur confirme le 28/10 : aucun fichier réel disponible pour le moment.
   Ajout des audits JSON Équipes/Matchs/Contrats, contrôles explicites en base via
   `data:references` (administration, MFA et droits métier), et revue déclarée via
@@ -8806,3 +8817,78 @@ DATA-001 reste en attente : les sources réelles lorsqu’elles seront disponibl
 leurs formats supplémentaires nécessaires, les contrôles complémentaires et la
 validation métier vérifiable. DATA-002 ne doit pas être engagé comme une reprise
 réelle sur la seule base des fixtures ou de documents déclaratifs.
+
+## UCG-DATA-002 — Répétition fictive isolée et préparation de recette (28 octobre 2026)
+
+L’utilisateur demande toute la préparation DATA-002 en un seul commit, après avoir
+confirmé l’absence de fichiers réels pour DATA-001. L’hébergement reste reporté.
+Le lot livre le dispositif reproductible et ses contrôles fictifs ; aucune reprise
+réelle, signature métier ni qualification de restauration hébergée n’est déclarée.
+
+Commande sans argument data:rehearse dans Reporting : runner derrière contrat de
+Domain, adaptateur Symfony Process, service de validation des preuves et commande
+console. Aucun service métier existant n’est modifié. Le runner lance uniquement
+phpunit-rehearsal.xml et tests/Rehearsal, séparés des suites ordinaires. Bootstrap
+enfant imposant APP_ENV=testing, clé éphémère, absence de cache config partagé,
+SQLite :memory:, caches et sessions isolés, notifications/mails/queues simulés,
+diffusion nulle et HTTP sortant imprévu refusé. Le stockage réel TenantArtifacts
+et son ledger sont exercés sur un disque Laravel privé de test.
+
+Les fixtures réutilisent ProvidesObservations/ProvidesMetricCatalogue, les rôles
+et validations existants. Les bases ne sont migrées qu’après contrôle du mode
+mémoire et du contexte enfant. Cinq scénarios obligatoires :
+
+- pipeline : CSV Personnes, équipe, match, contrat et CSV Statistiques via les vrais
+  services/imports ; 2 personnes créées, 1 équipe, 1 match, 1 contrat, 2 observations,
+  4 échantillons et 5 liens vérifiés. Zéro et valeur absente restent distincts ;
+- idempotence : interruption et reprise du processor Personnes par chunk, rejeu
+  d’un import terminé, empreinte d’upload réutilisée et reçu statistique de doublon ;
+- erreurs : confirmation de lignes invalides refusée sans acquittement, statistiques
+  invalides détectées et conflit de valeur rejeté sans modifier l’observation ;
+- tenant : responsable contractuel étranger refusé, observation étrangère invalide,
+  lecteur sans permission d’import refusé ; fiche étrangère inchangée ;
+- interruption : exception contrôlée sortant du workflow après une première ligne
+  créée ; le finally exécute réellement le retour arrière avant vérification.
+
+Pour chaque scénario, capture d’une empreinte du contenu de chaque table (journaux,
+suivi d’import et tables métier compris) puis transaction explicite. Après rollback,
+comparaison intégrale à la préparation initiale et suppression des seuls fichiers
+nouveaux du disque de test, dont le chemin résolu est contrôlé. La liste des fichiers
+est également rapprochée. Aucun effacement d’une donnée utilisée n’est effectué.
+
+Le service exige code processus nul, cinq cas non ignorés et toutes les preuves
+attendues avec types et valeurs stricts. Contrôle manquant/dupliqué, mauvais total,
+retour arrière incomplet, artefact restant, test échoué/ignoré ou hash invalide
+interdit le succès. Le JSON public ne copie ni cellules, identifiants métier,
+chemins ni messages d’exception. Les preuves techniques fictives JUnit et JSONL
+restent privées dans storage/framework/testing/data-rehearsal/<UUID>. Le hash de
+scénario inclut configuration, bootstrap, scénarios, helpers de fixtures, service
+d’acceptation et composer.lock ; normalisation LF pour stabilité Windows/Linux.
+
+Le test de la commande lance aussi un vrai enfant après installation de valeurs
+parent volontairement incompatibles dans getenv/ENV/SERVER : URL PostgreSQL,
+fichier de base inaccessible, cache Redis et fichier de cache PHP devant lever une
+exception s’il était exécuté. L’enfant doit rester en mémoire ; aucune requête ne
+rejoint le processus parent et le fichier de base n’est pas créé.
+
+Rapport local ignoré reports/data002-rehearsal.json :
+fictitious_rehearsal_passed, 5 scénarios, 137 assertions, rollback_verified=true.
+Les marqueurs import_authorized, real_data_processed, business_signature_verified
+et data002_closed restent faux. Le rapport distingue explicitement worker/stockage
+hébergés, transactions de workers séparés, PostgreSQL, restauration de sauvegardes,
+formats supplémentaires et rapprochement réel signé non vérifiés.
+
+Procédure de recette réelle dans le README : DATA-001 validé, tenant et hébergement
+isolés, sauvegarde/stockage qualifiés, imports/parcours autorisés et correspondance
+des références, rapprochement des totaux/rejets/doublons, échantillonnage, essais des
+vrais workers et restauration après commits séparés. Modèle de rapprochement manuel
+fourni dans tests/Rehearsal/reconciliation.template.json ; aucune valeur renseignée
+n’est assimilée automatiquement à une signature ou une autorisation d’import.
+
+CI backend enrichie avec la commande et publication du JSON ainsi que des preuves
+fictives JUnit/JSONL. Pas d’affirmation de CI distante exécutée. Validation locale
+ciblée : 143 cas ordinaires (142 réussites, 1 exclusion conditionnelle de lien
+symbolique Windows), 580 assertions ; suite dédiée 5/5, 137 assertions. Total
+distinct : 148 cas, 147 réussites, 1 exclusion, 717 assertions. Pint et PHPStan verts.
+Aucune prétention de suite complète ou de qualification PostgreSQL pour ce nouveau
+lot. Livraison demandée en un seul commit local ; aucun push demandé.

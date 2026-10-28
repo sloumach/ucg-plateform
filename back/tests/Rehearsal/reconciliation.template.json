@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "objective": "UCG-DATA-002",
+  "status": "awaiting_real_sources",
+  "organization_id": null,
+  "data001_plan_digest": null,
+  "application_revision": null,
+  "scenario_sha256": null,
+  "source_inventory_reference": null,
+  "import_runs": [],
+  "totals": {},
+  "sample_evidence_references": [],
+  "rejected_rows_evidence_reference": null,
+  "cross_tenant_checks_evidence_reference": null,
+  "rollback_evidence_reference": null,
+  "reviewer_reference": null,
+  "approved_at": null,
+  "signature_reference": null,
+  "business_signature_verified": false,
+  "data002_closed": false,
+  "import_authorized": false
+}

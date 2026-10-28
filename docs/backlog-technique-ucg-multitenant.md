@@ -1891,6 +1891,19 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 ### UCG-DATA-002 — Réaliser la reprise à blanc
 
 - **Priorité / taille** : P0 / L
+- **Préparation technique (28/10/2026), un seul commit demandé** : commande
+  `data:rehearse`, suite dédiée exécutée dans un processus enfant SQLite en mémoire,
+  caches/sessions isolés et livraisons externes neutralisées. Services et imports
+  réels exercés sur fixtures ; totaux, échantillons, liens, reprise de chunk,
+  idempotence, rejets, périmètre tenant et interruption avec retour arrière contrôlés.
+  Empreintes de toutes les tables et liste des fichiers comparées à la préparation
+  initiale après rollback. Rapport JSON sans cellules ni identifiants métier,
+  scénario versionné, diagnostic privé, exécution et éléments de preuve prévus en CI.
+  Validation locale : 148 cas distincts, 147 réussites, 1 exclusion Windows,
+  717 assertions ; Pint/PHPStan verts. Aucun import réel ni qualification hébergée.
+  **Ticket en attente** : sources réelles et validation DATA-001, recette/stockage/
+  workers qualifiés, rapprochement signé et procédure de restauration exécutée.
+  Le rollback local n’annule pas des commits effectués par des workers distincts.
 - **Périmètre** : imports en recette, contrôles de totaux, échantillonnage, erreurs et rollback.
 - **Acceptation** : rapprochement signé, aucune donnée hors tenant et procédure reproductible.
 

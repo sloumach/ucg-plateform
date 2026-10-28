@@ -4760,6 +4760,102 @@ Une fixture ne ferme jamais le ticket, même déclarée approuvée. La clôture 
 exige les fichiers réels, les contrôles complémentaires applicables et une
 validation métier vérifiable. DATA-002 reste une opération distincte.
 
+## Reprise à blanc — préparation UCG-DATA-002
+
+Une répétition reproductible utilise uniquement des données fictives, dans un
+processus de test séparé et une base SQLite `:memory:` neuve. Elle ne prend aucun
+fichier réel ni identifiant de base cible en argument et n’ouvre pas la connexion
+applicative du processus appelant. Les dépendances de développement sont requises.
+
+Depuis `back/` :
+
+```powershell
+php artisan data:rehearse --no-interaction
+```
+
+La commande lance uniquement `phpunit-rehearsal.xml` et `tests/Rehearsal`, hors des
+suites ordinaires. Le bootstrap enfant impose environnement de test, clé locale
+éphémère, absence de cache de configuration partagé, SQLite en mémoire, cache et
+session en mémoire, ainsi que les protections contre les livraisons externes.
+Les requêtes HTTP sortantes imprévues sont refusées. Files, mails, notifications,
+diffusion et queues externes sont remplacés par des dispositifs de test ; les
+processors d’import réels sont appelés explicitement. Aucun worker hébergé n’est
+qualifié par cette répétition.
+
+Cinq contrôles obligatoires :
+
+- chaîne complète : import CSV de 2 personnes, création métier de 1 équipe,
+  1 match et 1 contrat, import de 2 observations statistiques ; contrôle des totaux,
+  de 4 échantillons et de 5 liens, avec distinction entre zéro et valeur absente ;
+- reprise après interruption d’un chunk et rejeu sans personnes supplémentaires,
+  réutilisation d’un import identique et détection d’un doublon statistique par reçu ;
+- refus de confirmation des lignes invalides sans acquittement explicite et
+  rejet d’une observation contradictoire sans écrasement de la valeur existante ;
+- refus des références d’une autre organisation et des écritures d’un lecteur
+  sans permission, avec contrôle de l’intégrité de la fiche étrangère ;
+- interruption contrôlée après une première personne créée, puis retour arrière.
+
+Les services d’import, de validation et de création existants sont exercés avec
+leurs autorisations, quotas et protections SQL. Les données de préparation du
+scénario sont fictives ; ces opérations ne créent aucun nouveau format d’import
+réel pour les équipes, matchs ou contrats.
+
+Chaque contrôle est entouré d’une transaction explicite. Après rollback, la
+répétition compare l’empreinte de toutes les lignes de chaque table à l’état de
+préparation, y compris journaux et suivi d’import. Les fichiers nouveaux sont
+supprimés uniquement du disque de test après vérification de son chemin ; la liste
+des fichiers est comparée à son état initial. La base disparaît à la fin du
+processus. **Cette preuve concerne une transaction dans un seul processus** : elle
+ne garantit pas l’annulation de transactions déjà validées par des workers distincts,
+ni une restauration de sauvegarde sur un hébergement.
+
+Le JSON de sortie contient les compteurs et contrôles, les assertions, l’empreinte
+du scénario et de ses dépendances versionnées. Il exclut données de cellules,
+identifiants métier, chemins locaux et détails d’exception. Les éléments techniques
+fictifs JUnit et JSONL restent dans
+`back/storage/framework/testing/data-rehearsal/<UUID>/` pour diagnostiquer un échec.
+La base et les fichiers d’import ne sont pas conservés dans ces éléments.
+
+Sortie **0** : les cinq contrôles et tous les retours arrière sont vérifiés ;
+**2** : échec ou preuve incomplète ; **1** : exécution non vérifiable, dépendance
+absente ou erreur technique. Un test ignoré, un contrôle manquant, une mauvaise
+quantité, un fichier résiduel ou un échec de rollback interdit le succès.
+Même en sortie 0 : `dataset_kind=fictitious`, `data002_closed=false`,
+`import_authorized=false`, `business_signature_verified=false`. Le résultat ne
+constitue ni une reprise réelle ni un rapprochement signé.
+
+La CI backend exécute aussi la commande et conserve son rapport
+`reports/data002-rehearsal.json` et les éléments fictifs JUnit/JSONL de diagnostic.
+Cela s’ajoute aux tests de la commande, dont un
+essai avec une base parent volontairement inaccessible et un cache Redis hérité :
+l’enfant doit rester isolé et aucune requête ne doit atteindre la base parent.
+
+### Passage à une reprise réelle en recette
+
+1. Terminer DATA-001 sur les fichiers réels : inventaire, écarts corrigés,
+   références, conservation et rapport validé. Enregistrer son digest et la révision
+   du code. L’absence de fichiers actuelle ne remplit pas cette condition.
+2. Préparer un tenant et un hébergement de recette isolés, sans accès des utilisateurs
+   réels, avec sauvegarde de référence et restauration qualifiée, incluant les
+   fichiers privés. Vérifier acteurs, permissions et limites avant toute reprise.
+3. Reprendre avec les imports existants et les parcours métier autorisés. Conserver
+   la correspondance entre références sources et identifiants générés, puis contrôler
+   les liens avant les matchs, contrats et observations. Ne pas transformer des
+   contrats historiques en contrats signés par un simple chargement de fichier.
+4. Rapprocher par source et par lot attendus, acceptés, rejetés, doublons et créés.
+   Vérifier échantillons, valeurs décimales, données absentes et liens, ainsi que
+   l’absence de données hors tenant. Documenter les rejets et les décisions prises.
+5. Tester le rejeu et une interruption avec les vrais workers de recette. Pour un
+   lot déjà validé par plusieurs transactions, suivre la procédure de restauration
+   qualifiée ; ne pas supposer qu’un rollback local efface des commits antérieurs.
+6. Compléter le modèle `back/tests/Rehearsal/reconciliation.template.json` avec
+   références de preuves, compteurs, imports, échantillons, restauration, responsable,
+   date et signature vérifiable. Ce modèle est un support de revue manuelle et
+   n’est pas interprété comme une autorisation par la commande.
+
+DATA-002 reste en attente de cette qualification réelle et de la validation métier.
+L’hébergement et les fichiers réels ne sont pas disponibles dans le lot actuel.
+
 ## Conservation des données — cadrage UCG-OPS-007
 
 **Brouillon de travail du 25 octobre 2026, sans autorisation de suppression.**
