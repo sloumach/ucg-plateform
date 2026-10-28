@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "organization_id": "10000000-0000-4000-8000-000000000001",
+  "dataset_kind": "fictitious",
+  "sources": [
+    {
+      "id": "PEOPLE-A",
+      "organization_id": "10000000-0000-4000-8000-000000000001",
+      "category": "people",
+      "file": "people-clean.csv",
+      "owner_reference": "OWNER-FICTIF-001",
+      "purpose_reference": "PURPOSE-FICTIF-001",
+      "retention_reference": "RETENTION-FICTIF-001",
+      "delimiter": ",",
+      "mapping": {
+        "pseudonym": 0,
+        "contact_email": 1,
+        "first_name": 2,
+        "last_name": 3,
+        "contact_phone": 4
+      },
+      "defaults": {
+        "language": "fr",
+        "timezone": "Africa/Tunis",
+        "status": "candidate"
+      },
+      "ignored_columns": []
+    }
+  ]
+}

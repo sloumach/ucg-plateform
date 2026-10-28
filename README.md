@@ -4567,6 +4567,84 @@ asymétrique (QA-005), politique de purge exhaustive (OPS-007) et restauration
 avec réconciliation (OPS-004/005). Le test Reverb local ne certifie pas le proxy,
 TLS, workers hébergés ou l'éviction des sockets déjà abonnées après révocation.
 
+## Préparation des données — UCG-DATA-001
+
+Premier lot : **audit local en lecture seule avant import**, avec inventaire des
+fichiers explicitement déclarés et contrôle du CSV Personnes existant. Aucun
+balayage automatique des dossiers. Le manifeste lie chaque source à l’UUID attendu,
+à une catégorie et à des références de responsable, de finalité et de conservation.
+Ces références sont des déclarations à valider ; elles ne désignent pas à elles
+seules un responsable réel ni une politique approuvée.
+
+Depuis `back/`, les deux démonstrations utilisent uniquement des données fictives :
+
+```powershell
+php artisan data:audit tests/Fixtures/data-preparation/clean.manifest.json --organization=10000000-0000-4000-8000-000000000001
+php artisan data:audit tests/Fixtures/data-preparation/issues.manifest.json --organization=10000000-0000-4000-8000-000000000001
+```
+
+Le premier manifeste constitue un exemple complet du format version 1 :
+`organization_id`, `dataset_kind=fictitious|real`, `sources[]`. Chaque source porte
+`id`, `organization_id`, `category`, `file`, `owner_reference`, `purpose_reference`,
+`retention_reference`. Pour Personnes : `delimiter`, `mapping` (champ → indice de
+colonne à partir de zéro), `defaults` (langue, fuseau, statut explicitement choisis)
+et `ignored_columns[]` (`column`, `reason_reference`). Les choix fr/Africa-Tunis/
+candidate des exemples sont exclusivement fictifs, pas des réglages métier imposés.
+
+Les catégories reprennent les 18 familles de l’inventaire. Dans cette version,
+**seul le CSV Personnes est analysé métier**. Tableurs, statistiques, contrats et
+autres familles reçoivent une empreinte et un signalement d’audit dédié nécessaire,
+sans conversion ni import implicites. Le contrôle Personnes réutilise son parseur,
+ses champs d’import autorisés et ses règles actuelles. `user_id` et `birth_date`
+ne sont pas des champs de ce format CSV ; leur présence nécessite un mapping
+distinct à concevoir, pas une extension silencieuse de l’import existant.
+
+Contrôles livrés : syntaxe/encodage CSV, colonnes, champs invalides ou obligatoires
+manquants, mapping explicite et exclusif, colonnes non affectées ou volontairement
+écartées, cellules ressemblant à des formules. Les numéros de ligne physiques sont
+conservés, y compris après une cellule multiligne. Les pseudonymes sont comparés
+après trim et passage en minuscules, dans le fichier et entre les sources du même
+lot. Coordonnées ou noms identiques déclenchent une **revue de rapprochement** :
+une adresse partagée n’est pas une preuve de doublon. Aucune fusion ou correction
+automatique. Un fichier de contenu identique est également signalé.
+
+Le rapport JSON indique sources techniques, tailles, empreintes, compteurs et
+positions des écarts. Il ne recopie ni en-têtes libres, chemins, noms, coordonnées,
+biographies, valeurs des cellules ou clés de rapprochement. Les comparaisons
+temporaires utilisent des HMAC non conservés. Les empreintes de fichiers et les
+UUID restent des informations privées d’exploitation ; ne pas publier le rapport.
+`schema_valid_rows` compte seulement les lignes conformes aux règles de champs,
+pas des lignes approuvées pour import ni un nombre de personnes uniques.
+
+- Code de sortie **0** : `ready_for_business_review`, prêt pour la revue métier.
+- Code de sortie **2** : `blocked`, écarts bloquants ou périmètre partiellement lu.
+- Code de sortie **1** : manifeste/périmètre invalide ou échec de l’audit.
+
+Dans tous les cas, `import_authorized=false`. Le rattachement à l’organisation
+est vérifié dans le manifeste, **sans consultation de la base applicative** :
+existence/droits réels du tenant, doublons déjà enregistrés, liens intermodules et
+quotas tenant restent à contrôler avant DATA-002. L’accès est celui d’un opérateur
+local autorisé à lire ces fichiers ; aucune route web n’est exposée par cet outil.
+La présence de `dataset_kind=fictitious` est une déclaration, pas une preuve
+indépendante de l’origine des données.
+
+Les fichiers doivent être réguliers, dans le dossier du manifeste ou ses
+sous-dossiers, avec chemins relatifs ASCII simples. Liens symboliques, sorties du
+dossier, chemins réseau, URL et wrappers de flux sont refusés. Lecture `rb` sous
+verrou partagé, contrôles de taille et de stabilité du fichier ; aucune réécriture
+des sources. Limites : manifeste 64 Kio, 20 sources, 1 Mio par fichier, 10 Mio par
+lot, au plus 1 000 lignes par CSV et 10 000 lignes Personnes par lot ; les limites
+Personnes configurées peuvent être plus strictes. Les détails sont limités à 200
+écarts, avec compteurs complets pour la portion analysée et indicateur de troncature.
+Les sources non lues sont signalées, jamais assimilées à des fichiers valides.
+
+Le lot fictif d’écarts déclare trois fichiers, six lignes Personnes, huit problèmes
+bloquants et cinq revues : identité répétée entre fichiers, champs invalides,
+cellule manquante, responsable/règle à préciser et statistiques non analysées.
+Le lot propre reste soumis à la validation métier. DATA-001 reste ouvert pour
+l’inventaire réel, les autres formats et la validation des responsables ; DATA-002
+sera une reprise à blanc distincte. Aucun fichier réel n’a été audité dans ce lot.
+
 ## Conservation des données — cadrage UCG-OPS-007
 
 **Brouillon de travail du 25 octobre 2026, sans autorisation de suppression.**

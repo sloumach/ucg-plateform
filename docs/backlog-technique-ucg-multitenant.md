@@ -1846,6 +1846,20 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 ### UCG-DATA-001 — Auditer et préparer les données UCG
 
 - **Priorité / taille** : P0 / L
+- **Premier lot prudent (28/10/2026)** : commande locale `data:audit`, inventaire
+  explicite lié au tenant déclaré, références de responsable/finalité/conservation,
+  empreintes et rapport JSON sans valeurs personnelles. Analyse du CSV Personnes
+  réutilisant parseur et règles existants ; mapping exclusif, colonnes non affectées,
+  contrôles de qualité, doublons entre sources et rapprochements à revoir sans fusion.
+  Autres formats/familles signalés comme audit dédié nécessaire. Bornes de volume,
+  lecture locale confinée et rapport plafonné ; aucune consultation de la base ni
+  lancement d’import. Démonstrations exclusivement fictives : lot propre en revue
+  métier, lot d’écarts bloqué avec 8 anomalies et 5 points de revue.
+  **Ticket ouvert** : inventaire réel et autres formats, propriétaires/finalités/
+  conservation à confirmer et rapport à valider par les responsables avant DATA-002.
+  Procédure et exemples dans le README. Commit demandé ensuite, sans push.
+  Validation ciblée : 156 cas/155 réussites/1 exclusion conditionnelle Windows,
+  984 assertions ; imports existants et architecture réexercés, Pint/PHPStan verts.
 - **Périmètre** : inventaire des fichiers, qualité, doublons, mapping, propriétaires, données inutiles et règles de conservation.
 - **Acceptation** : rapport d’écarts validé par les responsables métier avant import.
 

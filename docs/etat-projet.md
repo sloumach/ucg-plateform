@@ -6,7 +6,18 @@
 ## Point de reprise
 
 - Dernière mise à jour : 28 octobre 2026.
-- Tâche courante : **UCG-OPS-007, gel métier, effacement manuel et réconciliation en un seul nouveau commit**.
+- Tâche courante : **UCG-DATA-001, premier audit local prudent avant import**.
+  L’utilisateur demande de commencer avec prudence. Outil `data:audit` en lecture
+  seule, inventaire par manifeste et CSV Personnes contrôlé avec les règles
+  existantes ; doublons et rapprochements entre sources, mapping, références de
+  responsable/finalité/conservation, rapport sans valeurs personnelles. Formats
+  non pris en charge explicitement bloqués. Deux démonstrations fictives, aucun
+  fichier réel audité ni import lancé. Rapport métier et autres formats restent
+  ouverts ; aucun responsable ou règle réelle inventés. Détails ci-dessous.
+  Commit unique demandé après validation du premier lot ; aucun push demandé.
+  Vérification ciblée finale : 156 cas, 155 réussites, 1 exclusion conditionnelle
+  de lien symbolique Windows, 984 assertions ; Pint/PHPStan et diff --check verts.
+- Lot précédent : **UCG-OPS-007, gel métier, effacement manuel et réconciliation en un seul nouveau commit**.
   Décisions du 28/10 : cible personne et organisation entière ; bloquer l’effacement
   individuel tant que des contrats, matchs ou historiques partagés existent.
   Hébergement toujours reporté. Gel SQL/service des écritures métier, opérations
@@ -8547,3 +8558,63 @@ distincts. Le test ciblé et la suite complète isolée sont verts. Les clusters
 appartiennent au lanceur temporaire et sont arrêtés/supprimés après vérification.
 Rapports ignorés sous back/reports, sans modification du workflow CI : les nouveaux
 tests Tenancy sont déjà inclus dans son processus PostgreSQL principal.
+
+## UCG-DATA-001 — Premier audit local avant import (28 octobre 2026)
+
+L’utilisateur autorise le démarrage prudent de DATA-001 après OPS-007. Le dernier
+commit préalable est 07d54f1 sur staging ; l’utilisateur demande ensuite le commit
+de ce nouveau lot, sans push. Aucun fichier réel fourni ou recherché : les démonstrations sont des
+fixtures locales portant des identités FICTIF et des adresses example.test.
+
+Commande `data:audit MANIFESTE --organization=UUID` dans Reporting, avec Service,
+DTO, validation et contrat de lecture de fichiers. Le module People expose son
+analyseur CSV via un contrat public ; il réutilise le parseur Personnes, les règles
+de mapping et de fiche existantes. Les dépendances modulaires restent respectées.
+Le contrôleur d’import et son processus d’écriture ne sont pas appelés par l’audit.
+
+Inventaire explicite des sources du manifeste : catégories, tailles/empreintes,
+références de responsable/finalité/conservation déclarées ou manquantes. Toutes
+les sources doivent porter l’organisation attendue avant toute lecture de contenu.
+Ce rattachement est déclaratif : ni l’existence du tenant ni les droits sur ses
+données applicatives ne sont vérifiés par un outil hors ligne sans accès à la base.
+Les autres formats/familles sont signalés comme nécessitant un audit dédié.
+
+Pour Personnes : mapping de colonnes exclusif, défauts explicitement choisis,
+champs non valides/manquants, colonnes non affectées ou écartées avec référence,
+largeur de ligne, formules potentielles et rapprochements dans/entre fichiers.
+Les coordonnées/noms communs sont des points de revue, pas des personnes fusionnées.
+Numéros de ligne physiques préservés. Le rapport conserve seulement identifiants
+techniques et positions, jamais les cellules, en-têtes libres, chemins ou clés de
+rapprochement. HMAC temporaires pour comparer les identités ; empreintes SHA-256
+des seuls fichiers lus, rapport privé à ne pas publier. Une erreur inattendue est
+journalisée par type, sans son message, son chemin ou ses données.
+
+Lecture rb de fichiers réguliers confinés au dossier du manifeste, contrôle de
+résolution des chemins, liens refusés, verrou partagé et contrôles de métadonnées.
+Manifeste 64 Kio, 20 sources, 1 Mio/fichier et 10 Mio/lot ; CSV limité par les bornes
+Personnes et la capacité restante jusqu’à 10 000 lignes par lot. Détails d’écarts
+limités à 200 avec compteurs et troncature explicites. Les sources non lues restent
+identifiées comme incomplètes. Aucun assemblage de chemins vers un flux distant
+ou une inclusion/exécution de contenu. Aucun fichier source réécrit.
+
+Résultats des démonstrations : manifeste propre, deux lignes, statut
+ready_for_business_review et import_authorized=false ; manifeste avec écarts,
+trois sources/six lignes Personnes, huit anomalies bloquantes et cinq points de
+revue. Rapport généré dans back/reports/data001-fictitious-report.json (ignoré).
+Le format complet du manifeste et les commandes sont décrits dans le README.
+
+Validation ciblée finale : **156 cas, 155 réussites, 1 exclusion conditionnelle,
+984 assertions, 37,98 s**, rapport back/reports/data001-delivery.xml (ignoré).
+Sélection : nouveaux audits, parseur CSV existant, contrôleur/processeur/politiques
+d’import Personnes, exports Reporting et architecture modulaire. L’exclusion
+concerne la création de lien symbolique sans privilège sur ce Windows ; le test
+reste exécutable sur une plateforme qui le permet. Source de données en mémoire
+pour les régressions ; l’audit propre ne produit aucune requête, aucun job ni mail
+dans son test de lecture seule. Derniers Pint/PHPStan et diff --check verts.
+Pas de nouvelle suite PostgreSQL redondante : ce lot n’ajoute pas de persistance.
+
+**DATA-001 reste ouvert** : inventaire réel exhaustif, autres formats, propriétaires,
+finalités et règles à confirmer, rapprochements avec la base et revue/validation du
+rapport métier. Le code ne transforme pas une référence déclarée en accord réel.
+DATA-002 et son import à blanc restent une étape distincte ; aucun import, déploiement
+ou traitement de données réelles effectué dans cette intervention.

@@ -5,11 +5,14 @@ namespace App\Modules\Reporting\Providers;
 use App\Modules\Reporting\Application\Contracts\DashboardIndicatorQueue;
 use App\Modules\Reporting\Application\Contracts\ReportExportQueue;
 use App\Modules\Reporting\Domain\Contracts\DashboardIndicatorRepository;
+use App\Modules\Reporting\Domain\Contracts\DataSourceBundle;
 use App\Modules\Reporting\Domain\Contracts\ReportExportRepository;
+use App\Modules\Reporting\Infrastructure\Files\LocalDataSourceBundle;
 use App\Modules\Reporting\Infrastructure\Persistence\EloquentDashboardIndicatorRepository;
 use App\Modules\Reporting\Infrastructure\Persistence\EloquentReportExportRepository;
 use App\Modules\Reporting\Infrastructure\Queue\LaravelDashboardIndicatorQueue;
 use App\Modules\Reporting\Infrastructure\Queue\LaravelReportExportQueue;
+use App\Modules\Reporting\Presentation\Console\AuditDataPreparationCommand;
 use App\Modules\Reporting\Presentation\Policies\DashboardPolicy;
 use App\Modules\Reporting\Presentation\Policies\ReportExportPolicy;
 use App\Modules\Reporting\Presentation\Policies\TenantSearchPolicy;
@@ -24,6 +27,7 @@ final class ReportingServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(DataSourceBundle::class, LocalDataSourceBundle::class);
         $this->app->bind(ReportExportRepository::class, EloquentReportExportRepository::class);
         $this->app->bind(ReportExportQueue::class, LaravelReportExportQueue::class);
         $this->app->bind(DashboardIndicatorRepository::class, EloquentDashboardIndicatorRepository::class);
@@ -32,6 +36,9 @@ final class ReportingServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        if ($this->app->runningInConsole()) {
+            $this->commands([AuditDataPreparationCommand::class]);
+        }
         Gate::define('reporting.exports', [ReportExportPolicy::class, 'manage']);
         RateLimiter::for('report-exports', fn (Request $request) => Limit::perMinute(12)->by('report-exports:'.strtolower((string) $request->route('tenant')).':'.(string) $request->user()?->getAuthIdentifier()));
         Gate::define('search.viewAny', [TenantSearchPolicy::class, 'viewAny']);

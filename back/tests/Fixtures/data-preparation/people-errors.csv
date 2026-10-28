@@ -1,0 +1,5 @@
+pseudo,email,prenom,nom,telephone,note
+" fictif_alpha ",alpha@example.test,Alpha,Fictif,+21620000001,=1+1
+FICTIF_Gamma,incorrect-email,Gamma,Fictif,non-numero,texte
+,delta@example.test,Delta,Fictif,+21620000004,texte
+FICTIF_Epsilon,epsilon@example.test,Epsilon,Fictif,+21620000005
