@@ -35,8 +35,10 @@ use App\Modules\Tenancy\Domain\Contracts\AccessAuditRepository;
 use App\Modules\Tenancy\Domain\Contracts\ApprovedTenantDomains;
 use App\Modules\Tenancy\Domain\Contracts\ArtifactLedger;
 use App\Modules\Tenancy\Domain\Contracts\CommunicationRolesRepository;
+use App\Modules\Tenancy\Domain\Contracts\ErasureJournal;
 use App\Modules\Tenancy\Domain\Contracts\InvitationNotifier;
 use App\Modules\Tenancy\Domain\Contracts\InvitationRepository;
+use App\Modules\Tenancy\Domain\Contracts\ManualErasureRepository;
 use App\Modules\Tenancy\Domain\Contracts\MembershipRepository;
 use App\Modules\Tenancy\Domain\Contracts\OrganizationRepository;
 use App\Modules\Tenancy\Domain\Contracts\PortabilityArchive;
@@ -56,6 +58,7 @@ use App\Modules\Tenancy\Domain\Models\OrganizationRole;
 use App\Modules\Tenancy\Domain\Models\OrganizationSupportAccess;
 use App\Modules\Tenancy\Infrastructure\Mail\MailInvitationNotifier;
 use App\Modules\Tenancy\Infrastructure\Persistence\DatabaseArtifactLedger;
+use App\Modules\Tenancy\Infrastructure\Persistence\DatabaseManualErasureRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\DatabasePortabilityRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\DatabaseRetentionControlRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\DatabaseRetentionReviewRepository;
@@ -70,6 +73,7 @@ use App\Modules\Tenancy\Infrastructure\Persistence\EloquentSensitiveAccessJourna
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentSupportAccessRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentTenantAuditJournal;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentTenantWorkRepository;
+use App\Modules\Tenancy\Infrastructure\Persistence\IndependentErasureJournal;
 use App\Modules\Tenancy\Infrastructure\Queue\LaravelPortabilityQueue;
 use App\Modules\Tenancy\Infrastructure\Queue\LaravelTenantScheduleQueue;
 use App\Modules\Tenancy\Infrastructure\Queue\RestoreTenantJobContext;
@@ -82,8 +86,10 @@ use App\Modules\Tenancy\Presentation\Console\ControlOrganizationRetentionCommand
 use App\Modules\Tenancy\Presentation\Console\DispatchTenantSchedulesCommand;
 use App\Modules\Tenancy\Presentation\Console\ExpireOrganizationExportsCommand;
 use App\Modules\Tenancy\Presentation\Console\ExpireTenantArtifactsCommand;
+use App\Modules\Tenancy\Presentation\Console\ManualOrganizationErasureCommand;
 use App\Modules\Tenancy\Presentation\Console\OrganizationPortabilityCommand;
 use App\Modules\Tenancy\Presentation\Console\ProvisionOrganizationCommand;
+use App\Modules\Tenancy\Presentation\Console\ReconcileOrganizationErasureCommand;
 use App\Modules\Tenancy\Presentation\Console\ReviewOrganizationRetentionCommand;
 use App\Modules\Tenancy\Presentation\Console\TransitionOrganizationCommand;
 use App\Modules\Tenancy\Presentation\Policies\InvitationPolicy;
@@ -96,7 +102,9 @@ use App\Modules\Tenancy\Presentation\Policies\TenantContextPolicy;
 use App\Support\Storage\TenantResourceNamespace;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Database\Events\ConnectionEstablished;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
@@ -107,6 +115,11 @@ final class TenancyServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->make(Dispatcher::class)->listen(ConnectionEstablished::class, static function (ConnectionEstablished $event): void {
+            if ($event->connection->getDriverName() === 'sqlite') {
+                $event->connection->getPdo()->sqliteCreateFunction('ucg_manual_erasure_allowed', static fn (): int => 0, 4);
+            }
+        });
         $this->app->bind(CommunicationRolesDirectory::class, CommunicationRolesService::class);
         $this->app->bind(CommunicationRolesRepository::class, EloquentCommunicationRolesRepository::class);
         $this->app->bind(PartnershipMemberDirectory::class, PartnershipMemberService::class);
@@ -124,6 +137,8 @@ final class TenancyServiceProvider extends ServiceProvider
         $this->app->bind(PortabilityRepository::class, DatabasePortabilityRepository::class);
         $this->app->bind(RetentionReviewRepository::class, DatabaseRetentionReviewRepository::class);
         $this->app->bind(RetentionControlRepository::class, DatabaseRetentionControlRepository::class);
+        $this->app->bind(ManualErasureRepository::class, DatabaseManualErasureRepository::class);
+        $this->app->bind(ErasureJournal::class, IndependentErasureJournal::class);
         $this->app->bind(PortabilityArchive::class, PrivatePortabilityArchive::class);
         $this->app->bind(PortabilityQueue::class, LaravelPortabilityQueue::class);
         $this->app->scoped(TenantExecutionScope::class);
@@ -183,6 +198,7 @@ final class TenancyServiceProvider extends ServiceProvider
                 CheckTenantSchemaCommand::class, DispatchTenantSchedulesCommand::class]);
             $this->commands([OrganizationPortabilityCommand::class, ExpireOrganizationExportsCommand::class, ExpireTenantArtifactsCommand::class]);
             $this->commands([ReviewOrganizationRetentionCommand::class, ControlOrganizationRetentionCommand::class]);
+            $this->commands([ManualOrganizationErasureCommand::class, ReconcileOrganizationErasureCommand::class]);
         }
     }
 }

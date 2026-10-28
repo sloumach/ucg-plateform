@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property string $name
  * @property string $slug
  * @property int $owner_user_id
+ * @property int $retention_version
  * @property OrganizationStatus $status
  * @property string $timezone
  * @property string $language
@@ -48,7 +49,7 @@ class Organization extends Model
     /** @return array<string, string> */
     protected function casts(): array
     {
-        return ['status' => OrganizationStatus::class, 'owner_user_id' => 'integer'];
+        return ['status' => OrganizationStatus::class, 'owner_user_id' => 'integer', 'retention_version' => 'integer'];
     }
 
     /** @return HasOne<OrganizationSetting, $this> */

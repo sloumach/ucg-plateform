@@ -94,31 +94,33 @@ class PersonImportSchemaTest extends TestCase
 
     public function test_empty_rollback_and_reapply_preserve_the_tenant_schema(): void
     {
-        $migration = require database_path('migrations/2026_10_12_211057_create_person_import_tables.php');
-        $documents = require database_path('migrations/2026_10_14_193828_create_contract_documents_and_immutable_versions.php');
-        $scans = require database_path('migrations/2026_10_14_204339_create_contract_document_scans.php');
-        $governance = require database_path('migrations/2026_10_14_231650_add_contract_financial_governance.php');
-        $reminders = require database_path('migrations/2026_10_15_184218_create_contract_reminders.php');
-        $reminders->down();
-        $governance->down();
-        $scans->down();
-        $documents->down();
-        $statImports = require database_path('migrations/2026_10_19_143154_create_statistical_import_previews.php');
-        $statisticalExecution = require database_path('migrations/2026_10_19_175141_create_statistical_import_executions.php');
-        $statisticalCalculations = require database_path('migrations/2026_10_19_183908_create_statistical_calculations.php');
-        $statisticalCalculations->down();
-        $statisticalExecution->down();
-        $statImports->down();
-        $migration->down();
-        $migration->up();
-        $statImports->up();
-        $statisticalExecution->up();
-        $statisticalCalculations->up();
-        $documents->up();
-        $scans->up();
-        $governance->up();
-        $reminders->up();
-        $this->assertSame([], app(TenantSchemaInspector::class)->violations());
-        app(PortabilityRepository::class)->assertCatalog();
+        $this->withoutRetentionGuards(function (): void {
+            $migration = require database_path('migrations/2026_10_12_211057_create_person_import_tables.php');
+            $documents = require database_path('migrations/2026_10_14_193828_create_contract_documents_and_immutable_versions.php');
+            $scans = require database_path('migrations/2026_10_14_204339_create_contract_document_scans.php');
+            $governance = require database_path('migrations/2026_10_14_231650_add_contract_financial_governance.php');
+            $reminders = require database_path('migrations/2026_10_15_184218_create_contract_reminders.php');
+            $reminders->down();
+            $governance->down();
+            $scans->down();
+            $documents->down();
+            $statImports = require database_path('migrations/2026_10_19_143154_create_statistical_import_previews.php');
+            $statisticalExecution = require database_path('migrations/2026_10_19_175141_create_statistical_import_executions.php');
+            $statisticalCalculations = require database_path('migrations/2026_10_19_183908_create_statistical_calculations.php');
+            $statisticalCalculations->down();
+            $statisticalExecution->down();
+            $statImports->down();
+            $migration->down();
+            $migration->up();
+            $statImports->up();
+            $statisticalExecution->up();
+            $statisticalCalculations->up();
+            $documents->up();
+            $scans->up();
+            $governance->up();
+            $reminders->up();
+            $this->assertSame([], app(TenantSchemaInspector::class)->violations());
+            app(PortabilityRepository::class)->assertCatalog();
+        });
     }
 }

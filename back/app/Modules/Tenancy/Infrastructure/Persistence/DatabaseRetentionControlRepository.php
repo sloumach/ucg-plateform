@@ -2,14 +2,16 @@
 
 namespace App\Modules\Tenancy\Infrastructure\Persistence;
 
+use App\Modules\Tenancy\Domain\Contracts\ErasureJournal;
 use App\Modules\Tenancy\Domain\Contracts\RetentionControlRepository;
+use Illuminate\Contracts\Config\Repository;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Str;
 use LogicException;
 
 final readonly class DatabaseRetentionControlRepository implements RetentionControlRepository
 {
-    public function __construct(private ConnectionInterface $database) {}
+    public function __construct(private ConnectionInterface $database, private ErasureJournal $journal, private Repository $config) {}
 
     public function state(string $organizationId): array
     {
@@ -48,12 +50,21 @@ final readonly class DatabaseRetentionControlRepository implements RetentionCont
         if ($this->database->transactionLevel() < 1) {
             throw new LogicException('Retention events require the organization transaction lock.');
         }
+        if ($action === 'hold' && $this->config->get('retention.erasure.journal_connection') !== null) {
+            // Persist positive preservation before acknowledging it; a source rollback must fail safe.
+            $this->journal->preserve($organizationId, $requestId, $reference);
+        }
         $this->database->table('organization_retention_events')->insert([
             'id' => (string) Str::uuid7(), 'organization_id' => $organizationId, 'actor_user_id' => $actorId,
             'request_id' => $requestId, 'reason' => $reason, 'action' => $action, 'reference' => $reference,
             'version' => $state['version'], 'state' => json_encode($state, JSON_THROW_ON_ERROR), 'occurred_at' => now(),
             'evidence' => $evidence === null ? null : json_encode($evidence, JSON_THROW_ON_ERROR),
         ]);
+        $updated = $this->database->table('organizations')->where('id', $organizationId)
+            ->where('retention_version', $state['version'] - 1)->update(['retention_version' => $state['version']]);
+        if ($updated !== 1) {
+            throw new LogicException('Retention root revision is inconsistent with its audit.');
+        }
     }
 
     private function reference(mixed $value): bool

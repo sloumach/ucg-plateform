@@ -20,7 +20,7 @@ final readonly class TenantPermissionService implements TenantAuthorization
 {
     public function __construct(private OrganizationRepository $organizations, private MembershipRepository $memberships,
         private RoleRepository $roles, private AuthorizationScopeDirectory $scopes, private AccountDirectory $accounts,
-        private PlatformAccountDirectory $platform) {}
+        private PlatformAccountDirectory $platform, private ErasureAccessGate $erasureGate) {}
 
     public function allows(TenantContext $context, string $permission, string $scopeType = 'organization', ?string $scopeId = null): bool
     {
@@ -37,6 +37,7 @@ final readonly class TenantPermissionService implements TenantAuthorization
         } catch (ModelNotFoundException) {
             return false;
         }
+        $this->erasureGate->assertReadable($context->organizationId, $organization->retention_version);
         if (! $organization->acceptsBusinessOperations()) {
             return false;
         }
@@ -79,6 +80,7 @@ final readonly class TenantPermissionService implements TenantAuthorization
     public function permissions(TenantContext $context): array
     {
         $organization = $this->organizations->findAccessible($context->organizationId, $context->actorUserId);
+        $this->erasureGate->assertReadable($context->organizationId, $organization->retention_version);
         if (! $organization->acceptsBusinessOperations()) {
             return [];
         }

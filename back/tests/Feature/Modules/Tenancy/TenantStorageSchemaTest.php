@@ -61,43 +61,45 @@ class TenantStorageSchemaTest extends TestCase
 
     public function test_new_storage_migration_can_be_reversed_and_reapplied_without_touching_existing_tenants(): void
     {
-        $organization = Organization::factory()->create();
-        $migration = require database_path('migrations/2026_10_10_160242_create_tenant_artifact_ledger_tables.php');
-        $importMigration = require database_path('migrations/2026_10_12_211057_create_person_import_tables.php');
-        $documents = require database_path('migrations/2026_10_14_193828_create_contract_documents_and_immutable_versions.php');
+        $this->withoutRetentionGuards(function (): void {
+            $organization = Organization::factory()->create();
+            $migration = require database_path('migrations/2026_10_10_160242_create_tenant_artifact_ledger_tables.php');
+            $importMigration = require database_path('migrations/2026_10_12_211057_create_person_import_tables.php');
+            $documents = require database_path('migrations/2026_10_14_193828_create_contract_documents_and_immutable_versions.php');
 
-        $scans = require database_path('migrations/2026_10_14_204339_create_contract_document_scans.php');
-        $governance = require database_path('migrations/2026_10_14_231650_add_contract_financial_governance.php');
-        $reminders = require database_path('migrations/2026_10_15_184218_create_contract_reminders.php');
-        $reminders->down();
-        $governance->down();
-        $scans->down();
-        $documents->down();
-        $statisticalImports = require database_path('migrations/2026_10_19_143154_create_statistical_import_previews.php');
-        $statisticalExecution = require database_path('migrations/2026_10_19_175141_create_statistical_import_executions.php');
-        $statisticalCalculations = require database_path('migrations/2026_10_19_183908_create_statistical_calculations.php');
-        $statisticalCalculations->down();
-        $statisticalExecution->down();
-        $statisticalImports->down();
-        $importMigration->down();
-        $migration->down();
-        $this->assertFalse(Schema::hasTable('tenant_artifacts'));
-        $this->assertFalse(Schema::hasTable('tenant_storage_usage'));
-        $migration->up();
-        $importMigration->up();
-        $statisticalImports->up();
-        $statisticalExecution->up();
-        $statisticalCalculations->up();
-        $documents->up();
-        $scans->up();
-        $governance->up();
-        $reminders->up();
+            $scans = require database_path('migrations/2026_10_14_204339_create_contract_document_scans.php');
+            $governance = require database_path('migrations/2026_10_14_231650_add_contract_financial_governance.php');
+            $reminders = require database_path('migrations/2026_10_15_184218_create_contract_reminders.php');
+            $reminders->down();
+            $governance->down();
+            $scans->down();
+            $documents->down();
+            $statisticalImports = require database_path('migrations/2026_10_19_143154_create_statistical_import_previews.php');
+            $statisticalExecution = require database_path('migrations/2026_10_19_175141_create_statistical_import_executions.php');
+            $statisticalCalculations = require database_path('migrations/2026_10_19_183908_create_statistical_calculations.php');
+            $statisticalCalculations->down();
+            $statisticalExecution->down();
+            $statisticalImports->down();
+            $importMigration->down();
+            $migration->down();
+            $this->assertFalse(Schema::hasTable('tenant_artifacts'));
+            $this->assertFalse(Schema::hasTable('tenant_storage_usage'));
+            $migration->up();
+            $importMigration->up();
+            $statisticalImports->up();
+            $statisticalExecution->up();
+            $statisticalCalculations->up();
+            $documents->up();
+            $scans->up();
+            $governance->up();
+            $reminders->up();
 
-        $this->assertTrue(Schema::hasTable('statistical_imports'));
-        $this->assertSame([], app(TenantSchemaInspector::class)->violations());
-        $this->assertTrue(Schema::hasTable('tenant_artifacts'));
-        $this->assertTrue(Schema::hasTable('tenant_storage_usage'));
-        $this->assertDatabaseHas('organizations', ['id' => $organization->id, 'slug' => $organization->slug]);
+            $this->assertTrue(Schema::hasTable('statistical_imports'));
+            $this->assertSame([], app(TenantSchemaInspector::class)->violations());
+            $this->assertTrue(Schema::hasTable('tenant_artifacts'));
+            $this->assertTrue(Schema::hasTable('tenant_storage_usage'));
+            $this->assertDatabaseHas('organizations', ['id' => $organization->id, 'slug' => $organization->slug]);
+        });
     }
 
     private function insert(string $table, string $organizationId): void

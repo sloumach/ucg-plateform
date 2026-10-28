@@ -93,6 +93,9 @@ final readonly class RetentionControlService
                         $state['quarantine'] = $reference;
                         break;
                     case 'release-quarantine':
+                        if ($state['quarantine'] !== null && (str_starts_with($state['quarantine'], 'erasure:') || str_starts_with($state['quarantine'], 'restore:'))) {
+                            throw new DomainConflictException(__('retention.erasure_blocked'), 'ERASURE_BLOCKED');
+                        }
                         $evidence = $this->restorationApproval($organizationId, $state, $reference);
                         if ($state['quarantine'] === null || $evidence === null) {
                             throw new DomainConflictException(__('retention.restoration_unverified'), 'RETENTION_RESTORATION_UNVERIFIED');
@@ -125,13 +128,16 @@ final readonly class RetentionControlService
             'policy_status' => $policy->status, 'policy_fingerprint' => $policy->fingerprint, 'missing_family_rules' => $missing,
             'blocks' => [
                 'rules' => $missing === [] ? 'review_rules_configured_execution_unavailable' : 'family_rules_missing',
-                'holds' => 'technical_removal_guard_available_business_preservation_incomplete',
+                'holds' => 'business_and_technical_writes_frozen_by_sql_and_service_guards',
                 'archive' => 'organization_archive_only_record_archive_unavailable',
-                'business_erasure' => 'blocked_immutable_history_and_field_rules_unresolved',
-                'copies_restoration' => 'manual_quarantine_and_attestation_gate_external_copies_unverified',
+                'business_erasure' => 'manual_scoped_erasure_shared_person_history_blocked',
+                'copies_restoration' => 'independent_signed_journal_replay_operator_copy_attestations',
                 'qualification' => 'hosting_runtime_unqualified',
             ], 'unverified_copies' => RetentionCatalog::UNVERIFIED_COPIES,
-            'business_deletion_supported' => false, 'production_qualified' => false]);
+            'manual_erasure_available' => true,
+            'business_deletion_supported' => $this->config->get('retention.erasure.enabled') === true
+                && in_array($organizationId, $this->config->get('retention.erasure.operators.'.$audit->actorUserId, []), true),
+            'production_qualified' => false]);
     }
 
     /** A manually reviewed receipt is an operator declaration, never proof of provider deletion.

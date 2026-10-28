@@ -107,6 +107,10 @@ class PersonSchemaTest extends TestCase
     public function test_migration_can_be_reversed_empty_and_reapplied_in_the_test_database(): void
     {
         $this->assertTrue(Schema::hasTable('people'));
+        $erasureGuards = require database_path('migrations/2026_10_28_083717_authorize_scoped_manual_erasure_guards.php');
+        $erasureGuards->down();
+        $freeze = require database_path('migrations/2026_10_28_080328_enforce_tenant_retention_business_freeze.php');
+        $freeze->down();
         $migration = require database_path('migrations/2026_10_11_215159_create_people_table.php');
         $academy = require database_path('migrations/2026_10_22_100213_create_academy_cohorts_cycles_and_enrollments.php');
         $coaching = require database_path('migrations/2026_10_22_224821_create_academy_objectives_and_feedback.php');
@@ -211,6 +215,8 @@ class PersonSchemaTest extends TestCase
         $academy->up();
         $sessions->up();
         $coaching->up();
+        $freeze->up();
+        $erasureGuards->up();
 
         $this->assertTrue(Schema::hasTable('academy_enrollments'));
         $this->assertTrue(Schema::hasTable('statistical_imports'));

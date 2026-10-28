@@ -1426,6 +1426,25 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 ### UCG-OPS-007 — Implémenter conservation et purge
 
 - **Priorité / taille** : P0 / L
+- **Extension du 28/10/2026, nouveau commit unique demandé** : gel SQL/service des
+  écritures métier ; effacement manuel de personne et d’organisation archivée,
+  prévisualisation/empreinte/confirmation, quarantaine, lots de 100, preuves et
+  permissions SQL précises. Les liens partagés bloquent l’effacement individuel,
+  conformément à la réponse utilisateur ; un import partagé bloque aussi.
+  Journal signé dans une base indépendante avec clé distincte, réimport conservateur
+  des gels absents et rejeu des effacements après restauration, y compris les fichiers
+  orphelins décrits par le manifeste. Catalogue 120 tables, protection des comptes
+  globaux et racine d’organisation anonymisée conservée en quarantaine permanente.
+  Les 11 revues de copies sont des attestations opérateur, sans preuve de suppression
+  fournisseur. Configuration désactivée ; aucune modification d’une base utilisée.
+  **Reste ouvert** : qualification hébergée explicitement reportée, copies externes,
+  cycle réel de sauvegardes/PITR et validations CAD-004 ; aucun effacement automatique
+  métier ni écran SPA. Détails et procédure dans le README.
+  Validation locale finale : 2 937 cas backend, 2 876 réussites, 61 exclusions,
+  18 430 assertions ; vérifications PostgreSQL ciblées, PHPStan et Pint verts.
+- **Validation CI (28/10/2026)** : l'utilisateur valide la CI de la livraison
+  9151df0, après regroupement des suites PostgreSQL. Cette attente est levée ;
+  l'extension ci-dessus complète le code mais ne qualifie pas l'hébergement.
 - **Périmètre** : matrice par catégorie/tenant, archivage restreint, purge, exports temporaires, réplicas et cycle des sauvegardes.
 - **Acceptation** : soft delete non confondu avec effacement ; opération auditée et testée.
 - **Décision utilisateur intégrée (27/10/2026)** : les informations des personnes

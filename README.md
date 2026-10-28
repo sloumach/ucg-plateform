@@ -5033,7 +5033,10 @@ avant remise en service ; cet aperçu ne réalise pas cette réapplication méti
 **OPS-007/CAD-004/REC-35 restent ouverts.** Les lots de préparation ne doivent pas
 être confondus avec une purge métier complète et qualifiée.
 
-#### OPS-007 — contrôles opérateur des six blocs
+#### OPS-007 — contrôles opérateur des six blocs (livraison 9151df0)
+
+Cette section décrit le lot précédent. Son extension du 28 octobre est décrite
+ci-dessous ; les limitations historiques ne constituent pas le bilan du nouveau lot.
 
 La commande `organizations:retention-control` complète l'aperçu. Elle retourne
 l'état et un bilan explicite des six blocs : règles, gels, archives, effacement,
@@ -5119,6 +5122,145 @@ SQLSTATE[42723]. Le problème a été reproduit avec deux processus ; l'exécuti
 groupée corrigée passe 158 tests/725 assertions. Les 168 cibles des deux anciennes
 étapes restent couvertes par les 164 cibles regroupées (dont le répertoire Tenancy).
 Les rapports PostgreSQL restent collectés par le glob JUnit existant.
+
+#### OPS-007 — gel métier, effacement manuel et réconciliation (28 octobre 2026)
+
+Décisions utilisateur : l’effacement manuel vise une personne ou une organisation
+entière. **L’effacement individuel est bloqué tant que des contrats, matchs ou
+historiques partagés restent liés à la personne.** Un import partagé avec d’autres
+personnes bloque également l’opération. L’hébergement reste reporté : aucune recette
+sur une infrastructure réelle ni qualification de sauvegardes n’est déclarée.
+
+Le gel nommé protège désormais les INSERT/UPDATE/DELETE des 117 tables métier et
+d’historique du catalogue initial, dans les services et dans PostgreSQL/SQLite.
+Les écritures de preuve et le suivi technique nécessaire restent autorisés.
+Chaque décision fait avancer `organizations.retention_version` sous verrou ; un
+écrivain PostgreSQL utilisant un ancien instantané REPEATABLE READ doit abandonner
+sa transaction plutôt qu’ignorer un gel acquis depuis. La quarantaine bloque aussi
+les accès métier, les exports et l’admission des travaux en arrière-plan.
+
+Le catalogue comprend maintenant 120 tables tenant, dont trois tables de contrôle :
+`tenant_erasure_operations`, `tenant_erasure_events`, `tenant_erasure_permits`.
+Les trois migrations du 28 octobre doivent précéder ce code ; aucun déploiement ou
+effacement sur une base utilisée n’est effectué dans ce lot. Les retours arrière
+refusent de jeter des décisions d’effacement ou de conservation existantes.
+
+**Activation serveur explicite, livrée désactivée.** `retention.erasure.enabled`
+et `retention.erasure.operators[ID_COMPTE]` complètent le registre des opérateurs de
+conservation. Le compte doit rester vérifié, enrôlé MFA et sans rôle technique de
+plateforme. Les commandes recontrôlent ces conditions à chaque reprise. Le profil
+de journal et sa clé doivent rester hors des sauvegardes de la base métier :
+
+- `RETENTION_JOURNAL_CONNECTION=retention_journal` désigne la connexion PostgreSQL
+  distincte fournie dans `config/database.php`. Ses paramètres
+  `RETENTION_JOURNAL_DB_URL` ou `RETENTION_JOURNAL_DB_HOST/PORT/DATABASE/USERNAME/PASSWORD`
+  ne reprennent aucun identifiant `DB_*`. TLS exige `verify-full` par défaut ;
+  `RETENTION_JOURNAL_DB_SSLMODE` doit correspondre au profil revu.
+- `RETENTION_INSTALLATION_ID` est un UUID stable de cette installation.
+  `RETENTION_JOURNAL_KEY` est un secret indépendant de 64 à 256 caractères,
+  différent de `APP_KEY`, conservé hors dépôt et hors sauvegarde métier.
+- `retention.erasure.journal_independence_reviewed=true` est une déclaration de revue
+  opérateur. La séparation logique est contrôlée ; elle ne prouve pas à elle seule
+  une séparation physique des sauvegardes, des comptes ou des infrastructures.
+- Initialiser le journal pour chaque organisation concernée avant réouverture.
+  Cette initialisation reprend aussi ses gels historiques. Dès que le profil est
+  configuré, un journal absent ou indisponible bloque les chemins protégés.
+  Garder ce profil après désactivation de nouvelles demandes d’effacement.
+
+Exemples de commandes serveur à adapter sur l’environnement autorisé, jamais à
+exécuter tels quels sur la base utilisée :
+
+```powershell
+php artisan organizations:erase UUID_ORGANISATION --action=initialize-journal --actor=ID_COMPTE --reason="Initialisation revue"
+php artisan organizations:erase UUID_ORGANISATION --scope=person --target=UUID_PERSONNE --actor=ID_COMPTE --reason="Previsualisation du dossier"
+php artisan organizations:erase UUID_ORGANISATION --action=begin --scope=person --target=UUID_PERSONNE --digest=EMPREINTE_SOURCE --reference=DOSSIER-001 --confirm=UUID_PERSONNE --actor=ID_COMPTE --reason="Effacement approuve"
+php artisan organizations:erase UUID_ORGANISATION --action=inspect --operation=UUID_OPERATION --actor=ID_COMPTE --reason="Etat de progression"
+php artisan organizations:erase UUID_ORGANISATION --action=resume --operation=UUID_OPERATION --actor=ID_COMPTE --reason="Reprise du lot"
+php artisan organizations:erase UUID_ORGANISATION --action=acknowledge --operation=UUID_OPERATION --category=backups_pitr --reference=REVUE-SAUVEGARDE-001 --actor=ID_COMPTE --reason="Revue des copies"
+```
+
+Pour l’organisation entière, utiliser `--scope=organization` et son UUID comme
+cible et confirmation. Elle doit déjà être archivée. Pour une personne, l’organisation
+doit être inactive ; la personne doit être supprimée logiquement, partie et sans
+obligation ouverte. Les gels, restrictions et quarantaines préexistants empêchent
+une nouvelle demande. La prévisualisation est sans suppression : compteurs, liens
+bloquants et empreintes, sans contenu des fiches. L’approbation exige exactement
+l’empreinte courante ; toute modification impose une nouvelle prévisualisation.
+
+`begin` enregistre l’opération et sa quarantaine, puis écrit l’intention signée dans
+la base indépendante **avant toute suppression**. Si cette seconde écriture échoue,
+le dossier reste bloqué ; récupérer l’UUID dans l’inspection des contrôles et utiliser
+`resume`, sans recréer une demande. Chaque reprise traite au plus 100 fichiers ou
+100 lignes. Les fichiers privés sont visés par UUID tenant et disque ; les suppressions
+sont idempotentes. Les compteurs de stockage suivent la suppression vérifiée des
+objets ; une erreur conserve les métadonnées et la possibilité de reprise.
+
+Les dépendances sont supprimées dans l’ordre enfant → parent, avec traitement des
+révisions auto-référencées et des liens nuls nécessaires aux cycles. Un schéma ou
+une protection SQL modifiés suspendent l’exécution. Les protections d’historique
+restent actives pour les requêtes ordinaires : les exceptions sont limitées à une
+opération, une transaction, une organisation, une table, une ligne et, pour une
+mise à jour technique, ses valeurs attendues. Aucun FK ou déclencheur n’est désactivé.
+Les générations des projections sont invalidées après un effacement individuel.
+
+Les comptes globaux restent préservés. Pour une organisation, une racine anonymisée
+et les preuves opérationnelles minimales restent conservées ; sa quarantaine est
+permanente. Pour une personne, la quarantaine propre à l’effacement ne peut être
+levée qu’après la revue des copies ; l’organisation reste inactive jusqu’à une
+décision distincte de reprise. Les journaux et identifiants de décision restent
+des données privées d’exploitation, pas une promesse de disparition de tout identifiant.
+
+L’état `awaiting_copies` suit le retrait local. Les 11 catégories de copies exigent
+chacune une référence de revue : exports, versions d’objets, instantanés, imports,
+caches, jobs, logs, réplicas, sauvegardes/PITR, fournisseurs et téléchargements des
+destinataires. `completed` signifie retrait local vérifié et attestations opérateur
+enregistrées. **Ces attestations ne prouvent pas un effacement chez le fournisseur.**
+`production_qualified` reste faux. Aucun connecteur fournisseur ni effacement des
+sauvegardes, messages distribués ou téléchargements distants n’est simulé comme réel.
+
+**Après restauration**, couper l’admission, les workers et les planificateurs ;
+restaurer en environnement isolé. Conserver le journal indépendant courant, son
+profil et sa clé. Activer `RETENTION_RESTORE_MODE=true` avec un nouveau
+`RETENTION_RESTORE_EPOCH=UUID_EXERCICE`, puis :
+
+```powershell
+php artisan organizations:reconcile-erasure UUID_ORGANISATION --actor=ID_COMPTE --reason="Inspection apres restauration"
+php artisan organizations:reconcile-erasure UUID_ORGANISATION --head=EMPREINTE_JOURNAL --confirm=UUID_ORGANISATION --actor=ID_COMPTE --reason="Reconciliation approuvee"
+```
+
+Les gels absents de la sauvegarde sont réimportés depuis le journal signé et exigent
+une revue explicite, même si une levée ultérieure n’est plus dans la base restaurée.
+Les intentions d’effacement sont rejouées dans de nouvelles opérations de cet
+exercice ; reprendre leurs lots et revoir les copies avec `organizations:erase`.
+Le manifeste indépendant permet aussi de retirer un fichier restauré dont l’ancienne
+base ne contient plus les métadonnées. Relancer la réconciliation jusqu’au bilan
+final ; une organisation effacée reste en quarantaine. Ne réutiliser jamais l’UUID
+d’exercice pour une nouvelle restauration. Retirer la maintenance seulement après
+la revue de toutes les organisations et de tous les services externes concernés.
+
+Avec ce profil conservé, une base antérieure aux décisions ne peut pas reprendre
+les accès métier ou les exports : l’état du journal indépendant doit être rapproché
+des preuves locales. Ce contrôle ne peut pas détecter une restauration simultanée
+du journal indépendant et de la base métier, ni la suppression de tout le profil
+serveur dans une sauvegarde ancienne. L’isolation réelle, les privilèges du journal,
+les réplicas, le PITR, les versions d’objets et les objectifs RPO/RTO restent à exercer
+sur le futur hébergement.
+
+Limites d’exploitation : 100 000 lignes par prévisualisation, délai borné de lecture
+du contenu, 1 000 intentions/gels externes par organisation. Un dépassement bloque
+l’opération et exige un traitement dédié ; aucune suppression partielle implicite
+n’est autorisée. Les grands volumes, les systèmes externes et la montée en charge
+doivent être qualifiés avant activation. Aucun écran d’effacement SPA n’est ajouté.
+
+Validation locale de cette extension : **2 937 cas backend, 2 876 réussites,
+61 exclusions conditionnelles, 18 430 assertions, aucun échec/erreur**. PostgreSQL 17
+temporaire : périmètre élargi 160 tests/870 assertions ; protocole final 42 tests/293
+assertions ; cas complémentaires 15 tests/81 assertions et retours arrière historiques
+13 tests/57 assertions, tous verts. Ces sélections se recouvrent et ne s’additionnent
+pas comme des cas distincts. PHPStan et Pint verts. Les clusters temporaires sont
+arrêtés et supprimés après contrôle de propriété. Les fichiers fictifs des suites
+parallèles utilisent des `TEST_TOKEN` distincts. Rapports locaux ignorés dans
+`back/reports` ; aucune validation distante de ce nouveau commit n’est revendiquée.
 
 #### Décision utilisateur — conserver sans limite et supprimer logiquement
 

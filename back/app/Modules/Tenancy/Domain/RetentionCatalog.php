@@ -4,6 +4,8 @@ namespace App\Modules\Tenancy\Domain;
 
 final class RetentionCatalog
 {
+    public const array ERASURE_CONTROL_TABLES = ['tenant_erasure_operations', 'tenant_erasure_events', 'tenant_erasure_permits'];
+
     // Product decision explicitly supplied by the user on 2026-10-27; no legal certification inferred.
     public const array PERSON_DISPOSITION = ['retention' => 'indefinite', 'deletion' => 'soft_delete', 'erasure' => 'manual_only', 'decision_reference' => 'user-2026-10-27'];
 
@@ -26,7 +28,7 @@ final class RetentionCatalog
         'sponsors' => ['sponsorship_campaigns', 'sponsorship_deliverables', 'sponsorship_campaign_events', 'sponsorship_agreements', 'sponsorship_agreement_terms', 'sponsorship_exposures', 'sponsorship_agreement_events', 'sponsors', 'sponsor_contacts', 'sponsorship_opportunities', 'sponsorship_interactions'],
         'media' => ['media_items'],
         'reporting' => ['report_exports', 'dashboard_indicator_revisions', 'dashboard_indicators', 'dashboard_source_versions'],
-        'artifacts' => ['tenant_storage_usage', 'tenant_artifacts', 'tenant_portability_operations'],
+        'artifacts' => ['tenant_storage_usage', 'tenant_artifacts', 'tenant_portability_operations', ...self::ERASURE_CONTROL_TABLES],
     ];
 
     public const array UNVERIFIED_COPIES = ['exports', 'artifact_versions', 'historical_snapshots', 'imports', 'caches', 'jobs', 'logs', 'replicas', 'backups_pitr', 'providers', 'recipient_downloads'];

@@ -5,8 +5,20 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 27 octobre 2026.
-- Tâche courante : **UCG-OPS-007, six blocs demandés en un seul commit**.
+- Dernière mise à jour : 28 octobre 2026.
+- Tâche courante : **UCG-OPS-007, gel métier, effacement manuel et réconciliation en un seul nouveau commit**.
+  Décisions du 28/10 : cible personne et organisation entière ; bloquer l’effacement
+  individuel tant que des contrats, matchs ou historiques partagés existent.
+  Hébergement toujours reporté. Gel SQL/service des écritures métier, opérations
+  manuelles bornées, journal signé dans une base indépendante, réimport des gels et
+  rejeu après restauration ajoutés ; profil désactivé par défaut, aucun déploiement
+  ni effacement sur une base utilisée. Procédure et limites dans le README.
+  Les preuves de copies restent des déclarations opérateur. **Ne pas déclarer la
+  qualification hébergée ni la disparition réelle des copies distantes terminées.**
+  Validation complète verte : 2 937 cas, 2 876 réussites, 61 exclusions, 18 430
+  assertions. Vérifications PostgreSQL, PHPStan et Pint vertes ; détails ci-dessous.
+  Livraison en un seul nouveau commit local sur staging, sans push demandé.
+- Lot précédent : **UCG-OPS-007, six blocs demandés en un seul commit**.
   Nouvelle commande serveur `organizations:retention-control` : gels indépendants
   sur les suppressions techniques, restriction d'archive d'organisation, quarantaine
   manuelle avec reprise bloquée et reçu de revue versionné. Journal append-only
@@ -27,7 +39,10 @@
   reproduite : seconde suite RefreshDatabase sur la même base PostgreSQL dans un
   nouveau processus. Couverture OPS-007 réunie à la suite PostgreSQL existante,
   cibles conservées, YAML valide ; vérification groupée 158 tests/725 assertions.
-  Correctif intégré au même commit local non poussé ; CI distante à confirmer.
+  Correctif livré en 9151df0 sur staging. Le 28 octobre 2026, l'utilisateur
+  confirme la validation de la CI ; cette attente est levée. Le checkout local
+  et origin/staging sont synchronisés lors de la vérification. Cette validation
+  ne clôture pas les limitations fonctionnelles OPS-007 ni la recette d'hébergement.
 - Lot précédent : **UCG-OPS-007, préparation native Laravel livrée en 20b55e6**.
   L'utilisateur demande « fait tous les lots de la ops 007 ». Catalogue fermé
   18 familles/116 tables, règles de revue et empreinte, aperçu opérateur serveur
@@ -8470,3 +8485,65 @@ Avant correction, staging contenait un seul commit local non poussé au-dessus d
 origin/staging. Le correctif est intégré à ce commit pour conserver la livraison
 unique demandée. Aucun push effectué lors de ce correctif ; la prochaine exécution
 GitHub reste à confirmer après push.
+
+## UCG-OPS-007 — Gel métier et effacement manuel avec reprise (28 octobre 2026)
+
+Après validation utilisateur de la CI de 9151df0, nouveau lot demandé en un seul
+commit. L’utilisateur confirme les deux cibles (personne et organisation), refuse
+l’effacement individuel tant que des liens partagés subsistent et maintient le
+report de l’hébergement. La conservation illimitée avec suppression logique reste
+la règle normale ; aucune expiration automatique de données métier n’est ajoutée.
+
+Le gel couvre maintenant les écritures des 117 tables métier/historique initiales,
+avec gardes SQL SQLite/PostgreSQL, contrôles des services et incrément atomique de
+la révision de conservation de l’organisation. Course réelle à deux connexions
+PostgreSQL : un écrivain REPEATABLE READ antérieur à un gel doit échouer en 40001.
+La quarantaine bloque accès, exports et admission des tâches métier. Le chemin
+ordinaire sans mesure active conserve les budgets de requêtes existants grâce à
+la révision lue dans l’organisation fraîche, sans mise en cache des autorisations.
+
+Effacement serveur désactivé par défaut, avec droits dédiés en plus des droits de
+conservation, MFA et vérification du compte. Prévisualisation, empreinte actuelle,
+confirmation exacte et référence exigées ; organisation archivée ou personne
+supprimée logiquement dans une organisation inactive. Liens partagés et imports
+mixtes bloquants. Opérations par lots de 100, permissions SQL limitées à la
+transaction/opération/tenant/table/ligne/valeurs attendues. Les gardes ordinaires et
+FK restent actives ; schéma et définitions de protection sont vérifiés avant reprise.
+Les comptes globaux restent conservés. L’effacement d’organisation conserve une
+racine anonymisée et les preuves de contrôle, sous quarantaine permanente.
+
+Un journal signé séparé de la base métier reçoit l’intention avant retrait des
+fichiers/lignes et garde aussi les gels positifs. Configuration de connexion et clé
+indépendantes, sans réutilisation des identifiants DB_* ; profil à conserver hors
+sauvegarde métier. Initialisation reprend les gels historiques du tenant. En cas
+de restauration, les gels absents sont réimportés avant tout effacement et exigent
+une revue explicite ; les intentions sont rejouées dans un nouvel exercice UUID.
+Le manifeste vise aussi les fichiers réintroduits sans métadonnées SQL. Une ancienne
+base ne peut rouvrir les accès avec ce profil conservé et le journal courant.
+
+Les 11 catégories de copies exigent une référence opérateur. `completed` signifie
+retrait local vérifié et attestations consignées, pas preuve de destruction d’un
+stockage fournisseur ou d’un téléchargement tiers. Aucune qualification hébergée,
+aucun RPO/RTO réel ni indépendance physique des sauvegardes déduits du laboratoire.
+OPS-007/CAD-004/REC-35 restent ouverts pour ces vérifications et validations.
+Procédure complète dans le README, commandes `organizations:erase` et
+`organizations:reconcile-erasure`. Aucun écran SPA ajouté, aucune base utilisée
+modifiée ou déployée ; toutes les suppressions concernent des fixtures isolées.
+
+Validation finale : suite complète isolée **2 937 cas, 2 876 réussites, 61 exclusions
+conditionnelles, 18 430 assertions, zéro échec/erreur, 464,92 s**. PostgreSQL 17 :
+160 tests/870 assertions sur le périmètre élargi ; 42 tests/293 assertions sur le
+protocole final ; 15 tests/81 assertions complémentaires ; 13 tests/57 assertions
+pour les migrations historiques adaptées. Sélections recouvrantes, sans addition
+des cas. Dernier test ciblé de blocage du planificateur après restauration : 1 test/
+12 assertions. PHPStan, Pint et diff --check verts, aucune erreur masquée.
+
+Les retours arrière partiels des tests retirent les wrappers récents avant les
+migrations historiques puis réinstallent toutes les protections ; le test Calendar
+réinstalle également ses dépendances après son refus attendu de retour arrière.
+Une exécution parallèle non isolée a perturbé les fichiers Storage::fake du test
+de 100 versions contractuelles ; les suites finales utilisent des TEST_TOKEN
+distincts. Le test ciblé et la suite complète isolée sont verts. Les clusters PG
+appartiennent au lanceur temporaire et sont arrêtés/supprimés après vérification.
+Rapports ignorés sous back/reports, sans modification du workflow CI : les nouveaux
+tests Tenancy sont déjà inclus dans son processus PostgreSQL principal.

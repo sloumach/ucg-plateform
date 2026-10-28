@@ -85,27 +85,12 @@ class CalendarSchemaTest extends TestCase
 
     public function test_empty_migration_round_trip_and_nonempty_rollback_guard(): void
     {
-        $coaching = require database_path('migrations/2026_10_22_224821_create_academy_objectives_and_feedback.php');
-        $coaching->down();
-        $sessions = require database_path('migrations/2026_10_22_172532_create_academy_sessions_and_attendances.php');
-        $sessions->down();
-        $migration = require database_path('migrations/2026_10_17_094942_create_calendar_activities_and_participants.php');
-        $bookings = require database_path('migrations/2026_10_17_112802_create_calendar_resources_reservations_and_conflict_overrides.php');
-        $invitations = require database_path('migrations/2026_10_17_153712_create_calendar_invitations_and_deliveries.php');
-        $changes = require database_path('migrations/2026_10_17_220751_create_calendar_changes_and_recipients.php');
-        $changes->down();
-        $invitations->down();
-        $bookings->down();
-        $migration->down();
-        $this->assertFalse(Schema::hasTable('calendar_activities'));
-        $migration->up();
-        $sessions->up();
-        $coaching->up();
-        $bookings->up();
-        $invitations->up();
-        $changes->up();
-        CalendarActivity::factory()->create();
-        try {
+        $this->withoutRetentionGuards(function (): void {
+            $coaching = require database_path('migrations/2026_10_22_224821_create_academy_objectives_and_feedback.php');
+            $coaching->down();
+            $sessions = require database_path('migrations/2026_10_22_172532_create_academy_sessions_and_attendances.php');
+            $sessions->down();
+            $migration = require database_path('migrations/2026_10_17_094942_create_calendar_activities_and_participants.php');
             $bookings = require database_path('migrations/2026_10_17_112802_create_calendar_resources_reservations_and_conflict_overrides.php');
             $invitations = require database_path('migrations/2026_10_17_153712_create_calendar_invitations_and_deliveries.php');
             $changes = require database_path('migrations/2026_10_17_220751_create_calendar_changes_and_recipients.php');
@@ -113,10 +98,30 @@ class CalendarSchemaTest extends TestCase
             $invitations->down();
             $bookings->down();
             $migration->down();
-            $this->fail('Rollback must retain business data.');
-        } catch (\RuntimeException) {
-            $this->assertDatabaseCount('calendar_activities', 1);
-            $this->assertTrue(Schema::hasTable('calendar_participants'));
-        }
+            $this->assertFalse(Schema::hasTable('calendar_activities'));
+            $migration->up();
+            $sessions->up();
+            $coaching->up();
+            $bookings->up();
+            $invitations->up();
+            $changes->up();
+            CalendarActivity::factory()->create();
+            try {
+                $bookings = require database_path('migrations/2026_10_17_112802_create_calendar_resources_reservations_and_conflict_overrides.php');
+                $invitations = require database_path('migrations/2026_10_17_153712_create_calendar_invitations_and_deliveries.php');
+                $changes = require database_path('migrations/2026_10_17_220751_create_calendar_changes_and_recipients.php');
+                $changes->down();
+                $invitations->down();
+                $bookings->down();
+                $migration->down();
+                $this->fail('Rollback must retain business data.');
+            } catch (\RuntimeException) {
+                $this->assertDatabaseCount('calendar_activities', 1);
+                $this->assertTrue(Schema::hasTable('calendar_participants'));
+            }
+            $bookings->up();
+            $invitations->up();
+            $changes->up();
+        });
     }
 }

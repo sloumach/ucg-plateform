@@ -25,6 +25,8 @@ final readonly class TenantJobRunner
         private AccountDirectory $accounts,
         private PrivilegedAccountDirectory $privileged,
         private TenantAuthorization $authorization,
+        private RetentionGuard $retention,
+        private ErasureAccessGate $erasureGate,
     ) {}
 
     /**
@@ -42,6 +44,7 @@ final readonly class TenantJobRunner
         }
         try {
             $actor = $this->resolver->resolve($transport->tenantId, '', $actorUserId, $transport->requestId);
+            $this->retention->assertBusinessWritesAllowed($actor->organizationId);
         } catch (ModelNotFoundException) {
             throw new TenantExecutionRejectedException('TENANT_ACCESS_REVOKED');
         } catch (DomainConflictException $exception) {
@@ -82,6 +85,12 @@ final readonly class TenantJobRunner
         }
         if (! $organization->acceptsBusinessOperations()) {
             throw new TenantExecutionRejectedException('ORGANIZATION_INACTIVE');
+        }
+        try {
+            $this->erasureGate->assertReadable($organization->id, $organization->retention_version);
+            $this->retention->assertBusinessWritesAllowed($organization->id);
+        } catch (DomainConflictException $exception) {
+            throw new TenantExecutionRejectedException($exception->errorCode());
         }
 
         return $this->execute(new TenantExecutionContext($organization->id, $transport->requestId,

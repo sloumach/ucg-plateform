@@ -16,6 +16,7 @@ final readonly class TenantResolver
         private OrganizationAccessService $access,
         private ApprovedTenantDomains $domains,
         private TenantAuthorization $authorization,
+        private ErasureAccessGate $erasureGate,
     ) {}
 
     public function resolve(?string $routeOrganizationId, string $host, int $actorUserId, string $requestId): TenantContext
@@ -34,6 +35,7 @@ final readonly class TenantResolver
         }
 
         $organization = $this->access->find($organizationId, $actorUserId);
+        $this->erasureGate->assertReadable($organizationId, $organization->retention_version);
         if (! $organization->acceptsBusinessOperations()) {
             throw new DomainConflictException(__('tenancy.errors.inactive'), 'ORGANIZATION_INACTIVE');
         }

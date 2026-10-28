@@ -18,6 +18,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 {
     /** Closed inventory; register new tenant tables explicitly before claiming a complete export. */
     public const array TABLES = [
+        'tenant_erasure_operations' => 'id', 'tenant_erasure_events' => 'id', 'tenant_erasure_permits' => 'id',
         'academy_session_revisions' => 'id', 'academy_attendances' => 'id', 'academy_objectives' => 'id', 'academy_feedback' => 'id', 'academy_coaching_revisions' => 'id', 'academy_sessions' => 'id',
         'academy_revisions' => 'id', 'academy_enrollments' => 'id', 'academy_cycles' => 'id', 'academy_cohorts' => 'id',
         'report_exports' => 'id', 'dashboard_indicator_revisions' => 'id', 'dashboard_indicators' => 'id', 'dashboard_source_versions' => 'card',
@@ -74,6 +75,9 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
 
     /** Explicit physical columns: adding a field must not silently leak it into an archive. */
     private const array COLUMNS = [
+        'tenant_erasure_operations' => ['id', 'organization_id', 'actor_user_id', 'request_id', 'scope', 'target_id', 'reference', 'source_digest', 'schema_digest', 'manifest', 'source_intent_id', 'restore_epoch', 'status', 'progress', 'copy_receipts', 'version', 'created_at', 'updated_at'],
+        'tenant_erasure_events' => ['id', 'organization_id', 'operation_id', 'actor_user_id', 'request_id', 'version', 'action', 'evidence', 'occurred_at'],
+        'tenant_erasure_permits' => ['id', 'organization_id', 'operation_id', 'table_name', 'key_column', 'row_key', 'expected', 'transaction_id', 'backend_id', 'control_version'],
         'organization_retention_events' => ['id', 'organization_id', 'actor_user_id', 'version', 'action', 'reference', 'state', 'evidence', 'reason', 'request_id', 'occurred_at'],
         'academy_objectives' => ['id', 'organization_id', 'cohort_id', 'cycle_id', 'target_enrollment_id', 'responsible_enrollment_id', 'title', 'description', 'due_on', 'status', 'version', 'created_at', 'updated_at'],
         'academy_feedback' => ['id', 'organization_id', 'cycle_id', 'objective_id', 'audience', 'content', 'justification', 'author_user_id', 'status', 'version', 'created_at', 'updated_at'],
@@ -174,7 +178,7 @@ final readonly class DatabasePortabilityRepository implements PortabilityReposit
         'person_periods' => ['id', 'organization_id', 'person_id', 'kind', 'role_key', 'starts_at', 'ends_at', 'status', 'version', 'created_at', 'updated_at'],
         'person_departure_items' => ['id', 'organization_id', 'person_id', 'kind', 'title', 'notes', 'status', 'due_at', 'completed_at', 'version', 'created_at', 'updated_at'],
         'person_departures' => ['id', 'organization_id', 'person_id', 'user_id', 'actor_user_id', 'reason_key', 'departed_at', 'previous_version', 'person_version', 'pending_items_count', 'created_at', 'updated_at'],
-        'organizations' => ['id', 'name', 'slug', 'owner_user_id', 'status', 'timezone', 'language', 'country', 'created_at', 'updated_at'],
+        'organizations' => ['id', 'name', 'slug', 'owner_user_id', 'status', 'timezone', 'language', 'country', 'created_at', 'updated_at', 'retention_version'],
         'organization_settings' => ['organization_id', 'week_starts_on', 'date_format', 'created_at', 'updated_at'],
         'organization_lifecycle_events' => ['id', 'organization_id', 'actor_user_id', 'action', 'from_status', 'to_status', 'reason', 'request_id', 'occurred_at'],
         'organization_memberships' => ['id', 'organization_id', 'user_id', 'status', 'roles', 'starts_at', 'ends_at', 'created_at', 'updated_at'],

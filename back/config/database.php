@@ -100,6 +100,23 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        // Independent retention journal: never falls back to the application's DB_* credentials.
+        'retention_journal' => [
+            'driver' => 'pgsql',
+            'url' => env('RETENTION_JOURNAL_DB_URL'),
+            'host' => env('RETENTION_JOURNAL_DB_HOST', '127.0.0.1'),
+            'port' => env('RETENTION_JOURNAL_DB_PORT', '5432'),
+            'database' => env('RETENTION_JOURNAL_DB_DATABASE', '_unconfigured_retention_journal'),
+            'username' => env('RETENTION_JOURNAL_DB_USERNAME', ''),
+            'password' => env('RETENTION_JOURNAL_DB_PASSWORD', ''),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'timezone' => 'UTC',
+            'sslmode' => env('RETENTION_JOURNAL_DB_SSLMODE', 'verify-full'),
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),

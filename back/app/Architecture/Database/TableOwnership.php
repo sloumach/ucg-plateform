@@ -6,6 +6,7 @@ final class TableOwnership
 {
     /** @var array<string, string> Closed exceptions; every other table is tenant-owned. */
     public const GLOBAL_TABLES = [
+        'retention_guard_definitions' => 'Infrastructure : code SQL de migration et empreintes des gardes, aucune donnée métier.',
         'metric_definitions' => 'Performance : définitions globales, aucune valeur privée tenant.',
         'metric_revisions' => 'Performance : versions et audit des définitions globales.',
         'metric_catalogue_state' => 'Performance : version du dictionnaire commun.',

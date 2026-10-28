@@ -58,21 +58,23 @@ class CalendarChangeSchemaTest extends TestCase
 
     public function test_migration_round_trip_inventory_export_and_retained_history_guard(): void
     {
-        $migration = require database_path('migrations/2026_10_17_220751_create_calendar_changes_and_recipients.php');
-        $migration->down();
-        $this->assertFalse(Schema::hasTable('calendar_changes'));
-        $this->assertFalse(Schema::hasColumn('calendar_activities', 'cancelled_at'));
-        $migration->up();
-        $notice = CalendarChangeRecipient::factory()->create();
-        $this->assertSame([], app(TenantSchemaInspector::class)->violations());
-        $repo = app(PortabilityRepository::class);
-        $repo->assertCatalog();
-        $rows = iterator_to_array($repo->rows($notice->organization_id, 100));
-        $changes = array_values(array_filter($rows, fn (array $row): bool => $row['table'] === 'calendar_changes'));
-        $this->assertCount(1, $changes);
-        $this->assertNotSame($notice->change->reason, $changes[0]['data']['reason']);
-        $this->expectException(\RuntimeException::class);
-        $migration->down();
+        $this->withoutRetentionGuards(function (): void {
+            $migration = require database_path('migrations/2026_10_17_220751_create_calendar_changes_and_recipients.php');
+            $migration->down();
+            $this->assertFalse(Schema::hasTable('calendar_changes'));
+            $this->assertFalse(Schema::hasColumn('calendar_activities', 'cancelled_at'));
+            $migration->up();
+            $notice = CalendarChangeRecipient::factory()->create();
+            $this->assertSame([], app(TenantSchemaInspector::class)->violations());
+            $repo = app(PortabilityRepository::class);
+            $repo->assertCatalog();
+            $rows = iterator_to_array($repo->rows($notice->organization_id, 100));
+            $changes = array_values(array_filter($rows, fn (array $row): bool => $row['table'] === 'calendar_changes'));
+            $this->assertCount(1, $changes);
+            $this->assertNotSame($notice->change->reason, $changes[0]['data']['reason']);
+            $this->expectException(\RuntimeException::class);
+            $migration->down();
+        });
     }
 
     private function reject(\Closure $attempt): void

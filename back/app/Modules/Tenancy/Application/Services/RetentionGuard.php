@@ -17,7 +17,8 @@ use LogicException;
 final readonly class RetentionGuard
 {
     public function __construct(private RetentionControlRepository $controls, private ConnectionInterface $database,
-        private AccountDirectory $accounts, private PlatformAccountDirectory $platform, private Repository $config) {}
+        private AccountDirectory $accounts, private PlatformAccountDirectory $platform, private Repository $config,
+        private ErasureAccessGate $erasureGate) {}
 
     public function authorizeOperator(string $organizationId, int $actorId): void
     {
@@ -52,18 +53,34 @@ final readonly class RetentionGuard
         if ($state['holds'] !== [] || $state['quarantine'] !== null) {
             throw new DomainConflictException(__('retention.preservation_active'), 'RETENTION_PRESERVATION_ACTIVE');
         }
+        $this->erasureGate->assertReadable($organizationId);
+    }
+
+    public function assertBusinessWritesAllowed(string $organizationId): void
+    {
+        $state = $this->controls->state($organizationId);
+        if ($state['holds'] !== [] || $state['quarantine'] !== null || $state['restricted_archive']) {
+            throw new DomainConflictException(__('retention.business_frozen'), 'RETENTION_BUSINESS_FROZEN');
+        }
+        $this->erasureGate->assertReadable($organizationId);
     }
 
     public function assertReactivationAllowed(string $organizationId): void
     {
         $state = $this->controls->state($organizationId);
-        if ($state['restricted_archive'] || $state['quarantine'] !== null) {
+        if ($state['holds'] !== [] || $state['restricted_archive'] || $state['quarantine'] !== null) {
             throw new DomainConflictException(__('retention.reactivation_blocked'), 'RETENTION_REACTIVATION_BLOCKED');
         }
+        $this->erasureGate->assertReadable($organizationId);
     }
 
     public function assertArchiveReadAllowed(string $organizationId, int $actorId): void
     {
+        $this->erasureGate->assertReadable($organizationId);
+        $quarantine = $this->controls->state($organizationId)['quarantine'];
+        if ($quarantine !== null && (str_starts_with($quarantine, 'erasure:') || str_starts_with($quarantine, 'restore:'))) {
+            throw new DomainConflictException(__('retention.restore_blocked'), 'ERASURE_RESTORE_BLOCKED');
+        }
         if ($this->controls->state($organizationId)['restricted_archive']) {
             $this->authorizeOperator($organizationId, $actorId);
         }

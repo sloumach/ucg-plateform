@@ -106,31 +106,33 @@ class ContractSchemaTest extends TestCase
 
     public function test_empty_migration_round_trip_recreates_all_guards(): void
     {
-        $this->assertDatabaseCount('contracts', 0);
-        $migration = require database_path('migrations/2026_10_14_184245_create_contract_records_and_lifecycle.php');
-        $documents = require database_path('migrations/2026_10_14_193828_create_contract_documents_and_immutable_versions.php');
-        $scans = require database_path('migrations/2026_10_14_204339_create_contract_document_scans.php');
-        $governance = require database_path('migrations/2026_10_14_231650_add_contract_financial_governance.php');
-        $reminders = require database_path('migrations/2026_10_15_184218_create_contract_reminders.php');
-        $agreements = require database_path('migrations/2026_10_16_000918_create_sponsorship_agreements_and_exposures.php');
-        $campaigns = require database_path('migrations/2026_10_16_013526_create_sponsorship_campaigns_and_deliverables.php');
-        $campaigns->down();
-        $agreements->down();
-        $reminders->down();
-        $governance->down();
-        $scans->down();
-        $documents->down();
-        $migration->down();
-        $migration->up();
-        $documents->up();
-        $scans->up();
-        $governance->up();
-        $reminders->up();
-        $agreements->up();
-        $campaigns->up();
-        $this->assertSame([], app(TenantSchemaInspector::class)->violations());
-        $contract = ContractRecord::factory()->create();
-        $this->reject(fn () => DB::table('contracts')->where('id', $contract->id)->delete());
+        $this->withoutRetentionGuards(function (): void {
+            $this->assertDatabaseCount('contracts', 0);
+            $migration = require database_path('migrations/2026_10_14_184245_create_contract_records_and_lifecycle.php');
+            $documents = require database_path('migrations/2026_10_14_193828_create_contract_documents_and_immutable_versions.php');
+            $scans = require database_path('migrations/2026_10_14_204339_create_contract_document_scans.php');
+            $governance = require database_path('migrations/2026_10_14_231650_add_contract_financial_governance.php');
+            $reminders = require database_path('migrations/2026_10_15_184218_create_contract_reminders.php');
+            $agreements = require database_path('migrations/2026_10_16_000918_create_sponsorship_agreements_and_exposures.php');
+            $campaigns = require database_path('migrations/2026_10_16_013526_create_sponsorship_campaigns_and_deliverables.php');
+            $campaigns->down();
+            $agreements->down();
+            $reminders->down();
+            $governance->down();
+            $scans->down();
+            $documents->down();
+            $migration->down();
+            $migration->up();
+            $documents->up();
+            $scans->up();
+            $governance->up();
+            $reminders->up();
+            $agreements->up();
+            $campaigns->up();
+            $this->assertSame([], app(TenantSchemaInspector::class)->violations());
+            $contract = ContractRecord::factory()->create();
+            $this->reject(fn () => DB::table('contracts')->where('id', $contract->id)->delete());
+        });
     }
 
     public function test_rollback_refuses_data_before_dropping_any_table(): void

@@ -1,6 +1,18 @@
 <?php
 
 return [
+    'erasure_blocked' => 'Effacement bloqué : vérifiez le statut, les liens partagés et les mesures de conservation.',
+    'erasure_disabled' => 'L’effacement manuel doit être activé explicitement par un opérateur autorisé.',
+    'erasure_plan_changed' => 'Le périmètre a changé ou contient des liens protégés. Relancez la prévisualisation.',
+    'erasure_limit' => 'Le périmètre dépasse la limite de cette opération. Une intervention dédiée est nécessaire.',
+    'erasure_graph_blocked' => 'Les dépendances ne permettent pas un effacement sûr.',
+    'erasure_guards_changed' => 'Les protections ou le schéma ont changé. Effacement suspendu.',
+    'erasure_residue' => 'Des données ou fichiers subsistent. La clôture est refusée.',
+    'copies_pending' => 'La revue des copies doit être terminée avant de clôturer l’effacement.',
+    'journal_missing' => 'Un journal indépendant configuré et vérifié est obligatoire.',
+    'journal_conflict' => 'Le journal indépendant ne correspond pas à la décision approuvée.',
+    'restore_blocked' => 'Les données restaurées restent indisponibles jusqu’à leur réconciliation.',
+    'business_frozen' => 'La conservation interdit la modification des données de cette organisation. La levée doit être explicite et auditée.',
     'review_only' => 'Aperçu de revue uniquement : aucune suppression autorisée.',
     'empty' => 'Aucun dossier ne correspond à cet inventaire.',
     'forbidden' => 'Cet accès opérateur à la revue de conservation n’est pas autorisé.',

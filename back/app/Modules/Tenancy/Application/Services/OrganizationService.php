@@ -104,6 +104,7 @@ final readonly class OrganizationService
 
         return $this->database->transaction(function () use ($context, $details): Organization {
             $organization = $this->organizations->lock($context->organizationId);
+            $this->retention->assertBusinessWritesAllowed($organization->id);
             $this->access->find($organization->id, $context->actorUserId);
             $this->access->requirePermission($organization, $context->actorUserId, 'organization.update');
             if (! $organization->acceptsBusinessOperations()) {
@@ -124,6 +125,7 @@ final readonly class OrganizationService
             if ($target === OrganizationStatus::Active) {
                 $this->retention->assertReactivationAllowed($id);
             }
+            $this->retention->assertBusinessWritesAllowed($id);
             $previous = $organization->status;
             if (! $previous->canTransitionTo($target)) {
                 throw new DomainConflictException(__('tenancy.errors.invalid_transition'), 'ORGANIZATION_TRANSITION_DENIED');

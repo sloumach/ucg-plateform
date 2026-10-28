@@ -15,7 +15,8 @@ use LogicException;
 final readonly class TenantBusinessGuardService implements TenantBusinessGuard
 {
     public function __construct(private OrganizationRepository $organizations, private MembershipRepository $memberships,
-        private AccountDirectory $accounts, private TenantAuthorization $authorization, private ConnectionInterface $database) {}
+        private AccountDirectory $accounts, private TenantAuthorization $authorization, private ConnectionInterface $database,
+        private RetentionGuard $retention) {}
 
     public function lock(TenantContext $context, ?int $accountId = null): void
     {
@@ -26,6 +27,7 @@ final readonly class TenantBusinessGuardService implements TenantBusinessGuard
         $verified = $accountId === null || $this->accounts->lockVerifiedEmail($accountId) !== null;
         $organization = $this->organizations->lock($context->organizationId);
         $this->authorization->authorize($context, 'organization.view');
+        $this->retention->assertBusinessWritesAllowed($organization->id);
 
         if ($accountId !== null && (! $verified || ($organization->owner_user_id !== $accountId
             && ! ($this->memberships->forAccount($organization->id, $accountId)?->isEffective(now()) ?? false)))) {

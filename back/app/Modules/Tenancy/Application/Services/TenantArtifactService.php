@@ -29,6 +29,7 @@ final readonly class TenantArtifactService implements TenantArtifacts
     public function store(TenantContext $context, string $name, string $contents, ?\DateTimeImmutable $expiresAt = null): TenantArtifactData
     {
         $this->authorize($context);
+        $this->retention->assertBusinessWritesAllowed(strtolower($context->organizationId));
         if ($expiresAt !== null && $expiresAt <= now()) {
             throw new InvalidArgumentException('Artifact expiration must be in the future.');
         }
@@ -49,6 +50,7 @@ final readonly class TenantArtifactService implements TenantArtifacts
         try {
             $this->ledger->locked($organizationId, $record['id'], function () use ($context, $disk, $path, $contents, $organizationId, $record): void {
                 $this->authorize($context);
+                $this->retention->assertBusinessWritesAllowed($organizationId);
                 if (! $this->privateDisk($disk)->put($path, $contents, ['visibility' => 'private'])) {
                     throw ArtifactStorageException::writeFailed($path);
                 }
