@@ -47,7 +47,7 @@ class DataPreparationTest extends TestCase
         Mail::assertNothingSent();
     }
 
-    public function test_mixed_bundle_reports_cross_file_duplicates_missing_ownership_and_unsupported_formats_without_values(): void
+    public function test_mixed_bundle_reports_cross_file_duplicates_missing_ownership_and_invalid_statistical_schema_without_values(): void
     {
         $report = app(DataPreparationService::class)->audit(base_path('tests/Fixtures/data-preparation/issues.manifest.json'), self::ORGANIZATION)->data;
         $this->assertSame('blocked', $report['status']);
@@ -57,7 +57,7 @@ class DataPreparationTest extends TestCase
         $this->assertSame(5, $report['summary']['review_issues']);
         $this->assertSame(1, $report['issue_counts']['DUPLICATE_PSEUDONYM']);
         $this->assertSame(3, $report['issue_counts']['POSSIBLE_SHARED_IDENTITY']);
-        $this->assertSame(1, $report['issue_counts']['FORMAT_REQUIRES_DEDICATED_AUDIT']);
+        $this->assertSame(1, $report['issue_counts']['CSV_SCHEMA_INVALID']);
         $duplicate = array_values(array_filter($report['issues'], static fn (array $issue): bool => $issue['code'] === 'DUPLICATE_PSEUDONYM'))[0];
         $this->assertSame(['PEOPLE-B', 2, 'PEOPLE-A', 2], [$duplicate['source_id'], $duplicate['line'], $duplicate['related_source_id'], $duplicate['related_line']]);
         $encoded = json_encode($report, JSON_THROW_ON_ERROR);

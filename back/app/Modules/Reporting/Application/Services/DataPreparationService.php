@@ -3,6 +3,7 @@
 namespace App\Modules\Reporting\Application\Services;
 
 use App\Modules\People\Application\Contracts\PersonSourceAudit;
+use App\Modules\Performance\Application\Contracts\StatisticalSourceAudit;
 use App\Modules\Reporting\Application\Data\DataPreparationReport;
 use App\Modules\Reporting\Application\Validation\DataPreparationInput;
 use App\Modules\Reporting\Domain\Contracts\DataSourceBundle;
@@ -10,7 +11,7 @@ use Illuminate\Validation\ValidationException;
 
 final readonly class DataPreparationService
 {
-    public function __construct(private DataSourceBundle $files, private DataPreparationInput $input, private PersonSourceAudit $people) {}
+    public function __construct(private DataSourceBundle $files, private DataPreparationInput $input, private PersonSourceAudit $people, private StatisticalSourceAudit $statistics) {}
 
     public function audit(string $path, string $organizationId): DataPreparationReport
     {
@@ -32,9 +33,12 @@ final readonly class DataPreparationService
         $inventory = [];
         $seenFiles = [];
         $seenKeys = [];
+        $seenObservations = [];
         $secret = random_bytes(32);
         $totalBytes = 0;
         $totalRows = 0;
+        $peopleRows = 0;
+        $statisticsRows = 0;
         $readFiles = 0;
         $manifestHash = hash('sha256', $bundle['contents']);
         $digest = hash_init('sha256');
@@ -51,7 +55,7 @@ final readonly class DataPreparationService
                 'owner_declared' => $source['owner_reference'] !== null, 'purpose_declared' => $source['purpose_reference'] !== null,
                 'retention_declared' => $source['retention_reference'] !== null];
             $remainingBytes = DataPreparationInput::MAX_TOTAL_BYTES - $totalBytes;
-            if ($remainingBytes <= 0 || ($source['category'] === 'people' && $totalRows >= DataPreparationInput::MAX_ROWS)) {
+            if ($remainingBytes <= 0 || (in_array($source['category'], ['people', 'statistics'], true) && $totalRows >= DataPreparationInput::MAX_ROWS)) {
                 $add($id, 'BUNDLE_LIMIT');
                 $entry['status'] = 'bundle_limit';
                 $inventory[] = $entry;
@@ -83,17 +87,32 @@ final readonly class DataPreparationService
             } else {
                 $seenFiles[$fingerprint] = $id;
             }
-            if ($source['category'] !== 'people' || strtolower(pathinfo($source['file'], PATHINFO_EXTENSION)) !== 'csv') {
+            if (! in_array($source['category'], ['people', 'statistics'], true) || strtolower(pathinfo($source['file'], PATHINFO_EXTENSION)) !== 'csv') {
                 $entry['status'] = 'dedicated_audit_required';
                 $add($id, 'FORMAT_REQUIRES_DEDICATED_AUDIT');
                 $inventory[] = $entry;
 
                 continue;
             }
-            $analysis = $this->people->analyze($contents, $source['delimiter'], $source['mapping'], $source['defaults'], $source['ignored_columns'], DataPreparationInput::MAX_ROWS - $totalRows);
-            $entry['status'] = 'people_csv_audited';
+            $isStatistics = $source['category'] === 'statistics';
+            if ($isStatistics && ($source['mapping'] !== [] || $source['defaults'] !== [] || $source['ignored_columns'] !== [])) {
+                $entry['status'] = 'statistics_settings_invalid';
+                $add($id, 'MAPPING_INVALID');
+                $inventory[] = $entry;
+
+                continue;
+            }
+            $analysis = $isStatistics
+                ? $this->statistics->analyze($contents, $source['delimiter'], $source['statistics_context']['as_of'] ?? null, DataPreparationInput::MAX_ROWS - $totalRows)
+                : $this->people->analyze($contents, $source['delimiter'], $source['mapping'], $source['defaults'], $source['ignored_columns'], DataPreparationInput::MAX_ROWS - $totalRows);
+            $entry['status'] = $isStatistics ? 'statistics_csv_audited' : 'people_csv_audited';
             $entry['rows'] = $analysis['row_count'];
             $totalRows += $analysis['row_count'];
+            if ($isStatistics) {
+                $statisticsRows += $analysis['row_count'];
+            } else {
+                $peopleRows += $analysis['row_count'];
+            }
             foreach ($analysis['issues'] as $issue) {
                 $add($id, $issue['code'], $issue['severity'], field: $issue['field'], column: $issue['column']);
             }
@@ -113,6 +132,21 @@ final readonly class DataPreparationService
                 }
                 foreach ($row['issues'] as $issue) {
                     $add($id, $issue['code'], $issue['severity'], $row['line'], $issue['field'], $issue['column']);
+                }
+                if ($isStatistics) {
+                    if (isset($row['keys']['statistical_identity'], $row['keys']['statistical_payload'])) {
+                        $key = hash_hmac('sha256', $organizationId."\0statistics\0".$row['keys']['statistical_identity'], $secret);
+                        $payload = hash_hmac('sha256', $row['keys']['statistical_payload'], $secret);
+                        if (isset($seenObservations[$key])) {
+                            $first = $seenObservations[$key];
+                            $add($id, $first['payload'] === $payload ? 'DUPLICATE_OBSERVATION' : 'CONFLICTING_OBSERVATION',
+                                line: $row['line'], relatedSourceId: $first['source_id'], relatedLine: $first['line']);
+                        } else {
+                            $seenObservations[$key] = ['source_id' => $id, 'line' => $row['line'], 'payload' => $payload];
+                        }
+                    }
+
+                    continue;
                 }
                 foreach ($row['keys'] as $kind => $value) {
                     $key = hash_hmac('sha256', $organizationId."\0".$kind."\0".$value, $secret);
@@ -143,12 +177,12 @@ final readonly class DataPreparationService
             'status' => $counts['blocking'] > 0 ? 'blocked' : 'ready_for_business_review', 'import_authorized' => false,
             'manifest_sha256' => $manifestHash, 'plan_digest' => hash_final($digest),
             'summary' => ['declared_files' => count($manifest['sources']), 'read_files' => $readFiles, 'unprocessed_files' => $unprocessed,
-                'bytes' => $totalBytes, 'people_rows' => $totalRows, 'blocking_issues' => $counts['blocking'], 'review_issues' => $counts['review']],
+                'bytes' => $totalBytes, 'people_rows' => $peopleRows, 'statistics_rows' => $statisticsRows, 'blocking_issues' => $counts['blocking'], 'review_issues' => $counts['review']],
             'sources' => $inventory, 'issue_counts' => $byCode, 'issues' => $issues,
             'issues_truncated' => array_sum($counts) > count($issues),
             'unrepresented_categories' => array_values(array_diff(DataPreparationInput::CATEGORIES, array_column($manifest['sources'], 'category'))),
             'not_verified' => ['file_ownership_and_purpose', 'retention_approval', 'source_completeness', 'application_tenant_and_duplicates',
-                'application_quotas', 'non_people_formats', 'cross_module_links', 'business_signoff'],
+                'application_quotas', 'unsupported_formats', 'statistical_references_and_metric_rules', 'statistical_cutoff_timezone', 'cross_module_links', 'business_signoff'],
             'automatic_merge' => false, 'database_checked' => false, 'files_modified' => false,
         ]);
     }

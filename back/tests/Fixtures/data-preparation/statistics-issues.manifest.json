@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "organization_id": "10000000-0000-4000-8000-000000000001",
+  "dataset_kind": "fictitious",
+  "sources": [
+    {
+      "id": "STATS-A",
+      "organization_id": "10000000-0000-4000-8000-000000000001",
+      "category": "statistics",
+      "file": "statistics-clean.csv",
+      "owner_reference": "OWNER-FICTIF-001",
+      "purpose_reference": "PURPOSE-FICTIF-001",
+      "retention_reference": "RETENTION-FICTIF-001",
+      "statistics_context": {
+        "as_of": "2026-10-28"
+      }
+    },
+    {
+      "id": "STATS-B",
+      "organization_id": "10000000-0000-4000-8000-000000000001",
+      "category": "statistics",
+      "file": "statistics-errors.csv",
+      "owner_reference": "OWNER-FICTIF-001",
+      "purpose_reference": "PURPOSE-FICTIF-001",
+      "retention_reference": "RETENTION-FICTIF-001",
+      "statistics_context": {
+        "as_of": "2026-10-28"
+      }
+    }
+  ]
+}

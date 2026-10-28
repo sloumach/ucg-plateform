@@ -6,7 +6,15 @@
 ## Point de reprise
 
 - Dernière mise à jour : 28 octobre 2026.
-- Tâche courante : **correctif CI avant push — initialisation SQLite différée**.
+- Tâche courante : **UCG-DATA-001 — audit local des CSV Statistiques**.
+  Démarrage prudent autorisé. Format canonique de l’import existant, validation
+  des champs et valeurs, date de référence déclarée, doublons et contradictions
+  entre fichiers. Aucun import ni lecture de la base ; références réelles, droits,
+  unités et règles propres aux métriques restent à vérifier. Sources fictives.
+  Lot local terminé : 185 cas ciblés distincts, 184 réussites, 1 exclusion de lien
+  symbolique Windows, 1 623 assertions ; Pint/PHPStan verts. Commit local demandé
+  ensuite par l’utilisateur, sans push. DATA-001 reste ouvert pour les sources réelles et la revue.
+- Lot précédent : **correctif CI avant push — initialisation SQLite différée**.
   Échec fourni pendant composer install/package:discover : le listener OPS-007
   ouvrait le PDO dès ConnectionEstablished, avant création de la base. Remplacement
   par un connecteur SQLite qui pose le refus par défaut à l’ouverture physique.
@@ -8664,3 +8672,45 @@ garde SQL ni FK désactivée. Pint, PHPStan et diff --check verts. Rapports igno
 back/reports/sqlite-bootstrap-*.xml et sqlite-bootstrap-composer-hook.txt.
 Correction dans un commit distinct ; aucun push ni nouvelle réussite de CI distante
 déclarés. La qualification hébergée et les limites DATA-001/OPS-007 restent ouvertes.
+
+## UCG-DATA-001 — Audit local des CSV Statistiques (28 octobre 2026)
+
+Démarrage prudent autorisé par l’utilisateur, sur sources fictives uniquement.
+Reporting dépend du contrat public StatisticalSourceAudit de Performance. Le
+service hors base réutilise CsvParser, ObservationInput et une règle métier de
+normalisation des valeurs partagée avec ObservationService ; les messages et
+comportements de l’import existant sont conservés.
+
+Le format reste celui de l’import statistique : en-têtes canoniques, pas de
+mapping, de valeurs par défaut ou de colonnes écartées non vides. Chaque source
+statistique exige une date statistics_context.as_of explicite pour contrôler les
+observations futures. Ce contexte est fermé et validé avant lecture des sources ;
+la date déclarée et le fuseau réel restent à vérifier avant reprise.
+
+Contrôles hors base : champs requis, UUID/version, périodes, limites d’échantillon,
+décimales exactes, disponibilité/motif, statut actif, partie liée à un match,
+formules potentielles et limites de fichiers/lignes. Doublons et contradictions
+comparent une identité normalisée et un contenu distinct, dans et entre fichiers,
+sans fusion automatique. Zéro et valeur absente restent distincts. Les clés de
+comparaison ne sortent pas du service ; le rapport ne recopie ni valeurs sources,
+identifiants de personnes/métriques, notes, dates ni chemins de fichiers.
+
+Les compteurs people_rows/statistics_rows sont séparés. Les bornes restent 20
+sources, 1 Mio/fichier, 10 Mio/lot, 10 000 lignes partagées, avec 100 lignes maximum
+par CSV statistique et 1 000 par CSV Personnes. Aucun accès à la base applicative,
+job, mail ou import lancé. L’existence et les droits des références, les unités,
+le catalogue et les règles propres à la métrique restent explicitement non vérifiés.
+
+Deux manifestations fictives ajoutées avec leurs CSV. Le lot propre donne deux
+lignes conformes aux champs et une revue des références, sans autorisation d’import.
+Le lot d’écarts donne cinq lignes, quatre écarts bloquants et trois revues, dont un
+doublon et une contradiction entre sources. Rapport local ignoré par Git :
+back/reports/data001-statistics-report.json. Les anciens exemples Personnes restent
+fonctionnels ; le CSV statistique ancien est maintenant refusé pour schéma invalide.
+
+Validation ciblée distincte : 185 cas, 184 réussites, 1 exclusion conditionnelle de
+lien symbolique Windows, 1 623 assertions. Audits, imports statistiques et traitement,
+observations, audit Personnes et architecture réexercés. Pint/PHPStan verts.
+Aucune affirmation de suite complète ni de CI distante. Commit local demandé ensuite
+par l’utilisateur, sans push. DATA-001 reste ouvert : inventaire réel, formats restants, responsables,
+finalités/conservation et validation métier avant DATA-002.

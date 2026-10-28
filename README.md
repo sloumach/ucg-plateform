@@ -4570,7 +4570,7 @@ TLS, workers hébergés ou l'éviction des sockets déjà abonnées après révo
 ## Préparation des données — UCG-DATA-001
 
 Premier lot : **audit local en lecture seule avant import**, avec inventaire des
-fichiers explicitement déclarés et contrôle du CSV Personnes existant. Aucun
+fichiers explicitement déclarés et contrôle des CSV Personnes et Statistiques existants. Aucun
 balayage automatique des dossiers. Le manifeste lie chaque source à l’UUID attendu,
 à une catégorie et à des références de responsable, de finalité et de conservation.
 Ces références sont des déclarations à valider ; elles ne désignent pas à elles
@@ -4592,12 +4592,36 @@ et `ignored_columns[]` (`column`, `reason_reference`). Les choix fr/Africa-Tunis
 candidate des exemples sont exclusivement fictifs, pas des réglages métier imposés.
 
 Les catégories reprennent les 18 familles de l’inventaire. Dans cette version,
-**seul le CSV Personnes est analysé métier**. Tableurs, statistiques, contrats et
+**les CSV Personnes et Statistiques sont contrôlés hors base**. Tableurs, contrats et
 autres familles reçoivent une empreinte et un signalement d’audit dédié nécessaire,
 sans conversion ni import implicites. Le contrôle Personnes réutilise son parseur,
 ses champs d’import autorisés et ses règles actuelles. `user_id` et `birth_date`
 ne sont pas des champs de ce format CSV ; leur présence nécessite un mapping
 distinct à concevoir, pas une extension silencieuse de l’import existant.
+
+Pour une source `category=statistics`, utiliser les en-têtes canoniques de l’import
+statistique existant, sans `mapping`, `defaults` ou `ignored_columns` non vides.
+Ajouter `statistics_context: {"as_of": "2026-10-28"}` à la source : cette date
+explicite sert de borne de contrôle des observations futures. Elle reste une
+déclaration à vérifier avec la date locale de l’organisation avant la reprise.
+Les fixtures suivantes donnent le format complet et uniquement fictif :
+
+```powershell
+php artisan data:audit tests/Fixtures/data-preparation/statistics-clean.manifest.json --organization=10000000-0000-4000-8000-000000000001
+php artisan data:audit tests/Fixtures/data-preparation/statistics-issues.manifest.json --organization=10000000-0000-4000-8000-000000000001
+```
+
+L’audit statistique réutilise le parseur et les règles de champs de l’import,
+ainsi que la normalisation métier des valeurs : décimales exactes sans flottants,
+zéro distinct d’une donnée absente, cohérence disponibilité/motif, périodes,
+UUID et version obligatoires, échantillon borné et création au statut actif.
+Une partie de match exige un match. Les observations identiques sont distinguées
+des observations de même identité portant une valeur, une version, un échantillon
+ou une note différente. Les comparaisons couvrent les fichiers du lot ; aucune
+fusion n’est effectuée. Les compteurs `people_rows` et `statistics_rows` sont séparés.
+Une ligne conforme aux champs reste soumise à la revue des références réelles,
+droits, unités, périmètre d’agrégation, catalogue et règles propres à la métrique.
+Ces contrôles nécessitent la base et restent explicitement non vérifiés.
 
 Contrôles livrés : syntaxe/encodage CSV, colonnes, champs invalides ou obligatoires
 manquants, mapping explicite et exclusif, colonnes non affectées ou volontairement
@@ -4633,14 +4657,15 @@ sous-dossiers, avec chemins relatifs ASCII simples. Liens symboliques, sorties d
 dossier, chemins réseau, URL et wrappers de flux sont refusés. Lecture `rb` sous
 verrou partagé, contrôles de taille et de stabilité du fichier ; aucune réécriture
 des sources. Limites : manifeste 64 Kio, 20 sources, 1 Mio par fichier, 10 Mio par
-lot, au plus 1 000 lignes par CSV et 10 000 lignes Personnes par lot ; les limites
+lot, au plus 1 000 lignes par CSV Personnes, 100 par CSV Statistiques et 10 000
+lignes analysées au total par lot ; les limites
 Personnes configurées peuvent être plus strictes. Les détails sont limités à 200
 écarts, avec compteurs complets pour la portion analysée et indicateur de troncature.
 Les sources non lues sont signalées, jamais assimilées à des fichiers valides.
 
 Le lot fictif d’écarts déclare trois fichiers, six lignes Personnes, huit problèmes
 bloquants et cinq revues : identité répétée entre fichiers, champs invalides,
-cellule manquante, responsable/règle à préciser et statistiques non analysées.
+cellule manquante, responsable/règle à préciser et schéma statistique incompatible.
 Le lot propre reste soumis à la validation métier. DATA-001 reste ouvert pour
 l’inventaire réel, les autres formats et la validation des responsables ; DATA-002
 sera une reprise à blanc distincte. Aucun fichier réel n’a été audité dans ce lot.

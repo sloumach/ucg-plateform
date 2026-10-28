@@ -23,7 +23,7 @@ final readonly class DataPreparationInput
 
     public function __construct(private Factory $validator) {}
 
-    /** @return array{version: int, organization_id: string, dataset_kind: string, sources: list<array{id: string, organization_id: string, category: string, file: string, owner_reference: ?string, purpose_reference: ?string, retention_reference: ?string, delimiter: string, mapping: array<string, int>, defaults: array<string, string>, ignored_columns: list<array{column: int, reason_reference: string}>}>} */
+    /** @return array{version: int, organization_id: string, dataset_kind: string, sources: list<array{id: string, organization_id: string, category: string, file: string, owner_reference: ?string, purpose_reference: ?string, retention_reference: ?string, delimiter: string, mapping: array<string, int>, defaults: array<string, string>, statistics_context: ?array{as_of:string}, ignored_columns: list<array{column: int, reason_reference: string}>}>} */
     public function parse(string $contents, string $organization): array
     {
         try {
@@ -42,7 +42,9 @@ final readonly class DataPreparationInput
             'manifest.organization_id' => ['required', 'uuid', 'same:organization'],
             'manifest.dataset_kind' => ['required', Rule::in(['fictitious', 'real'])],
             'manifest.sources' => ['required', 'array', 'list', 'min:1', 'max:'.self::MAX_FILES],
-            'manifest.sources.*' => ['required', 'array:id,organization_id,category,file,owner_reference,purpose_reference,retention_reference,delimiter,mapping,defaults,ignored_columns'],
+            'manifest.sources.*' => ['required', 'array:id,organization_id,category,file,owner_reference,purpose_reference,retention_reference,delimiter,mapping,defaults,ignored_columns,statistics_context'],
+            'manifest.sources.*.statistics_context' => ['sometimes', 'array:as_of', 'required_array_keys:as_of'],
+            'manifest.sources.*.statistics_context.as_of' => ['required_with:manifest.sources.*.statistics_context', 'date_format:Y-m-d'],
             'manifest.sources.*.id' => ['required', 'string', 'max:40', 'regex:/^[A-Z][A-Z0-9_-]{1,39}$/D', 'distinct:strict'],
             'manifest.sources.*.organization_id' => ['required', 'uuid', 'same:organization'],
             'manifest.sources.*.category' => ['required', Rule::in(self::CATEGORIES)],
@@ -66,6 +68,7 @@ final readonly class DataPreparationInput
                 'file' => $source['file'], 'owner_reference' => $source['owner_reference'] ?? null,
                 'purpose_reference' => $source['purpose_reference'] ?? null, 'retention_reference' => $source['retention_reference'] ?? null,
                 'delimiter' => $source['delimiter'] ?? ',',
+                'statistics_context' => $source['statistics_context'] ?? null,
                 'mapping' => array_map(static fn ($column): int => (int) $column, $source['mapping'] ?? []), 'defaults' => $source['defaults'] ?? [],
                 'ignored_columns' => array_values(array_map(static fn (array $ignored): array => ['column' => (int) $ignored['column'], 'reason_reference' => $ignored['reason_reference']], $source['ignored_columns'] ?? []))];
         }

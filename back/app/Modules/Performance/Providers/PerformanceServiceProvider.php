@@ -5,7 +5,9 @@ namespace App\Modules\Performance\Providers;
 use App\Modules\Performance\Application\Contracts\PerformanceDashboard;
 use App\Modules\Performance\Application\Contracts\StatisticalCalculationQueue;
 use App\Modules\Performance\Application\Contracts\StatisticalImportQueue;
+use App\Modules\Performance\Application\Contracts\StatisticalSourceAudit;
 use App\Modules\Performance\Application\Services\PerformanceDashboardService;
+use App\Modules\Performance\Application\Services\StatisticalSourceAuditService;
 use App\Modules\Performance\Domain\Contracts\MetricCatalogueRepository;
 use App\Modules\Performance\Domain\Contracts\ObservationRepository;
 use App\Modules\Performance\Domain\Contracts\StatisticalCalculationRepository;
@@ -34,6 +36,7 @@ final class PerformanceServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(PerformanceDashboard::class, PerformanceDashboardService::class);
+        $this->app->bind(StatisticalSourceAudit::class, StatisticalSourceAuditService::class);
         $this->app->bind(StatisticalProfileRepository::class, EloquentStatisticalProfileRepository::class);
         $this->app->bind(StatisticalCalculationRepository::class, EloquentStatisticalCalculationRepository::class);
         $this->app->bind(StatisticalCalculationQueue::class, LaravelStatisticalCalculationQueue::class);

@@ -2,6 +2,7 @@
 
 namespace App\Modules\Performance\Application\Validation;
 
+use App\Modules\Performance\Domain\ObservationValueRules;
 use Illuminate\Contracts\Validation\Factory;
 use Illuminate\Validation\ValidationException;
 
@@ -9,7 +10,7 @@ final class ObservationInput
 {
     public const MAX_REVISIONS = 1000;
 
-    public const REVISION_FIELDS = ['availability', 'value', 'missing_reason', 'notes', 'status'];
+    public const REVISION_FIELDS = ObservationValueRules::FIELDS;
 
     /** @return array<string,mixed> */
     public static function rules(string $operation): array

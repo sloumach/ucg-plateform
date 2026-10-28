@@ -1853,6 +1853,14 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 ### UCG-DATA-001 — Auditer et préparer les données UCG
 
 - **Priorité / taille** : P0 / L
+- **Deuxième lot prudent (28/10/2026)** : audit local des CSV Statistiques au format
+  canonique existant, date de référence explicite, décimales exactes, disponibilité,
+  périodes et identifiants ; doublons et contradictions entre fichiers sans fusion.
+  Rapport sans valeurs sources, compteurs Personnes/Statistiques séparés et aucune
+  consultation de la base. Existence/droits des références et règles propres aux
+  métriques restent non vérifiés. Démonstrations fictives uniquement ; aucun import.
+  Validation : 185 cas ciblés distincts, 184 réussites, 1 exclusion conditionnelle
+  Windows, 1 623 assertions ; Pint/PHPStan verts. Commit local demandé ensuite, sans push.
 - **Premier lot prudent (28/10/2026)** : commande locale `data:audit`, inventaire
   explicite lié au tenant déclaré, références de responsable/finalité/conservation,
   empreintes et rapport JSON sans valeurs personnelles. Analyse du CSV Personnes

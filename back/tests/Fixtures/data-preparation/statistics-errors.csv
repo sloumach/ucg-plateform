@@ -1,0 +1,4 @@
+"availability","value","missing_reason","notes","status","reason","metric_id","metric_version","person_id","source_kind","source_label","period_start","period_end","observed_on","sample_size"
+"available","-0","","","active","FICTIF autre justification","a0000000-0000-4000-8000-000000000001","b0000000-0000-4000-8000-000000000001","c0000000-0000-4000-8000-000000000001","training","FICTIF_SESSION_SECRET","2026-10-01","2026-10-02","2026-10-03","10"
+"available","2.000","","","active","FICTIF audit preparation","a0000000-0000-4000-8000-000000000001","b0000000-0000-4000-8000-000000000001","c0000000-0000-4000-8000-000000000001","training","FICTIF_SESSION_SECRET","2026-10-01","2026-10-02","2026-10-03","10"
+"available","=SUM(A1:A2)","","","active","FICTIF audit preparation","a0000000-0000-4000-8000-000000000001","b0000000-0000-4000-8000-000000000001","FICTIF_INVALID_UUID","training","FICTIF_SESSION_SECRET","2026-10-01","2026-10-02","2026-11-01","10"

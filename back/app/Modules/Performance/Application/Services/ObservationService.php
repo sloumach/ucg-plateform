@@ -11,6 +11,7 @@ use App\Modules\Performance\Domain\Contracts\ObservationRepository;
 use App\Modules\Performance\Domain\Contracts\StatisticalImportRepository;
 use App\Modules\Performance\Domain\Models\ObservationRevision as Revision;
 use App\Modules\Performance\Domain\Models\StatisticalObservation as Observation;
+use App\Modules\Performance\Domain\ObservationValueRules;
 use App\Modules\Teams\Application\Contracts\MatchReferenceDirectory;
 use App\Modules\Teams\Application\Contracts\MetricGameDirectory;
 use App\Modules\Tenancy\Application\Contracts\TenantAuditJournal;
@@ -22,6 +23,7 @@ use App\Support\Audit\AuditReason;
 use App\Support\Audit\AuditTarget;
 use App\Support\Audit\AuditWriteData;
 use Carbon\CarbonImmutable;
+use DomainException;
 use Illuminate\Contracts\Encryption\Encrypter;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\Validation\Factory;
@@ -32,7 +34,7 @@ use Illuminate\Validation\ValidationException;
 
 final readonly class ObservationService
 {
-    public function __construct(private ObservationRepository $records, private MetricCatalogueRepository $metrics, private MetricCatalogueService $dictionary, private ObservationMatchDirectory $matches, private SportingPeopleDirectory $people, private MatchReferenceDirectory $games, private MetricGameDirectory $catalogue, private TenantAuthorization $authorization, private TenantBusinessGuard $guard, private TenantAuditJournal $audit, private ConnectionInterface $database, private Factory $validator, private Encrypter $crypt, private StatisticalImportRepository $imports, private StatisticalCalculationInvalidator $calculations) {}
+    public function __construct(private ObservationRepository $records, private MetricCatalogueRepository $metrics, private MetricCatalogueService $dictionary, private ObservationMatchDirectory $matches, private SportingPeopleDirectory $people, private MatchReferenceDirectory $games, private MetricGameDirectory $catalogue, private TenantAuthorization $authorization, private TenantBusinessGuard $guard, private TenantAuditJournal $audit, private ConnectionInterface $database, private Factory $validator, private Encrypter $crypt, private StatisticalImportRepository $imports, private StatisticalCalculationInvalidator $calculations, private ObservationValueRules $valueRules) {}
 
     public function authorize(TenantContext $context, string $operation = 'read'): void
     {
@@ -218,26 +220,12 @@ final readonly class ObservationService
      */
     private function revisionValues(array $v): array
     {
-        if (mb_strlen(trim($v['reason'])) < 10) {
-            throw ValidationException::withMessages(['reason' => __('observations.reason')]);
+        try {
+            return $this->valueRules->normalize($v);
+        } catch (DomainException $exception) {
+            $field = $exception->getMessage();
+            throw ValidationException::withMessages([$field => __('observations.'.$field)]);
         }
-        if (($v['availability'] === 'available' && ($v['value'] === null || $v['missing_reason'] !== null)) || ($v['availability'] === 'unavailable' && ($v['value'] !== null || $v['missing_reason'] === null))) {
-            throw ValidationException::withMessages(['value' => __('observations.value')]);
-        }
-        $values = array_intersect_key($v, array_flip(Input::REVISION_FIELDS));
-        foreach ($values as $key => $value) {
-            if (is_string($value)) {
-                $values[$key] = trim($value);
-            }
-        }
-        if ($values['value'] !== null) {
-            $values['value'] = str_contains($values['value'], '.') ? rtrim(rtrim($values['value'], '0'), '.') : $values['value'];
-            if ($values['value'] === '-0') {
-                $values['value'] = '0';
-            }
-        }
-
-        return $values;
     }
 
     /** @param array<string,mixed> $v
