@@ -74,6 +74,7 @@ use App\Modules\Tenancy\Infrastructure\Persistence\EloquentSupportAccessReposito
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentTenantAuditJournal;
 use App\Modules\Tenancy\Infrastructure\Persistence\EloquentTenantWorkRepository;
 use App\Modules\Tenancy\Infrastructure\Persistence\IndependentErasureJournal;
+use App\Modules\Tenancy\Infrastructure\Persistence\RetentionSqliteConnector;
 use App\Modules\Tenancy\Infrastructure\Queue\LaravelPortabilityQueue;
 use App\Modules\Tenancy\Infrastructure\Queue\LaravelTenantScheduleQueue;
 use App\Modules\Tenancy\Infrastructure\Queue\RestoreTenantJobContext;
@@ -102,9 +103,7 @@ use App\Modules\Tenancy\Presentation\Policies\TenantContextPolicy;
 use App\Support\Storage\TenantResourceNamespace;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Foundation\Application;
-use Illuminate\Database\Events\ConnectionEstablished;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
@@ -115,11 +114,7 @@ final class TenancyServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->make(Dispatcher::class)->listen(ConnectionEstablished::class, static function (ConnectionEstablished $event): void {
-            if ($event->connection->getDriverName() === 'sqlite') {
-                $event->connection->getPdo()->sqliteCreateFunction('ucg_manual_erasure_allowed', static fn (): int => 0, 4);
-            }
-        });
+        $this->app->bind('db.connector.sqlite', RetentionSqliteConnector::class);
         $this->app->bind(CommunicationRolesDirectory::class, CommunicationRolesService::class);
         $this->app->bind(CommunicationRolesRepository::class, EloquentCommunicationRolesRepository::class);
         $this->app->bind(PartnershipMemberDirectory::class, PartnershipMemberService::class);

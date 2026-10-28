@@ -1426,6 +1426,13 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 ### UCG-OPS-007 — Implémenter conservation et purge
 
 - **Priorité / taille** : P0 / L
+- **Correctif CI d’initialisation (28/10/2026)** : la fonction SQLite de refus
+  d’effacement est enregistrée par le connecteur à l’ouverture physique du PDO,
+  sans forcer de connexion pendant package:discover. Reproduction de l’échec avec
+  base absente/cache database ; hook Composer corrigé sans créer une base factice.
+  PDO séparés, reconnexion et maintien des permissions temporaires vérifiés.
+  Régressions : 471 cas/462 réussites/9 exclusions, 2 145 assertions ; Pint/PHPStan
+  verts. Correctif séparé avant push, nouvelle CI distante à confirmer.
 - **Extension du 28/10/2026, nouveau commit unique demandé** : gel SQL/service des
   écritures métier ; effacement manuel de personne et d’organisation archivée,
   prévisualisation/empreinte/confirmation, quarantaine, lots de 100, preuves et

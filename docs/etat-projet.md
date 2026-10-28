@@ -6,7 +6,15 @@
 ## Point de reprise
 
 - Dernière mise à jour : 28 octobre 2026.
-- Tâche courante : **UCG-DATA-001, premier audit local prudent avant import**.
+- Tâche courante : **correctif CI avant push — initialisation SQLite différée**.
+  Échec fourni pendant composer install/package:discover : le listener OPS-007
+  ouvrait le PDO dès ConnectionEstablished, avant création de la base. Remplacement
+  par un connecteur SQLite qui pose le refus par défaut à l’ouverture physique.
+  Reproduction avec cache database, clé vide, environnement production et base
+  fictive absente ; hook Composer désormais vert sans création de base. Vérification
+  ciblée : 471 cas, 462 réussites, 9 exclusions conditionnelles, 2 145 assertions ;
+  Pint/PHPStan verts. Commit correctif séparé, sans push ; CI distante à relancer.
+- Lot précédent : **UCG-DATA-001, premier audit local prudent avant import**.
   L’utilisateur demande de commencer avec prudence. Outil `data:audit` en lecture
   seule, inventaire par manifeste et CSV Personnes contrôlé avec les règles
   existantes ; doublons et rapprochements entre sources, mapping, références de
@@ -8618,3 +8626,41 @@ finalités et règles à confirmer, rapprochements avec la base et revue/validat
 rapport métier. Le code ne transforme pas une référence déclarée en accord réel.
 DATA-002 et son import à blanc restent une étape distincte ; aucun import, déploiement
 ou traitement de données réelles effectué dans cette intervention.
+
+## Correctif CI — Composer et démarrage SQLite (28 octobre 2026)
+
+Après le commit DATA-001 b96e7a3, l’utilisateur transmet deux échecs identiques de
+composer install, dans le script post-autoload-dump/package:discover. Le cache
+database est construit pendant le démarrage des fournisseurs, notamment via les
+limiteurs Contracts. Laravel prépare alors une connexion logique sans exiger de
+base ouverte. Le listener OPS-007 de ConnectionEstablished appelait getPdo et
+transformait cette préparation en connexion physique immédiate, provoquant
+SQLiteDatabaseDoesNotExistException avant l’étape de préparation de l’environnement.
+
+Le test de reproduction échoue avec l’ancienne implémentation et la même chaîne
+CacheManager → ContractsServiceProvider → listener Tenancy. Le correctif remplace
+ce listener par RetentionSqliteConnector, lié au point d’extension Laravel
+db.connector.sqlite. Il conserve le comportement du connecteur du framework et
+enregistre ucg_manual_erasure_allowed=0 après chaque ouverture physique du PDO,
+pas à chaque requête. Les connexions restent différées, y compris sans clé APP_KEY
+ou base créée. Une vraie tentative d’accès à une base absente échoue toujours.
+Les lectures/écritures séparées et reconnexions reçoivent leur refus par défaut ;
+une autorisation temporaire sur un PDO existant n’est pas écrasée par une requête.
+
+Quatre tests spécifiques vérifient démarrage dans un processus séparé, absence de
+création de base, résolution différée, PDO lecture/écriture, permission temporaire
+et reconnexion. Caches isolés sous storage/framework/testing, nettoyage limité au
+répertoire propriétaire après contrôle du chemin absolu. Hook Composer réel
+`composer run-script post-autoload-dump --no-interaction` réussi en environnement
+isolé avec cache database, APP_KEY vide et fichier SQLite inexistant ; ce fichier
+n’est pas créé. Le premier essai de composer install complet reste limité par
+l’absence d’ext-pcntl sous Windows, exigée par Horizon ; aucune exigence de
+plateforme n’a été ignorée ou modifiée. La CI Ubuntu installe déjà cette extension.
+
+Régressions locales : **471 cas, 462 réussites, 9 exclusions conditionnelles,
+2 145 assertions, 73,82 s**, couverture Tenancy, audit DATA-001, archivage/schéma
+People et architecture. Les tests d’effacement et de gel restent verts ; aucune
+garde SQL ni FK désactivée. Pint, PHPStan et diff --check verts. Rapports ignorés
+back/reports/sqlite-bootstrap-*.xml et sqlite-bootstrap-composer-hook.txt.
+Correction dans un commit distinct ; aucun push ni nouvelle réussite de CI distante
+déclarés. La qualification hébergée et les limites DATA-001/OPS-007 restent ouvertes.
