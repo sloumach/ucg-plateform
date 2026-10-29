@@ -13,6 +13,14 @@ Les rôles ci-dessous ont une fonction précise ; leurs titulaires et suppléant
 restent à désigner. Les délais proposés sont des cibles à faire adopter par UCG,
 pas des engagements de service ni des délais réglementaires.
 
+Mise à jour REL-002 du 29 octobre 2026 : l’utilisateur confirme assurer lui-même
+la gestion des accès utilisateurs et le support de premier niveau pour le moment.
+Ce choix ne désigne pas automatiquement l’exploitant, le coordinateur d’incident,
+le référent sécurité ou le vérificateur. Horaires, contacts privés, suppléants et
+canal de secours restent à confirmer avant exploitation réelle. Les guides,
+le registre de transfert et la checklist de lancement figurent dans le
+[dossier REL-002](../README.md#ucg-rel-002--préparer-le-lancement-et-lexploitation).
+
 Toute intervention réelle exige un opérateur authentifié sur l’environnement
 autorisé, un incident identifié et une décision tracée. Un identifiant `--actor`
 attribue un audit : il ne donne pas l’accès serveur. Un compte support applicatif

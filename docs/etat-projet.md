@@ -6,7 +6,19 @@
 ## Point de reprise
 
 - Dernière mise à jour : 29 octobre 2026.
-- Tâche courante : **correctif CI REL-001 — origine Sanctum du bootstrap pilote**.
+- Tâche courante : **UCG-REL-002 — préparation du lancement, commit unique demandé**.
+  Guides par rôle, responsabilités, formation/transfert, fiche d'exploitation,
+  checklist R2-01–15, livraison/retour arrière à autoriser et accord de production
+  préparés dans le README avec renvois OPS existants. L'utilisateur confirme
+  assurer les accès utilisateurs et le support pour le moment ; exploitation,
+  intervenants spécialisés, suppléants et horaires restent à confirmer. Revue sur
+  table de six cas, huit liens vérifiés ; 32 tests existants de configuration/statut,
+  173 assertions, zéro échec/exclusion. Documentation seulement, aucune migration,
+  activation de service, changement de permission ou de configuration. **REL-002
+  reste ouvert** : hébergement reporté, formation réelle, transfert, restauration,
+  alertes et accord de production non réalisés. Aucun push demandé.
+- Lot précédent : **correctif CI REL-001 — origine Sanctum du bootstrap pilote**,
+  commit 0c89c5d poussé sur origin/staging.
   Échec 403 MFA reproduit avec les domaines Sanctum par défaut de la CI :
   localhost:5173 n'était pas déclaré avant création du .env. Bootstrap complété
   avec APP_URL, FRONTEND_URL et SANCTUM_STATEFUL_DOMAINS de test explicites.
@@ -9196,3 +9208,42 @@ Pint et PHPStan sans erreur ; diff vérifié. Pas d’affirmation de CI distante
 relancée ni de reproduction sur Linux ; la cause est reproduite par les mêmes
 domaines par défaut. L'utilisateur demande ensuite le push du correctif ; livraison
 sur staging après vérification de l'absence de divergence avec origin/staging.
+
+## UCG-REL-002 — Préparation du lancement et de l’exploitation (29 octobre 2026)
+
+Mandat : préparer REL-002 avec prudence en un seul commit, sans demande de push.
+Question d’attribution posée ; l’utilisateur répond « moi » pour les accès
+utilisateurs et le support. Cette attribution fonctionnelle est consignée dans
+le README et OPS-008, sans compte créé ni permission accordée. L’exploitation,
+les intervenants d’incident, les suppléants, contacts et horaires restent à
+confirmer ; aucun prestataire ou engagement de disponibilité n’est inventé.
+
+Dossier ajouté au README existant : guides commun et par fonction (accès,
+direction, manager, coach/validation, joueur, administration, support), exercices
+et registre de transfert, fiche d’exploitation, checklist avec preuves R2-01–15,
+déroulé de livraison/retour arrière et formulaire de décision. Les procédures
+OPS-001/004/005/008 et REL-001 sont référencées ; aucun outil de déploiement,
+restauration ou validation automatique n’est ajouté. Six cas sont revus sur table
+par l’agent, sans atelier humain ni intervention réelle.
+
+Les libellés et limites ont été rapprochés du frontend, de CheckEnvironment,
+EnvironmentReadiness et SystemStatusController. Points explicites : le statut
+operational est statique, le contrôle OPS-001 est seulement configurationnel,
+la remise d’un guide ne prouve pas une formation, les exercices de sauvegarde
+locaux ne qualifient pas la restauration hébergée, et un commit n’est pas un
+accord de production. Les prérequis réels restent bloqués/non vérifiés.
+
+Vérifications locales : huit liens/ancres du nouveau dossier et de son renvoi
+OPS-008 valides ; aide ops:check-environment vérifiée avec DB de test en mémoire.
+EnvironmentReadinessTest et SystemStatusControllerTest, non modifiés : 32 réussites,
+173 assertions, aucune erreur/exclusion, reports/phpunit-rel002-readiness.xml.
+Ces tests utilisent les configurations de test et ne prouvent ni connectivité,
+ni sauvegarde, restauration, alerte reçue ou fonctionnement de l’hébergement.
+Diff vérifié ; aucune modification PHP/frontend, pas de nouvelle suite métier
+complète, ni d’exécution distante de CI revendiquée.
+
+REL-002 demeure ouvert pour les désignations restantes, les sessions de formation
+et leur transfert attesté, les sauvegardes/restaurations et alertes sur cible,
+le pilote réel, les écarts QA-005 et l’accord de mise en production. L’hébergement
+reste reporté. La préparation locale fait l’objet du commit unique demandé ;
+aucun push ni déploiement autorisé ou effectué par ce mandat.

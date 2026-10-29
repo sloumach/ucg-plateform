@@ -1957,6 +1957,18 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / L
 - **Périmètre** : formation, guides, comptes propriétaires, support, sauvegarde, restauration, monitoring et checklist de release.
 - **Acceptation** : responsables nommés, procédures transférées, restauration testée et accord de mise en production enregistré.
+- **Préparation locale (29/10/2026), un seul commit demandé** : dossier du README
+  avec guides par rôle, formation et registre de transfert, responsabilités,
+  fiche d'exploitation, checklist R2-01–15, livraison/retour arrière à autoriser et
+  formulaire d'accord. Réemploi des procédures OPS-001/004/005/008 ; revue sur table
+  des cas de refus d'ouverture, sans nouvel outil ni changement applicatif.
+  L'utilisateur confirme assurer les accès utilisateurs et le support pour le
+  moment ; exploitant, suppléants et intervenants spécialisés restent à désigner.
+  Huit liens internes vérifiés et 32 tests existants de diagnostic/statut réussis,
+  173 assertions ; cela ne prouve pas les ressources d'hébergement.
+  **Préparation livrée, REL-002 non clôturé** : hébergement reporté, formation et
+  transfert non attestés, sauvegarde/restauration/alertes sur cible non éprouvées,
+  accord de production non donné. Aucun déploiement ni push demandé.
 
 ## 23 Tickets de cadrage à traiter avant estimation ferme
 

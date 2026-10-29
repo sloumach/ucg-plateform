@@ -6454,3 +6454,263 @@ restent visibles dans le bilan ; aucun export n’autorise une généralisation 
 anomalies critiques/bloquantes non closes empêchent l’acceptation REL-001. Une
 extension ne résout pas automatiquement QA-005, DATA-001/002, CAD-004/006 ou REL-002.
 L’hébergement, l’équipe, les dates et les participants réels restent à confirmer.
+
+## UCG-REL-002 — Préparer le lancement et l’exploitation
+
+### État du dossier et responsabilités
+
+La préparation décrite ici est locale. L’hébergement et le pilote réel sont toujours
+différés ; aucune restauration distante, formation d’utilisateurs réels ou mise en
+production n’est déclarée effectuée. Un commit de ce dossier ne vaut pas accord de
+lancement. Les procédures existantes restent les références techniques :
+[environnements](#préparation-des-environnements--ucg-ops-001),
+[sauvegarde/restauration](#ucg-ops-004--exercice-local-de-sauvegarde-et-restauration),
+[récupération sélective](#ucg-ops-005--premier-exercice-de-récupération-sélective),
+[incidents et support](docs/procedures-incident-support.md) et
+[pilote](#ucg-rel-001--dossier-de-conduite-du-premier-pilote).
+
+Décision utilisateur du 29 octobre 2026 : **l’utilisateur gère lui-même les accès
+utilisateurs et le support pour le moment**. Ce choix ne lui attribue pas un rôle
+technique supplémentaire dans le logiciel ou chez le futur hébergeur.
+
+| Fonction | Attribution actuelle | À compléter avant lancement réel |
+| --- | --- | --- |
+| Décideur opérationnel UCG | L’utilisateur, selon sa décision existante | Identité/contact dans le dossier privé et accord spécifique à la version déployée |
+| Gestion des accès utilisateurs | L’utilisateur, confirmé le 29/10 | Compte habilité, suppléant, moyen de récupération et vérification des révocations |
+| Support de premier niveau | L’utilisateur, confirmé le 29/10 | Canal privé, horaires convenus, suppléant et canal de secours indépendant |
+| Manager/coach et administration | À désigner pour le périmètre retenu | Titulaires, suppléants, modules/droits et approbateurs indépendants si requis |
+| Exploitation et prestataire d’hébergement | À attribuer après choix de l’hébergement | Comptes serveur, supervision, sauvegardes, clés, interventions et contacts du prestataire |
+| Coordinateur d’incident et référent sécurité/données | À désigner selon OPS-008 | Pouvoir de contention/reprise, contacts et escalade |
+| Vérificateur de restauration et de release | À désigner | Revue distincte de l’exécutant pour les opérations sensibles et validation des preuves |
+
+La gestion des accès, le support plateforme, les permissions métier et l’administration
+serveur sont des fonctions distinctes. Une personne peut cumuler des fonctions
+explicitement, sans contourner une approbation indépendante imposée par le produit.
+Un responsable absent ne doit pas être remplacé par un compte partagé. Les noms,
+contacts et preuves restent dans un espace privé à définir avec l’hébergement.
+
+### Guides de prise en main par rôle
+
+Ces guides décrivent les parcours existants. Une fonction ou un bouton absent peut
+résulter des droits ou du périmètre retenu ; signaler le besoin plutôt que demander
+un rôle global. Les rôles fonctionnels ci-dessous n’accordent aucune permission
+par leur seul intitulé.
+
+**Pour tous — connexion et organisation.** Utiliser son compte personnel, terminer
+la vérification de compte et le parcours MFA demandé. Conserver les moyens de
+récupération dans un emplacement personnel protégé, jamais dans un ticket. Dans
+« Mes organisations », sélectionner la bonne organisation et vérifier son nom
+avant « Confirmer et continuer ». Après un changement de contexte ou d’accès,
+laisser les données se recharger et reprendre depuis la fiche actuelle. Une
+confirmation de contexte n’accorde pas de nouveau droit. En cas d’erreur, relever
+l’heure, le parcours et le request ID affiché, sans partager cookie ou code MFA.
+
+**Gestion des accès — l’utilisateur pour le moment.** Vérifier la demande, la bonne
+organisation, l’identité du destinataire et les droits réellement nécessaires.
+Depuis « Mes organisations » et « Rôles et affectations », utiliser uniquement les
+actions autorisées à son compte pour inviter et affecter les rôles, périmètres et
+périodes approuvés. Une personne enregistrée dans l’effectif n’a pas automatiquement
+un compte ou un accès. Contrôler l’acceptation de l’invitation, puis vérifier avec
+un témoin fictif le parcours permis et un parcours refusé. Pour un départ ou retrait,
+révoquer l’accès concerné et vérifier le refus avec la session déjà ouverte ; ne
+pas supprimer les données métier pour résoudre un problème d’accès. Une permission
+administrative ou de validation doit être attribuée explicitement, pas déduite du
+statut de propriétaire. Tracer demande, décision, périmètre, date et résultat.
+
+**Direction.** Ouvrir « Tableaux de bord par rôle », choisir une vue autorisée,
+contrôler la période et le fuseau. Lire les compteurs avec leur périmètre : un
+instantané courant n’est pas un historique de la semaine. Un indicateur périmé ne
+constitue pas une mesure actuelle ; demander un nouveau calcul seulement lorsque
+l’action est autorisée. Pour un export privé, vérifier organisation, rapport et
+confirmation, attendre l’état « Prêt », puis conserver le fichier dans l’espace
+prévu. Un échec ou un export expiré demande le traitement prévu par l’écran, sans
+relance globale des jobs. Décider de la suite du pilote sur les preuves REL-001,
+pas sur la seule présence de chiffres ou d’un statut technique vert.
+
+**Manager.** Vérifier les personnes et l’effectif de l’équipe, les périodes
+d’appartenance et le jeu concerné. Planifier la semaine dans le calendrier avec
+le fuseau correct ; une activité privée ne devient pas partagée sans l’action et
+la confirmation prévues. Vérifier les destinataires et l’état des invitations.
+Préparer une composition à partir des membres effectifs, la finaliser et l’affecter
+au bon match avant démarrage. Recharger la version actuelle après un conflit de
+modification ; ne pas écraser la saisie d’un autre utilisateur. Un contrat actif
+n’est pas une preuve automatique d’éligibilité sportive.
+
+**Coach et validateur sportif.** Consulter les informations sportives autorisées,
+le calendrier, la composition et « Scrims et matchs ». Avant saisie, vérifier le
+match, les participants et les règles de score. Saisir les parties, contrôler le
+résultat puis le soumettre. La personne habilitée qui valide doit respecter les
+règles d’indépendance ; elle consulte les preuves, approuve ou conteste avec motif.
+Ne pas remplacer une contestation par un écrasement du score. Les corrections
+passent par le parcours prévu et restent historisées. Le rôle de coach ne donne
+pas accès aux contrats ni aux coordonnées administratives.
+
+**Joueur.** Vérifier son organisation et ses informations accessibles, renseigner
+ses disponibilités dans son propre périmètre et consulter ses activités/invitations.
+Répondre uniquement à ses invitations avec l’état actuel ; une activité modifiée
+peut demander une nouvelle confirmation. Une plage non renseignée n’est pas une
+absence déclarée. Signaler une activité manquante au manager sans chercher le
+calendrier d’un autre joueur. La visibilité d’une équipe peut cesser à la fin de
+l’appartenance ; ne pas demander le contournement de ce refus.
+
+**Administration.** Dans « Contrats de l’organisation », vérifier personne,
+référence, parties, responsable, dates et obligations. Suivre revue, approbation
+indépendante, envoi, déclaration de signature reçue puis activation selon les
+transitions proposées. Le statut signé conserve une déclaration de suivi, pas une
+signature électronique produite par l’application. Conserver l’original dans le
+périmètre documentaire autorisé. Un fichier refusé, en attente, périmé ou en
+quarantaine n’est pas téléchargeable comme document propre ; suivre la procédure
+F6 et demander une nouvelle analyse seulement avec les droits requis. Ne pas
+copier de pièce ou de détail contractuel dans une biographie ou un ticket partagé.
+
+**Support de premier niveau — l’utilisateur pour le moment.** Demander parcours,
+heure/fuseau, organisation concernée et identifiant de requête, avec une description
+minimale. Distinguer problème d’utilisation, permission refusée, traitement différé
+et incident. Ne jamais demander mot de passe, code MFA, cookie ou lien privé signé.
+Suivre les [fiches OPS-008](docs/procedures-incident-support.md#4-fiches-dintervention).
+Une suspicion d’accès indu, de perte ou de mélange de tenants est escaladée sans
+explorer d’autres dossiers. L’accès support exceptionnel exige déjà l’habilitation
+plateforme, un motif, des actions et une durée limités ; il ne donne pas les droits
+métier et doit être révoqué à la fin. Aucun incident n’autorise un rôle ajouté en SQL.
+
+### Formation et transfert des procédures
+
+Préparer une session avec comptes et données fictifs : parcours commun puis atelier
+par fonction, avec un parcours réussi et un refus attendu. Le formateur montre,
+le participant reproduit, puis explique comment signaler un incident. Revoir les
+limites MFA, changement d’organisation, version concurrente et partage de documents.
+Une lecture du guide n’est pas une preuve de maîtrise ni une formation effectuée.
+
+| Atelier | Exercice de validation proposé | Preuve de transfert à recueillir |
+| --- | --- | --- |
+| Accès et organisation | Invitation, MFA, bon tenant, action refusée après retrait | Titulaire/suppléant, date, version et résultat |
+| Manager/coach | Planning, composition, score, soumission puis autre validateur | Parcours réalisés et écarts expliqués |
+| Joueur | Disponibilité personnelle, invitation et contrôle d’un refus hors périmètre | Résultat individuel conservé en privé, synthèse sans détail nominatif |
+| Administration | Dossier fictif, approbateur distinct et document non téléchargeable avant verdict valide | Contrôles et limites restitués correctement |
+| Support | Signalement minimal, classement et canal de secours | Fiche d’exercice et confirmation de réception par le destinataire |
+| Exploitation | Lecture des alertes, sauvegarde et restauration isolée, décision de retour arrière | Compte rendu exécutant/vérificateur sur l’environnement retenu |
+
+Registre de transfert privé : référence d’atelier, version du guide/application,
+formateur, participant/fonction, date, réussi/à reprendre, écart, action et prochaine
+revue, confirmation du participant. État initial : **supports prêts, sessions non
+réalisées et transfert non attesté**. Aucun contact ou émargement réel n’est créé
+par cette préparation.
+
+### Fiche d’exploitation à compléter sur l’hébergement retenu
+
+Renseigner environnement, domaines, version déployée, composants, opérateur et
+suppléant, créneaux d’intervention et contacts prestataires. Identifier séparément
+base, volumes privés, clés applicatives, clé de sauvegarde, Redis, workers,
+scheduler, transport mail, scanner et Reverb lorsqu’ils sont activés. Référencer
+les secrets dans le gestionnaire choisi, jamais leurs valeurs dans ce dossier.
+
+Pour chaque sauvegarde : périmètre base/fichiers/journaux nécessaires, cohérence
+au point de capture, horodatage/fuseau, état des écritures, protection/chiffrement,
+clé requise, emplacement restreint, responsable et dernière preuve de lecture.
+Fixer fréquence, rétention, RPO/RTO et rotation avec le responsable compétent ;
+aucune valeur n’est déduite des essais locaux. Conserver les clés permettant de
+lire les données chiffrées et vérifier leur récupération indépendamment de la
+sauvegarde. Ne pas régénérer APP_KEY comme une réparation générique.
+
+Pour une restauration : cible isolée autorisée, source vérifiée, compatibilité de
+version, base et fichiers rapprochés, contrôles de déchiffrement, contraintes,
+accès, intégrité d’un tenant témoin et traitement des données plus récentes.
+Appliquer [F5](docs/procedures-incident-support.md#f5--restauration-ou-récupération-dun-tenant),
+avec revue de l’exécutant et du vérificateur. Conserver les durées et résultats
+mesurés. Les scripts OPS-004/005 de laboratoire ne sont pas des outils génériques
+de restauration sur une base utilisée ; aucune commande destructive de production
+n’est fournie ou exécutée par cette fiche.
+
+Pour le monitoring : associer à chaque signal une sonde, une périodicité, un
+seuil adopté, un destinataire/suppléant et une preuve d’alerte reçue. Couvrir parcours
+HTTP autorisés et refus attendus, erreurs/latence, progression et échecs des files,
+workers/scheduler, espace disque, sauvegardes, stockage privé, scanner, mail et temps
+réel si activés. Le statut HTTP `operational` est statique : il ne prouve pas que
+PostgreSQL, Redis, les workers ou les sauvegardes fonctionnent. `schedule:list`
+liste la planification et ne prouve pas l’exécution du cron ; `handled` ne prouve
+pas le succès métier d’un job. Reprendre les seuils proposés OPS-008 uniquement
+après adoption et essai réel de la chaîne d’alerte.
+
+Le contrôle de configuration disponible, depuis `back` sur le profil autorisé :
+
+```bash
+php artisan ops:check-environment --expect=staging --json --no-interaction
+# Pour la release de production autorisée : --expect=production
+```
+
+Code 0 : configuration conforme aux contrôles locaux ; 1 : configuration incomplète ;
+2 : profil absent/invalide. Ce contrôle ne contacte pas les ressources et ne valide
+ni connectivité, secrets distincts, ACL, sauvegarde ou restauration. Un test de cette
+commande sur configuration fictive n’autorise pas un déploiement.
+
+### Checklist de lancement avec preuves
+
+Pour chaque ligne : résultat **à faire / bloqué / vérifié / non applicable**, preuve
+privée datée, environnement, commit, exécutant et vérificateur. Une justification
+approuvée est nécessaire pour « non applicable » ; une dépendance non disponible
+reste « bloqué », pas « vérifié ». Les lignes de préparation documentaire peuvent
+être prêtes sans valider leur exécution réelle.
+
+| ID | Contrôle et preuve attendue | Responsable fonctionnel | État actuel |
+| --- | --- | --- | --- |
+| R2-01 | Périmètre, équipe, dates, modules et décision de fin du pilote REL-001 | Décideur et manager | Pilote réel différé |
+| R2-02 | Commit exact, résultats CI du commit, audits et écarts de recette examinés | Réalisation et vérificateur | Nouvelle CI distante à confirmer |
+| R2-03 | Hébergement choisi, ressources/profils séparés, HTTPS/CORS/Sanctum, secrets injectés et configuration contrôlée | Exploitation | Bloqué : hébergement reporté |
+| R2-04 | Comptes propriétaires récupérables, MFA, droits métier minimaux, retrait d’accès et absence de compte partagé vérifiés | Utilisateur, gestion des accès | À vérifier sur cible |
+| R2-05 | Population, données et reprise autorisées ; dépendances DATA-001/002, CAD-004/006 et mineurs traitées pour le périmètre | Décideur et administration | Sources/périmètre réels non validés |
+| R2-06 | Guides disponibles, formateurs/participants et suppléants désignés, exercices et attestations de transfert | Responsables de fonction | Supports prêts ; transfert non réalisé |
+| R2-07 | Support, horaires adoptés, contacts/escalade et canal de secours éprouvés | Utilisateur et coordinateur | Responsable support confirmé ; fonctionnement à valider |
+| R2-08 | Sauvegarde cohérente base/fichiers/clés et preuve de récupération de la sauvegarde | Exploitation | Non vérifié sur hébergement |
+| R2-09 | Restauration sur cible isolée, intégrité/déchiffrement/tenant témoin et durées mesurées | Exploitant et vérificateur | Non réalisée sur hébergement |
+| R2-10 | Sondes, seuils adoptés, alertes reçues et responsabilités de réponse confirmées | Exploitation et support | Non éprouvé sur hébergement |
+| R2-11 | Files, scheduler, transport mail, scanner et temps réel selon modules activés ; absence de doublons après reprise | Exploitation et responsables métier | À vérifier sur cible |
+| R2-12 | Charge/latence et isolation de la configuration retenue, écarts QA-005 traités et limites déclarées | Réalisation et vérificateur | QA-005 ouvert, aucune capacité validée |
+| R2-13 | Plan de livraison et retour arrière revu, sauvegarde préalable et déclencheurs d’arrêt | Exploitant et décideur | À préparer pour la cible exacte |
+| R2-14 | Aucun incident critique/bloquant ouvert, anomalies retestées, réserves et éléments non testés visibles | Support et vérificateur | À rapprocher à la date de lancement |
+| R2-15 | Accord de mise en production spécifique à l’environnement/version/périmètre, fenêtre et responsables | Décideur | Non donné |
+
+La préparation ne permet pas de cocher les preuves d’hébergement, restauration,
+formation ou accord métier. La checklist n’a aucun effet sur les permissions et
+ne possède pas de validation automatique. Une valeur déclarée « vérifié » doit
+être rapprochée de sa preuve, pas seulement copiée depuis un ancien rapport.
+
+### Déroulé de livraison à faire autoriser sur la cible
+
+1. Figer le commit, le périmètre et la fenêtre ; vérifier checklist, participants,
+   CI correspondante et plan de retour arrière. Définir qui peut arrêter/reprendre.
+2. Confirmer la sauvegarde préalable, ses clés et sa possibilité de restauration.
+   Définir l’état des écritures et travaux différés pendant l’intervention.
+3. L’exploitant habilité applique le plan propre à la cible : secrets, artefacts,
+   schéma, cache et processus supervisés. Une migration ou un redémarrage ne se
+   déduit pas d’une commande générique copiée dans un guide utilisateur.
+4. Vérifier MFA/session, bon tenant, permissions/refus, parcours autorisés,
+   traitements/fichiers et tenant témoin, puis la chaîne d’alerte. Consigner les
+   versions et résultats réellement observés avant ouverture aux utilisateurs.
+5. En cas d’échec, garder le périmètre protégé et appliquer le plan approuvé.
+   Ne pas lancer un rollback SQL global ou un réimport qui écraserait des données
+   plus récentes ; toute restauration/reprise passe par les prérequis OPS-004/005.
+6. Le décideur autorise explicitement l’ouverture ou le maintien en attente.
+   Fixer suivi renforcé, responsable, prochaine revue et critères d’arrêt/reprise,
+   avec les durées et horaires convenus plutôt qu’un engagement inventé.
+
+Formulaire d’accord privé à compléter : référence de release, commit, cible,
+périmètre, fenêtre/fuseau, preuves R2-01–15, réserves/éléments non testés,
+exécutant, vérificateur, responsable du support, critères d’arrêt, plan de retour
+arrière, décision **ouvrir / reporter / refuser**, décideur, date et justification.
+État initial : **décision non renseignée — aucun accord de production enregistré**. Une
+nouvelle version ou un changement de périmètre demande une nouvelle revue adaptée.
+REL-002 reste ouvert tant que responsables manquants, transfert, restauration sur
+hébergement et accord spécifique ne sont pas établis.
+
+### Revue locale du dossier
+
+Revue sur table par l’agent, sans atelier humain ni intervention d’exploitation :
+
+| Cas examiné | Réponse prévue par le dossier | Limite conservée |
+| --- | --- | --- |
+| Sauvegarde annoncée, mais restauration non testée | R2-09 reste non vérifié ; pas d’ouverture déclarée prête | Aucune restauration hébergée inventée |
+| Endpoint statique operational, worker arrêté | Contrôler la progression et la chaîne d’alerte, traiter selon F1/F4 | Un HTTP 200 ne remplace pas les sondes |
+| Utilisateur support sans accès serveur | Escalader à l’exploitant désigné | Aucun droit système ou métier implicite |
+| Guide remis, participant non formé | R2-06 distingue supports prêts et transfert non attesté | Aucune formation réelle revendiquée |
+| Responsable accès/support nommé, exploitant absent | Conserver les attributions confirmées et bloquer l’étape dépendante | Aucun nom ou prestataire inventé |
+| Demande de push du dossier | Versionner la préparation seulement | Aucun déploiement ni accord de production implicite |
