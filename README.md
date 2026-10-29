@@ -6360,6 +6360,12 @@ de stockage de test distinct. Il ne migre pas la base du projet. Les suites exis
 conservent leurs fakes de stockage/queue/transport ; le nouveau scénario interdit
 le HTTP sortant et neutralise queues, mails et notifications.
 
+Les origines APP_URL/FRONTEND_URL et SANCTUM_STATEFUL_DOMAINS sont aussi fixées
+par ce bootstrap. Les requêtes des helpers depuis localhost:5173 doivent être
+reconnues comme SPA de test pour que Sanctum attache la session contenant la preuve
+MFA. La suite fonctionne ainsi avant création du `.env` en CI, sans dépendre des
+domaines configurés sur le poste. Les middlewares de session et MFA restent actifs.
+
 La semaine fictive traverse les vrais endpoints Laravel, Form Requests, services,
 repositories et autorisations : une équipe et son membre, sept activités, contrat
 approuvé par un autre compte puis déclaré signé/activé, composition finalisée et

@@ -6,7 +6,16 @@
 ## Point de reprise
 
 - Dernière mise à jour : 29 octobre 2026.
-- Tâche courante : **UCG-REL-001 — préparation complète et répétition fictive du pilote**.
+- Tâche courante : **correctif CI REL-001 — origine Sanctum du bootstrap pilote**.
+  Échec 403 MFA reproduit avec les domaines Sanctum par défaut de la CI :
+  localhost:5173 n'était pas déclaré avant création du .env. Bootstrap complété
+  avec APP_URL, FRONTEND_URL et SANCTUM_STATEFUL_DOMAINS de test explicites.
+  Deux régressions reproduisent l'échec avant correction et passent après ;
+  aucun middleware ni contrôle MFA modifié. Suite complète pilote : 234 tests
+  réussis, 1 921 assertions, zéro échec/exclusion, avec origines héritées incompatibles.
+  Pint et PHPStan verts ; commit et push demandés ensuite, CI distante à vérifier.
+- Lot précédent : **UCG-REL-001 — préparation complète et répétition fictive du pilote**,
+  commit 70d07cc poussé sur origin/staging.
   Dossier de lancement, programme J1–J7, preuves P0, registre d'anomalies/retests,
   support, mesure agrégée et procès-verbal ajoutés au README. Une semaine simulée
   utilise les endpoints existants avec une équipe, planning, contrat approuvé par
@@ -9158,3 +9167,32 @@ et la décision formelle. Aucun lancement, accord ou élargissement automatique.
 Après confirmation du périmètre local, l'utilisateur demande le push de cette
 préparation : livraison en un commit sur staging, après vérification de l'absence
 de divergence avec origin/staging.
+
+## Correctif CI REL-001 — Session Sanctum avant création du .env
+
+L’utilisateur signale 214 échecs sur phpunit-pilot.xml, dont un 403
+MFA_CHALLENGE_REQUIRED au lieu de 201. Cause reproduite localement : le workflow
+exécute la suite avant de copier .env.example ; les domaines Sanctum par défaut
+n’incluent pas localhost:5173 utilisé dans Origin/Referer des helpers métier.
+EnsureFrontendRequestsAreStateful n’installe donc pas StartSession pour ces
+requêtes ; la preuve de session MFA préparée par le test n’est pas accessible.
+Les tests locaux étaient favorisés par les domaines présents dans le .env local.
+
+Correction limitée au bootstrap pilote : APP_URL=http://localhost:8000,
+FRONTEND_URL=http://localhost:5173, SANCTUM_STATEFUL_DOMAINS incluant les deux
+origines locales de test. Les trois sources getenv/ENV/SERVER sont remplacées
+comme pour les paramètres déjà isolés. Aucun code applicatif, middleware, règle
+MFA ou autorisation modifié, aucune étape de CI supprimée ou déplacée.
+
+PilotIsolationTest couvre deux héritages : domaines Sanctum par défaut de la CI,
+puis domaine étranger, avec APP_URL/FRONTEND_URL étrangers et les sentinelles
+DB/cache/configuration existantes. Les deux cas échouent avant correction sur le
+même refus MFA ; ils passent après (2 cas, 8 assertions).
+
+Suite finale avec les trois paramètres frontend volontairement incompatibles :
+234 tests réussis, 1 921 assertions, zéro échec/erreur/exclusion,
+reports/phpunit-pilot-ci-fixed.xml. Les cas de refus MFA existants restent inclus.
+Pint et PHPStan sans erreur ; diff vérifié. Pas d’affirmation de CI distante
+relancée ni de reproduction sur Linux ; la cause est reproduite par les mêmes
+domaines par défaut. L'utilisateur demande ensuite le push du correctif ; livraison
+sur staging après vérification de l'absence de divergence avec origin/staging.

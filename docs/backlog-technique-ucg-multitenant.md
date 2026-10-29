@@ -1946,6 +1946,11 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   semaine réelle, anomalies réelles et décision formelle non réalisés. L'utilisateur
   confirme : « Pas encore : préparer et tester localement ». La préparation locale
   est réalisée ; aucun pilote réel à lancer dans le périmètre actuel.
+- **Correctif CI MFA (29/10/2026)** : échec 403 reproduit lorsque Sanctum n'inclut
+  pas localhost:5173, avant création du .env. Origines et domaines de session
+  explicités dans le bootstrap isolé ; deux régressions couvrent les défauts CI et
+  une configuration héritée étrangère. Suite pilote : 234 tests réussis,
+  1 921 assertions, zéro exclusion ; Pint/PHPStan verts. Aucun assouplissement MFA.
 
 ### UCG-REL-002 — Préparer la mise en production
 

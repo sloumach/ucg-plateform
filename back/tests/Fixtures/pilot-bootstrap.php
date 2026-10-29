@@ -4,6 +4,9 @@
 $pilotToken = bin2hex(random_bytes(16));
 $pilotEnvironment = [
     'APP_ENV' => 'testing', 'APP_DEBUG' => 'false', 'APP_KEY' => 'base64:'.base64_encode(random_bytes(32)),
+    // Match the business-test Origin/Referer so Sanctum attaches the MFA session without a .env file.
+    'APP_URL' => 'http://localhost:8000', 'FRONTEND_URL' => 'http://localhost:5173',
+    'SANCTUM_STATEFUL_DOMAINS' => 'localhost:5173,127.0.0.1:5173',
     'APP_CONFIG_CACHE' => sys_get_temp_dir().DIRECTORY_SEPARATOR.'ucg-rel001-'.$pilotToken.'.php',
     'DB_CONNECTION' => 'sqlite', 'DB_DATABASE' => ':memory:', 'DB_URL' => '', 'DB_FOREIGN_KEYS' => 'true',
     'CACHE_STORE' => 'array', 'TENANCY_CACHE_STORE' => 'array', 'TENANCY_TEST_REDIS' => 'false', 'SESSION_DRIVER' => 'array',

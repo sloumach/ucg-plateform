@@ -3,12 +3,15 @@
 namespace Tests\Feature;
 
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\TestWith;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
 class PilotIsolationTest extends TestCase
 {
-    public function test_pilot_child_discards_inherited_database_and_cached_configuration_without_parent_queries(): void
+    #[TestWith(['localhost,localhost:3000,127.0.0.1,127.0.0.1:8000,::1'])]
+    #[TestWith(['foreign.example.test'])]
+    public function test_pilot_child_discards_inherited_database_cached_configuration_and_frontend_without_parent_queries(string $statefulDomains): void
     {
         $cache = tempnam(sys_get_temp_dir(), 'ucg-pilot-');
         $this->assertIsString($cache);
@@ -25,6 +28,8 @@ class PilotIsolationTest extends TestCase
                     'DB_CONNECTION' => 'pgsql', 'DB_DATABASE' => $database, 'DB_URL' => 'pgsql://invalid:invalid@invalid.example.test/invalid',
                     'CACHE_STORE' => 'redis', 'TENANCY_CACHE_STORE' => 'redis', 'SESSION_DRIVER' => 'redis',
                     'QUEUE_CONNECTION' => 'redis', 'MAIL_MAILER' => 'smtp', 'BROADCAST_CONNECTION' => 'reverb',
+                    'APP_URL' => 'https://foreign.example.test', 'FRONTEND_URL' => 'https://foreign.example.test',
+                    'SANCTUM_STATEFUL_DOMAINS' => $statefulDomains,
                 ]);
             $process->setTimeout(120);
             $process->run();
