@@ -6,7 +6,15 @@
 ## Point de reprise
 
 - Dernière mise à jour : 29 octobre 2026.
-- Tâche courante : **UCG-QA-005 — diagnostic prudent des connexions et du banc local**.
+- Tâche courante : **correctif CI — audit Composer Symfony Mime**.
+  Échec reproduit : symfony/mime v8.1.7 signalé par PKSA-wtxr-p26d-nn42 /
+  CVE-2026-45070 (injection d'en-têtes MIME, sévérité moyenne).
+  Mise à jour ciblée vers v8.1.10, seul paquet modifié dans composer.lock.
+  Audit strict à nouveau vert, aucun paquet abandonné ; composer validate --strict
+  valide. La CI affiche désormais le JSON d'audit tout en conservant son code de
+  sortie. Aucun avis ignoré ni contrôle de sécurité supprimé.
+- Lot précédent : **UCG-QA-005 — diagnostic prudent des connexions et du banc local**,
+  commit c04431c poussé sur origin/staging.
   Instrumentation limitée aux fixtures et au lanceur de charge : résolution PDO
   paresseuse, première requête, lectures simultanées par serveur. Métriques
   manquantes refusées, empreintes suivies contrôlées en fin de phases. Aucun
@@ -9035,3 +9043,31 @@ avant livraison : tests du protocole/environnement, lint local, Pint et PHPStan 
 les deux rapports stabilisés ont completed/cleanup/sourcesUnchanged=true et leurs
 empreintes ciblées correspondent encore au checkout. Leur objectif de latence
 reste refusé. Fetch origin/staging effectué avant livraison : aucune divergence.
+
+## Correctif CI — Audit Composer et Symfony Mime (29 octobre 2026)
+
+Échec fourni par l’utilisateur sur composer audit --locked --abandoned=fail.
+Reproduction avec accès Packagist : code 1, symfony/mime v8.1.7 affecté par
+PKSA-wtxr-p26d-nn42 / CVE-2026-45070, injection d’en-têtes via les noms de paramètres
+MIME, sévérité moyenne. Avis déclaré le 28 octobre ; aucun paquet abandonné.
+Le rapport local antérieur était vide d’alertes et ne remplaçait pas cet audit frais.
+
+Correction ciblée : composer.lock met uniquement symfony/mime à v8.1.10.
+composer.json et les autres versions restent inchangés. Résolution et installation
+réelles réalisées, autoloader et hook package:discover terminés avec succès dans
+l’environnement testing/SQLite en mémoire. La résolution locale ignore seulement
+ext-pcntl et ext-posix, indisponibles sur Windows et déjà requis par Horizon ;
+aucun ignore ajouté aux fichiers Composer ni à la CI Linux.
+
+Le workflow backend affiche désormais reports/composer-audit.json dans ses logs,
+y compris en cas d’alerte, puis ressort avec le code exact de composer audit.
+La redirection vers l’artefact reste présente, le contrôle --abandoned=fail reste
+actif et aucune vulnérabilité n’est ignorée.
+
+Validation : composer validate --strict passe ; audit identique à celui de la CI
+retourne 0 avec advisories=[], abandoned=[], filter=[]. Régression ciblée emails :
+ContractReminderMailTest et TenantQueuedMailTest, 10/10 tests, 51 assertions,
+zéro exclusion ; rapport reports/phpunit-ci-mime.xml. Aucun transport SMTP réel
+utilisé. Aucune nouvelle exécution de CI distante revendiquée. Après validation
+locale, l'utilisateur demande le push : livraison du correctif en un commit sur
+staging, avec vérification préalable de l'absence de divergence distante.

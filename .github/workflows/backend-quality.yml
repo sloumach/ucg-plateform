@@ -62,7 +62,10 @@ jobs:
       - name: Audit locked backend dependencies including development packages
         run: |
           mkdir -p reports
-          composer audit --locked --abandoned=fail --format=json > reports/composer-audit.json
+          audit_status=0
+          composer audit --locked --abandoned=fail --format=json > reports/composer-audit.json || audit_status=$?
+          cat reports/composer-audit.json
+          exit "$audit_status"
 
       - name: Prepare Laravel environment
         run: |
