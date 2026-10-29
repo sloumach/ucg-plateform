@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/Fixtures/pilot-bootstrap.php"
+         colors="false" failOnWarning="true" failOnRisky="true">
+    <testsuites>
+        <testsuite name="REL-001 fictitious pilot week">
+            <directory>tests/Pilot</directory>
+        </testsuite>
+        <testsuite name="REL-001 supporting P0 regression">
+            <file>tests/Feature/PilotIsolationTest.php</file>
+            <file>tests/Feature/CalendarControllerTest.php</file>
+            <file>tests/Feature/AvailabilityControllerTest.php</file>
+            <file>tests/Feature/CalendarInvitationControllerTest.php</file>
+            <file>tests/Feature/TeamMembershipControllerTest.php</file>
+            <file>tests/Feature/TeamLineupControllerTest.php</file>
+            <file>tests/Feature/MatchLineupControllerTest.php</file>
+            <file>tests/Feature/MatchResultControllerTest.php</file>
+            <file>tests/Feature/ContractControllerTest.php</file>
+            <file>tests/Feature/PlatformSupportAccessTest.php</file>
+            <file>tests/Feature/RoleDashboardTest.php</file>
+            <file>tests/Feature/ReportExportTest.php</file>
+        </testsuite>
+    </testsuites>
+    <php>
+        <ini name="memory_limit" value="512M"/>
+    </php>
+</phpunit>

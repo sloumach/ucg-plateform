@@ -6,7 +6,19 @@
 ## Point de reprise
 
 - Dernière mise à jour : 29 octobre 2026.
-- Tâche courante : **correctif CI — audit Composer Symfony Mime**.
+- Tâche courante : **UCG-REL-001 — préparation complète et répétition fictive du pilote**.
+  Dossier de lancement, programme J1–J7, preuves P0, registre d'anomalies/retests,
+  support, mesure agrégée et procès-verbal ajoutés au README. Une semaine simulée
+  utilise les endpoints existants avec une équipe, planning, contrat approuvé par
+  un tiers, composition finalisée et résultat validé indépendamment. Suite isolée
+  SQLite mémoire, environnement hérité hostile contrôlé, CI enrichie. 233 tests,
+  1 917 assertions, zéro échec/exclusion ; Pint/PHPStan verts. Commit et push sur
+  staging demandés après validation locale. **Pilote réel non exécuté et REL-001 non clôturé** :
+  hébergement reporté et équipe/dates/modules non confirmés. L'utilisateur confirme :
+  « Pas encore : préparer et tester localement ». Périmètre actuel limité à la
+  préparation et aux tests fictifs locaux ; aucun pilote réel à lancer.
+- Lot précédent : **correctif CI — audit Composer Symfony Mime**, commit 136a2d8
+  poussé sur origin/staging ; résultat de CI distante non reçu.
   Échec reproduit : symfony/mime v8.1.7 signalé par PKSA-wtxr-p26d-nn42 /
   CVE-2026-45070 (injection d'en-têtes MIME, sévérité moyenne).
   Mise à jour ciblée vers v8.1.10, seul paquet modifié dans composer.lock.
@@ -9071,3 +9083,78 @@ zéro exclusion ; rapport reports/phpunit-ci-mime.xml. Aucun transport SMTP rée
 utilisé. Aucune nouvelle exécution de CI distante revendiquée. Après validation
 locale, l'utilisateur demande le push : livraison du correctif en un commit sur
 staging, avec vérification préalable de l'absence de divergence distante.
+
+## UCG-REL-001 — Préparation et répétition du pilote (29 octobre 2026)
+
+L’utilisateur demande toute la REL-001. Le ticket prévoit une équipe, une semaine
+sportive, contrats autorisés, support, usages agrégés, correction des anomalies
+bloquantes et décision de généralisation. L’hébergement reste reporté, aucune
+source réelle n’est disponible et CAD-006 n’a pas encore confirmé équipe, dates
+et modules. À la question sur la disponibilité d’une équipe et d’une date,
+l’utilisateur confirme : « Pas encore : préparer et tester localement ».
+La préparation et les tests fictifs constituent donc le périmètre actuel autorisé,
+avec ces faits, sans présumer une autorisation de collecte, de déploiement ou une
+acceptation réelle.
+
+Livraison documentaire dans le README existant : dossier de lancement avec champs
+à compléter, responsabilités et prérequis, programme J1–J7 et preuves attendues,
+registres d’incidents/retests, procédure support référencée, formules d’indicateurs
+agrégés et modèle de procès-verbal. Les cibles du cahier des charges restent
+proposées, pas approuvées automatiquement. Dénominateur nul justifié distinct d’un
+indicateur non mesuré ; les uniques quotidiens ne sont pas additionnés pour simuler
+l’adoption hebdomadaire. Aucun nom, contenu de contrat ou autre détail réel n’est
+collecté par cette livraison. La décision de fin est « non prise ».
+
+Répétition technique dédiée : back/phpunit-pilot.xml et bootstrap isolé
+back/tests/Fixtures/pilot-bootstrap.php. Paramètres DB/cache/session/mail/broadcast,
+clé et cache de configuration hérités remplacés avant le bootstrap Laravel ;
+SQLite en mémoire, token unique, aucune migration de la base applicative.
+Le scénario Tests/Pilot/PilotWeekScenarioTest utilise les vraies requêtes HTTP,
+Form Requests, services/repositories et politiques existantes :
+
+- J1 : une équipe, un membre effectif, sept activités de calendrier et dossier
+  de contrat envoyé en revue ;
+- J2 : autre compte administratif approuve, envoie, déclare la signature reçue
+  puis active le contrat ; l’éligibilité sportive reste non évaluée ;
+- J3 : match de cette équipe, composition créée/finalisée et affectée, confirmation ;
+- J4 : démarrage, règles, score et soumission ; approbation par l’auteur refusée
+  faute du droit de validation ;
+- J5 : validateur distinct approuve ; refus du contrat sans droit administratif
+  et d’une personne étrangère au tenant ;
+- J6 : retrait du droit calendrier effectif, résultat sportif encore lisible ;
+- J7 : rapprochement du tableau de bord, pagination, totaux et intégrité ciblée
+  de l’autre organisation. Mails, notifications et queues neutralisés dans ce
+  scénario ; aucune requête HTTP sortante.
+
+L’horloge est déplacée sur sept dates fictives : ce test ne mesure ni sept jours
+réels, ni usage humain, délivrance réelle des invitations, adoption ou conformité
+sportive d’un effectif. La composition d’un membre est une fixture technique.
+Deux erreurs initiales du scénario sont corrigées : champ reason non accepté
+par la transition de contrat, puis composition obligatoire oubliée avant démarrage.
+Les validations produit ont été respectées ; aucun service n’est modifié pour les contourner.
+
+PilotIsolationTest, exécuté aussi par la suite ordinaire, relance la semaine dans
+un processus enfant avec APP_ENV production, clé invalide, configuration héritée
+qui lève une exception, URL PostgreSQL fictive et Redis/SMTP/Reverb hérités.
+L’enfant réussit, le parent n’exécute aucune requête SQL et le fichier de base
+hérité n’est pas créé. Le fichier temporaire de cache hostile est supprimé en
+finally. Ce contrôle ne se substitue pas à une isolation d’infrastructure hébergée.
+
+La suite dédiée inclut les régressions existantes Calendrier, Disponibilités,
+Invitations, Effectifs, Compositions, Résultats, Contrats, Support, Dashboards et
+Exports. La CI backend la lance avant préparation de l’environnement applicatif,
+avec ses paramètres de test forcés ; rapport publié dans l’artefact backend existant.
+
+Validation locale finale : 233 tests réussis, 1 917 assertions, zéro échec/erreur
+ou exclusion, reports/phpunit-pilot.xml. Test hebdomadaire direct : 1 cas,
+61 assertions ; garde d’isolation parent : 1 cas, 4 assertions. Ces cas font partie
+des 233 et ne s’ajoutent pas aux totaux. Pint et PHPStan sans erreur. Aucune
+exécution distante de CI, recette navigateur, PostgreSQL/hébergement ou test
+SMTP réel revendiqué pour ce lot.
+
+REL-001 reste ouvert pour les décisions de périmètre, les prérequis réels, les sept
+jours d’essai avec l’équipe, les mesures d’usage effectives, les anomalies/retests
+et la décision formelle. Aucun lancement, accord ou élargissement automatique.
+Après confirmation du périmètre local, l'utilisateur demande le push de cette
+préparation : livraison en un commit sur staging, après vérification de l'absence
+de divergence avec origin/staging.

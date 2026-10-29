@@ -6279,3 +6279,172 @@ fictives ; cette optimisation locale ne clôture pas la recette représentative.
 Mesures finales : 41 requêtes courantes par lecture People contre 47 avant ;
 pressure sans erreur HTTP et p95 Beta pendant charge 10,20 s contre 18,06 s.
 La cible de 500 ms reste dépassée ; QA-005/REC-34 restent ouverts.
+
+## UCG-REL-001 — Dossier de conduite du premier pilote
+
+REL-001 signifie **faire utiliser l’application pendant une semaine par une équipe**,
+traiter ses anomalies puis décider explicitement de la suite. La préparation et
+la répétition automatiques ci-dessous sont locales et fictives. Elles ne valident
+ni une semaine d’usage réel, ni l’adoption du staff, ni une signature de contrat,
+ni le passage en production. Aucun pilote réel n’est lancé par une commande de test.
+
+Décision utilisateur du 29 octobre 2026 : aucune équipe prête pour le moment,
+« Pas encore : préparer et tester localement ». Le périmètre actuel est donc la
+préparation et la répétition fictive locale décrites ici ; le lancement réel est différé.
+
+### Périmètre et conditions de départ
+
+Le périmètre proposé est une équipe, son manager/coach et un responsable
+administratif habilité : personnes, effectif, disponibilités, calendrier/invitations,
+compositions, matchs/résultats, contrats autorisés, tableaux de bord/exports et support.
+Le jeu, le nombre de joueurs et les modules effectivement retenus doivent être
+confirmés ; la composition fictive à un joueur ne valide pas un règlement sportif.
+Les sponsors, connecteurs externes et publications publiques ne sont pas ajoutés
+implicitement à ce premier essai. Les participants du premier pilote réel doivent
+résider en Tunisie selon CAD-006 ; aucun filtre géographique n’est ajouté au produit.
+
+Dossier de lancement à remplir dans l’espace privé de recette, sans données réelles
+ni preuves administratives dans Git :
+
+| Champ | État initial / valeur à renseigner |
+| --- | --- |
+| Organisation et équipe retenues | À confirmer ; utiliser leurs références internes dans le dossier privé |
+| Jeu, saison, effectif et modules | À confirmer ; aucune liste réelle collectée à ce stade |
+| Sept dates consécutives et fuseau | À confirmer ; les dates des tests sont fictives |
+| Décideur du pilote | L’utilisateur décide ; identité et validation datée à consigner |
+| Manager, coach, administrateur, support et remplaçants | À désigner ; les droits plateforme et les droits métier restent distincts |
+| Données fictives / réelles et sources reprises | Fictives actuellement ; DATA-001/002 et rapprochement à valider avant reprise réelle |
+| Environnement et version testée | Hébergement reporté ; conserver le commit déployé et les rapports de recette |
+| Contrats du périmètre | Accès administratif explicite ; aucun contrat réel rendu visible au staff sportif |
+| Mineurs | Parcours et validation applicables requis avant inclusion réelle ; CAD-004/ACA-005 ne sont pas clôturés ici |
+| Seuils et parcours de réussite | Propositions ci-dessous à approuver avant le démarrage |
+| Accès, support, sauvegarde et récupération | Responsables, procédure et vérifications sur l’environnement retenu |
+| Risques ouverts | QA-005, données, hébergement et autres dépendances consignés ; arbitrage explicite, aucune réserve masquée |
+
+Avant ouverture : vérifier connexion/MFA, sélection et confirmation d’organisation,
+rôles courants, comptes de test, périmètre des personnes et accès aux pièces privées.
+Ne pas affecter automatiquement des droits métier à un propriétaire ou à un
+opérateur support. Aucun compte ne doit recevoir des droits d’approbateur uniquement
+pour contourner une validation indépendante. Réaliser le contrôle de récupération
+prévu par OPS-004/005 sur l’environnement choisi ; la répétition en mémoire ne le remplace pas.
+
+### Programme J1–J7 et preuves attendues
+
+| Jour | Parcours à réaliser par les personnes habilitées | Preuve minimale / résultat attendu |
+| --- | --- | --- |
+| J1 — Démarrage | Connexion/MFA, choix d’organisation, effectif, équipe et planification de la semaine | Périmètre confirmé, effectif rapproché et planning visible seulement aux destinataires autorisés |
+| J2 — Administration | Vérifier uniquement les contrats retenus et leurs responsables/échéances | Accord d’un autre approbateur lorsque requis ; signature reçue distincte de l’activation et de l’éligibilité sportive |
+| J3 — Préparation sportive | Disponibilités, invitations et composition du match | Composition finalisée, membres effectifs et choix affecté au bon match ; anomalies d’invitation examinées |
+| J4 — Rencontre | Confirmer/démarrer le match, saisir les parties et soumettre le résultat | Score cohérent, historique conservé, résultat en attente de validation ; aucun droit inventé |
+| J5 — Validation | Autre personne habilitée vérifie le résultat et les preuves | Résultat approuvé ou contesté ; aucune auto-approbation et délais de validation mesurés |
+| J6 — Support et reprises | Traiter les signalements, retester les corrections, vérifier les accès retirés | Fiches d’incident à jour, retraits effectifs et absence d’exposition hors périmètre |
+| J7 — Bilan | Rapprocher effectif/planning/contrats/résultats, exports autorisés et indicateurs agrégés | Bilan daté, réserves explicites et décision humaine de poursuite, prolongation ou arrêt |
+
+Chaque jour : revue courte des anomalies et incidents, responsable de suivi nommé,
+état des traitements différés et traces techniques utiles. Une absence de signalement
+n’est pas assimilée à une validation. Les étapes non réalisées restent « non testées ».
+Les parcours P0 retenus doivent tous avoir un résultat, un vérificateur et une date.
+
+### Répétition technique isolée
+
+Depuis `back`, avec les dépendances de développement installées :
+
+```powershell
+php vendor/bin/phpunit --configuration phpunit-pilot.xml --no-progress --colors=never --log-junit reports/phpunit-pilot.xml
+```
+
+Le bootstrap remplace les paramètres hérités dans getenv/ENV/SERVER : clé de test,
+SQLite `:memory:`, URL DB vide, caches/sessions array, mail array, journal et broadcast
+null. Il utilise un chemin de cache de configuration aléatoire absent et un token
+de stockage de test distinct. Il ne migre pas la base du projet. Les suites existantes
+conservent leurs fakes de stockage/queue/transport ; le nouveau scénario interdit
+le HTTP sortant et neutralise queues, mails et notifications.
+
+La semaine fictive traverse les vrais endpoints Laravel, Form Requests, services,
+repositories et autorisations : une équipe et son membre, sept activités, contrat
+approuvé par un autre compte puis déclaré signé/activé, composition finalisée et
+affectée, score et résultat validé par un autre acteur, refus de contrat sportif,
+référence inter-tenant et droit calendrier retiré. L’horloge est déplacée sur sept
+jours ; aucune semaine réelle ne s’écoule pendant ces quelques secondes de test.
+
+La sélection de régression couvre aussi disponibilités, invitations, effectifs,
+compositions d’équipe/de match, résultats, contrats, accès support temporaires,
+tableaux de bord et exports. PilotIsolationTest relance la semaine dans un enfant
+avec une base/cache/configuration hérités incompatibles : aucun accès SQL dans le
+parent et aucun fichier de base hérité créé. Le rapport JUnit donne les résultats
+techniques ; aucune réussite ne donne automatiquement un accord de lancement ou de généralisation.
+La CI backend exécute cette sélection et publie le rapport via l’artefact backend existant.
+
+### Registre d’anomalies et traitement du support
+
+Réutiliser le canal privé de support et les procédures de
+[gestion des incidents](docs/procedures-incident-support.md). Fiche à compléter pour
+chaque anomalie, y compris après correction :
+
+| Champ | Contenu attendu |
+| --- | --- |
+| Référence | Identifiant de suivi sans nom de personne, par exemple REL-I-001 |
+| Date / version / parcours | Horodatage, commit déployé, J1–J7 et étape concernée |
+| Gravité et impact | Critique, bloquante, majeure ou mineure ; personnes/parcours affectés sous forme de volumes |
+| Reproduction | Étapes minimales, attendu et observé ; preuve technique expurgée et request ID si utile |
+| Affectation | Responsable et suppléant ; cible de résolution convenue, sans SLA inventé |
+| Traitement | Nouveau → pris en charge → corrigé → retesté/clos, ou rouvert après échec |
+| Correction / retest | Commit, environnement/version retestés, vérificateur, date et résultat |
+| Décision | Contournement autorisé éventuel, arrêt/reprise et réserve signée si applicable |
+
+Accès indu, mélange de tenants, altération/perte de données ou impossibilité d’un
+parcours P0 : suspendre le périmètre affecté et appliquer la procédure d’incident.
+Ne pas copier de contrat, pièce d’identité, secret, token, nom ou coordonnées dans
+les logs partagés. L’opérateur support utilise ses actions explicitement autorisées,
+limitées dans le temps et auditées ; il n’endosse pas le rôle d’un utilisateur.
+Une correction livrée n’est pas une anomalie close sans retest probant. Un incident
+critique ou bloquant ouvert interdit de présenter le pilote comme accepté.
+
+### Mesure d’usage agrégée et bilan
+
+Les cibles suivantes viennent du cahier des charges et restent des propositions
+à valider. Collecte réservée au bilan du pilote, avec compteurs agrégés, période,
+fuseau, périmètre et date de calcul ; pas de liste nominative ni de contenu métier
+privé dans le rapport de synthèse. Les tableaux de bord existants restent soumis aux
+droits métier. Les exports détaillés éventuels restent privés et limités aux habilités.
+
+| Indicateur | Numérateur / dénominateur | Cible proposée |
+| --- | --- | --- |
+| Effectif renseigné | Personnes vérifiées / personnes attendues dans l’équipe | 100 % |
+| Planning couvert | Activités retrouvées au calendrier / activités du planning réel | Au moins 90 % |
+| Contrats suivis | Contrats autorisés avec responsable et échéance / contrats actifs retenus | 100 % |
+| Résultats validés sous 48 h | Matchs officiels validés dans le délai / matchs officiels terminés concernés | Au moins 95 % |
+| Adoption hebdomadaire du staff | Comptes distincts du staff ayant réalisé un usage retenu / comptes du staff attendus | Au moins 80 % |
+| Visibilité et isolation | Incidents confirmés du périmètre | Zéro accès indu ou mélange |
+
+Ne pas additionner les utilisateurs distincts quotidiens pour déduire les utilisateurs
+uniques de la semaine. Définir l’événement d’usage retenu avant la mesure ; connexion
+seule, appel automatique ou action du compte de test ne prouvent pas une adoption.
+La répétition fictive ne collecte ni n’invente des usages réels. Ne pas réutiliser
+implicitement le journal d’audit comme une télémétrie nominative. Un rapprochement
+par le responsable habilité peut alimenter les seuls totaux du bilan.
+
+Dénominateur nul : indiquer « non applicable » avec justification et accord du
+décideur, jamais 100 % par défaut. Donnée manquante : « non mesuré ». Pour le délai
+de résultat, utiliser les horodatages de fin de match et de validation, sans assimiler
+la date de saisie tardive à la fin réelle. Les objectifs non applicables ou non mesurés
+restent visibles dans le bilan ; aucun export n’autorise une généralisation automatique.
+
+### Procès-verbal de fin de pilote
+
+À compléter uniquement après la semaine réelle dans le dossier privé :
+
+- organisation/équipe, jeu, dates et fuseau, version(s) effectivement utilisées ;
+- parcours P0 exécutés, preuves et résultats, avec les étapes non testées ;
+- totaux des indicateurs, formules, sources autorisées et cibles approuvées ;
+- incidents par gravité et état, retests, réserves et risques encore ouverts ;
+- état de la récupération, des traitements différés et des accès de fin de pilote ;
+- avis du manager/coach, de l’administrateur et du responsable support ;
+- décision du décideur : **poursuivre sur le même périmètre**, **prolonger avec actions**,
+  **arrêter**, ou **généraliser sur un périmètre expressément défini** ;
+- identité du décideur, date, justification, éventuelles conditions et accord formel.
+
+État initial de la décision : **non prise**. Les parcours P0 non validés et les
+anomalies critiques/bloquantes non closes empêchent l’acceptation REL-001. Une
+extension ne résout pas automatiquement QA-005, DATA-001/002, CAD-004/006 ou REL-002.
+L’hébergement, l’équipe, les dates et les participants réels restent à confirmer.

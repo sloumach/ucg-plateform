@@ -1932,6 +1932,20 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / L
 - **Périmètre** : une équipe pilote, semaine sportive complète, contrats autorisés, support et collecte d’usage agrégée.
 - **Acceptation** : parcours P0 validés, anomalies critiques ou bloquantes fermées et décision de généralisation formalisée.
+- **Préparation et répétition (29/10/2026)** : dossier complet dans le README :
+  périmètre proposé, conditions de départ, programme J1–J7, rôles à nommer,
+  matrice de preuves, registre d'anomalies/retests, support, indicateurs agrégés et
+  procès-verbal de décision. Scénario HTTP fictif sur sept jours simulés, une
+  équipe, planning, composition finalisée, contrat avec approbateur distinct et
+  résultat validé indépendamment ; refus d'accès et retrait de droit vérifiés.
+  Suite dédiée forcée en SQLite mémoire et test d'environnement parent hostile,
+  régression P0/support/reporting/exports : 233 tests réussis, 1 917 assertions,
+  zéro exclusion ; Pint/PHPStan verts. CI enrichie, sans prétention de CI distante
+  exécutée. Aucun déploiement, collecte d'usage réelle ou accord métier automatique.
+  **REL-001 reste ouvert** : équipe/dates/modules à confirmer, hébergement reporté,
+  semaine réelle, anomalies réelles et décision formelle non réalisés. L'utilisateur
+  confirme : « Pas encore : préparer et tester localement ». La préparation locale
+  est réalisée ; aucun pilote réel à lancer dans le périmètre actuel.
 
 ### UCG-REL-002 — Préparer la mise en production
 

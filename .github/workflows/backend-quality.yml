@@ -67,6 +67,9 @@ jobs:
           cat reports/composer-audit.json
           exit "$audit_status"
 
+      - name: Rehearse fictitious REL-001 pilot week with isolated regression
+        run: php vendor/bin/phpunit --configuration phpunit-pilot.xml --no-progress --colors=never --log-junit reports/phpunit-pilot.xml
+
       - name: Prepare Laravel environment
         run: |
           cp .env.example .env
