@@ -1801,6 +1801,26 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / L
 - **Périmètre** : 500 comptes, 100 actifs simultanés, 100 000 parties, 2 000 visiteurs publics et charges asymétriques.
 - **Acceptation** : p95 mesuré, nombre de requêtes contrôlé et autres tenants protégés pendant les traitements lourds.
+- **Reprise prudente (29/10/2026)** : diagnostic isolé de résolution PDO et de la
+  première requête, répartition des lectures simultanées côté client par serveur.
+  En-têtes absents/invalides refusés et empreintes suivies revérifiées en fin de
+  phases. 20 tests Node, lint, Pint et PHPStan verts. Profil stabilisé : 300
+  lectures réussies, aucun refus, sources suivies inchangées et nettoyage confirmé ;
+  cible encore refusée sur la page de 100 personnes (p95 524,60 ms pendant charge).
+  Connexion incluse dans la première requête, sans préchauffage ni modification
+  applicative ; aucun gain de performance attribué à cette instrumentation.
+  Pressure final : 597 lectures réussies, 3 000 créations et trois exports terminés,
+  intégrité ciblée, sources suivies et nettoyage conformes. P95 Beta pendant charge
+  15,79 s, dont résidu hors bootstrap/traitement au p95 15,24 s ; jusqu'à 26 lectures
+  simultanées côté client par serveur séquentiel. Aucun gain global établi.
+  Résultats détaillés et limites dans etat-projet.md. **QA-005/REC-34 ouverts**.
+- **Trois lots restants demandés en un commit (29/10/2026)** : (1) topologie HTTP
+  concurrente, générateur séparé et Redis/Horizon ; (2) corrections justifiées par
+  les mesures de cette topologie puis comparaison à charge identique ; (3) recette
+  prolongée, 100 sessions et 2 000 visiteurs publics applicables. Non exécutés :
+  hébergement reporté, moteur Docker indisponible, environnement WSL incomplet et
+  PHP Windows sans pcntl/posix. Le commit du diagnostic local ne clôt aucun de ces
+  lots ; aucune accélération ou recette représentative n'est revendiquée.
 - **Lectures et diagnostic (27/10/2026)** : snapshot local pour les filtres/colonnes
   People, projection fraîche après lecture, accès de base sans doublon dans la
   projection. Lectures courantes 47 → 41 requêtes SQL, budgets de services et

@@ -5,8 +5,22 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 28 octobre 2026.
-- Tâche courante : **UCG-DATA-002 — reprise fictive isolée, un seul commit demandé**.
+- Dernière mise à jour : 29 octobre 2026.
+- Tâche courante : **UCG-QA-005 — diagnostic prudent des connexions et du banc local**.
+  Instrumentation limitée aux fixtures et au lanceur de charge : résolution PDO
+  paresseuse, première requête, lectures simultanées par serveur. Métriques
+  manquantes refusées, empreintes suivies contrôlées en fin de phases. Aucun
+  changement applicatif, quota ou volume réduit. Résultats et limites dans la
+  section du 29 octobre ci-dessous. Pressure final : 597 lectures réussies,
+  3 000 créations et trois exports, intégrité/nettoyage conformes ; p95 Beta
+  15,79 s sous charge, cible non tenue. Aucun gain global démontré. 20 tests Node,
+  lint/Pint/PHPStan verts ; hébergement toujours différé, QA-005 reste ouvert.
+  L'utilisateur demande ensuite un commit unique et un push pour les trois lots
+  restants. Vérification d'exécution : moteur Docker indisponible, Horizon non
+  exécutable sur le PHP Windows sans pcntl/posix, exécutables Node/Redis/serveur
+  concurrent non trouvés dans le PATH d'Ubuntu WSL. Livraison du diagnostic local
+  autorisée ; les trois lots ne sont pas déclarés réalisés.
+- Lot précédent : **UCG-DATA-002 — reprise fictive isolée**, commit 3bb43eb.
   Commande `data:rehearse`, services et imports existants exécutés dans un enfant
   SQLite en mémoire, disque privé de test, queues/mails/notifications neutralisés.
   Cinq contrôles obligatoires : chaîne complète, reprise et doublons, rejets et
@@ -8892,3 +8906,132 @@ symbolique Windows), 580 assertions ; suite dédiée 5/5, 137 assertions. Total
 distinct : 148 cas, 147 réussites, 1 exclusion, 717 assertions. Pint et PHPStan verts.
 Aucune prétention de suite complète ou de qualification PostgreSQL pour ce nouveau
 lot. Livraison demandée en un seul commit local ; aucun push demandé.
+
+## UCG-QA-005 — Connexions et diagnostic du banc local (29 octobre 2026)
+
+L’utilisateur autorise une reprise prudente de QA-005 après DATA-002. Checkout
+initial propre sur staging, commit 3bb43eb ; aucun commit ni push demandé pour ce
+nouveau lot. L’hébergement reste différé. Toutes les charges utilisent uniquement
+les données fictives et les clusters PostgreSQL 17 jetables du lanceur existant.
+
+Le dernier résultat antérieur pertinent reste celui du 27 octobre : p95 Beta
+10,20 s sous pression et zéro erreur HTTP. La cible de 500 ms demeure ouverte.
+L’attente hors bootstrap et traitement instrumentés est déjà majoritaire ; les
+quatre processus HTTP sont des serveurs PHP de développement séquentiels.
+
+Le nouveau diagnostic conserve la résolution paresseuse du PDO dans la première
+requête, en enveloppant seulement le resolver déjà configuré dans la fixture
+isolée. Il mesure connectionMs, sans préchauffage ni changement de connecteur,
+authentification ou configuration de production. firstQueryMs est la première
+requête observée après bootstrap. Ces temps sont compris dans sqlMs et handlerMs ;
+ils ne s’additionnent pas et ne sont pas retranchés une seconde fois du résidu.
+Zéro connexion instrumentée ne qualifie pas une connexion ouverte au bootstrap.
+
+Les lectures mesurées portent aussi l’indice de leur serveur généré et le nombre
+de lectures simultanées côté client vers ce serveur au moment du départ. Ce
+compteur inclut les lectures Alpha bruyantes, mais pas les requêtes de préparation
+ou de suivi des traitements. Il ne mesure pas directement une file serveur.
+Les refus et erreurs restent dans les centiles globaux et par serveur.
+
+Correction de fiabilité : les en-têtes blancs ne sont plus convertis implicitement
+en zéro ; les en-têtes absents restent refusés. Les cinq temps doivent être présents, finis et positifs
+ou nuls. Une instrumentation défectueuse fait échouer la lecture et interrompt
+le protocole. Les empreintes des sources suivies sont recalculées après les
+phases ; une modification empêche completed=true. Les rapports passent au schéma 2.
+Les anciens échantillons restent lisibles avec diagnostics absents, sans zéro inventé.
+
+Essais exploratoires conservés sans comparaison de performance :
+
+- load-profile-1793263664493.json : pg_ctl bloqué par le jeton restreint Windows
+  (erreur 87), nettoyage confirmé. Relance du banc isolé autorisée hors sandbox.
+- load-profile-1793263694711.json : protocole terminé et nettoyage confirmé,
+  mais chevauchement avec la préparation du premier pressure ; pas de gain attribué.
+- load-pressure-1793263760306.json : protocole et nettoyage terminés, mais la
+  fixture PHP a changé depuis les empreintes initiales ; essai écarté de la
+  qualification des sources finales. Le nouveau contrôle d’empreintes prévient
+  cette situation lors des prochains essais.
+
+Profil final stabilisé, exécuté après arrêt de l’essai pressure précédent :
+front/reports/load-profile-1793264177978.json. Sources suivies inchangées,
+protocole et nettoyage terminés, 300 lectures Beta réussies et zéro erreur HTTP.
+P95 avant/pendant/après : 449,95 / 491,73 / 425,68 ms. La cible globale reste
+refusée (sortie 1), car la page de 100 personnes pendant charge atteint 524,60 ms.
+Les lectures People restent à 41 requêtes courantes, maximum 45 en récupération.
+
+Pendant charge légère, p95 connexion 170,03 ms et première requête 173,72 ms.
+La différence calculée pour chaque échantillon, puis agrégée au p95, vaut
+6,23 ms ; ce n’est pas une soustraction de centiles. Les sommes sur les mêmes
+100 lectures valent respectivement 5 951,27 et 6 345,16 ms. Une part importante
+du coût attribué par le profil SQL à la première lecture users correspond donc
+à la connexion et à son initialisation, sans preuve d’un défaut d’index sur users.
+Le résidu hors bootstrap/traitement reste faible sur ce profil : p95 8,39 ms
+pendant charge. Un seul appel par serveur est en vol sur ce scénario léger.
+
+Validation locale : 20 tests Node du protocole et de l’environnement réussis,
+aucune exclusion ; lint frontend via le binaire local, Pint et PHPStan verts.
+Le lanceur npm PowerShell a d’abord signalé un accès refusé à son chemin global ;
+le binaire oxlint installé dans le projet a ensuite terminé avec succès.
+Aucune suite PHP complète ni CI distante n’est revendiquée pour ce lot.
+
+Pressure final stabilisé : front/reports/load-pressure-1793264303802.json.
+Aucun autre banc de charge lancé simultanément ; sources suivies inchangées,
+empreintes recontrôlées après l’essai, protocole terminé et nettoyage confirmé.
+500 comptes, 100 sessions, 1 000 matchs et 100 000 parties ; 597 lectures
+réussies (150/297/150), neuf lectures Alpha bruyantes supplémentaires et aucun
+refus quota/contention ni erreur HTTP. Trois imports terminés et 3 000 créations
+(Alpha 500 → 3 500), trois exports terminés à 500 lignes chacun, zéro job échoué
+ou en attente. Empreintes ciblées Beta/Gamma inchangées.
+
+| P95 Beta (ms) | Avant | Pendant | Après |
+| --- | ---: | ---: | ---: |
+| Durée client | 5 590,32 | 15 785,85 | 5 445,75 |
+| Résidu hors bootstrap/traitement | 5 157,24 | 15 237,94 | 5 056,68 |
+| Bootstrap | 205,70 | 290,99 | 182,07 |
+| Traitement | 409,06 | 638,31 | 392,13 |
+| SQL, inclus dans le traitement | 314,74 | 498,65 | 275,44 |
+| Connexion, incluse dans SQL/traitement | 155,26 | 230,37 | 140,80 |
+
+Ces centiles ne s’additionnent pas. Le compteur au départ de chaque lecture monte
+à 24–26 appels simultanés par serveur pendant la charge, contre 12–13 avant/après.
+Le p95 client par serveur pendant charge va de 14,23 à 16,00 s. Cette observation
+est cohérente avec une attente importante dans la topologie de développement,
+sans isoler exclusivement l’admission serveur du transport et du générateur.
+
+La sortie 1 correspond à la cible de 500 ms non atteinte. Aucun gain global n’est
+établi par rapport aux essais antérieurs : 15,79 s reste même supérieur aux 10,20 s
+mesurées le 27 octobre. Aucun changement applicatif ne permet d’attribuer cette
+variation à une optimisation ou régression métier ; le poste reste partagé et
+non contrôlé. Le lot améliore le diagnostic et la fiabilité des preuves, sans
+revendiquer une accélération de production ni masquer un résultat défavorable.
+
+QA-005/REC-34 restent ouverts. Prochaine qualification : topologie HTTP adaptée
+à la concurrence, générateur séparé, Redis/Horizon, durée soutenue et visiteurs
+publics applicables. L’hébergement est toujours différé ; ce lot n’introduit ni
+dépendance, cache de permissions, index spéculatif ou changement de quota. Aucun
+commit ou push effectué pour cette reprise ; changements locaux prêts à relire.
+
+### Mandat suivant : trois lots en un commit et push
+
+Après ce diagnostic, l’utilisateur demande de réaliser les trois lots restants,
+puis un commit unique et un push. Vérification des moyens avant exécution : PHP
+Windows ne possède ni pcntl ni posix, le moteur Docker ne répond pas, et Ubuntu
+WSL ne trouve pas Node, redis-server, nginx ou php-fpm8.5 dans son PATH. Aucun
+nouvel hébergement n’a été fourni et son report n’a pas été levé. Aucun service
+système n’est installé ou modifié pour contourner cette absence.
+
+État honnête du périmètre :
+
+1. Banc représentatif : non exécuté ; il faut une topologie concurrente disponible,
+   un générateur séparé et Redis/Horizon avant de qualifier la capacité.
+2. Corrections ciblées : non engagées sur une hypothèse. La référence représentative
+   doit d’abord distinguer les délais d’admission des défauts applicatifs. Les mesures
+   locales disponibles ne justifient pas un index ou un cache de permissions ajouté.
+3. Recette finale : non exécutée ; charge prolongée, 100 sessions et 2 000 visiteurs
+   publics applicables restent à mesurer, avec intégrité et récupération vérifiées.
+
+La livraison demandée peut donc porter sur le diagnostic et les protections du
+banc local déjà testés, sans annoncer ces trois lots terminés. Nouvelle validation
+avant livraison : tests du protocole/environnement, lint local, Pint et PHPStan ;
+les deux rapports stabilisés ont completed/cleanup/sourcesUnchanged=true et leurs
+empreintes ciblées correspondent encore au checkout. Leur objectif de latence
+reste refusé. Fetch origin/staging effectué avant livraison : aucune divergence.

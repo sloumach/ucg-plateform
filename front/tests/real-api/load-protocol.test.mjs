@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
-import { assertLocalOrigin, backoffMilliseconds, loadProfile, measurementResource, percentile, summarize, validatePeople } from './load-protocol.mjs'
+import { assertLocalOrigin, backoffMilliseconds, loadProfile, measurementResource, percentile, readTimingHeaders, summarize, validatePeople } from './load-protocol.mjs'
 
 test('load runner refuses targets, custom volumes and unknown profiles before creating resources', () => {
   assert.equal(loadProfile([]).name, 'smoke')
@@ -68,6 +68,44 @@ test('application residual is computed per successful sample without subtracting
   assert.equal(report.p95Ms, 5000)
   assert.equal(report.errors, 1)
   assert.equal(summarize([{ status: 200, ok: true, ms: 5, pageSize: 25, queries: 1 }]).diagnostics.outsideApplicationMs, null)
+})
+
+test('connection and first-query diagnostics overlap SQL without reducing the latency residual', () => {
+  const report = summarize([
+    { status: 200, ok: true, ms: 1000, bootstrapMs: 20, handlerMs: 180, sqlMs: 100, connectionMs: 60, firstQueryMs: 65, pageSize: 25, queries: 8 },
+    { status: 429, ok: false, ms: 5000, connectionMs: 900, firstQueryMs: 950, pageSize: 25 },
+  ])
+  assert.deepEqual(report.diagnostics.connectionMs, { samples: 1, p50: 60, p95: 60 })
+  assert.deepEqual(report.diagnostics.firstQueryMs, { samples: 1, p50: 65, p95: 65 })
+  assert.equal(report.diagnostics.outsideApplicationMs.p95, 800)
+  assert.equal(report.p95Ms, 5000)
+  const legacy = summarize([{ status: 200, ok: true, ms: 5, pageSize: 25, queries: 1 }])
+  assert.equal(legacy.diagnostics.connectionMs, null)
+  assert.equal(legacy.diagnostics.firstQueryMs, null)
+  assert.deepEqual(legacy.servers, {})
+})
+
+test('server diagnostics retain failed requests and distinguish concurrent dispatches from a server queue', () => {
+  const report = summarize([
+    { server: 0, outstandingOnServer: 1, status: 200, ok: true, ms: 100, pageSize: 25, queries: 8 },
+    { server: 0, outstandingOnServer: 25, status: 0, ok: false, ms: 30000, pageSize: 25 },
+    { server: 1, outstandingOnServer: 2, status: 429, ok: false, ms: 400, pageSize: 25 },
+  ])
+  assert.deepEqual(report.servers, {
+    0: { requests: 2, errors: 1, p95Ms: 30000, peakOutstandingAtDispatch: 25 },
+    1: { requests: 1, errors: 1, p95Ms: 400, peakOutstandingAtDispatch: 2 },
+  })
+  assert.equal(report.errors, 2)
+})
+
+test('timing instrumentation refuses missing, blank and invalid values instead of coercing them to zero', () => {
+  const headers = { 'x-ucg-query-ms': '80', 'x-ucg-bootstrap-ms': '20', 'x-ucg-handler-ms': '100', 'x-ucg-connection-ms': '0', 'x-ucg-first-query-ms': '50.125' }
+  assert.deepEqual(readTimingHeaders(headers), { sqlMs: 80, bootstrapMs: 20, handlerMs: 100, connectionMs: 0, firstQueryMs: 50.125 })
+  for (const header of Object.keys(headers)) {
+    for (const invalid of [undefined, '', ' ', '-1', 'NaN', 'Infinity', 'abc', null]) {
+      assert.throws(() => readTimingHeaders({ ...headers, [header]: invalid }))
+    }
+  }
 })
 
 test('PHP load fixtures refuse missing profiles, SQLite and foreign roots before boot', () => {

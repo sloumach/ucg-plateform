@@ -13,11 +13,28 @@ $application = require __DIR__.'/load-application.php';
 $kernel = $application->make(Kernel::class);
 $kernel->bootstrap();
 $bootstrapMilliseconds = (microtime(true) - LARAVEL_START) * 1000;
+$database = $application->make(DatabaseManager::class);
+$connection = $database->connection();
+$resolver = $connection->getRawPdo();
+$connectionMilliseconds = 0.0;
+if ($resolver instanceof Closure && $connection->transactionLevel() === 0) {
+    // Preserve lazy connection timing inside the first query, rather than warming it up.
+    $connection->setPdo(function () use ($resolver, &$connectionMilliseconds): PDO {
+        $started = microtime(true);
+        try {
+            return $resolver();
+        } finally {
+            $connectionMilliseconds += (microtime(true) - $started) * 1000;
+        }
+    });
+}
 $queries = 0;
 $queryMilliseconds = 0.0;
+$firstQueryMilliseconds = null;
 $groups = [];
 $profiling = getenv('UCG_LOAD_PROFILE') === 'profile';
-$application->make(DatabaseManager::class)->listen(function (QueryExecuted $event) use (&$queries, &$queryMilliseconds, &$groups, $profiling): void {
+$database->listen(function (QueryExecuted $event) use (&$queries, &$queryMilliseconds, &$firstQueryMilliseconds, &$groups, $profiling): void {
+    $firstQueryMilliseconds ??= $event->time;
     $queries++;
     $queryMilliseconds += $event->time;
     if ($profiling) {
@@ -44,6 +61,8 @@ $response = $kernel->handle($request);
 // Test-only counters: no SQL text, bindings, credentials or response bodies logged.
 $response->headers->set('X-UCG-Query-Count', (string) $queries);
 $response->headers->set('X-UCG-Query-Ms', (string) round($queryMilliseconds, 3));
+$response->headers->set('X-UCG-Connection-Ms', (string) round($connectionMilliseconds, 3));
+$response->headers->set('X-UCG-First-Query-Ms', (string) round($firstQueryMilliseconds ?? 0.0, 3));
 $response->headers->set('X-UCG-Bootstrap-Ms', (string) round($bootstrapMilliseconds, 3));
 $response->headers->set('X-UCG-Handler-Ms', (string) round((microtime(true) - $handlingStarted) * 1000, 3));
 $refusal = $request->attributes->get(LimitTenantRequests::REFUSAL_ATTRIBUTE);

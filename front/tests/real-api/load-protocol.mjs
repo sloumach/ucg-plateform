@@ -36,6 +36,17 @@ export function measurementResource(profile, tenant, iteration) {
   return resources[iteration % resources.length]
 }
 
+export function readTimingHeaders(headers) {
+  return Object.fromEntries(['sql', 'bootstrap', 'handler', 'connection', 'firstQuery'].map((name) => {
+    const header = `x-ucg-${name === 'sql' ? 'query' : name === 'firstQuery' ? 'first-query' : name}-ms`
+    const raw = headers[header]
+    if (typeof raw !== 'string' || raw.trim() === '' || !Number.isFinite(Number(raw)) || Number(raw) < 0) {
+      throw new Error('Missing or invalid load timing instrumentation.')
+    }
+    return [`${name}Ms`, Number(raw)]
+  }))
+}
+
 export function summarize(samples) {
   if (!samples.length) throw new Error('An empty measurement phase cannot pass.')
   const successful = samples.filter((sample) => sample.ok)
@@ -51,7 +62,7 @@ export function summarize(samples) {
       const rows = successful.filter((sample) => sample.pageSize === size)
       return [size, counts.length ? { samples: counts.length, min: Math.min(...counts), max: Math.max(...counts), p95Ms: percentile(rows.map((sample) => sample.ms), 0.95) } : null]
     })),
-    diagnostics: Object.fromEntries(['sqlMs', 'bootstrapMs', 'handlerMs', 'outsideApplicationMs'].map((key) => {
+    diagnostics: Object.fromEntries(['sqlMs', 'connectionMs', 'firstQueryMs', 'bootstrapMs', 'handlerMs', 'outsideApplicationMs'].map((key) => {
       // This residual includes server admission, fixture guards, transport and client work.
       // SQL is already inside handlerMs; it must not be subtracted a second time.
       const values = successful.map((sample) => key === 'outsideApplicationMs'
@@ -59,6 +70,15 @@ export function summarize(samples) {
           ? Math.max(0, sample.ms - sample.bootstrapMs - sample.handlerMs) : null
         : sample[key]).filter(Number.isFinite)
       return [key, values.length ? { samples: values.length, p50: percentile(values, 0.5), p95: percentile(values, 0.95) } : null]
+    })),
+    servers: Object.fromEntries([...new Set(samples.map((sample) => sample.server).filter(Number.isInteger))].map((server) => {
+      const rows = samples.filter((sample) => sample.server === server)
+      const outstanding = rows.map((sample) => sample.outstandingOnServer).filter(Number.isInteger)
+      return [server, {
+        requests: rows.length, errors: rows.filter((sample) => !sample.ok).length,
+        p95Ms: percentile(rows.map((sample) => sample.ms), 0.95),
+        peakOutstandingAtDispatch: outstanding.length ? Math.max(...outstanding) : null,
+      }]
     })),
     resources: Object.fromEntries([...new Set(samples.map((sample) => `${sample.resource ?? 'people'}:${sample.pageSize}`))].map((key) => {
       const rows = samples.filter((sample) => `${sample.resource ?? 'people'}:${sample.pageSize}` === key)

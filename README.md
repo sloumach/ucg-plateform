@@ -6249,11 +6249,29 @@ et de 22 à 16 pour une liste directe avec les deux permissions de lecture.
 Tenant, MFA, scopes, révocations et projection indépendante restent contrôlés.
 
 Le rapport de charge ajoute outsideApplicationMs : résidu calculé par lecture
-réussie entre durée client et bootstrap/traitement mesurés. Il inclut attente et
-admission du serveur, garde-fous des fixtures, transport et travail client ; il
-ne mesure pas exclusivement une file d'attente. Le SQL est inclus dans le
+réussie entre durée client et bootstrap/traitement mesurés. Il peut inclure attente et
+admission du serveur, transport et travail client ; il
+ne mesure pas exclusivement une file d'attente. Les gardes d'isolation exécutées
+pendant le bootstrap sont déjà comprises dans bootstrapMs. Le SQL est inclus dans le
 traitement, sans seconde soustraction. Les erreurs restent dans les mesures
 globales et aucun quota, volume ou seuil n'est réduit.
+
+Les rapports de schéma 2 détaillent aussi connectionMs (résolution paresseuse du
+PDO par le pilote) et firstQueryMs (première requête observée après bootstrap).
+La connexion n'est pas préchauffée : son coût reste compris dans la première
+requête SQL et le traitement. Ces sous-temps se recouvrent et ne s'additionnent
+pas. Une valeur connectionMs de zéro signifie qu'aucune résolution paresseuse
+instrumentée n'a eu lieu pendant le traitement ; elle ne qualifie pas les connexions
+éventuellement ouvertes pendant le bootstrap. Les anciennes mesures restent lisibles,
+avec diagnostics absents plutôt que remplacés par des zéros.
+
+Chaque échantillon porte l'indice du serveur généré et le nombre de lectures
+simultanées côté client vers ce serveur au départ de la requête, y compris la
+lecture Alpha bruyante. Ce nombre ne mesure pas directement une file d'attente
+serveur et exclut les appels de préparation/suivi des imports et exports. Les
+centiles par serveur conservent les refus et erreurs. Une instrumentation manquante
+ou invalide refuse la mesure ; une modification des sources suivies entre le
+démarrage et la fin des phases empêche de déclarer le protocole terminé.
 
 Les références, résultats finaux et limites de qualification sont consignés dans
 [l'état du projet](docs/etat-projet.md). L'hébergement reste différé et les données

@@ -11,7 +11,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { request } from '@playwright/test'
 import { assertHarnessRoot, isolatedEnvironment } from './environment.mjs'
 import { TemporaryPostgres } from './postgresql.mjs'
-import { assertLocalOrigin, backoffMilliseconds, loadProfile, measurementResource, summarize, validatePeople } from './load-protocol.mjs'
+import { assertLocalOrigin, backoffMilliseconds, loadProfile, measurementResource, readTimingHeaders, summarize, validatePeople } from './load-protocol.mjs'
 
 // Validate CLI before creating a directory, starting a process or contacting a target.
 const profile = loadProfile(process.argv.slice(2))
@@ -27,7 +27,7 @@ const reportPath = resolve(front, `reports/load-${profile.name}-${Date.now()}.js
 const git = spawnSync('git', ['-c', `safe.directory=${resolve(front, '..')}`, 'rev-parse', 'HEAD'], { cwd: front, encoding: 'utf8', windowsHide: true })
 const gitStatus = spawnSync('git', ['-c', `safe.directory=${resolve(front, '..')}`, 'status', '--porcelain'], { cwd: front, encoding: 'utf8', windowsHide: true })
 const report = {
-  schemaVersion: 1, ticket: 'UCG-QA-005', profile: profile.name,
+  schemaVersion: 2, ticket: 'UCG-QA-005', profile: profile.name,
   sourceCommit: git.status === 0 ? git.stdout.trim() : null,
   sourceWorkingTreeDirty: gitStatus.status === 0 ? Boolean(gitStatus.stdout.trim()) : null,
   harnessSha256: Object.fromEntries([
@@ -39,10 +39,10 @@ const report = {
     '../back/app/Modules/Tenancy/Presentation/Http/Middleware/LimitTenantRequests.php',
     '../back/app/Modules/People/Application/Services/PersonService.php',
   ].map((path) => [path, createHash('sha256').update(readFileSync(resolve(front, path))).digest('hex')])),
-  startedAt: new Date().toISOString(), completed: false, cleanup: false,
+  startedAt: new Date().toISOString(), completed: false, cleanup: false, sourcesUnchanged: false,
   topology: { database: 'PostgreSQL 17 disposable', httpServer: 'PHP built-in development server', httpProcesses: profile.httpProcesses ?? 2, workers: 1, queue: 'database', cache: 'database', loadModel: 'closed-loop authenticated sessions', tls: false },
   host: { os: platform(), release: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length, memoryBytes: totalmem(), node: process.version },
-  limits: ['local development topology only', 'no public visitors', 'no Redis/Horizon qualification', 'no browser rendering or real-time delivery measurement', 'authentication excluded from measured phases', 'loopback timings include test ownership checks and application bootstrap', 'SQL counters exclude bootstrap, ownership checks and termination', 'load generator and services share an uncontrolled workstation', 'played game fixtures are synthetic and do not certify approved match results'],
+  limits: ['local development topology only', 'no public visitors', 'no Redis/Horizon qualification', 'no browser rendering or real-time delivery measurement', 'authentication excluded from measured phases', 'loopback timings include test ownership checks and application bootstrap', 'SQL counters exclude bootstrap, ownership checks and termination', 'lazy PDO resolution overlaps SQL and handler time; diagnostics must not be added together', 'outstanding requests are client-side dispatch counts, not measured server queue lengths', 'load generator and services share an uncontrolled workstation', 'played game fixtures are synthetic and do not certify approved match results'],
   phases: {}, samples: {},
 }
 let postgres
@@ -50,6 +50,8 @@ let environment
 let fixtureData
 let activeRequests = 0
 let peakRequests = 0
+const serverOrigins = []
+const outstandingByServer = new Map()
 const stop = () => abort.abort()
 process.once('SIGINT', stop)
 process.once('SIGTERM', stop)
@@ -147,13 +149,18 @@ async function actor(origin, email, organization) {
   const selected = (await json('POST', '/api/v1/active-organization', { organization_id: organization })).data
   assert.equal(selected.context.organization_id, organization)
   await json('POST', '/api/v1/active-organization/confirmation', { organization_id: organization, revision: selected.revision, confirm: true })
-  return { context, json: (method, path, data) => json(method, path, data, { 'X-Tenant-Revision': selected.revision }), revision: selected.revision }
+  const server = serverOrigins.indexOf(origin)
+  assert.ok(server >= 0, 'Reader origin must belong to a generated server')
+  return { context, server, json: (method, path, data) => json(method, path, data, { 'X-Tenant-Revision': selected.revision }), revision: selected.revision }
 }
 
 async function peopleSample(actor_, organization, ids, pageSize, resource = 'people', parent = null) {
   const started = performance.now()
   activeRequests++
   peakRequests = Math.max(peakRequests, activeRequests)
+  const server = actor_.server
+  const outstandingOnServer = (outstandingByServer.get(server) ?? 0) + 1
+  outstandingByServer.set(server, outstandingOnServer)
   let response
   let status = 0
   let backoffMs = 0
@@ -171,17 +178,18 @@ async function peopleSample(actor_, organization, ids, pageSize, resource = 'peo
     const payload = await response.json()
     const header = response.headers()['x-ucg-query-count']
     const queries = Number(header)
-    const sqlMs = Number(response.headers()['x-ucg-query-ms'])
-    const bootstrapMs = Number(response.headers()['x-ucg-bootstrap-ms'])
-    const handlerMs = Number(response.headers()['x-ucg-handler-ms'])
-    if (status !== 200 || !header || !Number.isInteger(queries) || queries < 1
-      || [sqlMs, bootstrapMs, handlerMs].some((value) => !Number.isFinite(value) || value < 0)) throw new Error('HTTP or query instrumentation failure')
+    if (status !== 200 || !header || !Number.isInteger(queries) || queries < 1) throw new Error('HTTP or query instrumentation failure')
+    const { sqlMs, bootstrapMs, handlerMs, connectionMs, firstQueryMs } = readTimingHeaders(response.headers())
     validatePeople(payload, ids, pageSize)
-    return { status, ok: true, ms: performance.now() - started, startedMs: started, endedMs: performance.now(), queries, sqlMs, bootstrapMs, handlerMs, pageSize, resource }
+    return { status, ok: true, ms: performance.now() - started, startedMs: started, endedMs: performance.now(), queries, sqlMs, bootstrapMs, handlerMs, connectionMs, firstQueryMs, pageSize, resource, server, outstandingOnServer }
   } catch {
     if (status === 200 || (status === 429 && backoffMs === 0)) abort.abort()
-    return { status, ok: false, ms: performance.now() - started, startedMs: started, endedMs: performance.now(), pageSize, resource, backoffMs, rateRefusal }
-  } finally { activeRequests--; if (response) await response.dispose() }
+    return { status, ok: false, ms: performance.now() - started, startedMs: started, endedMs: performance.now(), pageSize, resource, backoffMs, rateRefusal, server, outstandingOnServer }
+  } finally {
+    activeRequests--
+    outstandingByServer.set(server, outstandingByServer.get(server) - 1)
+    if (response) await response.dispose()
+  }
 }
 
 async function phase(name, readers) {
@@ -240,6 +248,7 @@ try {
   const origins = [`http://127.0.0.1:${alphaPort}`, `http://127.0.0.1:${betaPort}`]
   for (let index = 2; index < (profile.httpProcesses ?? 2); index++) origins.push(`http://127.0.0.1:${await port()}`)
   for (const origin of origins.slice(1)) await start(['-S', new URL(origin).host, 'tests/Fixtures/load-server.php'], { ...environment, APP_URL: origin }, `${origin}/api/v1/system/status`)
+  serverOrigins.push(...origins)
   const alpha = await actor(`http://127.0.0.1:${alphaPort}`, fixture.actors.alpha, fixture.organizations.alpha)
   const beta = await actor(`http://127.0.0.1:${betaPort}`, fixture.actors.beta, fixture.organizations.beta)
   alpha.tenant = 'alpha'
@@ -356,6 +365,8 @@ try {
     && value.errors === 0 && Object.values(value.tenants).every((tenant) => Object.values(tenant.resources).every((size) => size.p95Ms < profile.targetP95Ms)))
     && report.alphaNoise.errors === 0 }
   report.queryGrowth = Object.fromEntries(Object.entries(report.phases).map(([name, phase_]) => [name, phase_.queryCounts[100].max - phase_.queryCounts[25].max]))
+  report.sourcesUnchanged = Object.entries(report.harnessSha256).every(([path, digest]) => createHash('sha256').update(readFileSync(resolve(front, path))).digest('hex') === digest)
+  assert.equal(report.sourcesUnchanged, true, 'Tracked sources changed during the run; measurements cannot qualify these sources')
   report.completed = true
   if (!report.interactiveTarget.metInAllPhases) process.exitCode = 1
 } catch (error) {
