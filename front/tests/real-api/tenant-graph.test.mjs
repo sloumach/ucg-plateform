@@ -18,6 +18,7 @@ test('missing People, Teams, Match and Contract records recover with conflict re
   report.sourcesSha256 = Object.fromEntries(['tenant-graph.test.mjs', 'recovery-lab.mjs', 'recovery.mjs', 'environment.mjs', 'postgresql.mjs',
     '../../../back/tests/Fixtures/tenant-graph.php', '../../../back/tests/Fixtures/RecoveryGraphRepository.php',
     '../../../back/tests/Fixtures/RecoveryGraphJournal.php', '../../../back/tests/Fixtures/recovery.php',
+    '../../../back/tests/Fixtures/RecoveryGraphReplay.php',
     '../../../back/tests/Fixtures/tenant-recovery.php', '../../../back/tests/Fixtures/browser-application.php', '../../../back/tests/Fixtures/browser-postgresql.php']
     .map((path) => [path, digest(readFileSync(new URL(path, import.meta.url)))]))
   const labs = []

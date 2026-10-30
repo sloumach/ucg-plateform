@@ -1426,6 +1426,24 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Périmètre** : export, sélection depuis sauvegarde, réconciliation et procédure de réimport contrôlée.
 - **Acceptation** : récupération sans écraser les mises à jour récentes des autres tenants.
 - **Références CDC** : REC-36.
+- **Livraison de la simulation complète (30/10/2026)** : reconstruction effective
+  d’un contrat approuvé, obligation terminée après approbation, parties/document/
+  version/historique et d’un match validé avec participants, règles, score et preuves.
+  Rejeu sous les gardes SQL normales, dépendances externes ordonnées, empreintes
+  finales de chaque ligne ; refus des historiques/preuves incomplets et auto-approbation,
+  rollback intégral d’un score invalide. Les scénarios existants couvrent les autres
+  données liées, fichiers privés, conflits, droits, journal/clé, gel/purge, crash et
+  reprise. Concurrence réelle de processus SQL/fichiers et préservation Beta/globales.
+  Procédure, commandes et rapports privés en CI disponibles. **Périmètre d’acceptation
+  OPS-005/REC-36 : simulation des données/fichiers sans écrasement des autres tenants.**
+  L’exploitation hébergée, la capacité et l’outil opérateur réel sont des validations
+  de livraison distinctes ; ils ne sont pas revendiqués par ce laboratoire borné.
+  Les entrées ci-dessous retracent les lots antérieurs, désormais complétés.
+- **Validation finale** : trois scénarios PostgreSQL réussis, 41 lignes pour la
+  récupération avancée, 120 tables Beta et 23 globales préservées ; douze contrôles
+  du rapport complet et nettoyage confirmés. Onze tests protocole/isolation, Pint,
+  PHPStan niveau 8 et lint valides. **Implémentation et recette simulée OPS-005/REC-36
+  terminées** ; nouvelle CI à confirmer après livraison. Pas d’import sur base utilisée.
 - **Trois lots regroupés (30/10/2026)** : coordination des applications/reprises
   par verrou de session PostgreSQL tenant, verrou métier repris durant les fichiers ;
   scénario à vrais processus concurrents avec attente Alpha observée dans PostgreSQL,

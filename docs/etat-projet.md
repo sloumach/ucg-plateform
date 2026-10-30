@@ -6,7 +6,22 @@
 ## Point de reprise
 
 - Dernière mise à jour : 30 octobre 2026.
-- Tâche courante : **OPS-005 — concurrence, états protégés et préparation de recette**.
+- Tâche courante : **OPS-005 — finalisation complète de la simulation REC-36**.
+  L’utilisateur demande de terminer toute la tâche. Le CDC exige une simulation
+  de récupération des données/fichiers préservant les autres organisations ;
+  l’hébergement réel n’est pas un critère supplémentaire de clôture de REC-36.
+  RecoveryGraphReplay reconstruit les contrats approuvés, obligations modifiées,
+  documents/historiques et matchs validés/règles/scores/preuves sous les gardes
+  SQL normales. Le scénario couvre désormais leur récupération effective,
+  et non seulement un refus. Historiques/preuves incohérents et auto-approbation
+  refusés ; score invalide : rollback intégral. Les trois scénarios PostgreSQL
+  passent, dont 41 lignes avancées récupérées et douze contrôles dans le rapport
+  complet ; 120 tables Beta et 23 globales préservées, nettoyage confirmé.
+  Implémentation et acceptation locale REC-36 terminées. Nouvelle CI à confirmer
+  après la livraison du commit ; aucune qualification de production revendiquée.
+  Un seul nouveau commit local demandé ; pas de push demandé pour cet ensemble.
+- Lot précédent : **OPS-005 — concurrence, états protégés et préparation de recette**,
+  commit ae2708f poussé avec 0fe99bc sur origin/staging ; CI validée par l’utilisateur.
   L’utilisateur demande les trois lots dans un seul nouveau commit. Verrou de
   session PostgreSQL par organisation entre SQL/fichiers, verrou métier repris
   pendant les fichiers, rendez-vous bornés de fixture et scénario multiprocessus.
@@ -17,8 +32,8 @@
   L’hébergement et les données réelles restent indisponibles : recette externe
   non exécutée et OPS-005/REC-36 ouverts. Validation en fin de document.
 - Lot précédent : **OPS-005 — sûreté des reprises privées après interruption**,
-  commit local 0fe99bc. Le push demandé a été bloqué par le contrôle automatique,
-  qui exige la confirmation explicite de destination/contenu ; aucun push réussi.
+  commit 0fe99bc. Après le premier blocage du contrôle automatique, le push a été
+  explicitement redemandé et a réussi avec ae2708f ; CI validée par l’utilisateur.
   L’utilisateur valide OPS-004 le 30 octobre et autorise le démarrage prudent
   du ticket suivant. Premier complément : refus de reprise avec mauvaise clé
   applicative/source, journal absent/tronqué/altéré et gel après commit SQL.
@@ -9761,3 +9776,59 @@ réparation ciblée 122,09 s, exécutés en parallèle sur cibles distinctes).
 Onze tests de protocole/isolation réussis, zéro exclusion ; Pint, PHPStan
 niveau 8, lint JS et parse YAML Symfony du workflow valides. Aucun ignore ni
 baseline ajouté. Ces durées de laboratoire ne valent pas engagement RPO/RTO.
+
+## OPS-005 — Récupération avancée effective et clôture locale REC-36 (30 octobre 2026)
+
+L’utilisateur demande de terminer toute OPS-005, après validation de la CI du
+commit ae2708f. Correction du périmètre de suivi : le CDC REC-36 demande une
+simulation de récupération logique, avec données/fichiers réconciliés sans
+écraser les mises à jour des autres organisations. Les validations hébergées
+précédemment ajoutées au suivi restent des conditions d’exploitation, pas un
+critère supplémentaire de cette simulation. Les mentions historiques « ouvert »
+des lots précédents sont remplacées par le résultat de cette section.
+
+RecoveryGraphReplay, classe de fixture hors bindings applicatifs, reconstruit
+les agrégats manquants sous leurs gardes SQL normales. Le plan regroupe leurs
+dépendances internes et conserve les FK externes pour ordonner les lots.
+Un contrat repart de son état initial, récupère ses enfants et transitions,
+conserve les acteurs d’approbation et rejoint l’état/version archivé. La version
+courante après une modification d’obligation est distinguée de celle de la dernière
+transition. Un match repart de proposed, récupère participants, transitions,
+règles et scores, puis insère chaque preuve avant sa transition de résultat.
+Les valeurs finales de chaque ligne sont comparées à l’archive authentifiée.
+
+Les enfants soumis à une condition d’état sont réessayés uniquement après
+rollback de leur savepoint ; aucun déclencheur, contrainte, garde ou contrôle
+tenant n’est désactivé. Un enfant restant impossible à insérer annule toute la
+transaction. Un score archivé invalide démontre ce rollback de tous les agrégats,
+sans marqueur ni fichier installé ; son journal est conservé dans la racine
+temporaire pour examen. Un historique/preuve incomplet et une auto-approbation
+sont refusés avant mutation. La récupération conserve la provenance de l’archive,
+elle ne crée pas une nouvelle approbation imputée à l’opérateur.
+
+Le scénario de qualification récupère effectivement **41 lignes manquantes** :
+personne/profil/compte/période, équipe/affectation/composition, contrat approuvé,
+obligation terminée après approbation, parties/document/version/transitions,
+match validé et participants/règles/score/soumission/approbation/historiques liés.
+Les données récentes de Beta, les tables globales et fichiers privés sont préservés.
+Concurrence SQL/fichiers, attente du rédacteur Alpha, progression Beta, refus des
+récupérations concurrentes, arrêt après SQL et reprise sans doublon sont contrôlés.
+Le scénario de graphe conserve en plus les tests d’arrêt après fichier, journal
+et clés indisponibles, gels/purge, dérive post-commit et fichier inattendu.
+
+Validation finale : **3 scénarios PostgreSQL réussis, zéro échec/exclusion**,
+qualification avancée 219,89 s, graphe/reprises 267,94 s, réparation ciblée 97,15 s,
+exécutés avec concurrence bornée à deux scénarios. Rapport complet : douze contrôles,
+41 lignes, 120 tables Beta, 23 globales et nettoyage des quatre clusters attestés ;
+rapport graphe : 22 contrôles et 16 lignes. Empreintes de treize fichiers source
+revérifiées pour chacun de ces deux rapports. Onze tests protocole/isolation
+réussis, Pint et PHPStan niveau 8 valides, lint JS valide. Aucun ignore, baseline,
+migration ni dépendance ajoutés. Les rapports restent privés et ignorés par Git.
+
+**Implémentation et recette simulée OPS-005/REC-36 terminées.** Commandes dans
+README et procédure OPS-005-FINAL actualisées ; CI existante raccordée à la version
+complète du scénario. Un seul nouveau commit local demandé ; pas de push demandé.
+La nouvelle CI distante reste à confirmer après livraison. Aucun moteur opérateur
+sur base utilisée, import réel ou accord de production n’est revendiqué. Les
+mesures RPO/RTO hébergées, panne machine/perte définitive de clés et qualification
+des futurs volumes/parcours restent dans l’exploitation et la mise en service.

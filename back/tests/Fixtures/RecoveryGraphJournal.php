@@ -156,9 +156,8 @@ final readonly class RecoveryGraphJournal
                 if ($this->checkpoint !== null) {
                     ($this->checkpoint)('sql');
                 }
-                foreach ($current['ordered'] as $key) {
-                    $record = $current['missing'][$key];
-                    $this->db->table($record['table'])->insert($record['data']);
+                foreach ($current['batches'] as $batch) {
+                    $this->graph->insertBatch(array_intersect_key($current['missing'], array_flip($batch)));
                     if ($fault === 'rollback') {
                         throw new RuntimeException('GRAPH_ROLLBACK');
                     }

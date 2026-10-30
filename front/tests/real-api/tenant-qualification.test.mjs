@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -20,13 +20,13 @@ async function waitFor(check, signal) {
   }
 }
 
-test('concurrent recovery serializes Alpha writes, preserves Beta and refuses genuine protected states', { timeout: 600_000 }, async (context) => {
+test('complete tenant recovery reconstructs approved contracts and validated scores while preserving concurrent Beta writes', { timeout: 600_000 }, async (context) => {
   const started = performance.now()
   const report = { ticket: 'UCG-OPS-005', lots: ['concurrency', 'protected-states', 'hosted-recipe'], status: 'failed',
     synthetic: true, productionQualified: false, hostedRecipeExecuted: false, cleanup: false, checks: {} }
   report.sourcesSha256 = Object.fromEntries(['tenant-qualification.test.mjs', 'recovery-lab.mjs', 'recovery.mjs',
     'environment.mjs', 'postgresql.mjs', '../../../back/tests/Fixtures/tenant-graph.php',
-    '../../../back/tests/Fixtures/RecoveryGraphRepository.php', '../../../back/tests/Fixtures/RecoveryGraphJournal.php',
+    '../../../back/tests/Fixtures/RecoveryGraphRepository.php', '../../../back/tests/Fixtures/RecoveryGraphJournal.php', '../../../back/tests/Fixtures/RecoveryGraphReplay.php',
     '../../../back/tests/Fixtures/tenant-recovery.php', '../../../back/tests/Fixtures/recovery.php',
     '../../../back/tests/Fixtures/browser-application.php', '../../../back/tests/Fixtures/browser-postgresql.php']
     .map((path) => [path, digest(readFileSync(new URL(path, import.meta.url)))]))
@@ -54,7 +54,7 @@ test('concurrent recovery serializes Alpha writes, preserves Beta and refuses ge
     const complete = await backup(origin, backupKey, appKey)
     const selection = await startRecoveryLab(appKey, abort, labs)
     await restore(selection, complete, backupKey, appKey)
-    const packet = await graph(selection, 'export-alpha')
+    const draftPacket = await graph(selection, 'export-alpha')
     await selection.postgres.stop()
 
     assert.deepEqual(await graph(origin, 'protected'), { contract: 'approved', match: 'validated', independent: true })
@@ -63,6 +63,11 @@ test('concurrent recovery serializes Alpha writes, preserves Beta and refuses ge
     await restore(protectedSelection, protectedBackup, backupKey, appKey)
     const protectedMatch = await graph(protectedSelection, 'export-alpha')
     const protectedContract = await graph(protectedSelection, 'export-alpha', undefined, { UCG_GRAPH_SELECTION: 'without-matches' })
+    const invalidPackets = []
+    for (const fault of ['history', 'result-proof', 'self-approval']) {
+      invalidPackets.push(await graph(protectedSelection, 'export-alpha', undefined, { UCG_GRAPH_FAULT: fault }))
+    }
+    const invalidGame = await graph(protectedSelection, 'export-alpha', undefined, { UCG_GRAPH_FAULT: 'game-order' })
     assert.ok(protectedMatch.source.rows.matches.some((row) => row.status === 'validated'))
     assert.equal(protectedContract.source.rows.contracts[0].status, 'approved')
     assert.equal(protectedMatch.source.rows.match_result_events.length, 2)
@@ -71,6 +76,8 @@ test('concurrent recovery serializes Alpha writes, preserves Beta and refuses ge
     await origin.postgres.stop()
 
     await tenant(current, 'damage')
+    const packet = protectedMatch
+    assert.equal(packet.source.tenant, draftPacket.source.tenant)
     const alphaPath = `tenants/${packet.source.tenant}/artifacts/${packet.source.files[0].id}`
     const destination = `${current.root}/storage/app/private/${alphaPath}`
     assertRecoveryRoot(current.root, current.token)
@@ -78,13 +85,22 @@ test('concurrent recovery serializes Alpha writes, preserves Beta and refuses ge
     const before = await tenant(current, 'inspect')
     const beforeFiles = privateFiles(current.root, current.token)
     const request = { packet, confirmation: packet.source.tenant, preserve: [] }
-    for (const archive of [protectedMatch, protectedContract]) {
+    for (const archive of invalidPackets) {
       await assert.rejects(graph(current, 'plan', { ...request, packet: archive }), /GRAPH_PROTECTED_STATE/)
       assert.deepEqual(await tenant(current, 'inspect'), before)
       assert.deepEqual(privateFiles(current.root, current.token), beforeFiles)
       assert.equal(existsSync(`${current.root}/graph-journal.enc`), false)
     }
-    report.checks.genuineApprovedContractAndValidatedMatchRefused = true
+    report.checks.incompleteHistoryAndProofOrSelfApprovalRefused = true
+    const invalidRequest = { ...request, packet: invalidGame }
+    const invalidReview = await graph(current, 'plan', invalidRequest)
+    const invalidApproved = await graph(current, 'plan', { ...invalidRequest, preserve: invalidReview.plan.review.conflicts })
+    await assert.rejects(graph(current, 'apply', invalidApproved), /GRAPH_FIXTURE_FAILED|GRAPH_REPLAY_INCOMPLETE/)
+    assert.deepEqual(await tenant(current, 'inspect'), before, 'An invalid archived score must roll back all recovered aggregates.')
+    assert.deepEqual(privateFiles(current.root, current.token), beforeFiles)
+    assertRecoveryRoot(current.root, current.token)
+    renameSync(`${current.root}/graph-journal.enc`, `${current.root}/graph-refused-journal.enc`)
+    report.checks.invalidArchivedScoreRollsBackEveryAggregate = true
     const review = await graph(current, 'plan', request)
     request.preserve = review.plan.review.conflicts
     const stale = await graph(current, 'plan', request)
@@ -142,6 +158,9 @@ test('concurrent recovery serializes Alpha writes, preserves Beta and refuses ge
       report.checks[`${phase}PhaseBetaWriterProgressed`] = true
     }
     assert.deepEqual(await graph(current, 'verify'), { graph: true, decryption: true, historyProtected: true, markers: 1 })
+    assert.deepEqual(await graph(current, 'verify-protected'), { contract: 'approved', match: 'validated', independent: true,
+      completedObligations: 1, scoreGames: 1, resultEvents: 2, contractTransitions: 3, historyProtected: true })
+    report.checks.genuineApprovedContractAndValidatedMatchRecovered = true
     const after = await tenant(current, 'inspect')
     await graph(current, 'resume')
     assert.deepEqual(await tenant(current, 'inspect'), after, 'Repeated resume must not duplicate rows, audit or markers.')

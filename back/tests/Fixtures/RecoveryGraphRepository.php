@@ -32,7 +32,7 @@ final readonly class RecoveryGraphRepository
 
     /** @param array<string, mixed> $source
      * @param  list<string>  $preserve
-     * @return array{missing:array<string,array{table:string,data:array<string,mixed>}>,conflicts:list<string>,derived:list<string>,unresolved:list<string>,ordered:list<string>,current_hash:string}
+     * @return array{missing:array<string,array{table:string,data:array<string,mixed>}>,conflicts:list<string>,derived:list<string>,unresolved:list<string>,ordered:list<string>,batches:list<list<string>>,current_hash:string}
      */
     public function plan(string $tenant, array $source, array $preserve): array
     {
@@ -91,12 +91,6 @@ final readonly class RecoveryGraphRepository
                     if (DatabasePortabilityRepository::TABLES[$table] === 'id' && $this->db->table($table)->where('id', $row['id'])->exists()) {
                         throw new RuntimeException('GRAPH_IDENTITY_COLLISION');
                     }
-                    if (($table === 'contracts' && ($row['status'] ?? null) !== 'draft')
-                        || ($table === 'matches' && ($row['status'] ?? null) !== 'proposed')
-                        || ($table === 'contract_transitions' && (($row['from_status'] ?? null) !== null || ($row['to_status'] ?? null) !== 'draft'))
-                        || in_array($table, ['contract_document_signatures', 'contract_amendment_approvals', 'contract_approved_copies', 'match_result_events'], true)) {
-                        throw new RuntimeException('GRAPH_PROTECTED_STATE');
-                    }
                     $missing[$key] = ['table' => $table, 'data' => $row];
                 }
             }
@@ -151,6 +145,7 @@ final readonly class RecoveryGraphRepository
                 }
             }
         }
+        $batches = RecoveryGraphReplay::batches($missing, $dependencies);
         $ordered = [];
         while ($dependencies !== []) {
             $ready = array_keys(array_filter($dependencies, static fn (array $parents): bool => $parents === []));
@@ -168,7 +163,13 @@ final readonly class RecoveryGraphRepository
         }
 
         return ['missing' => $missing, 'conflicts' => $conflicts, 'derived' => $derived, 'unresolved' => array_values(array_diff($conflicts, $preserve)),
-            'ordered' => $ordered, 'current_hash' => self::hash($current)];
+            'ordered' => $ordered, 'batches' => $batches, 'current_hash' => self::hash($current)];
+    }
+
+    /** @param array<string,array{table:string,data:array<string,mixed>}> $records */
+    public function insertBatch(array $records): void
+    {
+        (new RecoveryGraphReplay($this->db))->insert($records);
     }
 
     /** @param array<string, mixed> $row */

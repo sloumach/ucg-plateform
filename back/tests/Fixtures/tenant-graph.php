@@ -41,7 +41,7 @@ use Tests\Fixtures\RecoveryGraphJournal;
 use Tests\Fixtures\RecoveryGraphRepository;
 
 if (getenv('UCG_RECOVERY_FIXTURE') !== 'v1' || getenv('UCG_BROWSER_ENGINE') !== 'pgsql'
-    || ! in_array($argv[1] ?? '', ['base', 'graph', 'protected', 'export-alpha', 'export-beta', 'plan', 'apply', 'rollback', 'crash-after-sql', 'resume', 'crash-after-file', 'hold', 'unhold', 'alpha-change', 'beta-change', 'verify', 'changed-row-probe', 'purge-marker', 'concurrency-status'], true)) {
+    || ! in_array($argv[1] ?? '', ['base', 'graph', 'protected', 'export-alpha', 'export-beta', 'plan', 'apply', 'rollback', 'crash-after-sql', 'resume', 'crash-after-file', 'hold', 'unhold', 'alpha-change', 'beta-change', 'verify', 'verify-protected', 'changed-row-probe', 'purge-marker', 'concurrency-status'], true)) {
     throw new RuntimeException('Owned PostgreSQL graph fixture required.');
 }
 try {
@@ -106,6 +106,9 @@ try {
         $contract = $contracts->transition($context, $contract->id, ['version' => $contract->version, 'status' => 'in_review']);
         $protectedPhase = 'GRAPH_PROTECTED_CONTRACT_APPROVAL';
         $contract = $contracts->transition($reviewer, $contract->id, ['version' => $contract->version, 'status' => 'approved']);
+        $obligation = ContractObligation::query()->where('organization_id', $alpha->id)->where('contract_id', $contract->id)->sole();
+        $contract = $contracts->updateObligation($context, $contract->id, $obligation->id,
+            ['contract_version' => $contract->version, 'version' => $obligation->version, 'status' => 'completed']);
         $game = GameCatalogueEntry::query()->where('kind', 'game')->where('key', 'valorant')->sole();
         $other = Person::query()->where('organization_id', $alpha->id)->where('id', '!=', $person->id)->firstOrFail();
         $matches = $app->make(MatchService::class);
@@ -200,6 +203,14 @@ try {
                 break;
             case 'state': $source['rows']['contracts'][0]['status'] = 'approved';
                 break;
+            case 'history': array_pop($source['rows']['contract_transitions']);
+                break;
+            case 'result-proof': array_pop($source['rows']['match_result_events']);
+                break;
+            case 'self-approval': $source['rows']['contracts'][0]['approved_by'] = $source['rows']['contracts'][0]['prepared_by'];
+                break;
+            case 'game-order': $source['rows']['match_game_instances'][0]['number'] = 2;
+                break;
             case 'duplicate': $source['rows']['person_game_profiles'][] = $source['rows']['person_game_profiles'][0];
                 break;
             case 'scope': $source['rows']['people'][0]['organization_id'] = $beta->id;
@@ -269,6 +280,29 @@ try {
         }
         echo json_encode(['graph' => true, 'decryption' => true, 'historyProtected' => true,
             'markers' => $db->table('tenant_portability_operations')->where('organization_id', $alpha->id)->where('kind', 'recovery')->count()], JSON_THROW_ON_ERROR);
+        exit;
+    }
+    if ($operation === 'verify-protected') {
+        $contract = ContractRecord::query()->where('organization_id', $alpha->id)->sole();
+        $match = MatchRecord::query()->where('organization_id', $alpha->id)->where('status', 'validated')->sole();
+        foreach (['match_result_events', 'match_game_instances', 'match_score_rules', 'match_status_events'] as $table) {
+            try {
+                $db->transaction(function () use ($db, $table, $alpha): void {
+                    $db->table($table)->where('organization_id', $alpha->id)->delete();
+                    throw new RuntimeException('GRAPH_HISTORY_DISABLED');
+                });
+            } catch (QueryException $exception) {
+                if (! in_array($exception->getCode(), ['23514', 'P0001'], true)) {
+                    throw $exception;
+                }
+            }
+        }
+        echo json_encode(['contract' => $contract->status, 'match' => $match->status,
+            'independent' => $contract->approved_by !== $contract->prepared_by,
+            'completedObligations' => $db->table('contract_obligations')->where('organization_id', $alpha->id)->where('status', 'completed')->count(),
+            'scoreGames' => $db->table('match_game_instances')->where('organization_id', $alpha->id)->count(),
+            'resultEvents' => $db->table('match_result_events')->where('organization_id', $alpha->id)->count(),
+            'contractTransitions' => $db->table('contract_transitions')->where('organization_id', $alpha->id)->count(), 'historyProtected' => true], JSON_THROW_ON_ERROR);
         exit;
     }
     if ($operation === 'changed-row-probe') {

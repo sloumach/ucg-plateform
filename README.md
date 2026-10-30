@@ -5815,7 +5815,7 @@ les empreintes des sources/de la sauvegarde chiffrée, les durées, contrôles e
 nettoyage, sans identités, contenu de fichier, plan privé ou clé. Le job PostgreSQL
 CI exécute ce test et collecte ce rapport ; son exécution distante reste à valider.
 
-**OPS-005/REC-36 restent ouverts** : cet exercice ne reconstitue pas une organisation
+**Limite du premier exercice, complété par les lots ci-dessous** : il ne reconstitue pas une organisation
 entière perdue, ses références manquantes, contrats/matchs/historiques ou comptes
 globaux. Il ne transforme pas OrganizationRecoveryService (désarchivage des données
 préservées) en moteur d'import. Réconciliation intermodules, gels/effacements
@@ -5861,11 +5861,10 @@ Les compteurs `dashboard_source_versions` sont signalés comme **dérivés** et
 exclus du rejeu : les triggers les régénèrent lors des insertions métier. Cela
 préserve l'invalidation des indicateurs et évite de réintroduire une ancienne
 génération. Le snapshot conserve ces lignes pour l'inventaire, sans les restaurer.
-Les habilitations manquantes, nouveaux liens à un compte global, divergences du
-ledger/quota et états protégés non pris en charge sont refusés. Notamment, les
-contrats manquants doivent être brouillons et les matchs manquants proposés ;
-aucun état avancé n'est obtenu en contournant les triggers. Les modèles de ces
-états et les autres modules nécessitent leur qualification propre.
+Les habilitations manquantes, nouveaux liens à un compte global et divergences du
+ledger/quota sont refusés. Le premier graphe couvre contrats brouillons et matchs
+proposés ; le scénario de qualification ci-dessous reconstruit aussi les contrats
+approuvés et matchs validés avec leurs dépendances, sans désactiver les triggers.
 
 Le paquet sélectionné est authentifié avec une clé éphémère de l'exercice, et le
 plan est signé pour la cible. Le plan fige l'état Alpha actuel, sans figer Beta.
@@ -5929,8 +5928,10 @@ opérateur de production livrée**. Les reprises testées traversent des arrêts
 sous-processus PHP avec le même parent de test et ses clés éphémères disponibles.
 Ni panne machine, perte définitive de clés, durabilité du stockage distant,
 RPO/RTO représentatif ou import de tous les états métier ne sont qualifiés.
-Le complément suivant couvre une concurrence locale bornée. OPS-005/REC-36
-restent ouverts pour les validations avant réel.
+Le complément suivant couvre une concurrence locale bornée et la récupération
+des états avancés. Le critère REC-36 demande une simulation de récupération
+préservant les autres organisations ; la qualification de production relève
+des tickets d’exploitation et de mise en service, distincts.
 
 ### Complément OPS-005 — concurrence, états protégés et recette réelle
 
@@ -5944,11 +5945,29 @@ L’essai crée quatre clusters temporaires attestés et des données fictives. 
 paquets du graphe et des états avancés sont lus depuis des sauvegardes restaurées.
 Un contrat passe par la revue puis l’approbation d’un autre acteur. Un second
 match passe par confirmation, saisie des scores, soumission et validation indépendante.
-Les deux archives avancées sont refusées sans mutation sur une cible où ces
-dossiers sont absents. Cela vérifie une limite explicite de l’importeur de
-laboratoire, pas la récupération complète de contrats approuvés ou matchs validés.
-Les transitions contractuelles avancées, signatures, approbations/copies et
-événements de résultat manquants sont également exclus du rejeu automatique.
+Le contrat reçoit aussi une obligation terminée après approbation : sa version
+courante diffère donc de celle du dernier changement d’état. Sur une cible où
+ces dossiers sont absents, le scénario récupère réellement le contrat approuvé,
+son obligation, ses parties/document/version et toutes ses transitions, ainsi
+que le match validé, ses participants, règles, score, soumission et approbation.
+Les identités, versions, acteurs, dates et champs chiffrés archivés sont conservés.
+
+`RecoveryGraphReplay` regroupe les agrégats selon les FK externes du plan. Pour
+un contrat, il insère l’état initial, reconstruit les enfants et les transitions
+archivées, puis rétablit la version courante. Pour un match, il reconstruit l’état
+proposé et les participants, les transitions opérationnelles, règles/scores,
+puis chaque preuve de résultat avant la transition qu’elle autorise. Les enfants
+conditionnés par un état sont essayés dans des savepoints : un refus de garde
+annule entièrement l’essai, le passage à l’état suivant permet une nouvelle
+tentative bornée. Un enfant impossible à réinsérer annule la transaction complète.
+Aucun état avancé n’est inséré directement et aucun trigger n’est désactivé.
+
+Le test refuse les historiques/preuves incomplets et l’auto-approbation. Un score
+archivé invalide doit annuler tout le graphe, sans marqueur ni fichier installé ;
+son journal est conservé dans la racine temporaire pour l’examen du test. Les
+empreintes de chaque ligne récupérée sont revérifiées avant les fichiers et le
+marqueur completed. La reprise n’invente pas une nouvelle validation métier :
+elle restaure les traces authentifiées depuis la sauvegarde isolée.
 
 La récupération utilise un verrou de session PostgreSQL par organisation, conservé
 entre commit SQL et fichiers ; une tentative concurrente retourne `GRAPH_BUSY`.
@@ -5976,6 +5995,10 @@ La [recette OPS-005-FINAL](docs/procedures-incident-support.md#ops-005-final--re
 définit les essais externes, les décisions sur les états exclus et les preuves
 attendues avant toute récupération réelle. L’hébergement et les données réelles
 restent indisponibles ; cette partie est préparée, sans exécution réelle.
+Ces contraintes d’exploitation ne changent pas l’acceptation d’OPS-005/REC-36 :
+la simulation des données et fichiers avec préservation des autres tenants est
+livrée et testée par les trois commandes OPS-005. L’aide reste un laboratoire
+borné, sans commande de réimport utilisable sur une installation opérationnelle.
 
 ## UCG-OPS-006 — Fichiers, antivirus et dépendances
 
