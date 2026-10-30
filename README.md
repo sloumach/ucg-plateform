@@ -7045,3 +7045,127 @@ ou notification n’est envoyé par cette préparation d’alertes.
 Voir la [procédure OPS-003-BG](docs/procedures-incident-support.md#ops-003-bg--activité-et-travaux-différés).
 Le raccordement aux alertes réelles et leur exercice de panne/acquittement restent
 ouverts avec l’hébergement, les métriques HTTP et le temps réel.
+
+### OPS-003 — Préparation locale complète et registre d’alertes
+
+Le dernier ensemble de lots ajoute mesures API, sondes de dépendances, suivi des
+cycles de rappels et cycle de vie des alertes. La **recette sur l’hébergement
+reste à réaliser**. Les fonctionnalités sont désactivées par défaut ; les essais
+locaux/fournisseurs simulés ne certifient ni disponibilité ni réception d’alertes.
+
+Depuis `back`, sans option de lecture :
+
+```sh
+php artisan ops:inspect-supervision --json
+php artisan ops:alerts --json
+```
+
+Ces formes retournent 2 sans lire les ressources. Sur une cible autorisée avec
+configuration revue, `ops:inspect-supervision --probe --json` agrège les contrôles
+runtime, traitements, API et stockage local. Les dépendances distantes nécessitent
+en plus `--external`. Aucun message, job ou e-mail n’est envoyé par ces commandes.
+
+**Mesures API.** `OPS_API_TELEMETRY_ENABLED=true` et `OPS_API_CACHE_STORE` sur un
+store database/redis partagé activent la collecte après réponse, pour les seules
+requêtes `/api/*`. Le namespace reste `OPS_RESOURCE_NAMESPACE`, distinct par
+environnement. La durée utilise une horloge monotone et mesure le passage dans
+le pipeline applicatif ; elle exclut le proxy, les trajets réseau et la diffusion
+complète des réponses streamées. La réponse et ses autorisations sont conservées
+si la télémétrie échoue. Aucun nom de route, URL, IP, header, cookie, corps,
+identité/tenant ou exception n’est collecté dans ces nouveaux compteurs/journaux.
+
+Quatre compteurs par minute : requêtes observées, réponses 5xx, requêtes lentes
+et somme des durées en ms. Ce sont des lectures de compteurs indépendants, sans
+snapshot transactionnel ni percentile. Fenêtre proposée de cinq buckets minute,
+incluant le bucket courant partiel ; minimum proposé de 20 observations. Revue
+si au moins 5 % de 5xx ou 10 % de durées >= 1 000 ms. Valeurs validées dans
+`operations.api`, non engagements de service. Une fenêtre vide/insuffisante,
+un bucket incomplet après éviction ou des compteurs incohérents ne valent pas
+validation. Des erreurs de collecte peuvent faire perdre des observations :
+la recette doit mesurer la couverture et la charge avant activation régulière.
+
+Les entrées de cache ont un TTL logique de deux heures. Redis expire ces clés ;
+sur le cache database, les lignes expirées non relues nécessitent une maintenance
+opérateur adaptée. Aucun nettoyage global n’est ajouté. Préférer Redis qualifié
+pour une collecte à fort débit et mesurer les appels cache par requête ; le store
+database sert notamment aux essais isolés. Les nouvelles métriques restent hors
+de toute promesse de capacité ou de latence QA-005.
+
+Le canal local `operations` écrit des lignes JSON dans `storage/logs/operations-*.jsonl`,
+avec une rotation de sept fichiers quotidiens. Seuls `request_id` UUID serveur,
+statut et durée sont autorisés par le formatter final, après les autres processors.
+Les autres contextes/extras et les messages variables sont exclus. Au plus 20
+entrées de revue par minute et namespace sont proposées, seulement pour les
+5xx/lenteurs ; les autres observations alimentent les compteurs. Ce budget dépend
+du cache partagé et ne transforme pas le journal en preuve exhaustive. Garder
+les fichiers dans l’espace opérateur restreint et qualifier rotation/expédition.
+
+**Dépendances.** Avec `--probe --external`, Reverb est interrogé via son API
+authentifiée `GET /connections` pour un compteur agrégé, sans socket individuel
+ni message de canal. Client séparé, timeout connexion 2 s / total 3 s, redirections
+désactivées. Le test de canaux privés et d’isolation reste distinct. SMTP vérifie
+uniquement la bannière 220, sans authentification ni envoi ; TLS implicite selon
+la configuration `smtps` ou le port 465 implicite du transport, sans qualification
+STARTTLS/livraison. Ports d’environnement et URL SMTP sont normalisés comme dans
+la configuration du mailer. ClamAV reçoit
+uniquement `PING`, sans document ni validation de fraîcheur de signatures.
+Connexions/lectures socket : 2 s chacune, réponses bornées à 512 octets. Les noms
+de cible et ports sont validés côté serveur et ne viennent pas d’une requête HTTP.
+Le stockage S3 vérifie l’existence d’une clé UUID neuve absente ; ce contrôle ne
+prouve pas ACL privée, écriture, capacité, chiffrement ou restauration. Ses délais
+restent ceux du driver configuré. Toutes les exceptions exposées par les sondes
+sont remplacées par des codes fixes, puis les autres contrôles continuent.
+
+**Rappels avant matérialisation.** Le diagnostic background inclut désormais les
+plans contractuels activés sur contrats éligibles et les dernières révisions de
+compétitions actives dont `next_due_at` entre dans le balayage des sept jours.
+Seules dates de création/dernier contrôle sont sélectionnées, pas les payloads,
+personnes, coordonnées ou droits des destinataires. Un cycle jamais vérifié,
+trop ancien ou sans tâche enregistrée demande une revue. Seuil proposé distinct
+de 1 800 s, borné 900–86 400, pour respecter le balayage contractuel de quinze
+minutes ; échantillon/troncature restent explicites. Les tests exécutent les vrais
+traitements fictifs jusqu’à la création d’un rappel. Le diagnostic lui-même ne
+déduit pas qu’un rappel doit être envoyé à une personne et ne contourne aucun
+refus d’accès, gel ou contrôle métier.
+
+**Registre et acquittement.** La migration
+`2026_10_30_143449_create_operations_alert_tables.php` crée deux tables techniques
+globales, sans donnée métier tenant. Elle est à appliquer dans une livraison
+autorisée avant activation de `OPS_ALERT_LEDGER_ENABLED=true`. Aucun lancement
+de migration sur une base existante n’est effectué par ce lot. Le registre est
+accessible uniquement par accès serveur autorisé ; un rôle support ne donne pas
+ces droits serveur. Les références UUID d’incident sont des liens de suivi, pas
+une preuve d’identité : conserver aussi l’audit des accès serveur.
+
+```sh
+php artisan ops:inspect-supervision --probe --record-alerts --json
+php artisan ops:alerts list --probe --page=1 --json
+php artisan ops:alerts acknowledge ALERT_ID --expected-version=1 --incident=11111111-1111-4111-8111-111111111111 --confirm --json
+```
+
+Remplacer `ALERT_ID`, version et UUID fictif par les valeurs revues dans l’incident.
+`--record-alerts` est une écriture explicite, indépendante de `--external`.
+La liste retourne au plus 50 entrées par page. Une transaction et une clé unique
+namespace/composant assurent la déduplication ; observations répétées ne créent
+pas d’événement en double. Une cause/sévérité différente réouvre la prise en charge.
+Un contrôle `passed` résout l’alerte existante de ce composant ; un contrôle
+`unverified`, absent ou non demandé la conserve. L’acquittement vérifie la version
+pour refuser les actions devenues obsolètes. Seuil d’escalade proposé : 1 800 s
+d’alerte ouverte non acquittée, une fois par épisode. Il prépare un signal local,
+sans notification. Un acquittement n’est pas une résolution métier.
+
+Les transitions opened/changed/acknowledged/resolved/reopened/escalated sont
+journalisées dans la même transaction. Le journal refuse UPDATE/DELETE ; `down()`
+refuse de supprimer un registre rempli. Une conservation/évolution de ces traces
+techniques se traite par une procédure revue, sans purge de données personnelles.
+Les rapports gardent toujours `supervision_validated=false` et
+`alert_dispatched=false`, même avec `alerts_recorded=true`.
+
+La [procédure OPS-003-FINAL](docs/procedures-incident-support.md#ops-003-final--recette-et-cycle-des-alertes)
+définit les investigations, la matrice de panne et la fiche de recette à remplir.
+Il reste à qualifier sur hébergement Redis/Horizon/cron, Reverb/canaux privés,
+SMTP réel, scanner/signatures et stockage/ACL/capacité, puis à choisir et raccorder
+un canal d’alerte avec destinataire/suppléant, réception, acquittement humain et
+escalade reçue. Aucun adaptateur de notification externe n’est activé ; le
+registre constitue la préparation locale de ce raccordement. **OPS-003 reste
+ouvert pour cette recette et ce raccordement**, l’hébergement étant reporté.

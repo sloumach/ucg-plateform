@@ -6,7 +6,17 @@
 ## Point de reprise
 
 - Dernière mise à jour : 30 octobre 2026.
-- Tâche courante : **correctif CI OPS-003 — isolation du test worker**.
+- Tâche courante : **OPS-003 — préparation locale des lots restants en un commit**.
+  API expurgée, sondes techniques sur option, cycles de rappels contrats/compétitions,
+  registre technique transactionnel avec journal immuable, acquittement versionné,
+  résolution sur contrôle concluant et signal d’escalade. Collectes/registre
+  désactivés par défaut. Recette S3-01–10 préparée ; hébergement toujours reporté,
+  canal externe à choisir/raccorder et responsabilités d’exploitation à désigner.
+  OPS-003 reste ouvert pour cette qualification réelle. L’utilisateur demande un
+  commit unique ; aucun push demandé pour ce nouvel ensemble. Validation en fin
+  de document, sans déclaration de disponibilité de production.
+- Lot précédent : **correctif CI OPS-003 — isolation du test worker**,
+  commit f230547 poussé sur origin/staging.
   Le code 12 du worker est sa limite mémoire de 128 Mo, atteinte par le processus
   PHPUnit partagé. Échec reproduit avec 140 Mio alloués dans le parent ; test
   isolé dans un processus neuf sans conservation de l’état global. Limite du
@@ -9522,3 +9532,105 @@ zéro erreur/échec/exclusion, rapport ignoré
 `back/reports/ops003-background-memory.xml`. Pint et PHPStan valides. Code
 applicatif, workflow CI et configuration de production inchangés. La suite
 complète et la CI distante ne sont pas déclarées revalidées par ce contrôle ciblé.
+
+## OPS-003 — Préparation locale des lots restants et recette (30 octobre 2026)
+
+L’utilisateur demande de réaliser le reste en un commit. Le périmètre annoncé
+est exécuté localement pour les quatre lots préparables, avec préparation de la
+recette du cinquième : hébergement toujours reporté et aucun canal externe ou
+exploitant/suppléant attribué. Aucune nouvelle demande de confirmation n’est requise
+pour les modifications et essais locaux autorisés ; aucun service externe n’est
+activé ou contacté par les essais.
+
+API : middleware global passif quand le flag est désactivé ; mesure monotone
+du pipeline `/api/*`, collecte en terminaison sur le statut final, sans route,
+URL, identité, IP, header ou corps. Contrat ApiMetrics et repository de cache
+partagé database/redis, compteurs minute total/5xx/lent/somme ms et budget de
+journal. Fenêtre proposée cinq buckets, minimum 20, revue à 5 % de 5xx ou 10 %
+de durées >= 1 000 ms. Pas de percentile, de total exhaustif garanti ni de SLA.
+Bucket incomplet/invalide, fenêtre insuffisante et panne de collecte restent
+explicites ; la télémétrie ne remplace pas la réponse HTTP. Canal JSON local
+operations, formatter final avec trois champs autorisés et suppression du
+contexte/extras ; sept fichiers quotidiens, au plus vingt revues par minute.
+TTL logique cache deux heures : expiration Redis ; maintenance des lignes de
+cache database à planifier, sans purge ajoutée. Charge/coverage à qualifier
+avant activation, Redis recommandé pour débit élevé.
+
+Dépendances : nouveau contrat de transport et diagnostic de lectures, avec
+connexions externes seulement si `--probe --external`. Reverb via GET signé
+/connections, compteur agrégé sans socket ni messages ; SMTP bannière 220 sans
+authentification/envoi, scanner PING sans document/signatures, S3 clé UUID absente
+sans listing/lecture/écriture métier. Sonde locale réutilise le contrôle de racine
+privée ; le diagnostic agrégé n’enregistre pas deux alertes pour cette même racine.
+Messages bruts remplacés par des codes par composant, autres lectures poursuivies.
+Les protocoles partiels restent unverified ; aucune preuve de livraison, ACL,
+capacité, fraîcheur antivirus ou canaux privés n’est inventée.
+
+Rappels : deux sources de métadonnées supplémentaires, plans contractuels activés
+sur contrats éligibles et dernières révisions de compétitions actives dans le
+balayage next_due_at des sept jours. Joins sur les identités composites tenant,
+organisations actives, aucune lecture de payload/coordonnée/destinataire. Dates
+de création/dernier contrôle seulement, ordre stable, limite + une et troncature
+explicite. Seuil proposé 1 800 s, distinct de l’attente des imports/livraisons,
+pour respecter le cycle contractuel de quinze minutes. Le diagnostic ne crée pas
+de rappel et ne contourne aucun droit/gel métier. Des tests font réellement
+exécuter les traitements fictifs jusqu’à création des rappels et mise à jour du
+dernier contrôle, puis vérifient l’exclusion des anciennes révisions remplacées.
+
+Alertes : contrat AlertLedger, service et repository SQL. Migration neuve
+2026_10_30_143449 crée operations_alerts et operations_alert_events, deux tables
+infrastructure globales déclarées dans TableOwnership, sans donnée métier tenant.
+Unicité namespace haché/composant, verrou/transaction, suivi d’observations et
+journal des transitions. Acquittement avec version attendue, confirmation CLI et
+référence UUID d’incident ; cette référence ne prétend pas authentifier un humain.
+Cause/sévérité différente réouvre la prise en charge. Seul un contrôle passed
+résout ; absent/unverified ne ferme rien. Escalade locale proposée après 1 800 s
+si ouverte non acquittée, une fois par épisode. Aucun transport ni destinataire.
+Journal protégé contre UPDATE/DELETE, rollback refusé si registre rempli.
+
+Commandes serveur : ops:inspect-supervision sans option ne lit rien ; --probe
+autorise les lectures, --external les sondes distantes, --record-alerts les
+écritures après activation du registre et migration autorisée. ops:alerts list
+--probe retourne au plus cinquante lignes ; acknowledge exige --expected-version,
+--incident UUID et --confirm. Pas de nouvelle route HTTP ou d’accès support élargi.
+Tous les rapports gardent supervision_validated=false et alert_dispatched=false.
+Les nouveaux flags sont désactivés dans .env.example et forcés hors des scénarios
+pilote/reprise/tests héritant d’un environnement étranger. Aucun .env réel ni
+migration d’une base existante n’est exécuté.
+
+README, backlog et procédure OPS-003-FINAL documentent les limites, actions et
+matrice S3-01–10, avec fiche de recette réelle encore vide. L’utilisateur reste
+responsable des accès et du premier support ; exploitation, coordination,
+suppléants et transport doivent être choisis avant la recette. Restent à mesurer
+sur cible autorisée : charge/couverture, horloges/process manager/cron, Redis,
+Reverb et isolation, livraison SMTP/TLS, scanner/signatures, stockage/ACL/capacité,
+concurrence PostgreSQL, canal externe raccordé puis réception/acquittement/escalade
+humains. OPS-003 reste ouvert pour ces points ; aucune preuve d’astreinte ni
+capacité QA-005 ne découle des simulations locales.
+
+Validation locale : suite backend complète **3 209 cas, 3 147 réussis, 62 exclus
+par leurs conditions d’environnement, 19 622 assertions**, zéro erreur/échec ;
+rapport ignoré `back/reports/ops003-complete-suite.xml`. Après les derniers
+ajustements des sondes : **75 cas ciblés, 74 réussis, 1 exclu, 340 assertions**
+(rapport `ops003-final-probes.xml`), puis fichier des sondes **13 tests / 56
+assertions** après vérification de type du double Flysystem (`ops003-final-adapter.xml`).
+Pint et PHPStan niveau 8 valides, aucun ignore/baseline ajouté.
+
+Ces contrôles couvrent notamment réponse HTTP conservée, suppression des contenus
+et contextes privés jusqu’au formatter final, budget de logs et fenêtre API,
+cache partiellement évincé, déduplication/escalade/acquittement/résolution/réouverture,
+refus de version obsolète, pagination/scopes et journal SQL immuable. Les scénarios
+fictifs exécutent réellement les jobs de rappels contrats/compétitions jusqu’à
+création de la livraison, sans nouveau message externe. Les sondes distantes
+utilisent des doubles : compteur Reverb, panne/retour, SMTP ports numériques en
+chaîne/TLS implicite/URL et fileExists S3 sans appel has/directoryExists. Le timeout
+du SDK Reverb est explicitement configuré à 3 s en plus du client HTTP 2 s/3 s,
+sans mutation du client de broadcast de l’application.
+
+Démarrage hors suite vérifié avec les trois flags activés dans un environnement
+isolé et SQLite configuré sur un fichier inexistant : package:discover réussit,
+ops:inspect-supervision --external sans --probe et ops:alerts sans option de
+lecture retournent 2 ; aucune base n’est créée. Aucun serveur hébergé, Redis,
+SMTP, Reverb, S3 ou clamd réel n’est sondé pendant ces validations. La CI distante
+ne peut pas être déclarée passée avant push et exécution ; le commit unique est
+demandé, aucun push demandé pour cet ensemble.

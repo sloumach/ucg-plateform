@@ -1378,6 +1378,15 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   **OPS-003 reste ouvert** pour la collecte continue et les alertes réelles,
   la recette Redis/Horizon/hébergement, métriques HTTP/temps réel et couverture
   métier des rappels non matérialisés/échéances de compétition.
+- **Préparation locale des lots restants (30/10/2026)** : télémétrie API expurgée
+  et buckets/seuils bornés, sondes externes sur option, compteur agrégé Reverb,
+  balayages de rappels contrats/compétitions et tests de création réelle fictive.
+  Registre technique SQL par namespace/composant, journal immuable, acquittement
+  versionné, résolution sur contrôle concluant, réouverture et signal d’escalade.
+  Collectes et registre désactivés par défaut ; aucune notification externe.
+  Matrice S3-01–10 et fiche de recette préparées. **OPS-003 reste ouvert** pour
+  raccordement du canal choisi et validation sur hébergement, responsables,
+  réception/acquittement/escalade humains, confidentialité/charge et services réels.
 
 ### UCG-OPS-004 — Mettre en place sauvegarde et restauration
 

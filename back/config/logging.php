@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\Operations\SanitizeOperationsLog;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -51,6 +52,14 @@ return [
     */
 
     'channels' => [
+
+        'operations' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/operations.jsonl'),
+            'level' => 'warning',
+            'days' => 7,
+            'tap' => [SanitizeOperationsLog::class],
+        ],
 
         'stack' => [
             'driver' => 'stack',

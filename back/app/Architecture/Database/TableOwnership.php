@@ -26,6 +26,8 @@ final class TableOwnership
         'jobs' => 'Infrastructure : transport partagé ; contexte des jobs contrôlé par TEN-006.',
         'job_batches' => 'Infrastructure : suivi technique des traitements.',
         'failed_jobs' => 'Infrastructure : incidents techniques, accès opérateur uniquement.',
+        'operations_alerts' => 'Infrastructure : états techniques sans identité ni contenu tenant, accès serveur.',
+        'operations_alert_events' => 'Infrastructure : transitions techniques et références UUID d’incident, accès serveur.',
         'migrations' => 'Infrastructure : historique du schéma.',
         'organizations' => 'Tenancy : racine du tenant, identifiée par id ; visibilité autorisée seulement.',
     ];

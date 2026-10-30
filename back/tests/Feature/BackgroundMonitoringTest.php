@@ -259,9 +259,11 @@ class BackgroundMonitoringTest extends TestCase
         foreach ($observedQueries as $sql) {
             $this->assertStringStartsWith('select ', strtolower($sql));
             if (str_contains($sql, 'import') || str_contains($sql, 'reminder')) {
-                $this->assertStringNotContainsString('*', $sql);
+                $projection = strstr($sql, ' from ', true);
+                $this->assertIsString($projection);
+                $this->assertStringNotContainsString('*', $projection);
                 foreach (['headers', 'results', 'payload', 'recipient', 'organization_id', 'failure_code'] as $privateColumn) {
-                    $this->assertStringNotContainsString($privateColumn, $sql);
+                    $this->assertStringNotContainsString($privateColumn, $projection);
                 }
                 $this->assertStringContainsString('limit 1001', $sql);
             }

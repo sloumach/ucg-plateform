@@ -354,3 +354,68 @@ nommer responsable/suppléant, choisir canal et espace de preuve, puis implémen
 et tester déduplication persistante, réception, acquittement, résolution et
 escalade. Conserver seulement heure, révision, code, compteurs/portée et référence
 d’incident dans l’espace restreint ; jamais les corps d’imports/rappels.
+
+## OPS-003-FINAL — Recette et cycle des alertes
+
+Le diagnostic serveur agrégé est `ops:inspect-supervision`. `--probe` autorise
+les lectures, `--external` les sondes distantes et `--record-alerts` l’écriture
+transactionnelle du registre, après activation et migration revues. La commande
+sans `--probe` ne sonde rien. Le [README](../README.md#ops-003--préparation-locale-complète-et-registre-dalertes)
+décrit données, seuils, limites et exemples d’acquittement.
+
+### Qualification des signaux et actions
+
+| Signal | Investigation / décision | Responsabilité requise |
+| --- | --- | --- |
+| `API_ERROR_OR_LATENCY_REVIEW` | F1/F3 : rapprocher fenêtre/minimum d’observations, derniers changements et request IDs du journal expurgé. Vérifier parcours autorisé et proxy séparément ; aucun P95 ou capacité déduit de ces buckets | Exploitant et mainteneur application |
+| `API_SAMPLES_INSUFFICIENT`, `API_COUNTER_INCOMPLETE`, `API_TELEMETRY_DISABLED` | Vérifier activation/namespace/store, couverture de collecte et éventuelles évictions. Un manque d’observations n’est pas un retour au nominal | Exploitant |
+| `API_COUNTER_INVALID`, `API_COUNTER_INCONSISTENT`, `API_METRICS_READ_FAILED` | Vérifier configuration, cache et horloges ; conserver uniquement code/compteurs, sans contenu de cache ou exception | Exploitant et mainteneur |
+| `REALTIME_CONNECTIONS_READ_PASSED` | Compteur agrégé seulement ; tester émission/réception et refus inter-tenant avec deux comptes fictifs autorisés avant d’adopter un critère de disponibilité | Exploitant temps réel et vérificateur métier |
+| `*_PROBE_FAILED`, `*_UNREACHABLE`, `DEPENDENCY_CONFIGURATION_INVALID` | F3 : identifier la dépendance/configuration concernée avec accès serveur habilité, vérifier délais/transport. Le diagnostic masque les messages bruts et ne redémarre rien | Exploitant ; fournisseur selon cause confirmée |
+| `MAIL_PROTOCOL_OBSERVED`, `SCANNER_PROTOCOL_OBSERVED`, `STORAGE_HEAD_OBSERVED` | Sonde partielle : qualifier respectivement livraison/TLS, signatures/analyse réelle et ACL/écriture/capacité. Ces résultats ne résolvent pas une alerte existante | Exploitant spécialisé et vérificateur |
+| `REMINDER_SWEEP_REVIEW` | F4 : vérifier activation du cycle, ancienneté du dernier contrôle, volume et contexte du tenant. Les contrôles utilisent les métadonnées ; vérifier droits/éligibilité par parcours autorisé avant toute reprise. Ne pas forcer la création d’un rappel | Exploitant et responsable métier |
+| `ALERT_VERSION_CONFLICT` | Relire l’entrée et son nouvel état ; refaire une décision humaine avec la version courante. Ne pas boucler automatiquement sur une confirmation obsolète | Opérateur chargé de l’incident |
+| `ALERT_LEDGER_WRITE_FAILED`, `ALERT_ACTION_FAILED` | Préserver le rapport expurgé dans l’espace restreint et vérifier migration/connexion du registre. Ne pas affirmer qu’une alerte a été enregistrée ou acquittée après cet échec | Exploitant et coordinateur |
+
+Une alerte est unique par namespace/composant. La revue répétée actualise ses
+observations ; un changement de cause/sévérité exige une nouvelle prise en charge.
+L’acquittement référence un incident UUID, avec version et confirmation explicites.
+Le registre ne prétend pas authentifier l’humain par cette référence : l’accès
+serveur et son audit doivent être attribués. Seul un contrôle concluant du composant
+résout automatiquement l’épisode ; aucun bouton de fermeture forcée n’est ajouté.
+L’escalade locale intervient une fois après le seuil proposé si l’alerte reste
+ouverte non acquittée. Acquittée, elle reste à suivre jusqu’à résolution ; une cause
+différente relance la prise en charge. La transmission et les délais de suivi
+humain seront définis avec le canal choisi. Aucun de ces événements ne prouve
+qu’un message externe a été reçu.
+
+### Matrice locale et recette à réaliser sur cible autorisée
+
+Les essais locaux emploient données fictives, cache/base de tests, doubles de
+transport et horloge contrôlée. La colonne de droite décrit les preuves encore
+requises sur l’hébergement ; aucun incident réel ni test de charge n’a été lancé.
+
+| Référence | Preuve locale préparée | Preuve externe attendue |
+| --- | --- | --- |
+| S3-01 API | Réponse conservée, compteur 5xx/durée, seuil/minimum, budget de logs, filtre final anti-contexte privé | Parcours avec proxy et flux, couverture de collecte, latence et coût cache représentatifs, rotation/accès aux journaux |
+| S3-02 Collecte indisponible | Panne de télémétrie ne remplace pas la réponse ; bucket incomplet non concluant | Cache interrompu puis rétabli sur cible isolée, observations manquantes et coût des timeouts mesurés |
+| S3-03 Workers/scheduler | Daemon vide et callback exécutés, marqueurs absents/anciens/futurs, namespace séparé | Arrêt contrôlé d’un worker, pause/job long et scheduler absent ; détection et retour observés avec horloges synchronisées |
+| S3-04 Rappels/imports | Métadonnées bornées, cycles jamais contrôlés, traitements réels fictifs créant rappels contrats/compétitions, droits métier conservés | Parcours complet des imports/rappels, refus après révocation, absence de doublon et réception attendue sur cible de test |
+| S3-05 Reverb | Réponse agrégée et panne simulées, exceptions expurgées | Compteur rapproché de clients fictifs, réception de messages et refus de canaux privés/inter-tenant |
+| S3-06 SMTP/scanner | Bannière/PING partiels et échec simulés, aucun envoi | Livraison d’un message fictif convenu, politique TLS, verdicts scanner clean/rejet/panne et fraîcheur de signatures |
+| S3-07 Stockage | Racine publique rejetée, HEAD de clé absente simulé, aucun document lu/écrit | ACL privée et refus non autorisé, fichier fictif dédié, espace/capacité, chiffrement et cohérence avec restauration OPS-004 |
+| S3-08 Registre | Déduplication, journal immuable, acquittement versionné, signal d’escalade, résolution et réouverture transactionnelles | Concurrence PostgreSQL, migrations et accès serveur audités, sauvegarde du registre, conservation adoptée |
+| S3-09 Canal | `alert_dispatched=false`, aucun e-mail/notification issu des diagnostics | Destinataire et suppléant désignés, transport choisi puis raccordé ; panne simulée, message reçu, acquittement humain, résolution et escalade effectivement reçus |
+| S3-10 Reprise | Rapports et procédure de retour préparés, aucun redémarrage implicite | Retour nominal mesuré, absence d’effet inter-tenant, preuves minimales conservées et accord de clôture |
+
+Fiche de recette à renseigner dans l’espace opérateur restreint : cible/namespace
+de test, révision livrée et migration, date/fuseau, opérateur/vérificateur nommés,
+seuils/fréquence/timeouts adoptés, scénario, résultat attendu, mesures avant/pendant/
+après, référence d’incident et d’alerte, preuve de réception/acquittement/escalade,
+actions réalisées et accord de retour nominal. Les identités et adresses restent
+dans cet espace approuvé, jamais dans les métriques ou des fixtures commitées.
+
+L’utilisateur assure toujours les accès et le premier support. Exploitant,
+suppléant, coordinateur, canal et espace de preuve doivent être désignés avant
+recette. L’hébergement reste reporté : **S3-01 à S3-10 côté externe restent en
+attente**, OPS-003 n’est pas clôturé et aucun destinataire n’est supposé joignable.

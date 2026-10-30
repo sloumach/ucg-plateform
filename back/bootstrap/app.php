@@ -2,6 +2,7 @@
 
 use App\Http\Api\ApiExceptionRenderer;
 use App\Http\Middleware\AssignRequestId;
+use App\Http\Middleware\ObserveApiRequest;
 use App\Modules\Identity\Presentation\Http\Middleware\AuditAccessFailures;
 use App\Modules\Identity\Presentation\Http\Middleware\RequireMfa;
 use App\Modules\Identity\Presentation\Http\Middleware\ValidateIdentitySession;
@@ -28,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(AssignRequestId::class);
+        $middleware->prepend(ObserveApiRequest::class);
         $middleware->statefulApi();
         $middleware->alias([
             'tenant' => ResolveTenantContext::class, 'tenant.confirmed' => RequireTenantConfirmation::class,

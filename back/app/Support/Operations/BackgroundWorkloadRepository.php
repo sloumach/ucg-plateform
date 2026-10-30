@@ -9,10 +9,13 @@ use InvalidArgumentException;
 
 final readonly class BackgroundWorkloadRepository implements BackgroundWorkloads
 {
-    public function __construct(private DatabaseManager $database) {}
+    public function __construct(private DatabaseManager $database, private ReminderCoverageRepository $coverage) {}
 
     public function inspect(string $source, BackgroundSettings $settings): RuntimeCheck
     {
+        if (in_array($source, ['contract_sweeps', 'competition_sweeps'], true)) {
+            return $this->coverage->inspect($source, $settings);
+        }
         [$table, $column, $active, $failures] = match ($source) {
             'person_imports' => ['person_imports', 'status', ['queued', 'processing'], ['failed']],
             'statistical_imports' => ['statistical_import_executions', 'status', ['queued'], ['failed']],

@@ -11,6 +11,7 @@ $pilotEnvironment = [
     'DB_CONNECTION' => 'sqlite', 'DB_DATABASE' => ':memory:', 'DB_URL' => '', 'DB_FOREIGN_KEYS' => 'true',
     'CACHE_STORE' => 'array', 'TENANCY_CACHE_STORE' => 'array', 'TENANCY_TEST_REDIS' => 'false', 'SESSION_DRIVER' => 'array',
     'OPS_BACKGROUND_MONITORING_ENABLED' => 'false',
+    'OPS_API_TELEMETRY_ENABLED' => 'false', 'OPS_ALERT_LEDGER_ENABLED' => 'false',
     'QUEUE_CONNECTION' => 'sync', 'MAIL_MAILER' => 'array', 'BROADCAST_CONNECTION' => 'null', 'LOG_CHANNEL' => 'null',
     'BCRYPT_ROUNDS' => '4', 'APP_MAINTENANCE_DRIVER' => 'file', 'RETENTION_RESTORE_MODE' => 'false',
     'TELESCOPE_ENABLED' => 'false', 'PULSE_ENABLED' => 'false', 'NIGHTWATCH_ENABLED' => 'false', 'TEST_TOKEN' => 'rel001-'.$pilotToken,
