@@ -1360,6 +1360,15 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / L
 - **Périmètre** : logs structurés, erreurs, latence, queues, connexions temps réel, imports, rappels, stockage et corrélation.
 - **Acceptation** : alertes actionnables avec responsable et procédure ; aucune donnée sensible dans les logs.
+- **Premier lot local (30/10/2026)** : commande serveur `ops:inspect-runtime`,
+  sans lecture de dépendance par défaut ; `--probe` autorise des contrôles en lecture
+  de base/cache, métadonnées bornées des queues/échecs et racine du stockage privé
+  local. Rapport expurgé, codes 0/1/2, seuil proposé de 300 s, troncature et limites
+  explicites ; totaux Redis seulement, sans preuve de worker actif. Aucun endpoint,
+  transport d’alerte, scheduler ou action corrective ajouté. Procédures et limites
+  documentées dans le README et le guide incident. **OPS-003 reste ouvert** pour
+  métriques/latence, parcours imports/rappels, temps réel, sondes réelles, responsables,
+  réception/acquittement d’alertes et recette sur l’hébergement toujours reporté.
 
 ### UCG-OPS-004 — Mettre en place sauvegarde et restauration
 

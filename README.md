@@ -6886,3 +6886,77 @@ de déploiement. Les sources runtime étaient inchangées, l’outillage en dév
 étant tracé par son empreinte. Ce résultat n’est ni un boot Laravel du paquet ni une
 recette d’installation sur Linux. Les résultats détaillés et limites sont consignés
 dans l’état du projet ; aucun workflow distant de release n’a été exécuté.
+
+## UCG-OPS-003 — Premiers diagnostics opérationnels
+
+Le diagnostic est une commande réservée aux opérateurs disposant déjà d’un accès
+serveur autorisé. Un rôle support dans l’application ne confère pas cet accès.
+Depuis `back`, préparer le rapport sans connexion aux dépendances :
+
+```sh
+php artisan ops:inspect-runtime --json
+```
+
+Cette forme retourne `PROBE_NOT_REQUESTED` et le code de sortie **2**. Pour demander
+explicitement les lectures des ressources configurées sur ce serveur :
+
+```sh
+php artisan ops:inspect-runtime --probe --json
+```
+
+Sans `--json`, la commande affiche un tableau des états et codes. Aucun endpoint,
+planning automatique, envoi d’alerte, job, retry, purge ou redémarrage n’est ajouté.
+Les lectures ne consultent ni personnes, ni organisations, ni documents métier.
+
+| Contrôle | Lecture et portée du résultat |
+| --- | --- |
+| Base | `SELECT 1` sur la connexion par défaut ; ne valide ni schéma ni parcours métier |
+| Cache | Lecture d’une clé UUID neuve sur les drivers Laravel database/redis ; aucune écriture ni validation de persistance. Array/file restent non vérifiés ; une clé absente sur disque peut masquer un problème de lecture |
+| Queue database | Échantillon ordonné par ID des seules colonnes `id`, `queue`, `reserved_at`, `available_at` ; compteurs par queue enregistrée, attente des travaux disponibles observés, troncature explicite |
+| Queue redis | Totaux des cinq queues enregistrées via `size()` ; aucune lecture du corps des jobs. Détail disponible/réservé/différé et âge restent non vérifiés |
+| Échecs historiques | Échantillon `id`/`queue` du stockage database des failed jobs, limité à la connexion de queue configurée et aux cinq queues enregistrées. Aucune lecture de `payload` ou `exception` |
+| Stockage des artefacts local | Métadonnées de la racine : répertoire lisible, racine sans lien symbolique direct, différente de la racine du volume, visibilité non publique et emplacement hors des racines publiques connues, sans les englober. Aucun fichier listé, lu ou écrit |
+
+Les queues sont `critical`, `default`, `notifications`, `broadcasts`, `reports`.
+Les queues personnalisées et les autres connexions sont hors périmètre. Les drivers
+non pris en charge (dont stockage distant) restent non vérifiés, sans repli silencieux.
+Une réservation ne prouve pas qu’un worker est vivant ; un échec historique ne prouve
+pas une panne actuelle. Les compteurs constituent un instantané, sans cohérence
+transactionnelle entre lectures, et peuvent évoluer pendant l’inspection.
+
+`config/operations.php` définit deux paramètres techniques : échantillon de
+1 000 lignes, configurable entre 1 et 10 000 ; avertissement à 300 secondes
+d’attente d’un job disponible, configurable entre 1 et 86 400 secondes. Ce seuil
+est une proposition technique, pas un engagement de délai de traitement. La lecture
+demande au plus limite + 1 lignes par table, puis agrège au plus la limite ; elle
+ne calcule pas de total global. Un échantillon tronqué sans problème observé reste
+non vérifié. Ces limites bornent les lignes retournées, pas le temps d’exécution
+SQL ni le temps réseau : les timeouts et plans de requêtes devront être qualifiés
+sur l’hébergement avant toute exécution régulière.
+
+| Sortie | Sens |
+| --- | --- |
+| 0 / `probes_passed` | Les seules lectures prises en charge ont passé leurs contrôles ; aucune validation globale de disponibilité |
+| 1 / `attention_required` | Lecture échouée, configuration invalide, stockage public/illisible, attente observée au seuil ou historique d’échecs à examiner |
+| 2 / `unverified` | Aucun contrôle demandé, driver non pris en charge, portée insuffisante ou échantillon tronqué, sans problème prioritaire observé |
+
+Le rapport conserve toujours `scope=partial_read_checks`,
+`supervision_validated=false` et `alert_dispatched=false`. Les erreurs sont des codes
+fixes par composant ; la commande ne publie pas les exceptions, DSN, identifiants
+de connexion, chemins de stockage ou données privées. Elle poursuit les autres
+contrôles après une erreur. Le rapport doit rester dans un espace opérationnel
+restreint : il contient des compteurs globaux d’infrastructure.
+
+Les [procédures OPS-003](docs/procedures-incident-support.md#ops-003--traiter-les-résultats-du-diagnostic)
+associent les codes à une investigation et aux rôles à désigner. Aucun destinataire
+d’alerte n’est inventé. Les request IDs et journaux `tenant.work.*` existants sont
+conservés ; `tenant.work.handled` signifie retour du handler, pas réussite métier.
+Le statut HTTP `operational` existant reste statique et ne doit pas servir de sonde
+de dépendances.
+
+**OPS-003 reste ouvert** : disponibilité des workers et du scheduler, erreurs et
+latence HTTP représentatives, imports/rappels de bout en bout, connexions temps
+réel, mail/scanner réels, stockage distant/ACL/capacité, métriques conservées et
+alertes reçues/acquittées avec responsable et canal de secours restent à qualifier.
+L’hébergement demeure reporté. Les tests SQLite locaux et les doubles de contrats
+Redis ne constituent pas une recette PostgreSQL/Redis ou une preuve d’astreinte.

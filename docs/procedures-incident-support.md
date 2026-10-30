@@ -276,3 +276,43 @@ cohérence, pas une répétition d’astreinte ni une mesure de disponibilité.
 Les contrôles techniques locaux et leurs résultats sont consignés dans
 [l’état du projet](etat-projet.md). Aucun délai de prise en charge, message,
 RPO/RTO ou intervention en production n’a été mesuré pendant ces exercices.
+
+## OPS-003 — Traiter les résultats du diagnostic
+
+Le diagnostic `php artisan ops:inspect-runtime --probe --json`, depuis `back`, est
+réservé à un opérateur déjà habilité sur le serveur. Sans `--probe`, il ne lit pas
+les dépendances et retourne 2. Il ne remplace ni les parcours applicatifs autorisés,
+ni une vérification des workers/scheduler. Le statut HTTP `operational` est statique.
+Le [README](../README.md#ucg-ops-003--premiers-diagnostics-opérationnels) décrit
+les données lues et les limites exactes.
+
+L’utilisateur assure actuellement les accès utilisateurs et le premier support.
+L’opérateur infrastructure, le coordinateur d’incident, leurs suppléants et les
+canaux d’alerte/secours restent à désigner avant exploitation réelle. Les rôles
+ci-dessous sont des responsabilités requises, pas des personnes déjà affectées.
+
+| Code / groupe | Investigation et procédure | Rôle requis |
+| --- | --- | --- |
+| `DATABASE_READ_FAILED`, `CACHE_READ_FAILED` | F1/F3 : comparer périmètre et dernières livraisons, vérifier la dépendance et ses accès via les outils serveur autorisés. Le rapport masque volontairement la cause brute ; aucun identifiant ou DSN dans le ticket | Opérateur infrastructure + coordinateur selon gravité |
+| `QUEUES_READ_FAILED`, `FAILED_JOBS_READ_FAILED` | F4 : vérifier connexion et schéma du stockage de queue configuré ; conserver les travaux, ne pas lancer de migration/réparation depuis le diagnostic | Opérateur infrastructure |
+| `QUEUE_READY_WAIT_REVIEW` | F4 : job disponible observé depuis au moins le seuil configuré (300 s par défaut). Vérifier workers, dépendances, impact et droits actuels avant une reprise ciblée autorisée. Ni retry global, ni réattribution de droits | Opérateur infrastructure + responsable du traitement concerné |
+| `FAILED_JOBS_HISTORY_REVIEW` | F4 : constater un historique sur la connexion configurée, déterminer dates et état courant avec l’accès adéquat. Ne pas déduire une panne du seul compteur, ni publier payloads/exceptions. Préserver les preuves | Opérateur infrastructure + support selon impact |
+| `PRIVATE_STORAGE_READ_FAILED`, `PRIVATE_STORAGE_ROOT_INVALID`, `PRIVATE_STORAGE_ROOT_UNREADABLE`, `PRIVATE_STORAGE_PUBLIC_ROOT` | F6/F3 : vérifier racine, montage, exposition et configuration par accès serveur autorisé. Un emplacement/une visibilité publics exigent une revue des accès et, selon exposition confirmée, F2 ; aucune copie ou lecture de documents pour ce diagnostic | Opérateur infrastructure + sécurité si exposition |
+| `MONITORING_CONFIGURATION_INVALID` | Corriger les deux limites numériques dans la configuration revue ; le diagnostic refuse toutes les lectures tant que ces limites sont invalides | Mainteneur de l’application |
+| `PROBE_NOT_REQUESTED`, `*_DRIVER_UNSUPPORTED`, `CACHE_READ_INCONCLUSIVE`, `QUEUE_TOTALS_ONLY`, `QUEUE_SAMPLE_TRUNCATED` | Résultat incomplet : documenter la limite et prévoir la vérification manquante autorisée. Ne pas clôturer un incident ni acquitter une alerte sur ce seul résultat | Opérateur infrastructure + coordinateur selon incident |
+
+Les codes `*_PASSED` confirment seulement les lectures décrites dans le README.
+Le code de sortie 1 prime sur 2 si un problème est observé malgré des contrôles
+incomplets. Le rapport conserve `supervision_validated=false` et ne transmet aucune
+alerte ; son exécution manuelle n’autorise pas à déclarer un canal opérationnel.
+Consigner heure, révision applicative, environnement connu par l’opérateur, code
+fixe, portée/troncature et référence de l’incident dans l’espace restreint prévu.
+Ne pas recopier la configuration, les corps de jobs ou les exceptions brutes.
+
+Avant de brancher une alerte automatique : désigner destinataire/suppléant, adopter
+les seuils selon les parcours, qualifier fréquence, délais réseau/SQL et charge,
+définir déduplication/acquittement/escalade et conservation des métriques ; injecter
+ensuite une panne fictive sur une cible de test autorisée et mesurer réception,
+prise en charge et retour au nominal. Ces validations restent à réaliser après
+disponibilité de l’hébergement. Aucun message ni changement de service n’a été
+effectué par ce lot.

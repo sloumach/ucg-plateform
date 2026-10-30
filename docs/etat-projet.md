@@ -6,7 +6,17 @@
 ## Point de reprise
 
 - Dernière mise à jour : 30 octobre 2026.
-- Tâche courante : **UCG-OPS-002 — préparation automatisée des candidats**.
+- Tâche courante : **UCG-OPS-003 — premiers diagnostics opérationnels**.
+  Commande serveur `ops:inspect-runtime`, aucune lecture par défaut ; `--probe`
+  autorise les lectures base/cache, métadonnées bornées de queue/échecs et racine
+  locale privée. Codes fixes sans exception/DSN/chemin/payload, sorties 0/1/2 et
+  couverture partielle explicite. Procédures et responsabilités à désigner ajoutées.
+  Aucun endpoint, planning, transport d’alerte ou action corrective. OPS-003 reste
+  ouvert pour les métriques/parcours et la supervision réelle ; hébergement reporté.
+  Validation et limites détaillées en fin de document. Commit et push sur staging
+  demandés après validation locale ; CI distante à vérifier.
+- Lot précédent : **UCG-OPS-002 — préparation automatisée des candidats**,
+  commit 3f70a0c poussé sur origin/staging.
   Constructeur/vérificateur Node, sources serveur et frontend compilé, inventaire
   SHA-256 et plan d'installation non exécutable. Workflow Release candidate manuel,
   contrôle des deux CIs push du même SHA/branche/dépôt, audits frais et upload du seul
@@ -9336,3 +9346,59 @@ exécutée. Revenir au précédent code ne prouve pas un rollback de base sûr.
 OPS-002 reste ouvert pour cet adaptateur et la recette représentative. Hébergement
 toujours reporté. L'utilisateur demande ensuite le push de la préparation validée :
 livraison en un commit sur staging, sans déploiement ni lancement du workflow de release.
+
+## UCG-OPS-003 — Premier diagnostic manuel en lecture (30 octobre 2026)
+
+L’utilisateur demande de commencer prudemment la supervision. L’inventaire confirme
+la corrélation par request ID et les journaux structurés `tenant.work.*`, mais le
+statut public `operational` est statique. Ce premier lot ajoute un outil serveur,
+sans modifier ce statut ni ouvrir un nouvel accès HTTP.
+
+`ops:inspect-runtime` sépare commande, service d’évaluation, contrat de lecture,
+implémentation Laravel et DTOs immuables. Le provider enregistre seulement le
+binding, sans ouvrir de connexion. Sans `--probe`, tous les contrôles restent
+non demandés, sortie 2. Avec cette option explicite : `SELECT 1`, lecture d’une
+clé UUID absente sur cache database/redis, métadonnées limitées de jobs et failed
+jobs, métadonnées de la racine du stockage privé local. Les queues database sont
+échantillonnées par ID, limitées aux cinq queues enregistrées ; les failed jobs
+sont aussi filtrés sur la connexion configurée. Les corps des jobs et exceptions
+stockées ne sont jamais sélectionnés. Les totaux Redis ne valident ni âge ni
+worker actif ; array/file, drivers non pris en charge et stockage distant restent
+non vérifiés. Aucun listing ou contenu de fichier n’est lu.
+
+Limite proposée : 1 000 lignes par table (+ une pour détecter la troncature),
+plafond configurable 10 000 ; avertissement proposé à 300 s d’attente d’un job
+disponible. Jobs réservés/différés distingués ; historique d’échecs signalé pour
+revue sans conclure à une panne courante. Une limite invalide refuse les lectures.
+Codes fixes par composant, exceptions brutes non publiées/non rapportées par le
+service, poursuite des autres lectures. Sorties : 0 lectures sélectionnées passées,
+1 problème observé prioritaire, 2 portée non vérifiée. Le rapport conserve toujours
+`supervision_validated=false`, `alert_dispatched=false`, couverture partielle et
+liste des vérifications manquantes. Les timeouts réseau/SQL et le coût réel des
+requêtes restent à qualifier ; limiter les lignes retournées ne borne pas la durée.
+
+README, backlog et procédures incident mis à jour : usage, portée, codes, rôle
+responsable requis et procédure d’investigation. L’utilisateur reste chargé des
+accès utilisateurs et du premier support ; aucune attribution implicite de
+l’exploitation/astreinte. Les destinataires, suppléants, canaux et seuils adoptés
+restent à définir. Aucun endpoint, scheduler, envoi d’alerte, retry, purge,
+migration, écriture métier ou changement de service n’est ajouté.
+
+Validation locale : **80 tests / 452 assertions**, zéro échec ou exclusion, sur
+RuntimeDiagnostics (25 cas), EnvironmentReadiness, SystemStatusController,
+TenantJobRunner et architecture. Preuves : aucune méthode de lecture appelée sans
+option, quatre SELECT uniquement dans le cas database/cache database, jobs/cache/
+failed jobs inchangés, cache expiré préservé, seuil et troncature, filtrage de
+l’historique, erreurs expurgées avec poursuite des contrôles, racines publiques
+refusées, totaux Redis via double du contrat. Pint et PHPStan niveau 8 : valides.
+Rapport ignoré Git : `back/reports/ops003-related.xml`. Test de démarrage isolé :
+`package:discover` réussit avec SQLite configuré sur un fichier inexistant, puis
+la commande sans option retourne 2 et ne crée pas cette base. Aucune base métier
+ni ressource distante consultée pendant cette validation ; aucun Redis réel sondé.
+
+**OPS-003 reste ouvert** pour collecte continue d’erreurs/métriques/latence,
+imports/rappels et temps réel de bout en bout, workers/scheduler, dépendances et
+stockage distants, alertes reçues/acquittées et exercice de panne sur cible autorisée.
+Hébergement toujours reporté. Ce lot n’est pas une qualification PostgreSQL/Redis
+ni une recette d’exploitation. L’utilisateur demande ensuite le push : livraison
+de ce premier lot en un commit sur staging, sans activation de supervision distante.
