@@ -27,6 +27,8 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\Attributes\TestWith;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
@@ -55,6 +57,9 @@ class BackgroundMonitoringTest extends TestCase
         $this->assertSame([], $queries);
     }
 
+    /** The daemon must not inherit the parent suite's memory usage or signal handlers. */
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
     public function test_idle_database_worker_emits_activity_for_its_configured_queues(): void
     {
         $this->configureMonitoring();

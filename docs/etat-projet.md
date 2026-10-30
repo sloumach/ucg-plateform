@@ -6,7 +6,16 @@
 ## Point de reprise
 
 - Dernière mise à jour : 30 octobre 2026.
-- Tâche courante : **UCG-OPS-003 — activité des traitements en arrière-plan**.
+- Tâche courante : **correctif CI OPS-003 — isolation du test worker**.
+  Le code 12 du worker est sa limite mémoire de 128 Mo, atteinte par le processus
+  PHPUnit partagé. Échec reproduit avec 140 Mio alloués dans le parent ; test
+  isolé dans un processus neuf sans conservation de l’état global. Limite du
+  worker et assertion du code 0 conservées. Les 26 tests du suivi passent avec
+  cette pression mémoire (149 assertions) ; Pint/PHPStan valides. Aucun changement
+  du code applicatif, de la CI ou des seuils mémoire de production. L’utilisateur
+  demande ensuite le commit/push du correctif sur staging ; CI distante à vérifier.
+- Lot précédent : **UCG-OPS-003 — activité des traitements en arrière-plan**,
+  commit 5f45cfe poussé sur origin/staging.
   Marqueurs workers daemon/scheduler et diagnostic `ops:inspect-background`,
   activables explicitement et désactivés par défaut. Cache partagé, namespace
   isolé, compteurs bornés d’imports personnes/statistiques et rappels contractuels,
@@ -9491,3 +9500,25 @@ isolé et SQLite pointant vers un fichier inexistant, `package:discover` réussi
 Aucune connexion Redis ni ressource distante sondée pendant ces validations.
 Le lot est préparé pour un commit unique et push sur staging, comme demandé ;
 la CI distante devra être vérifiée après réception du commit.
+
+## Correctif CI OPS-003 — Test du daemon et mémoire de PHPUnit
+
+La CI du lot 5f45cfe remonte un unique échec : le test du worker sur file vide
+attend 0 mais reçoit 12, avec 3 112 autres tests passés. Le framework définit
+12 comme `EXIT_MEMORY_LIMIT` et vérifie cette limite avant `stopWhenEmpty`.
+Le test partageait le processus de toute la suite ; la limite worker par défaut
+de 128 Mo s’appliquait donc aussi à la mémoire déjà occupée par PHPUnit.
+
+Reproduction locale sans changement de seuil : parent PHP limité à 512 Mo,
+allocation globale conservée de 140 Mio avant lancement du test. Avant correction :
+échec identique 12 au lieu de 0. Après `RunInSeparateProcess` et
+`PreserveGlobalState(false)` sur ce seul test : 1 test / 5 assertions passe sous
+la même pression. Le worker conserve sa limite de 128 Mo et le test conserve
+l’exigence d’arrêt normal sur file vide et les vérifications des marqueurs.
+L’isolation évite également de partager les handlers de signaux du daemon.
+
+Vérification du fichier entier sous la même pression : **26 tests / 149 assertions**,
+zéro erreur/échec/exclusion, rapport ignoré
+`back/reports/ops003-background-memory.xml`. Pint et PHPStan valides. Code
+applicatif, workflow CI et configuration de production inchangés. La suite
+complète et la CI distante ne sont pas déclarées revalidées par ce contrôle ciblé.
