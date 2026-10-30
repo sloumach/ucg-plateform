@@ -41,6 +41,9 @@ jobs:
       - name: Run frontend lint
         run: npm run lint
 
+      - name: Test release candidate integrity and CI admission
+        run: node --test tests/real-api/release.test.mjs
+
       - name: Test fictional retention decisions without application access
         run: |
           npm run test:retention:harness

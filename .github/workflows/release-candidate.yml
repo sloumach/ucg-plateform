@@ -1,0 +1,99 @@
+name: Release candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Public frontend build profile; this does not deploy
+        required: true
+        default: local
+        type: choice
+        options: [local, staging, production]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: release-candidate-${{ github.ref }}-${{ inputs.profile }}
+  cancel-in-progress: false
+
+jobs:
+  candidate:
+    name: Verify quality and prepare immutable candidate
+    if: github.ref_type == 'branch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact source commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: front/package-lock.json
+
+      - name: Require both latest quality workflows on this exact commit
+        run: node front/release-ci.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Test candidate guards
+        run: node --test front/tests/real-api/release.test.mjs
+
+      - name: Install locked frontend build dependencies
+        run: npm ci
+        working-directory: front
+
+      - name: Audit locked frontend dependencies
+        run: npm audit --audit-level=low
+        working-directory: front
+
+      - name: Set up PHP for a fresh lock audit
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          coverage: none
+
+      - name: Validate and audit locked backend dependencies without booting Laravel
+        run: |
+          composer validate --strict
+          composer audit --locked --abandoned=fail
+        working-directory: back
+
+      - name: Build and verify local or staging candidate without target credentials
+        id: build_standard
+        if: inputs.profile != 'production'
+        run: node front/buildRelease.mjs build --profile="$RELEASE_PROFILE" --ci-evidence
+        env:
+          RELEASE_PROFILE: ${{ inputs.profile }}
+          VITE_API_BASE_URL: ${{ vars.RELEASE_STAGING_API_URL }}
+          VITE_REVERB_HOST: ${{ vars.RELEASE_STAGING_REVERB_HOST }}
+          VITE_REVERB_APP_KEY: ${{ vars.RELEASE_STAGING_REVERB_PUBLIC_KEY }}
+          VITE_REVERB_PORT: '443'
+          VITE_REVERB_SCHEME: https
+
+      - name: Build and verify production candidate without target credentials
+        id: build_production
+        if: inputs.profile == 'production'
+        run: node front/buildRelease.mjs build --profile=production --ci-evidence
+        env:
+          VITE_API_BASE_URL: ${{ vars.RELEASE_PRODUCTION_API_URL }}
+          VITE_REVERB_HOST: ${{ vars.RELEASE_PRODUCTION_REVERB_HOST }}
+          VITE_REVERB_APP_KEY: ${{ vars.RELEASE_PRODUCTION_REVERB_PUBLIC_KEY }}
+          VITE_REVERB_PORT: '443'
+          VITE_REVERB_SCHEME: https
+
+      - name: Publish verified candidate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-${{ github.sha }}-${{ inputs.profile }}
+          path: ${{ steps.build_standard.outputs.directory || steps.build_production.outputs.directory }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14

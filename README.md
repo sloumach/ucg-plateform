@@ -6714,3 +6714,175 @@ Revue sur table par l’agent, sans atelier humain ni intervention d’exploitat
 | Guide remis, participant non formé | R2-06 distingue supports prêts et transfert non attesté | Aucune formation réelle revendiquée |
 | Responsable accès/support nommé, exploitant absent | Conserver les attributions confirmées et bloquer l’étape dépendante | Aucun nom ou prestataire inventé |
 | Demande de push du dossier | Versionner la préparation seulement | Aucun déploiement ni accord de production implicite |
+
+## UCG-OPS-002 — Construire et vérifier un candidat de livraison
+
+### Périmètre livré
+
+L’outillage prépare un **candidat**, composé des sources serveur versionnées,
+du frontend réellement compilé, d’un manifeste SHA-256 et d’un plan d’installation.
+Il ne contacte aucun hébergement et n’exécute ni migration, seeder, restauration,
+activation de worker/scheduler/Reverb ou bascule de trafic. L’hébergement reste
+reporté et OPS-002 reste ouvert pour le raccordement et la recette du déploiement réel.
+
+Le paquet ne contient pas `vendor` : les dépendances PHP de production devront
+être installées depuis son `composer.lock` dans une nouvelle release autorisée,
+avant activation. Il n’est donc pas une image exécutable autonome. Les drapeaux
+`runtimeDependenciesIncluded` et `deploymentAuthorized` restent toujours faux.
+Le profil `production` sélectionne un build public ; il ne donne pas l’accord REL-002.
+
+### Construction locale
+
+Prérequis : Node 24, Git et les dépendances frontend installées depuis le verrou.
+Depuis `front` :
+
+```powershell
+node --test tests/real-api/release.test.mjs
+node buildRelease.mjs build --profile=local
+```
+
+Le résultat JSON indique le dossier créé dans `front/reports/releases/`, ignoré
+par Git. Chaque construction utilise un nouveau dossier ; les candidats précédents
+ne sont pas écrasés. Le frontend est construit avec TypeScript et Vite dans un
+répertoire temporaire appartenant à l’opération. Les paramètres d’environnement
+sont limités à l’OS et aux variables publiques admises ; le répertoire de lecture
+`.env` de Vite est vide. Le profil local impose des adresses loopback et une clé
+publique fictive, sans reprendre les paramètres réels du poste. Le constructeur
+n’installe pas de dépendances et ne charge pas Laravel.
+
+Les **entrées de livraison** doivent être commitées et propres : application,
+configuration et migrations serveur, points d’entrée/bootstrap, langues/ressources,
+fichiers publics autorisés, manifestes Composer, sources/public du frontend,
+manifestes npm, configurations TypeScript/Vite et validateur des variables publiques.
+Fichiers ajoutés, modifiés ou ignorés à l’intérieur de ces chemins font refuser la
+construction. Une modification de documentation ou d’outillage hors de ces entrées
+ne change pas la révision applicative empaquetée : l’empreinte de l’outillage utilisé
+est enregistrée séparément. Une nouvelle entrée runtime exige de mettre à jour ce
+contrat avant de prétendre la livrer.
+
+Les entrées sont contrôlées avant et après le build. Le manifeste conserve commit,
+profil, empreinte globale des entrées, empreinte des trois fichiers d’outillage,
+version Node, empreinte des paramètres publics et inventaire des fichiers livrés.
+Un changement des sources ou de l’outillage pendant la construction empêche la
+finalisation. L’inventaire inclut le plan d’installation et les fichiers compilés.
+Les empreintes décrivent les octets de cet essai ; elles ne promettent pas des builds
+identiques entre OS ou versions de Node différents.
+
+Le serveur livré suit une liste de chemins autorisés : `app`, `config`, migrations,
+langues, ressources, routes, points d’entrée/bootstrap et manifestes Composer.
+Les fichiers de base, `.env`, clés, `auth.json`, logs, caches de fonctionnement,
+stockage utilisateur, dépendances, tests/factories/seeders et rapports ne sont pas
+ajoutés au paquet. Les noms cachés sont refusés, sauf le `.htaccess` public Laravel
+explicitement autorisé. Les liens symboliques/jonctions et fichiers spéciaux sont
+refusés ; limites : 12 000 fichiers, 16 Mio par fichier et 128 Mio au total.
+Les scripts de test utilisent des dépôts et données fictifs, sans accès à une base.
+
+### Vérifier un candidat reçu
+
+Après récupération depuis la source de confiance et extraction dans un espace
+neuf non servi par le web, reprendre **le commit et le profil attendus depuis le
+suivi de release**, pas uniquement depuis le manifeste reçu :
+
+Exécuter le vérificateur depuis un checkout d’outillage de confiance avec Node 24,
+et non un script ajouté à un paquet non encore vérifié.
+
+```text
+node front/buildRelease.mjs verify CHEMIN_DU_CANDIDAT COMMIT_COMPLET PROFIL
+```
+
+La commande vérifie schéma, cible, bornes, fichiers requis, tailles et empreintes,
+refuse ajouts/suppressions/doublons/chemins sortants/liens et exige un plan toujours
+non exécutable/non autorisé. Aucun fichier métier n’est modifié par la vérification.
+Code 0 : candidat cohérent ; code 1 : construction ou vérification refusée.
+Une construction interrompue peut laisser un dossier incomplet sans manifeste
+final : il doit rester hors livraison, jamais être validé au seul nom du dossier.
+
+Une empreinte SHA-256 détecte une altération par rapport au manifeste ; ce n’est
+pas une signature ni une preuve d’origine indépendante. Quelqu’un qui remplace le
+contenu et ses empreintes peut produire un autre manifeste cohérent. L’authenticité
+exige le canal de récupération et les références CI approuvés ; les références
+stockées dans un paquet local restent déclaratives. Aucun paquet ne devient un
+accord de production par cette seule vérification.
+
+### Préparation manuelle dans GitHub Actions
+
+Le workflow `Release candidate` est déclenché exclusivement par `workflow_dispatch`.
+Il doit être présent sur la branche par défaut pour apparaître comme workflow
+exécutable manuellement ; sélectionner ensuite la branche souhaitée selon la
+[procédure GitHub](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow).
+Ce dossier ne pousse, fusionne ou déclenche aucun workflow à la place de l’utilisateur.
+
+Avant construction, le collecteur interroge les workflows fixes `backend-quality.yml`
+et `frontend-quality.yml` par l’API GitHub en lecture seule, avec commit, branche et
+événement `push`. Les deux exécutions pertinentes les plus récentes doivent être
+terminées avec succès sur le même commit, la même branche et le même dépôt.
+Un résultat en attente, échoué, annulé, ignoré, mal formé ou manquant bloque la
+préparation ; un ancien succès ne remplace pas un résultat plus récent. Si les
+CIs ne sont pas encore terminées, attendre leur résultat avant de relancer manuellement.
+Le token du collecteur n’est pas transmis aux processus de build.
+
+Le job teste les garde-fous, installe les dépendances frontend avec `npm ci`,
+refait les audits npm/Composer et compile le profil choisi. Il publie uniquement
+le **dossier exact nouvellement construit et vérifié**, via l’artefact de workflow
+`candidate-COMMIT-PROFIL`, conservé 14 jours. Les droits d’accès à cet artefact sont
+ceux du dépôt ; il ne contient pas de secrets d’environnement serveur. Le `.htaccess`
+est inclus explicitement par la prise en compte des fichiers cachés ; les autres
+fichiers cachés sont déjà refusés par le constructeur. Aucun ancien dossier voisin
+ou essai partiel n’est sélectionné par un glob d’upload.
+
+Pour un profil distant, configurer les variables **publiques** du dépôt :
+
+| Profil | Variables requises |
+| --- | --- |
+| staging | `RELEASE_STAGING_API_URL`, `RELEASE_STAGING_REVERB_HOST`, `RELEASE_STAGING_REVERB_PUBLIC_KEY` |
+| production | `RELEASE_PRODUCTION_API_URL`, `RELEASE_PRODUCTION_REVERB_HOST`, `RELEASE_PRODUCTION_REVERB_PUBLIC_KEY` |
+
+Le validateur OPS-001 existant impose URL API HTTPS, chemin `/api/v1`, domaine Reverb
+correspondant, port 443 et schéma HTTPS. Aucune variable de production manquante ne
+retombe sur la recette : les deux étapes ont des sources distinctes. Les valeurs
+publiques doivent être revues avant configuration ; ne jamais y placer `APP_KEY`,
+un mot de passe ou une clé Reverb secrète. En local hors workflow, les variables
+`VITE_` documentées alimentent les profils distants avec les mêmes contrôles.
+Les fichiers `.env.*.example` et domaines `.invalid` ne deviennent pas exécutables
+par simple copie. Aucun domaine réel n’étant choisi, aucun build distant n’est
+revendiqué dans cette livraison.
+
+### Plan d’installation et de récupération à raccorder
+
+`deployment-plan.json` énumère les prérequis et étapes à faire adopter pour la cible :
+accord REL-002, exploitant habilité, sauvegarde/clés et restauration isolée qualifiées,
+revue de compatibilité des migrations, propriétaire unique du scheduler, supervision
+des workers/temps réel et critères d’arrêt/reprise. Toutes les opérations sont
+séparées de la construction du candidat et restent non exécutables dans ce plan.
+
+Le futur adaptateur d’hébergement devra vérifier le candidat, installer les seules
+dépendances PHP de production verrouillées dans une nouvelle release, créer les
+répertoires privés/cache Laravel avec les droits appropriés, injecter les secrets,
+contrôler la configuration de cible, puis appliquer uniquement les migrations
+compatibles expressément approuvées. La racine du paquet ne doit jamais être
+servie comme un site : exposition limitée à `back/public` pour PHP et au dossier
+`front` compilé pour le client, selon la configuration du serveur retenu.
+
+La bascule web/workers/Reverb et l’activation d’un seul scheduler nécessitent une
+coordination propre à l’hébergement ; aucune commande locale ne les réalise ici.
+Une migration destructive reste hors exécution sans stratégie validée. Revenir à
+l’ancien code ne restaure pas la base : ne jamais déduire un rollback SQL sûr de la
+présence du précédent candidat. Reprendre les prérequis et procédures
+[REL-002](#ucg-rel-002--préparer-le-lancement-et-lexploitation) et
+[OPS-008](docs/procedures-incident-support.md) avant toute intervention réelle.
+
+### Vérifications locales et limites
+
+Les tests couvrent sources sales/ignorées, noms sensibles suivis par Git, changement
+pendant build, sortie incomplète ou trop volumineuse, altération/ajout/suppression,
+chemin sortant, liens/jonctions, mauvais commit/profil, plan modifié même avec ses
+empreintes recalculées, paramètres publics et qualification des deux workflows.
+Ils sont ajoutés à `Frontend quality` pour les prochains push/PR.
+
+Un candidat local a été construit avec le vrai TypeScript/Vite puis vérifié :
+commit applicatif `5a1629bb9fa88b554b712e242ce91621bc6f80ef`, profil local,
+1 325 fichiers, aucune dépendance PHP installée dans le paquet et aucune autorisation
+de déploiement. Les sources runtime étaient inchangées, l’outillage en développement
+étant tracé par son empreinte. Ce résultat n’est ni un boot Laravel du paquet ni une
+recette d’installation sur Linux. Les résultats détaillés et limites sont consignés
+dans l’état du projet ; aucun workflow distant de release n’a été exécuté.

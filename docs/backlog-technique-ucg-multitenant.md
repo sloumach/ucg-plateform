@@ -1343,6 +1343,17 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / L
 - **Périmètre** : build, tests, migrations compatibles, déploiement web/workers/realtime et plan de retour arrière.
 - **Acceptation** : release reproductible, scheduler unique et migration destructive interdite sans stratégie validée.
+- **Préparation locale (30/10/2026)** : constructeur/vérificateur Node sans nouvelle
+  dépendance, candidat sources serveur + frontend TypeScript/Vite + manifeste SHA-256
+  et plan non exécutable. Entrées runtime commitées et propres, dérive pendant build,
+  fichiers sensibles/altérés, chemins sortants et liens refusés. Workflow manuel
+  Release candidate conditionné aux dernières CIs backend/frontend push réussies
+  sur même SHA/branche/dépôt, puis audits frais et upload du seul dossier vérifié.
+  Garde-fous ajoutés à Frontend quality. 16 tests Node et lint verts, deux YAML
+  parsés ; vrai candidat local de 1 325 fichiers construit et revérifié.
+  **OPS-002 ouvert pour l'hébergement** : pas de vendor PHP, installation/migrations,
+  bascule web/workers/Reverb, scheduler unique et récupération réelle non exécutés.
+  Commit et push demandés ensuite ; aucun workflow distant de release ni déploiement exécuté.
 
 ### UCG-OPS-003 — Superviser application et infrastructure
 

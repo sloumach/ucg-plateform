@@ -5,8 +5,19 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 29 octobre 2026.
-- Tâche courante : **UCG-REL-002 — préparation du lancement, commit unique demandé**.
+- Dernière mise à jour : 30 octobre 2026.
+- Tâche courante : **UCG-OPS-002 — préparation automatisée des candidats**.
+  Constructeur/vérificateur Node, sources serveur et frontend compilé, inventaire
+  SHA-256 et plan d'installation non exécutable. Workflow Release candidate manuel,
+  contrôle des deux CIs push du même SHA/branche/dépôt, audits frais et upload du seul
+  candidat vérifié. 16 tests Node, lint et syntaxe des deux workflows validés.
+  Candidat local réel : commit applicatif 5a1629b, 1 325 fichiers, profil local,
+  construit et vérifié. Dépendances PHP non incluses, aucun accord de déploiement.
+  Aucun code PHP, connexion métier ou ressource serveur modifié. **OPS-002 reste
+  ouvert pour le raccordement et la recette de l'hébergement**, toujours reporté.
+  Commit et push sur staging demandés après validation locale ; CI distante à vérifier.
+- Lot précédent : **UCG-REL-002 — préparation du lancement**, commit 5a1629b
+  poussé sur origin/staging.
   Guides par rôle, responsabilités, formation/transfert, fiche d'exploitation,
   checklist R2-01–15, livraison/retour arrière à autoriser et accord de production
   préparés dans le README avec renvois OPS existants. L'utilisateur confirme
@@ -9247,3 +9258,81 @@ et leur transfert attesté, les sauvegardes/restaurations et alertes sur cible,
 le pilote réel, les écarts QA-005 et l’accord de mise en production. L’hébergement
 reste reporté. La préparation locale fait l’objet du commit unique demandé ;
 aucun push ni déploiement autorisé ou effectué par ce mandat.
+
+## UCG-OPS-002 — Construction et vérification des candidats (30 octobre 2026)
+
+L’utilisateur autorise OPS-002 avec prudence après explication : automatiser la
+préparation et les contrôles maintenant, raccorder l’installation réelle après
+choix de l’hébergement. Départ propre sur staging, 5a1629b. Pas de nouveau serveur,
+service système, dépendance npm/Composer, migration, compte ou secret créé.
+
+Front/release.mjs implémente construction et vérification ; buildRelease.mjs est
+l’entrée CLI. Les entrées runtime explicites backend/frontend doivent être
+commitées et propres, y compris absence de fichiers ignorés dans ces chemins.
+Les fichiers d’outillage et de documentation hors entrées runtime sont distincts
+de la version applicative : empreinte des trois fichiers d’outillage enregistrée.
+Un changement des sources ou de l’outillage pendant le build interdit sa finalisation.
+
+Le frontend est réellement compilé par TypeScript et Vite dans un répertoire de
+travail neuf. Environnement du processus limité à l’OS et aux variables publiques
+admises ; lecture des .env Vite dirigée vers un dossier vide via le mécanisme
+isolé existant UCG_BROWSER_ROOT. Profil local forcé en loopback avec clé publique
+fictive ; profils distants soumis au validateur OPS-001 existant. Les paramètres
+publics production manquants ne retombent pas sur staging.
+
+Le candidat contient le code serveur autorisé, composer.json/lock, frontend
+compilé, manifest.json et deployment-plan.json. Il exclut vendor, données, logs,
+.env, clés, caches runtime, tests/factories/seeders et node_modules. .htaccess
+public Laravel est l’unique fichier caché autorisé. Liens/jonctions, fichiers
+spéciaux, chemins sortants, inventaire incohérent et tailles excessives refusés.
+Bornes : 12 000 fichiers, 16 Mio/fichier, 128 Mio totaux. Les anciens dossiers ne
+sont jamais remplacés ; un essai échoué peut laisser un dossier incomplet hors
+publication, qui doit échouer à la vérification.
+
+Le contrôle exige commit/profil attendus explicitement, fichiers requis, absence
+d’ajout/suppression, taille et SHA-256 de chaque fichier. Le plan doit rester non
+exécutable, sans accord de déploiement ni rollback automatique de base, même si
+un manifeste modifié recalcule ses empreintes. Les SHA-256 sont un contrôle de
+cohérence, pas une signature ou une attestation d’origine. La source de récupération
+et les références de CI doivent être approuvées séparément.
+
+release-ci.mjs collecte uniquement les workflows fixes backend-quality.yml et
+frontend-quality.yml via l’API GitHub en lecture seule. SHA, branche, dépôt et
+event push vérifiés ; dernière exécution/attempt pertinente exigée completed/success.
+Une exécution plus récente échouée/en attente ou mal formée ne peut être remplacée
+par un ancien succès. Les références normalisées entrent dans le manifeste ; leur
+présence locale reste déclarative. Aucun token n’entre dans le build ou le paquet.
+
+.github/workflows/release-candidate.yml est manuel, permissions contents/actions
+read, sans secret d’hébergement. Après admission CI : garde-fous testés, npm ci,
+audits frais npm/Composer, construction et vérification, upload du chemin exact
+retourné par l’étape de build (pas un glob des anciens candidats), rétention 14 jours.
+Le workflow doit être disponible sur la branche par défaut pour pouvoir être
+lancé manuellement ; aucune fusion ou exécution distante effectuée par ce lot.
+Les garde-fous Node sont aussi raccordés à Frontend quality pour les prochains push/PR.
+
+Un premier prototype local construit pendant la finalisation de l’outillage est
+conservé dans reports sans qualification finale. Le résultat final stabilisé est :
+front/reports/releases/5a1629bb9fa88b554b712e242ce91621bc6f80ef-local-1144a0c4-84f5-4827-bff4-56e8cc78a14d.
+Vrai TypeScript/Vite, 1 325 fichiers, sourceRevision 5a1629bb9fa88b554b712e242ce91621bc6f80ef,
+profil local, runtimeDependenciesIncluded=false, deploymentAuthorized=false,
+qualityEvidence=null. CLI verify redonne valid=true. Il ne s’agit ni d’un boot
+Laravel du paquet, ni d’une installation des dépendances PHP, ni d’une recette Linux.
+
+Validation locale : 16 tests Node de construction/altération/isolation/admission CI
+réussis, aucun échec/exclusion, lint frontend sans avertissement. Les tests utilisent
+des dépôts Git et assets fictifs et n’installent pas de paquet. Deux YAML analysés
+avec le parseur Symfony déjà installé, structure jobs vérifiée ; aucune prétention
+d’actionlint ou d’exécution GitHub. API workflow runs et déclenchement manuel vérifiés
+dans la documentation GitHub officielle ; API 2022-11-28 encore supportée. Aucun
+changement PHP ne nécessite de relancer les suites métier/Pint/PHPStan.
+
+Le candidat n’embarque pas vendor : une nouvelle release autorisée doit installer
+les dépendances PHP de production depuis son lock avant activation. Le plan garde
+cible/exploitant, accord REL-002, sauvegarde/clés, restauration isolée, compatibilité
+des migrations, supervision et propriétaire unique du scheduler comme prérequis.
+Aucune commande générique de migration/destruction, restauration ou bascule n’est
+exécutée. Revenir au précédent code ne prouve pas un rollback de base sûr.
+OPS-002 reste ouvert pour cet adaptateur et la recette représentative. Hébergement
+toujours reporté. L'utilisateur demande ensuite le push de la préparation validée :
+livraison en un commit sur staging, sans déploiement ni lancement du workflow de release.
