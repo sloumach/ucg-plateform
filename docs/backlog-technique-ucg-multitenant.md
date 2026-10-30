@@ -1426,6 +1426,13 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Périmètre** : export, sélection depuis sauvegarde, réconciliation et procédure de réimport contrôlée.
 - **Acceptation** : récupération sans écraser les mises à jour récentes des autres tenants.
 - **Références CDC** : REC-36.
+- **Complément de reprise prudente (30/10/2026)** : scénario PostgreSQL enrichi
+  après commit SQL interrompu : mauvaise clé applicative ou source, journal
+  absent/tronqué/altéré, gel nouvellement posé. Chaque refus doit conserver toutes
+  les tables, marqueurs/audits, fichiers privés et le journal tel que présenté.
+  Rétablissement des éléments originaux puis reprise normale sans doublon.
+  Données fictives et clusters temporaires uniquement ; ce complément ne qualifie
+  ni panne machine, perte définitive de clés ni exploitation concurrente réelle.
 - **Consolidation locale lots 1–4 (25/10/2026)** : CI de `da068af` validée par
   l'utilisateur ; demande d'un seul nouveau commit pour le travail restant.
   Exercice complémentaire de graphe absent People/profils/compte/période,

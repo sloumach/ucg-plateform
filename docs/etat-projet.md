@@ -6,7 +6,22 @@
 ## Point de reprise
 
 - Dernière mise à jour : 30 octobre 2026.
-- Tâche courante : **OPS-003 — préparation locale des lots restants en un commit**.
+- Tâche courante : **OPS-005 — sûreté des reprises privées après interruption**.
+  L’utilisateur valide OPS-004 le 30 octobre et autorise le démarrage prudent
+  du ticket suivant. Premier complément : refus de reprise avec mauvaise clé
+  applicative/source, journal absent/tronqué/altéré et gel après commit SQL.
+  Essais sur clusters PostgreSQL temporaires fictifs uniquement ; commit et push
+  sur staging demandés ensuite par l’utilisateur. CI distante à confirmer.
+  Scénario complet validé (186,41 s),
+  11 tests protocole/isolation et lint valides, nettoyage des clusters confirmé.
+  Les 16 lignes récupérées sont présentes sans doublon ; les 120 tables Beta
+  et les 23 tables globales contrôlées sont préservées. Aucun code applicatif,
+  migration ou base existante modifié. Restent notamment états métier avancés,
+  concurrence réelle, perte définitive de clés et qualification sur hébergement.
+- Lot précédent : **OPS-004 — PITR, coffre et preuves**, commit 6afde2c poussé
+  sur staging, validé par l’utilisateur. Cette validation permet la suite ; les
+  preuves sur hébergement décrites en fin de document restent à recueillir.
+- Lot précédent : **OPS-003 — préparation locale des lots restants en un commit**.
   API expurgée, sondes techniques sur option, cycles de rappels contrats/compétitions,
   registre technique transactionnel avec journal immuable, acquittement versionné,
   résolution sur contrôle concluant et signal d’escalade. Collectes/registre

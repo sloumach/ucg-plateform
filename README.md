@@ -5890,6 +5890,14 @@ l'échelle de millions de lignes.
 
 #### Procédure de lecture des résultats et décisions opérateur
 
+Complément du 30 octobre 2026 : le même scénario `test:recovery:graph` exerce
+aussi la reprise après commit SQL avec mauvaise clé applicative/source, journal
+absent, tronqué ou altéré, et gel posé pendant l’interruption. Il exige un refus
+sans modification des tables, marqueurs/audits, fichiers privés ou journal reçu.
+Après rétablissement du matériel original et levée du gel fictif, la reprise
+existante doit encore aboutir sans doublon. Ces contrôles ne récupèrent pas une
+clé définitivement perdue et ne simulent pas une panne machine.
+
 1. Pour les essais locaux, lancer les tests OPS-004, OPS-005 ciblé et
    test:recovery:graph. Ils créent leurs propres cibles ; aucun argument ne permet
    de sélectionner une installation utilisée. Ne pas transformer les fixtures

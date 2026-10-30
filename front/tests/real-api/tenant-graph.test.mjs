@@ -113,6 +113,46 @@ test('missing People, Teams, Match and Contract records recover with conflict re
     assert.equal(existsSync(destination), false)
     assert.deepEqual(committed.beta, latest.beta)
     assert.deepEqual(committed.global, latest.global)
+    // A pending SQL commit must never be replayed when its recovery material is unavailable.
+    const journalPath = `${current.root}/graph-journal.enc`
+    const savedJournal = readFileSync(journalPath)
+    const pendingFiles = privateFiles(current.root, current.token)
+    for (const [label, changes, reason] of [
+      ['application-key', { APP_KEY: `base64:${randomBytes(32).toString('base64')}` }, 'GRAPH_FIXTURE_FAILED'],
+      ['source-key', { UCG_GRAPH_SOURCE_KEY: randomBytes(32).toString('hex') }, 'GRAPH_SOURCE_SIGNATURE'],
+    ]) {
+      await assert.rejects(graph(current, 'resume', undefined, changes), new RegExp(reason), label)
+      assert.deepEqual(await tenant(current, 'inspect'), committed, `${label}: no SQL, audit or marker change`)
+      assert.deepEqual(privateFiles(current.root, current.token), pendingFiles, `${label}: no file installation`)
+      assert.deepEqual(readFileSync(journalPath), savedJournal, `${label}: keep original encrypted journal`)
+    }
+    for (const [label, replacement, reason] of [
+      ['missing', null, 'GRAPH_JOURNAL'],
+      ['truncated', savedJournal.subarray(0, Math.floor(savedJournal.length / 2)), 'GRAPH_FIXTURE_FAILED'],
+      ['altered', Buffer.from('unauthenticated recovery journal'), 'GRAPH_FIXTURE_FAILED'],
+    ]) {
+      assertRecoveryRoot(current.root, current.token)
+      try {
+        if (replacement === null) unlinkSync(journalPath)
+        else writeFileSync(journalPath, replacement)
+        await assert.rejects(graph(current, 'resume'), new RegExp(reason), label)
+        assert.deepEqual(await tenant(current, 'inspect'), committed, `${label}: no SQL, audit or marker change`)
+        assert.deepEqual(privateFiles(current.root, current.token), pendingFiles, `${label}: no file installation`)
+        if (replacement === null) assert.equal(existsSync(journalPath), false, 'Never recreate a missing journal on resume.')
+        else assert.deepEqual(readFileSync(journalPath), replacement, 'Keep the refused journal for investigation.')
+      } finally {
+        writeFileSync(journalPath, savedJournal, { mode: 0o600 })
+      }
+    }
+    await graph(current, 'hold')
+    try {
+      await assert.rejects(graph(current, 'resume'), /GRAPH_HOLD_OR_PURGE/)
+      assert.deepEqual(await tenant(current, 'inspect'), committed, 'A new hold blocks even a committed recovery.')
+      assert.deepEqual(privateFiles(current.root, current.token), pendingFiles)
+      assert.deepEqual(readFileSync(journalPath), savedJournal)
+    } finally {
+      await graph(current, 'unhold')
+    }
     await assert.rejects(graph(current, 'changed-row-probe'), /GRAPH_RECOVERED_ROW_CHANGED/)
     assert.deepEqual(await tenant(current, 'inspect'), committed)
     assert.equal(existsSync(destination), false)
@@ -153,6 +193,8 @@ test('missing People, Teams, Match and Contract records recover with conflict re
       foreignReferencesRefused: true, protectedStatesRefused: true, explicitConflictPreservation: true,
       tamperedAndStalePlansRefused: true, holdAndPurgeRefused: true, rollback: true, committedSqlRestart: true,
       installedFileRestart: true, postCommitDriftRefused: true, noDuplicateRowsOrAudit: true, betaNewRowsAndFilesPreserved: true,
+      wrongApplicationAndSourceKeysRefused: true, missingTruncatedAndAlteredJournalsRefused: true,
+      pendingRecoveryHoldRefused: true, recoveryMaterialPreservedOnRefusal: true,
       globalDataPreserved: true, encryptedFieldsReadable: true, historyGuardsActive: true }
     report.status = 'passed'
   } finally {
