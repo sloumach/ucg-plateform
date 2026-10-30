@@ -9,7 +9,8 @@ use Throwable;
 final readonly class SupervisionDiagnostics
 {
     public function __construct(private RuntimeDiagnostics $runtime, private BackgroundMonitor $background,
-        private ApiMetrics $api, private DependencyDiagnostics $dependencies, private Repository $config) {}
+        private ApiMetrics $api, private DependencyDiagnostics $dependencies, private Repository $config,
+        private BackupDiagnostics $backups) {}
 
     public function inspect(bool $probe, bool $external): RuntimeInspection
     {
@@ -32,6 +33,7 @@ final readonly class SupervisionDiagnostics
             $checks['api_http'] = new RuntimeCheck(ProbeState::Failed, 'API_METRICS_READ_FAILED');
         }
 
-        return new RuntimeInspection([...$checks, ...$this->dependencies->inspect($external)], true);
+        return new RuntimeInspection([...$checks, ...$this->dependencies->inspect($external),
+            'backup_recovery' => $this->backups->inspect(true)], true);
     }
 }

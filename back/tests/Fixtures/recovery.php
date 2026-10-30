@@ -4,6 +4,7 @@ use App\Modules\People\Domain\Models\Person;
 use App\Modules\Tenancy\Application\Contracts\TenantArtifacts;
 use App\Modules\Tenancy\Application\Services\TenantResolver;
 use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Support\Operations\BackupDiagnostics;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -13,7 +14,7 @@ use Illuminate\Support\Str;
 
 // Only the existing ownership-checked PostgreSQL harness can boot this fixture.
 if (getenv('UCG_RECOVERY_FIXTURE') !== 'v1' || getenv('UCG_BROWSER_ENGINE') !== 'pgsql'
-    || ! in_array($argv[1] ?? '', ['empty', 'seed', 'inspect', 'verify', 'advance'], true)) {
+    || ! in_array($argv[1] ?? '', ['empty', 'seed', 'inspect', 'verify', 'advance', 'pitr-before', 'pitr-after', 'pitr-verify', 'pitr-evidence'], true)) {
     throw new RuntimeException('An isolated recovery fixture is required.');
 }
 try {
@@ -21,6 +22,10 @@ try {
     $application = require __DIR__.'/browser-application.php';
     $kernel = $application->make(Kernel::class);
     $kernel->bootstrap();
+    if ($argv[1] === 'pitr-evidence') {
+        echo json_encode($application->make(BackupDiagnostics::class)->inspect(true)->toArray(), JSON_THROW_ON_ERROR);
+        exit;
+    }
     $database = $application->make(DatabaseManager::class)->connection();
     $operation = $argv[1];
     $objects = (int) $database->scalar("SELECT COUNT(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public'");
@@ -49,6 +54,16 @@ try {
         $person = Person::query()->where('pseudonym', 'Recovery alpha')->firstOrFail();
         $person->pseudonym = 'Changed after backup';
         $person->save();
+        echo json_encode(['advanced' => true], JSON_THROW_ON_ERROR);
+        exit;
+    }
+    if (in_array($operation, ['pitr-before', 'pitr-after'], true)) {
+        $organization = Organization::query()->where('slug', 'recovery-alpha')->firstOrFail();
+        $person = Person::query()->where('organization_id', $organization->id)->firstOrFail();
+        $person->pseudonym = $operation === 'pitr-before' ? 'PITR before incident' : 'PITR after incident';
+        $person->save();
+        $context = $application->make(TenantResolver::class)->resolve($organization->id, '', $organization->owner_user_id, (string) Str::uuid());
+        $application->make(TenantArtifacts::class)->store($context, $operation.'.txt', 'Fictitious '.$operation);
         echo json_encode(['advanced' => true], JSON_THROW_ON_ERROR);
         exit;
     }
@@ -85,13 +100,25 @@ try {
     foreach (['alpha', 'beta'] as $label) {
         $organization = Organization::query()->where('slug', 'recovery-'.$label)->firstOrFail();
         $person = Person::query()->where('organization_id', $organization->id)->firstOrFail();
-        if ($person->pseudonym !== 'Recovery '.$label || $person->first_name !== 'Fictitious '.$label
+        $expectedPseudonym = $operation === 'pitr-verify' && $label === 'alpha' ? 'PITR before incident' : 'Recovery '.$label;
+        if ($person->pseudonym !== $expectedPseudonym || $person->first_name !== 'Fictitious '.$label
             || $person->contact_email !== $label.'@example.test') {
             throw new RuntimeException('Restored point-in-time data or decryption failed.');
         }
         $context = $application->make(TenantResolver::class)->resolve($organization->id, '', $organization->owner_user_id, (string) Str::uuid());
-        $id = $database->table('tenant_artifacts')->where('organization_id', $organization->id)->value('id');
-        if (! is_string($id) || $artifacts->read($context, $id) !== 'Private recovery '.$label) {
+        $id = null;
+        $extraVerified = false;
+        foreach ($database->table('tenant_artifacts')->where('organization_id', $organization->id)->limit(4)->get(['id']) as $artifact) {
+            $contents = $artifacts->read($context, $artifact->id);
+            if ($contents === 'Private recovery '.$label) {
+                $id = $artifact->id;
+            }
+            $extraVerified = $extraVerified || $contents === 'Fictitious pitr-before';
+            if ($contents === 'Fictitious pitr-after') {
+                throw new RuntimeException('Post-target private file survived recovery.');
+            }
+        }
+        if (! is_string($id) || ($operation === 'pitr-verify' && $label === 'alpha' && ! $extraVerified)) {
             throw new RuntimeException('Restored private file or ledger mismatch.');
         }
         $contexts[$label] = $context;
@@ -128,7 +155,7 @@ try {
             }
         }
     }
-    echo json_encode(['decryption' => true, 'private_files' => 2, 'tenant_isolation' => true, 'history_guard' => true, 'check_and_fk' => true], JSON_THROW_ON_ERROR);
+    echo json_encode(['decryption' => true, 'private_files' => $operation === 'pitr-verify' ? 3 : 2, 'tenant_isolation' => true, 'history_guard' => true, 'check_and_fk' => true], JSON_THROW_ON_ERROR);
 } catch (Throwable $exception) {
     // Laravel's global console handler need not exit nonzero outside Artisan.
     fwrite(STDERR, 'Recovery fixture refused or failed ('.$exception::class.').'.PHP_EOL);

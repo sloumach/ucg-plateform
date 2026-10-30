@@ -419,3 +419,53 @@ L’utilisateur assure toujours les accès et le premier support. Exploitant,
 suppléant, coordinateur, canal et espace de preuve doivent être désignés avant
 recette. L’hébergement reste reporté : **S3-01 à S3-10 côté externe restent en
 attente**, OPS-003 n’est pas clôturé et aucun destinataire n’est supposé joignable.
+
+## OPS-004-FINAL — Recette des sauvegardes hébergées
+
+L’hébergement est reporté. Cette recette est préparée, sans exécution externe ni
+activation de sauvegarde réelle. L’utilisateur assure les accès et le premier
+support ; exploitant sauvegardes, suppléant et détenteurs des clés restent à
+désigner. Le laboratoire npm `test:recovery:pitr` utilise uniquement des données
+fictives et des clusters jetables ; ne jamais le diriger vers une base utilisée.
+
+| Lot | Preuve locale disponible | Recette hébergée attendue |
+| --- | --- | --- |
+| PITR | Base native vérifiée, WAL contigus, instant avant incident, comparaison base/fichiers | Restauration sur cible autorisée isolée, charge représentative, stockage fichiers versionné et cohérent, rôles/ACL/extensions et compatibilité majeures |
+| Protection | Chiffrement authentifié, copie locale vérifiée, clés séparées, plan sans suppression | Compte/site indépendants, accès minimum et audit, immutabilité, rotation/restitution des clés et APP_KEY, conservation adoptée, destruction contrôlée des seules générations autorisées |
+| Fiabilité | Reprise entre objets, manifeste en dernier, refus corruption/chaîne absente, redémarrage DB | Coupure réseau/processus/hôte, espace plein, perte de site, restauration avec source indisponible, détection des trous WAL et réplication du coffre |
+| Recette | Rapport local, lecteur de reçus signé et alertes testées | Producteur/collecteur de reçus raccordés au fournisseur, réception humaine des alertes, fréquence adoptée, RPO/RTO mesurés et accord signé |
+
+Avant toute manipulation : identifier cible et namespace, accord d’intervention,
+révision applicative/PG, volumes, chaîne complète et chronologie UTC ; vérifier
+les permissions, la disponibilité séparée des clés et un retour arrière. Une
+restauration complète utilise une cible vide isolée ; aucune écriture sur un
+tenant voisin ni écrasement d’une base active. Pour un tenant seul, appliquer
+OPS-005 et la réconciliation OPS-007 après restauration avant toute réouverture.
+
+Codes d’alerte : BACKUP_EVIDENCE_PATH_REFUSED/READ_FAILED, vérifier montage privé,
+droits et configuration sans afficher clés ou payload ; SIGNATURE_INVALID,
+isoler le reçu et vérifier son producteur, ne pas le resigner pour masquer
+l’incident ; BACKUP_OR_WAL_STALE, inspecter dernière sauvegarde et archivage,
+espace/permissions/connectivité puis restaurabilité de la chaîne ;
+BACKUP_EVIDENCE_INCOMPLETE, considérer la génération indisponible ;
+BACKUP_RESTORE_DRILL_REQUIRED, programmer un nouvel essai isolé.
+Les codes complets portent le préfixe BACKUP_EVIDENCE_ quand applicable.
+
+Un fragment de génération inachevée ne devient jamais une sauvegarde publiée.
+Préserver les éléments de diagnostic et les générations vérifiées ; aucune purge
+automatique ni suppression de données personnelles. Le plan local garde au moins
+deux générations et tous les gels/copies non vérifiées. Définir séparément la
+politique réelle des sauvegardes avec OPS-007/CAD-004 avant activation.
+
+Le reçu HMAC est une déclaration du producteur, pas une vérification indépendante
+du fournisseur. Un reçu local reste non qualifiant ; un reçu hébergé frais peut
+résoudre l’alerte du reçu mais ne prouve pas la réussite de cette recette. Prévoir
+protection contre rejeu, contrôle indépendant du catalogue et chaîne WAL, rotation
+des clés de signature et preuve de réception/escalade avec OPS-003.
+
+Fiche restreinte à conserver : opérateur/vérificateur, cible/site/comptes, révision,
+date UTC, identifiants de sauvegarde et de clés sans secrets, instant demandé et
+atteint, dernier commit récupérable, durée complète jusqu’au service utilisable,
+volumes/charge, contrôle fichiers/déchiffrement/isolation/rôles, incidents injectés,
+alertes reçues/acquittées, seuils adoptés et accord de retour nominal. Ne clôturer
+OPS-004 qu’après mesures RPO/RTO, exercice distant et validation de ces preuves.

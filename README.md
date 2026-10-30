@@ -5751,7 +5751,7 @@ sont arrêtés et les répertoires canoniques appartenant au lancement supprimé
 Un doute de propriété ou échec d'arrêt conserve les ressources et fait échouer
 le test ; un arrêt brutal du système ne garantit pas le nettoyage.
 
-**OPS-004 reste ouvert** : pas de PITR/WAL, copie distante isolée, rotation durable
+**État du premier exercice, complété ci-dessous le 30/10/2026** : pas de PITR/WAL, copie distante isolée, rotation durable
 des clés, conservation réelle, sauvegarde des rôles/ACL du cluster ou exercice
 de panne sur infrastructure représentative. Le dump utilise no-owner/no-acl et
 la restauration single-transaction, sans clean/create ni désactivation des gardes.
@@ -7169,3 +7169,93 @@ un canal d’alerte avec destinataire/suppléant, réception, acquittement humai
 escalade reçue. Aucun adaptateur de notification externe n’est activé ; le
 registre constitue la préparation locale de ce raccordement. **OPS-003 reste
 ouvert pour cette recette et ce raccordement**, l’hébergement étant reporté.
+
+## OPS-004 — PITR, coffre chiffré et preuves de sauvegarde
+
+Les quatre lots sont préparés localement ; la recette hébergée reste en attente.
+Avec PostgreSQL 17 et ses exécutables dans PATH, depuis `front` :
+
+```sh
+npm run test:recovery:pitr:harness
+npm run test:recovery:pitr
+```
+
+Le second test crée exclusivement des clusters temporaires attestés sur loopback.
+Il réalise une sauvegarde physique native avec un rôle LOGIN REPLICATION sans
+lecture SQL des personnes, vérifie son manifeste SHA-256, archive des segments
+WAL complets avec basic_archive, puis restaure à un instant UTC situé entre deux
+transactions fictives. La source est arrêtée avant restauration. Les 143 tables
+publiques, séquences, contraintes/déclencheurs/fonctions, trois fichiers privés,
+leur déchiffrement et les gardes tenant/SQL sont contrôlés. Le cluster physique
+emporte ses rôles ; seuls le nom de base et le mot de passe de la cible jetable
+sont adaptés à son contrôle de propriété. Un arrêt PostgreSQL immédiat suivi
+d’un redémarrage est testé ; cela ne simule pas une perte électrique de l’hôte.
+
+Le coffre de laboratoire chiffre objets et manifeste avec AES-256-GCM et des
+clés HKDF distinctes par génération. Il authentifie chemins, tailles et empreintes,
+publie le manifeste en dernier et réutilise les objets complets vérifiés après
+une interruption entre objets. Un fragment `.part` abandonné provoque un refus
+plutôt qu’un écrasement automatique ; intervention sur la seule génération
+jetable attestée avant reprise. Une seconde racine reçoit uniquement le chiffré,
+revérifié avant restauration. Les clés de coffre et de signature sont dans une
+troisième racine, distinctes de l’APP_KEY. Mauvaise clé/APP_KEY, chaîne WAL
+incomplète, altération, liens et cible occupée sont refusés. Le format reste borné
+(256 Mio, 4096 entrées, 32 Mio/fichier, huit segments WAL au maximum), en mémoire,
+réservé aux fixtures ; ce n’est pas un agent de sauvegarde de production.
+
+La capture des fichiers se fait sans écriture concurrente autour du point choisi.
+Un PITR arbitraire en présence de modifications concurrentes de fichiers exige
+un stockage versionné et un protocole de cohérence à qualifier. Deux répertoires
+sur ce PC ne prouvent aucune indépendance hors site. Les ACL Windows, stockage
+immuable, rotation/récupération des clés et protections fournisseurs restent à
+vérifier. Garder aussi l’APP_KEY et les anciennes clés nécessaires au déchiffrement
+des données restaurées, dans un stockage de secrets séparé et protégé.
+
+`retentionPlan` produit uniquement des candidats à revue : conserve les deux
+générations récentes, les copies non vérifiées, les gels et les générations avec
+moins de deux copies vérifiées. Le seuil de laboratoire est sept jours. Il ne
+supprime rien et ne modifie pas le soft delete des dossiers personnels.
+
+Le rapport ignoré `front/reports/pitr-local.json` contient mesures, empreintes,
+contrôles et nettoyage, jamais les clés ni données privées. La CI PostgreSQL
+exécute ces deux commandes et conserve ce rapport 14 jours. Les durées locales
+ne sont pas des engagements RPO/RTO.
+
+La supervision lit uniquement un reçu privé signé HMAC-SHA256 lorsque
+`OPS_BACKUP_MONITORING_ENABLED=true` et `ops:inspect-supervision --probe` est
+explicitement exécuté. Configuration :
+
+```dotenv
+OPS_BACKUP_MONITORING_ENABLED=false
+OPS_BACKUP_EVIDENCE_FILE=
+OPS_BACKUP_EVIDENCE_KEY_FILE=
+OPS_BACKUP_ARCHIVE_ROOT=
+```
+
+Les chemins doivent être absolus, canoniques et privés ; la clé binaire de 32
+octets reste hors archive, hors `storage/app` et hors dossier du reçu. Sous POSIX,
+les fichiers ne doivent donner aucun droit au groupe/aux autres. Le reçu est
+borné à 64 Kio et son contenu JSON signé à 32 Kio. Les champs requis sont
+`version=1`, `namespace`, `scope`, `backup_id`, `key_id`, `generated_at`,
+`backup_completed_at`, `wal_archived_at`, `restore_tested_at`, `base_verified`,
+`wal_chain_verified`, `copy_verified`, `manifest_sha256`. Dates UTC ISO avec trois
+décimales ; `restore_tested_at` peut être nul. L’enveloppe comporte `payload`
+(texte JSON exact) et `signature` (HMAC hexadécimal de ce texte).
+
+Seuils proposés dans `config/operations.php` : sauvegarde/reçu 24 h, WAL 5 min,
+exercice de restauration 7 jours, tolérance horloge 30 s. Absence/format/signature
+incorrects échouent ; ancienneté ou vérification incomplète produit un avertissement.
+Avec le registre OPS-003 activé, `--record-alerts` journalise les transitions
+existantes ; aucun envoi externe n’est ajouté. Un reçu `local_simulation` reste
+`unverified` et ne ferme pas une alerte. Un reçu `hosted` frais valide uniquement
+la déclaration signée (`BACKUP_DECLARATION_CURRENT`) : il ne certifie ni la copie
+fournisseur ni RPO/RTO. HMAC n’assure ni contrôle indépendant ni protection contre
+le rejeu d’un reçu encore frais. La production automatisée de reçus et la collecte
+continue doivent être raccordées au futur dispositif de sauvegarde hébergé.
+
+La [recette OPS-004-FINAL](docs/procedures-incident-support.md#ops-004-final--recette-des-sauvegardes-hébergées)
+définit les preuves encore attendues. Références techniques PostgreSQL 17 :
+[archivage continu](https://www.postgresql.org/docs/17/continuous-archiving.html),
+[basic_archive](https://www.postgresql.org/docs/17/basic-archive.html),
+[sauvegarde physique](https://www.postgresql.org/docs/17/app-pgbasebackup.html),
+[vérification](https://www.postgresql.org/docs/17/app-pgverifybackup.html).

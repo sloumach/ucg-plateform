@@ -1408,6 +1408,18 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   Format borné de fixture, aucune restauration vers une base utilisée ; OPS-005
   et REC-36 non clôturés. Nouvelle CI distante à confirmer.
 
+- **Complément des quatre lots (30/10/2026)** : PITR physique PostgreSQL 17/WAL
+  natif vers cible isolée, coffre AES-GCM et manifeste authentifié, copie locale
+  séparée vérifiée, clés distinctes, reprise entre objets et plan de conservation
+  sans suppression. Contrôle des preuves privées signées intégré à OPS-003,
+  désactivé par défaut ; un reçu local ne qualifie jamais l’hébergement.
+  Tests de corruption/clé/WAL manquant/cible occupée, redémarrage après arrêt
+  brutal, cohérence des 143 tables et trois fichiers privés, rapport pitr-local.json
+  et CI PostgreSQL. Procédure OPS-004-FINAL et matrice de recette préparées.
+  **Reste ouvert** : recette réelle sur hébergement reporté, copies hors site et
+  immutabilité/ACL, exploitation des clés et rétention réelle, collecte continue,
+  cohérence fichiers concurrents et mesures RPO/RTO représentatives.
+
 ### UCG-OPS-005 — Tester la récupération logique d’un tenant
 
 - **Priorité / taille** : P0 / L

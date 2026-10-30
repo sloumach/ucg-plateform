@@ -32,4 +32,14 @@ return [
         'enabled' => env('OPS_ALERT_LEDGER_ENABLED', false),
         'escalation_seconds' => 1800,
     ],
+    'backups' => [
+        'enabled' => env('OPS_BACKUP_MONITORING_ENABLED', false),
+        'receipt_path' => env('OPS_BACKUP_EVIDENCE_FILE'),
+        'key_path' => env('OPS_BACKUP_EVIDENCE_KEY_FILE'),
+        'archive_root' => env('OPS_BACKUP_ARCHIVE_ROOT'),
+        'clock_skew_seconds' => 30,
+        'max_backup_age_seconds' => 86400,
+        'max_wal_age_seconds' => 300,
+        'max_restore_age_seconds' => 604800,
+    ],
 ];

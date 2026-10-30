@@ -43,7 +43,7 @@ export function connectionArguments(lab) {
   return ['--host=127.0.0.1', `--port=${lab.environment.DB_PORT}`, '--username=ucg_browser', '--no-password']
 }
 
-export async function startRecoveryLab(appKey, abort, labs) {
+export async function startRecoveryLab(appKey, abort, labs, { initialize = true } = {}) {
   const root = realpathSync(mkdtempSync(resolve(tmpdir(), 'ucg-browser-')))
   const token = randomBytes(32).toString('hex')
   writeFileSync(`${root}/owner`, token, { flag: 'wx', mode: 0o600 })
@@ -59,7 +59,11 @@ export async function startRecoveryLab(appKey, abort, labs) {
   const postgres = new TemporaryPostgres(root, token, port, process.env.UCG_BROWSER_PG_BIN, environment, abort.signal)
   const lab = { root, token, environment, postgres, abort }
   labs.push(lab)
-  Object.assign(environment, await postgres.start())
+  if (initialize) Object.assign(environment, await postgres.start())
+  else {
+    Object.assign(environment, postgres.databaseEnvironment)
+    writeFileSync(`${root}/postgres.json`, JSON.stringify({ token, port: environment.DB_PORT }), { flag: 'wx', mode: 0o600 })
+  }
   return lab
 }
 

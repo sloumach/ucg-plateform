@@ -147,6 +147,8 @@ jobs:
           npm run test:recovery
           npm run test:recovery:tenant
           npm run test:recovery:graph
+          npm run test:recovery:pitr:harness
+          npm run test:recovery:pitr
 
       - name: Upload Playwright reports
         if: always()
@@ -168,5 +170,6 @@ jobs:
             front/reports/recovery-local.json
             front/reports/tenant-recovery-local.json
             front/reports/tenant-graph-local.json
+            front/reports/pitr-local.json
           if-no-files-found: ignore
           retention-days: 14

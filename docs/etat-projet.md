@@ -9634,3 +9634,46 @@ lecture retournent 2 ; aucune base n’est créée. Aucun serveur hébergé, Red
 SMTP, Reverb, S3 ou clamd réel n’est sondé pendant ces validations. La CI distante
 ne peut pas être déclarée passée avant push et exécution ; le commit unique est
 demandé, aucun push demandé pour cet ensemble.
+
+## OPS-004 — Quatre lots locaux et préparation de recette (30 octobre 2026)
+
+Demande : traiter les quatre lots en un commit et pousser. Le PITR physique natif
+PostgreSQL 17 complète le précédent dump logique : sauvegarde pg_basebackup,
+pg_verifybackup, archivage basic_archive, rejeu à un instant UTC avant incident
+sur cible isolée. Comparaison des 143 tables publiques et du schéma, trois
+fichiers privés/déchiffrement, isolation et gardes SQL ; la source est arrêtée.
+Le rôle de sauvegarde a LOGIN REPLICATION sans accès SQL aux personnes. Le
+redémarrage après arrêt PostgreSQL immédiat est exercé sans prétendre simuler
+une panne électrique d’hôte.
+
+Coffre de fixture AES-256-GCM, sous-clés HKDF par génération, manifeste chiffré
+publié en dernier, reprise d’objets complets vérifiés après interruption entre
+objets, seconde copie locale chiffrée vérifiée et clés séparées. Refus de clé
+incorrecte, APP_KEY incompatible, corruption, liens, WAL absent et cible occupée
+avant restauration. Un fragment incomplet entraîne un refus à examiner. Le plan
+de conservation ne supprime rien ; les décisions de soft delete restent intactes.
+
+Supervision privée de reçus HMAC-SHA256, désactivée par défaut, namespace et
+horodatages stricts, seuils proposés 24 h/5 min/7 jours, alertes existantes OPS-003.
+Les preuves locales restent unverified et ne ferment pas une alerte ; une preuve
+hébergée valide uniquement la déclaration. Aucun producteur hébergé, dispositif
+de sauvegarde continue ou envoi d’alerte externe n’est activé.
+
+La CI PostgreSQL exécute le protocole et le scénario réel, conserve le rapport
+ignoré pitr-local.json avec durées, contrôles, empreintes et nettoyage. Le format
+reste un laboratoire borné en mémoire, non exploitable tel quel à gros volume.
+README et procédure OPS-004-FINAL détaillent les limites et la recette.
+
+**OPS-004 reste ouvert pour la recette hébergée** : hébergement reporté, copies
+hors site/compte distinct, ACL/immutabilité, gestion et rotation durable des clés,
+politique de conservation adoptée, collecte continue, fichiers concurrents,
+protection anti-rejeu des reçus et preuve fournisseur indépendante, RPO/RTO sous
+charge et réception humaine des alertes. Aucun résultat local ne clôt ces points.
+
+Validation locale de cet ensemble : 98 tests backend ciblés, 471 assertions ;
+19 tests Node de protocole/environnement ; deux scénarios PostgreSQL réels
+réussis (PITR et restauration logique). PITR environ 129,22 s au total et
+restauration logique environ 62,15 s, exécutés en parallèle sur des clusters
+distincts ; nettoyage attesté pour les deux. Reçu Node lu et signature altérée
+refusée par Laravel dans le scénario PITR. PHPStan sans erreur, Pint et lint JS
+validés. La CI distante reste à confirmer après le push demandé.

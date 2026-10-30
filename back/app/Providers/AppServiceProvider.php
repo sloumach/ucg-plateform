@@ -6,6 +6,7 @@ use App\Contracts\Operations\AlertLedger;
 use App\Contracts\Operations\ApiMetrics;
 use App\Contracts\Operations\BackgroundHeartbeats;
 use App\Contracts\Operations\BackgroundWorkloads;
+use App\Contracts\Operations\BackupEvidence;
 use App\Contracts\Operations\DependencyTransport;
 use App\Contracts\Operations\RuntimeProbe;
 use App\Contracts\Storage\ArtifactStorage;
@@ -14,6 +15,7 @@ use App\Support\Operations\BackgroundObserver;
 use App\Support\Operations\BackgroundWorkloadRepository;
 use App\Support\Operations\CacheApiMetrics;
 use App\Support\Operations\DatabaseAlertLedger;
+use App\Support\Operations\FileBackupEvidence;
 use App\Support\Operations\LaravelRuntimeProbe;
 use App\Support\Operations\SocketDependencyTransport;
 use App\Support\Storage\LaravelArtifactStorage;
@@ -36,6 +38,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ApiMetrics::class, CacheApiMetrics::class);
         $this->app->bind(AlertLedger::class, DatabaseAlertLedger::class);
         $this->app->bind(DependencyTransport::class, SocketDependencyTransport::class);
+        $this->app->bind(BackupEvidence::class, FileBackupEvidence::class);
     }
 
     /**
