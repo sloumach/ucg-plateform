@@ -6,7 +6,20 @@
 ## Point de reprise
 
 - Dernière mise à jour : 30 octobre 2026.
-- Tâche courante : **OPS-005 — finalisation complète de la simulation REC-36**.
+- Tâche courante : **correctif CI UCG-COM-001 — réponse effacée pendant le chargement**.
+  Échec Playwright signalé après le push 0fb13f7 : body attendu
+  « <script>Réponse</script> », chaîne vide reçue. Le formulaire de commentaire
+  était démonté pendant une lecture de la discussion ; les champs non contrôlés
+  pouvaient perdre leur contenu. Il reste désormais monté pendant le chargement,
+  avec saisie, notification et envoi désactivés tant que la liste n’est pas prête.
+  Un submit programmatique est également ignoré pendant cette attente.
+  Régression déterministe en échec avant correction puis valide : texte et case
+  de notification préservés après une nouvelle lecture, puis payload exact envoyé.
+  OPS-006 n’est pas commencé. Validation : 53 parcours Playwright réussis sans
+  nouvelle tentative, 11 tests du panneau, lint et TypeScript valides.
+  Correctif local ; nouvelle CI distante à confirmer après livraison.
+- Lot précédent : **OPS-005 — finalisation complète de la simulation REC-36**,
+  commit 0fb13f7 poussé sur origin/staging ; la CI a signalé l’échec COM-001 ci-dessus.
   L’utilisateur demande de terminer toute la tâche. Le CDC exige une simulation
   de récupération des données/fichiers préservant les autres organisations ;
   l’hébergement réel n’est pas un critère supplémentaire de clôture de REC-36.

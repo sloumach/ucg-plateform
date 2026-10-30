@@ -18,6 +18,7 @@ export function CommunicationLoadState({ loading, error }: { loading: boolean; e
 export function CommentThread({ active, root, item, management, onInvalid, disabled, errors, onSubmit }: CommunicationProps & { root: string; item: Announcement; management: boolean; errors: Errors; onSubmit: Submit }) {
   const [page, setPage] = useState(1)
   const { list, loading, error } = usePartnershipList<AnnouncementComment>(root + '/announcements/' + item.id + '/comments?per_page=10&page=' + page + (management ? '&management=1' : ''), active, true, onInvalid)
+  const commentBlocked = disabled || loading || list === null
   return <section aria-label={text('comments')} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
     <h3 className="font-bold [overflow-wrap:anywhere]">{text('comments')} : {item.title}</h3>
     <CommunicationLoadState {...{ loading, error }} />
@@ -27,13 +28,15 @@ export function CommentThread({ active, root, item, management, onInvalid, disab
       <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{comment.body}</p>
     </li>)}</ul>
     {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={disabled || loading} onPageChange={setPage} />}
-    {item.can_comment && !error && !loading && <form aria-label={text('sendComment')} noValidate className="grid min-w-0 gap-3" onSubmit={(event) => {
-      event.preventDefault(); const values = new FormData(event.currentTarget)
+    {item.can_comment && !error && <form aria-label={text('sendComment')} noValidate className="grid min-w-0 gap-3" onSubmit={(event) => {
+      event.preventDefault()
+      if (commentBlocked) return
+      const values = new FormData(event.currentTarget)
       onSubmit(event, { body: String(values.get('body') ?? '').trim(), notify_members: values.has('notify_members') })
     }}>
-      <MessageField disabled={disabled} error={errors.body?.[0]} />
-      <FormField name="notify_members" label={text('notifyComments')} type="checkbox" disabled={disabled} />
-      <Button type="submit" disabled={disabled}>{text('sendComment')}</Button>
+      <MessageField disabled={commentBlocked} error={errors.body?.[0]} />
+      <FormField name="notify_members" label={text('notifyComments')} type="checkbox" disabled={commentBlocked} />
+      <Button type="submit" disabled={commentBlocked}>{text('sendComment')}</Button>
     </form>}
     {!item.can_comment && <p className="text-sm text-slate-400">{text('commentUnavailable')}</p>}
   </section>

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ActiveOrganization } from '../../api/tenancy'
 import type { Announcement } from '../../api/communication'
@@ -96,6 +96,41 @@ describe('communications ciblées', () => {
     await user.click(form.getByRole('button', { name: 'Ajouter le commentaire' }))
     await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
     await waitFor(() => expect(request).toHaveBeenCalledWith(root + '/announcements/' + id + '/comments', expect.objectContaining({ method: 'POST', body: { body: 'Réponse', notify_members: false, version } })))
+  })
+  it('conserve la réponse et son choix de notification pendant une nouvelle lecture des commentaires', async () => {
+    const user = userEvent.setup()
+    const handler = request.getMockImplementation()!
+    let reloading = false
+    let resolveReload: (response: ReturnType<typeof page>) => void = () => { throw new Error('Lecture différée non initialisée') }
+    const reload = new Promise<ReturnType<typeof page>>((resolve) => { resolveReload = resolve })
+    request.mockImplementation((path, options) => path.includes('/comments?') && reloading ? reload : handler(path, options))
+    const view = show()
+    await open(user)
+    await user.click(screen.getByRole('button', { name: 'Commentaires' }))
+    let form = await screen.findByRole('form', { name: 'Ajouter le commentaire' })
+    let fields = within(form)
+    await user.type(fields.getByLabelText('Message'), '<script>Réponse</script>')
+    const notify = fields.getByRole('checkbox')
+    await user.click(notify)
+
+    reloading = true
+    view.rerender(<NotificationProvider><CommunicationPanel active={active} disabled={false} onInvalid={() => invalid()} /></NotificationProvider>)
+    form = screen.getByRole('form', { name: 'Ajouter le commentaire' })
+    fields = within(form)
+    expect(fields.getByLabelText('Message')).toHaveValue('<script>Réponse</script>')
+    expect(fields.getByLabelText('Message')).toBeDisabled()
+    expect(fields.getByRole('checkbox')).toBeChecked()
+    expect(fields.getByRole('button', { name: 'Ajouter le commentaire' })).toBeDisabled()
+    fireEvent.submit(form)
+    expect(screen.queryByRole('button', { name: 'Confirmer et continuer' })).not.toBeInTheDocument()
+
+    await act(async () => resolveReload(page([])))
+    await waitFor(() => expect(fields.getByLabelText('Message')).toBeEnabled())
+    await user.click(fields.getByRole('button', { name: 'Ajouter le commentaire' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
+    await waitFor(() => expect(request).toHaveBeenCalledWith(root + '/announcements/' + id + '/comments', expect.objectContaining({
+      method: 'POST', body: { body: '<script>Réponse</script>', notify_members: true, version },
+    })))
   })
   it('n’autorise pas la participation lorsque le serveur refuse le contexte', async () => {
     rows = [{ ...base, can_comment: false }]
