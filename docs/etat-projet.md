@@ -6,7 +6,16 @@
 ## Point de reprise
 
 - Dernière mise à jour : 30 octobre 2026.
-- Tâche courante : **UCG-OPS-003 — premiers diagnostics opérationnels**.
+- Tâche courante : **UCG-OPS-003 — activité des traitements en arrière-plan**.
+  Marqueurs workers daemon/scheduler et diagnostic `ops:inspect-background`,
+  activables explicitement et désactivés par défaut. Cache partagé, namespace
+  isolé, compteurs bornés d’imports personnes/statistiques et rappels contractuels,
+  propositions d’alertes sans transport, procédure OPS-003-BG. Aucun changement
+  des handlers, des droits ou des données métier ; hébergement toujours reporté.
+  Validation détaillée en fin de document. Livraison demandée en un commit et push
+  sur staging ; CI distante à vérifier après le push.
+- Lot précédent : **UCG-OPS-003 — premiers diagnostics opérationnels**,
+  commit a7d4f05 poussé sur origin/staging.
   Commande serveur `ops:inspect-runtime`, aucune lecture par défaut ; `--probe`
   autorise les lectures base/cache, métadonnées bornées de queue/échecs et racine
   locale privée. Codes fixes sans exception/DSN/chemin/payload, sorties 0/1/2 et
@@ -9402,3 +9411,83 @@ stockage distants, alertes reçues/acquittées et exercice de panne sur cible au
 Hébergement toujours reporté. Ce lot n’est pas une qualification PostgreSQL/Redis
 ni une recette d’exploitation. L’utilisateur demande ensuite le push : livraison
 de ce premier lot en un commit sur staging, sans activation de supervision distante.
+
+## UCG-OPS-003 — Activité workers/scheduler et travaux différés (30 octobre 2026)
+
+L’utilisateur autorise le lot proposé et demande un commit unique avec push.
+L’inventaire distingue les états métier disponibles : imports personnes
+queued/processing/failed, exécutions statistiques queued/failed et livraisons
+e-mail contractuelles pending/sending/uncertain. Les enregistrements sent/blocked
+et les aperçus non confirmés ne sont pas traités comme des pannes. Aucun handler
+d’import, de rappel ou garde d’autorisation/tenant n’est modifié.
+
+Livraison : contrats BackgroundHeartbeats/BackgroundWorkloads, repositories de
+cache/métadonnées, service BackgroundMonitor, observateur singleton et commande
+serveur `ops:inspect-background`. Le provider ne fait qu’enregistrer bindings et
+listener `Looping`, sans connexion. Le suivi est désactivé par défaut, avec option
+dans `.env.example`. Les bootstraps pilote/reprise fictive et PHPUnit désactivent
+explicitement l’activation héritée. Sans `--probe`, aucune lecture ; avec option
+mais suivi désactivé, sortie 2 sans connexion. Cache partagé database/redis, queue
+par défaut durable, namespace isolé et liste bornée des queues attendues requis.
+
+La boucle d’un worker daemon marque ses queues connues au plus toutes les 30 s
+par processus/queue ; une callback scheduler conditionnelle au démarrage marque
+son passage chaque minute. Six timestamps maximum par namespace/connexion,
+sans identifiants privés ni corps de jobs, conservés sans TTL pour distinguer
+absence et ancienneté. Les anciennes clés après changement de configuration
+restent à gérer explicitement, sans purge automatique. Une panne de cache ou du
+logger est contenue : pas de retry métier induit. L’écriture reste synchrone et
+soumise aux timeouts du store, à qualifier avant activation. Les lectures du
+diagnostic ne déclenchent aucune action corrective ou écriture métier.
+
+Le seuil d’activité proposé est 180 s ; le seuil des travaux est 900 s depuis
+la dernière modification `updated_at`, sans prétendre mesurer une progression
+métier. Seuils numériques validés entre 60 et 86 400. Chaque source est triée par
+updated_at/ID, limitée à 1 000 + une lignes (plafond 10 000), puis agrégée sans
+identité ni contenu. Troncature, dates absentes/futures, échecs historiques et
+états incertains sont explicites. Un échantillon tronqué ne vaut pas total global ;
+scan/tri SQL, latence cache et timeouts restent à profiler sur une cible adaptée.
+Le diagnostic est global et réservé à l’accès serveur, sans élargissement des
+accès support. Inactivité/gel d’un tenant peut expliquer les états à examiner.
+
+Les `alert_candidates` contiennent code/sévérité, clé stable par namespace,
+composant et code, rôle d’exploitation à désigner et procédure OPS-003-BG.
+Aucun destinataire, transport, acquittement, escalade ou déduplication persistante
+n’est activé. Toujours `supervision_validated=false`, `alert_dispatched=false` et
+`delivery=prepared_only`. Les sorties 0/1/2 gardent leur portée partielle ; une
+lecture échouée est expurgée et n’empêche pas les autres contrôles.
+
+Un marqueur frais peut provenir d’un processus désormais arrêté ou d’un autre
+worker du même groupe. Pause, maintenance, job long, polling, horloges et perte
+du cache doivent être vérifiés avant de conclure à un arrêt. Le passage scheduler
+ne certifie ni l’unicité du scheduler, ni les autres tâches, ni chaque tenant.
+Les rappels non matérialisés et échéances de compétition dans des payloads ne sont
+pas lus : leur recette métier reste distincte. Le raccordement réel aux alertes,
+Redis/Horizon/process manager/cron et les métriques HTTP/temps réel restent ouverts
+avec l’hébergement reporté. L’utilisateur conserve le premier support et les
+accès utilisateurs ; exploitant/suppléant/canal de secours restent à désigner.
+
+README, backlog et guide incident mis à jour, avec conditions d’activation,
+interprétation des codes, examen d’un envoi incertain avant toute reprise et
+conditions préalables au transport des alertes. Aucun `.env` réel, service distant,
+import/rappel réel ou nouvelle migration n’est touché.
+
+Validation finale : **206 tests / 1 653 assertions**, zéro erreur/échec/exclusion,
+rapport ignoré `back/reports/ops003-background-final.xml`. Dont 26 nouveaux cas /
+149 assertions : worker database daemon réellement exécuté sur file vide,
+callback scheduler réellement exécutée, activation/désactivation, absence de
+lecture par défaut, seuil 179/180 s, marqueurs absents/futurs/malformés, throttling,
+namespace et connexion/queues, panne de cache expurgée et contenue, continuation
+des lectures, imports/rappels fictifs, dates nulles/futures, seuil 899/900 s,
+troncature, conservation des imports et sélection de métadonnées uniquement,
+propositions stables d’alertes sans envoi mail/notification/HTTP. Les tests liés
+incluent RuntimeDiagnostics, configuration/statut, TenantJobRunner, processeurs
+d’imports, rappels contractuels/mail/compétition, architecture et isolation des
+scénarios pilote/reprise fictive. Pint et PHPStan niveau 8 : valides.
+
+Contrôle de démarrage hors suite : avec le suivi activé dans l’environnement
+isolé et SQLite pointant vers un fichier inexistant, `package:discover` réussit ;
+`ops:inspect-background --json` sans `--probe` retourne 2 et ne crée pas la base.
+Aucune connexion Redis ni ressource distante sondée pendant ces validations.
+Le lot est préparé pour un commit unique et push sur staging, comme demandé ;
+la CI distante devra être vérifiée après réception du commit.

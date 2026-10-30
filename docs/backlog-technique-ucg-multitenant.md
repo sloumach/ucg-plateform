@@ -1369,6 +1369,15 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   documentées dans le README et le guide incident. **OPS-003 reste ouvert** pour
   métriques/latence, parcours imports/rappels, temps réel, sondes réelles, responsables,
   réception/acquittement d’alertes et recette sur l’hébergement toujours reporté.
+- **Deuxième lot local (30/10/2026)** : marqueurs d’activité workers daemon et
+  scheduler, opt-in désactivé par défaut, cache partagé et namespace isolé ;
+  diagnostic serveur `ops:inspect-background` avec lectures explicites et
+  métadonnées bornées des imports personnes/statistiques et livraisons e-mail de
+  rappels contractuels. Seuils proposés 180 s/900 s, erreurs expurgées et contenues,
+  propositions d’alertes avec rôle à désigner/procédure/clé stable, sans transport.
+  **OPS-003 reste ouvert** pour la collecte continue et les alertes réelles,
+  la recette Redis/Horizon/hébergement, métriques HTTP/temps réel et couverture
+  métier des rappels non matérialisés/échéances de compétition.
 
 ### UCG-OPS-004 — Mettre en place sauvegarde et restauration
 

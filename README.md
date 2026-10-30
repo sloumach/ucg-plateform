@@ -6960,3 +6960,88 @@ réel, mail/scanner réels, stockage distant/ACL/capacité, métriques conservé
 alertes reçues/acquittées avec responsable et canal de secours restent à qualifier.
 L’hébergement demeure reporté. Les tests SQLite locaux et les doubles de contrats
 Redis ne constituent pas une recette PostgreSQL/Redis ou une preuve d’astreinte.
+
+### Activité des workers, scheduler et travaux différés
+
+Le deuxième lot OPS-003 ajoute `ops:inspect-background`. Cette commande serveur
+reste sans lecture par défaut ; l’option `--probe` autorise les lectures, mais
+la collecte doit aussi être explicitement activée. La configuration livrée est
+**désactivée**, y compris dans les bootstraps de tests/pilote/reprise fictive.
+
+```sh
+php artisan ops:inspect-background --json
+php artisan ops:inspect-background --probe --json
+```
+
+Pour une cible de test autorisée, préparer `OPS_RESOURCE_NAMESPACE` distinct par
+environnement, puis sélectionner `OPS_BACKGROUND_CACHE_STORE` (driver Laravel
+database ou redis exclusivement). Les workers et le diagnostic doivent partager
+ce store, son préfixe et le namespace. Vérifier la connexion de queue par défaut
+(database/redis), les files effectivement consommées et les timeouts avant de
+passer `OPS_BACKGROUND_MONITORING_ENABLED=true`. Les limites et `expected_queues`
+sont revues dans `config/operations.php` ; par défaut les cinq queues enregistrées
+sont attendues. Redémarrer les processus avec la configuration revue et le cache
+de configuration reconstruit selon la procédure de livraison. Aucun `.env` réel
+n’est modifié par ce lot et aucun service n’est démarré sur l’hébergement reporté.
+
+| Signal | Collecte / lecture et interprétation |
+| --- | --- |
+| Worker | L’événement Laravel `Looping` d’un worker daemon de la connexion par défaut marque les queues enregistrées qu’il annonce surveiller. Au plus une tentative d’écriture toutes les 30 s par queue et par processus. Ni les autres connexions, ni les queues personnalisées ne sont marquées |
+| Scheduler | Une callback nommée `ops-background-heartbeat`, enregistrée seulement si le suivi est activé au démarrage, marque son passage chaque minute. Elle ne prouve pas l’exécution des autres tâches, ni l’unicité du scheduler |
+| Imports de personnes | Échantillon des `person_imports` queued/processing/failed, colonnes `status` et `updated_at` uniquement |
+| Imports statistiques | Échantillon des `statistical_import_executions` queued/failed, mêmes colonnes ; les aperçus non confirmés sont exclus |
+| Rappels contractuels | Échantillon des livraisons e-mail pending/sending/uncertain, colonnes `email_status` et `updated_at` uniquement. Sent/blocked/not_requested sont exclus ; un refus d’habilitation n’est pas transformé en panne |
+
+Les marqueurs contiennent uniquement un timestamp, sous au plus six clés par
+namespace/connexion configurés, sans identifiant de worker, personne, tenant ou
+job. Ils sont conservés sans TTL pour distinguer un ancien marqueur d’un marqueur
+absent. Les anciennes clés après changement de namespace/connexion et la politique
+de conservation des métadonnées opérationnelles restent à gérer par l’exploitant ;
+aucune purge du cache n’est lancée. Les écritures sont limitées par processus,
+pas globalement entre tous les workers. Elles sont synchrones et restent soumises
+aux timeouts du cache : leur coût et ces délais doivent être qualifiés avant activation.
+Une erreur est contenue et produit au plus un avertissement expurgé par composant
+et intervalle dans le processus ; une erreur du logger est également contenue.
+
+Un marqueur récent signifie **passage observé**, sans certifier qu’un worker est
+encore vivant, qu’il prend chaque queue équitablement ou qu’un traitement métier a
+réussi. `queue:work --once`/`queue:listen` ne sont pas une source prise en charge
+pour ces marqueurs ; utiliser des workers daemon/Horizon qualifiés sur la cible.
+Une activité absente ou ancienne exige de vérifier les processus et le cache :
+maintenance, pause, job long, arrêt normal, horloge décalée ou perte du cache peuvent
+expliquer le signal. Le seuil proposé est **180 s** (bornes 60–86 400), à adapter
+au plus long job, aux délais de polling et aux timeouts. Les horloges doivent être
+synchronisées ; un timestamp futur/malformé est refusé.
+
+Pour les travaux, le seuil proposé est **900 s depuis `updated_at`** (bornes
+60–86 400), qui est une dernière modification et non une mesure de progression
+métier. Les échecs/états incertains historiques demandent une revue même récents.
+Chaque source est triée par `updated_at`, puis ID, limitée à 1 000 lignes + une
+pour détecter la troncature (plafond configurable 10 000), sans total global.
+Les résultats sont des compteurs/âges observés, aucune ligne ou identité exportée.
+La lecture est globale, réservée à l’accès serveur ; elle ne crée aucun accès
+support aux données métier. Les requêtes ne modifient aucun import/rappel.
+La limite de lignes ne borne pas le scan, le tri SQL ou le temps de connexion :
+profiler les plans sur une cible représentative avant toute collecte régulière.
+L’échantillon peut masquer d’autres travaux ; aucune conclusion de totalité
+n’est permise s’il est tronqué. Les tenants inactifs/gelés ne sont pas déclarés
+en panne : ces enregistrements appellent seulement une revue du contexte.
+
+Les rappels contractuels non encore matérialisés et les échéances de compétition
+stockées dans des payloads métier ne sont pas examinés. Une activité scheduler/queue
+ne prouve pas que ces rappels ont été créés, reçus ou lus : leur recette de bout en
+bout reste requise. Le diagnostic ne contourne pas les droits et ne relance rien.
+
+Sorties : **0** pour les seuls contrôles passés, **1** pour un signal à examiner
+ou une lecture échouée, **2** pour suivi désactivé/absence d’option ou échantillon
+incomplet sans autre problème observé. Une erreur d’un composant ne masque pas les
+autres lectures. Le rapport reste partiel avec `supervision_validated=false`.
+`alert_candidates` prépare code, sévérité, clé de déduplication stable par namespace,
+composant et code, rôle d’exploitation à désigner, et procédure `OPS-003-BG`.
+`delivery=prepared_only` et `alert_dispatched=false` : aucun transport, destinataire,
+acquittement, escalade ou déduplication persistante n’est activé. Aucun job, e-mail
+ou notification n’est envoyé par cette préparation d’alertes.
+
+Voir la [procédure OPS-003-BG](docs/procedures-incident-support.md#ops-003-bg--activité-et-travaux-différés).
+Le raccordement aux alertes réelles et leur exercice de panne/acquittement restent
+ouverts avec l’hébergement, les métriques HTTP et le temps réel.

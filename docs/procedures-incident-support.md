@@ -316,3 +316,41 @@ ensuite une panne fictive sur une cible de test autorisée et mesurer réception
 prise en charge et retour au nominal. Ces validations restent à réaliser après
 disponibilité de l’hébergement. Aucun message ni changement de service n’a été
 effectué par ce lot.
+
+## OPS-003-BG — Activité et travaux différés
+
+Exécuter `php artisan ops:inspect-background --probe --json` depuis `back`, avec
+un accès serveur autorisé. Le suivi doit être activé sur une cible déjà qualifiée
+avec un cache partagé database/redis et un namespace isolé. Aucun destinataire
+n’est désigné par défaut : les `alert_candidates` sont des propositions locales,
+pas des alertes transmises ou acquittées. Le rôle d’exploitation et son suppléant
+restent à nommer ; l’utilisateur assure les accès utilisateurs et le premier support.
+
+| Code | Vérification puis action à autoriser selon impact |
+| --- | --- |
+| `BACKGROUND_MONITORING_DISABLED`, `PROBE_NOT_REQUESTED` | Aucun diagnostic réalisé. Vérifier les prérequis d’activation ; ne pas activer le suivi sur une cible inconnue pour faire disparaître le code |
+| `BACKGROUND_CONFIGURATION_INVALID` | Vérifier namespace, cache partagé, connexion de queue par défaut, liste des queues attendues et bornes numériques ; aucune ressource n’est lue après ce refus |
+| `BACKGROUND_HEARTBEAT_MISSING` | Vérifier première activation, namespace/préfixe/store communs, disponibilité du cache, démarrage des workers et du scheduler ; un cache vidé produit aussi ce résultat |
+| `BACKGROUND_ACTIVITY_STALE` | F4/F3 : vérifier processus, maintenance/pause, job long, équité des queues et horloges. Le seuil proposé est 180 s ; un marqueur ancien ne prouve pas un arrêt. Un autre worker de la même queue peut masquer l’arrêt d’un processus |
+| `BACKGROUND_HEARTBEAT_INVALID` | Vérifier dérive des horloges et intégrité de la configuration/cache, préserver la preuve minimale. Ne pas publier la valeur brute ni forcer un nouveau marqueur pour acquitter |
+| `BACKGROUND_HEARTBEAT_READ_FAILED`, journal `ops.background.marker_unavailable` / `BACKGROUND_HEARTBEAT_WRITE_FAILED` | F3 : vérifier la dépendance de monitoring et ses timeouts. L’écriture est contenue pour préserver les traitements ; son absence ne valide pas leur état. Aucun message/DSN d’exception n’est exposé par le composant |
+| `BACKGROUND_WORK_REVIEW` | F4 : compteurs observés d’imports queued/processing trop anciens, imports failed, livraisons pending/sending anciennes ou uncertain. Vérifier dates, droits actuels, gel/inactivité du tenant et effet distant via les accès autorisés avant toute reprise ciblée. Un état incertain ne doit jamais provoquer de renvoi automatique |
+| `BACKGROUND_WORK_SAMPLE_TRUNCATED` | Données partielles, sans total fiable. Préparer une investigation paginée/scopée autorisée ; ne pas augmenter arbitrairement le plafond ni clôturer sur cet échantillon |
+| `BACKGROUND_WORK_READ_FAILED` | Vérifier connexion et schéma de la source concernée par accès serveur autorisé ; préserver les données, sans lancer de migration ou de réparation depuis le diagnostic |
+
+Les codes `BACKGROUND_ACTIVITY_OBSERVED` et `BACKGROUND_WORK_METADATA_PASSED`
+ne valident que la lecture et le passage observé. Les timestamps de travaux sont
+des dernières modifications, pas une preuve de progression, de livraison ou de
+lecture humaine. Les rappels non matérialisés et les échéances de compétition
+nécessitent leur propre parcours métier autorisé. Le statut `blocked` n’est pas
+un motif de rétablissement de droits ni de reprise forcée.
+
+Exercice local réalisé : worker database daemon sur file vide, callback scheduler,
+avance d’horloge contrôlée, signaux absents/anciens/futurs, cache indisponible,
+imports et rappels fictifs, échantillon tronqué. Ce test ne constitue pas un essai
+Redis/Horizon, cron/process manager, SMTP ou canal d’alerte sur l’hébergement.
+Avant raccordement : adopter seuils/fréquence et timeouts, vérifier la charge,
+nommer responsable/suppléant, choisir canal et espace de preuve, puis implémenter
+et tester déduplication persistante, réception, acquittement, résolution et
+escalade. Conserver seulement heure, révision, code, compteurs/portée et référence
+d’incident dans l’espace restreint ; jamais les corps d’imports/rappels.
