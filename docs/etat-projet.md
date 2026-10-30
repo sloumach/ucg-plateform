@@ -6,7 +6,19 @@
 ## Point de reprise
 
 - Dernière mise à jour : 30 octobre 2026.
-- Tâche courante : **OPS-005 — sûreté des reprises privées après interruption**.
+- Tâche courante : **OPS-005 — concurrence, états protégés et préparation de recette**.
+  L’utilisateur demande les trois lots dans un seul nouveau commit. Verrou de
+  session PostgreSQL par organisation entre SQL/fichiers, verrou métier repris
+  pendant les fichiers, rendez-vous bornés de fixture et scénario multiprocessus.
+  Contrat réellement approuvé et match réellement validé par un tiers, archives
+  restaurées puis refus des états avancés absents sans mutation. Leur réimport
+  effectif n’est pas fourni ; aucun contournement des gardes SQL. Matrice
+  S5-01 à S5-12 et fiche opérateur préparées dans procédures-incident-support.
+  L’hébergement et les données réelles restent indisponibles : recette externe
+  non exécutée et OPS-005/REC-36 ouverts. Validation en fin de document.
+- Lot précédent : **OPS-005 — sûreté des reprises privées après interruption**,
+  commit local 0fe99bc. Le push demandé a été bloqué par le contrôle automatique,
+  qui exige la confirmation explicite de destination/contenu ; aucun push réussi.
   L’utilisateur valide OPS-004 le 30 octobre et autorise le démarrage prudent
   du ticket suivant. Premier complément : refus de reprise avec mauvaise clé
   applicative/source, journal absent/tronqué/altéré et gel après commit SQL.
@@ -17,7 +29,7 @@
   Les 16 lignes récupérées sont présentes sans doublon ; les 120 tables Beta
   et les 23 tables globales contrôlées sont préservées. Aucun code applicatif,
   migration ou base existante modifié. Restent notamment états métier avancés,
-  concurrence réelle, perte définitive de clés et qualification sur hébergement.
+  concurrence, perte définitive de clés et qualification sur hébergement.
 - Lot précédent : **OPS-004 — PITR, coffre et preuves**, commit 6afde2c poussé
   sur staging, validé par l’utilisateur. Cette validation permet la suite ; les
   preuves sur hébergement décrites en fin de document restent à recueillir.
@@ -9692,3 +9704,60 @@ restauration logique environ 62,15 s, exécutés en parallèle sur des clusters
 distincts ; nettoyage attesté pour les deux. Reçu Node lu et signature altérée
 refusée par Laravel dans le scénario PITR. PHPStan sans erreur, Pint et lint JS
 validés. La CI distante reste à confirmer après le push demandé.
+
+## OPS-005 — Concurrence, états protégés et recette préparée (30 octobre 2026)
+
+Demande : regrouper les trois lots restants dans un seul nouveau commit local.
+Le complément précédent 0fe99bc reste un commit distinct, déjà créé avant cette
+demande. Aucun push de ce nouvel ensemble n’est demandé. L’hébergement et les
+sources réelles restent reportés ; la recette réelle ne peut donc pas être exécutée.
+
+Lot concurrence : RecoveryGraphJournal, aide de fixture uniquement, acquiert un
+verrou de session PostgreSQL par organisation avant toute application, y compris
+la reprise d’un marqueur existant. Il couvre le journal, SQL et les fichiers et
+retourne GRAPH_BUSY pour une autre connexion. Libération dans finally ou par la
+fermeture de connexion après arrêt du processus. La phase fichiers utilise aussi
+une transaction avec TenantBusinessGuard et recontrôle les droits, gels/purge,
+lignes et fichiers avant completed. Aucun binding de production modifié.
+
+Le scénario test:recovery:qualification coordonne de vrais processus PHP aux
+phases SQL et fichiers, avec rendez-vous de fixture bornés à 60 secondes. Il
+observe un rédacteur Alpha en attente de verrou dans pg_stat_activity et un
+rédacteur Beta commité pendant chaque pause, puis vérifie leur résultat après
+libération, l’unicité du marqueur, les empreintes Beta/globales, fichiers privés,
+chiffrement, historiques et reprise sans doublon. Un arrêt après SQL valide
+également la libération du verrou de session et la reprise du marqueur pending.
+Les services coopèrent au verrou d’organisation ; une écriture SQL directe ou
+tous les déploiements multihôtes ne sont pas qualifiés par ce scénario borné.
+
+Lot états avancés : les services métier existants préparent un contrat avec date,
+le passent en revue puis le font approuver par un autre compte MFA habilité.
+Ils créent aussi un match à deux personnes, le confirment/démarrent, enregistrent
+les règles et scores, soumettent puis font valider le résultat par cet autre
+acteur. Deux sélections issues d’une sauvegarde restaurée démontrent le refus
+sans mutation d’un contrat approuvé ou match validé absents de la cible. Les
+transitions avancées, signatures/approbations/copies et résultats manquants sont
+exclus du rejeu automatique. Cette qualification porte sur un refus sûr ; elle
+ne fournit pas le parcours de réimport des états avancés, qui reste à développer
+et qualifier avant usage. Aucune garde SQL ni séparation des acteurs supprimée.
+
+Lot recette : procédure OPS-005-FINAL, matrice S5-01–12, fiche opérateur restreinte,
+barrière d’écriture, états exclus, restitution de clés, décisions de conservation,
+RPO/RTO et retour de service documentés. Rapport ignoré tenant-qualification-local.json,
+empreintes des sources/sauvegardes et nettoyage, exécution en CI PostgreSQL et
+conservation de quatorze jours raccordés. productionQualified et
+hostedRecipeExecuted restent false. Aucun déploiement, import de données réelles,
+migration ou modification d’une base existante.
+
+OPS-005/REC-36 restent ouverts pour le réimport effectif des états avancés et
+des autres modules peuplés, panne hôte/perte de clés, exploitation multihôte sous
+charge et recette hébergée avec données représentatives et validation métier.
+
+Validation : scénario final de qualification PostgreSQL réussi en 124,29 s,
+16 lignes récupérées, 120 tables Beta et 23 tables globales contrôlées, dix
+contrôles du rapport réussis et nettoyage des quatre clusters confirmé. Les
+deux scénarios OPS-005 existants passent également (graphe/reprises 258,02 s,
+réparation ciblée 122,09 s, exécutés en parallèle sur cibles distinctes).
+Onze tests de protocole/isolation réussis, zéro exclusion ; Pint, PHPStan
+niveau 8, lint JS et parse YAML Symfony du workflow valides. Aucun ignore ni
+baseline ajouté. Ces durées de laboratoire ne valent pas engagement RPO/RTO.

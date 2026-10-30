@@ -1426,6 +1426,19 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Périmètre** : export, sélection depuis sauvegarde, réconciliation et procédure de réimport contrôlée.
 - **Acceptation** : récupération sans écraser les mises à jour récentes des autres tenants.
 - **Références CDC** : REC-36.
+- **Trois lots regroupés (30/10/2026)** : coordination des applications/reprises
+  par verrou de session PostgreSQL tenant, verrou métier repris durant les fichiers ;
+  scénario à vrais processus concurrents avec attente Alpha observée dans PostgreSQL,
+  progression Beta et reprise après arrêt SQL. Archives restaurées de contrat
+  réellement approuvé et de match réellement validé par un tiers : refus sans
+  mutation des états avancés absents, sans prétendre les réimporter. Rejeu des
+  transitions avancées, signatures/approbations/copies et résultats manquants refusé.
+  Commande test:recovery:qualification, rapport privé et CI PostgreSQL raccordés.
+  Recette OPS-005-FINAL préparée, matrice S5-01–12, fiche restreinte, décisions sur
+  états exclus, clés, barrière d’écriture, conservation et retour de service.
+  **Reste ouvert** : récupération effective des états avancés et autres modules,
+  qualification multihôte/charge, panne machine et exécution hébergée avec données
+  représentatives. Les trois lots ne sont pas déclarés achevés en production.
 - **Complément de reprise prudente (30/10/2026)** : scénario PostgreSQL enrichi
   après commit SQL interrompu : mauvaise clé applicative ou source, journal
   absent/tronqué/altéré, gel nouvellement posé. Chaque refus doit conserver toutes

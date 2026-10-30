@@ -5927,9 +5927,55 @@ clé définitivement perdue et ne simulent pas une panne machine.
 Les étapes pour le réel sont des critères de préparation, **pas une commande
 opérateur de production livrée**. Les reprises testées traversent des arrêts de
 sous-processus PHP avec le même parent de test et ses clés éphémères disponibles.
-Ni panne machine, perte de clés, durabilité du stockage distant, opérations
-simultanées sur Alpha, RPO/RTO représentatif ou import de tous les états métier
-ne sont qualifiés. OPS-005/REC-36 restent ouverts pour ces validations avant réel.
+Ni panne machine, perte définitive de clés, durabilité du stockage distant,
+RPO/RTO représentatif ou import de tous les états métier ne sont qualifiés.
+Le complément suivant couvre une concurrence locale bornée. OPS-005/REC-36
+restent ouverts pour les validations avant réel.
+
+### Complément OPS-005 — concurrence, états protégés et recette réelle
+
+Depuis `front`, avec les exécutables PostgreSQL 17 dans le PATH :
+
+```powershell
+npm run test:recovery:qualification
+```
+
+L’essai crée quatre clusters temporaires attestés et des données fictives. Les
+paquets du graphe et des états avancés sont lus depuis des sauvegardes restaurées.
+Un contrat passe par la revue puis l’approbation d’un autre acteur. Un second
+match passe par confirmation, saisie des scores, soumission et validation indépendante.
+Les deux archives avancées sont refusées sans mutation sur une cible où ces
+dossiers sont absents. Cela vérifie une limite explicite de l’importeur de
+laboratoire, pas la récupération complète de contrats approuvés ou matchs validés.
+Les transitions contractuelles avancées, signatures, approbations/copies et
+événements de résultat manquants sont également exclus du rejeu automatique.
+
+La récupération utilise un verrou de session PostgreSQL par organisation, conservé
+entre commit SQL et fichiers ; une tentative concurrente retourne `GRAPH_BUSY`.
+Le contrôle métier et le verrou de ligne de l’organisation sont repris dans la
+transaction des fichiers. Deux points de rendez-vous bornés de fixture permettent
+de lancer de vrais processus PHP concurrents pendant chaque phase. Le test observe
+l’attente du rédacteur Alpha dans PostgreSQL, la progression de Beta, le refus
+des applications/reprises concurrentes, puis les commits attendus après libération.
+Le verrou de session est libéré dans `finally` ou à la fermeture de la connexion
+du processus interrompu. La reprise après le code 73 doit donc fonctionner.
+
+Ce mécanisme reste propre aux fixtures et aux écritures métier utilisant le
+verrou d’organisation ; il ne bloque pas une écriture SQL directe non coopérative.
+Les checkpoints sont absents des services applicatifs. Aucune route, commande
+opérateur, migration ou modification de droits de production n’est ajoutée.
+La transaction des fichiers conserve le marqueur pending si le processus est
+arrêté après installation : le fichier est revérifié lors de la reprise.
+
+Le rapport ignoré `front/reports/tenant-qualification-local.json` contient les
+empreintes des sources/sauvegardes, contrôles, durée et nettoyage. Il garde
+`productionQualified=false` et `hostedRecipeExecuted=false`. La CI PostgreSQL
+exécute ce scénario et conserve le rapport 14 jours. Une simulation locale ne
+qualifie ni toutes les combinaisons d’états ni la charge d’un hébergement.
+La [recette OPS-005-FINAL](docs/procedures-incident-support.md#ops-005-final--recette-de-récupération-sélective)
+définit les essais externes, les décisions sur les états exclus et les preuves
+attendues avant toute récupération réelle. L’hébergement et les données réelles
+restent indisponibles ; cette partie est préparée, sans exécution réelle.
 
 ## UCG-OPS-006 — Fichiers, antivirus et dépendances
 

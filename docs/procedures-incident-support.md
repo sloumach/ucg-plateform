@@ -469,3 +469,79 @@ atteint, dernier commit récupérable, durée complète jusqu’au service utili
 volumes/charge, contrôle fichiers/déchiffrement/isolation/rôles, incidents injectés,
 alertes reçues/acquittées, seuils adoptés et accord de retour nominal. Ne clôturer
 OPS-004 qu’après mesures RPO/RTO, exercice distant et validation de ces preuves.
+
+## OPS-005-FINAL — Recette de récupération sélective
+
+Le lot de recette est préparé localement. Son exécution réelle attend un
+hébergement autorisé, des données représentatives et des intervenants désignés.
+L’utilisateur assure actuellement accès et premier support ; opérateur de
+récupération, vérificateur métier et suppléant restent à nommer. Une simulation
+réussie n’est pas un accord de réouverture ni une clôture de REC-36.
+
+Les commandes suivantes, depuis `front`, utilisent seulement leurs clusters
+temporaires fictifs. Elles n’acceptent aucune adresse de base opérationnelle :
+
+```powershell
+npm run test:recovery:tenant
+npm run test:recovery:graph
+npm run test:recovery:qualification
+```
+
+Consulter les rapports privés ignorés `tenant-recovery-local.json`,
+`tenant-graph-local.json` et `tenant-qualification-local.json` dans `front/reports`.
+Vérifier résultat, nettoyage, empreintes des sources/sauvegardes et contrôles
+détaillés. Le dernier garde `hostedRecipeExecuted=false` et
+`productionQualified=false`. Aucun fichier de journal chiffré ni clé ne doit
+être ajouté au dépôt, aux logs ou à une pièce de support publique.
+
+| Référence | Vérification locale | Preuve ou décision attendue sur cible autorisée |
+| --- | --- | --- |
+| S5-01 Périmètre | Alpha sélectionné depuis une sauvegarde restaurée ; Beta et tables globales empreintées | Incident, organisation, instant, sauvegarde et volumes identifiés ; retour arrière autorisé et copie isolée de lecture |
+| S5-02 Accès | Droits revérifiés par le laboratoire ; MFA et aucune habilitation recréée | Opérateur et vérificateur nommés, droits minimaux courants, révision applicative et configuration, contrôle après révocation réelle |
+| S5-03 Plan | Conflits explicites à préserver, plan altéré/obsolète refusé | Revue des lignes manquantes/divergentes et références ; décision récente, liée aux empreintes et à l’état courant |
+| S5-04 Deux récupérations | Processus PHP distincts, refus GRAPH_BUSY pendant SQL et fichiers, marqueur unique | Même contrôle entre hôtes/workers du dispositif futur ; timeouts, reprise après perte de connexion et absence de doublons |
+| S5-05 Écritures Alpha | Rédacteur métier observé en attente SQL, commit après libération | Barrière d’écriture définie pour HTTP, imports, jobs et opérateurs ; écritures SQL directes exclues ou coordonnées ; pas de réouverture durant pending |
+| S5-06 Progression Beta | Écritures Beta concurrentes commitées pendant chaque phase puis préservées | Charge concurrente représentative, absence de blocage inter-tenant durable, contrôle de toutes les tables et fichiers voisins |
+| S5-07 États protégés | Contrat réellement approuvé et match réellement validé par un tiers, archives restaurées puis refus sans mutation | Décider du support par état et module. Arrêter si état exclu ; concevoir et qualifier un parcours métier dédié avant sa récupération. Aucun déclencheur SQL désactivé, aucune validation réattribuée |
+| S5-08 Crash/reprise | Arrêts de sous-processus après SQL puis fichier, journal chiffré et reprise sans doublon | Coupure de l’hôte/stockage, durabilité des écritures, restauration du journal depuis un stockage privé disponible, source hors ligne |
+| S5-09 Clés/journal | Mauvaises clés et journal absent/tronqué/altéré refusés ; originaux conservés | Restitution contrôlée depuis le coffre, rotation et anciennes APP_KEY nécessaires, identités autorisées ; perte définitive déclarée comme indisponibilité, jamais contournée |
+| S5-10 Conservation | Gel/purge simulés refusés ; contrôle métier réel pendant les écritures | Rapprochement des décisions d’effacement/gels postérieurs avec OPS-007 avant lecture/reprise et avant toute réouverture |
+| S5-11 Intégrité | FK, champs chiffrés lisibles, historiques protégés et fichiers hachés | Couverture de tous les modules réellement peuplés, cohérence des fichiers concurrents/versionnés, antivirus et ACL privées, revue des exceptions |
+| S5-12 Retour de service | Résultats locaux et durée complète conservés | RPO/RTO adoptés puis mesurés sous charge, rapprochement indépendant, réception des alertes et accord explicite de retour nominal |
+
+Avant intervention réelle, geler le périmètre Alpha par un dispositif adapté à
+toutes les sources d’écriture. Le laboratoire démontre seulement la coopération
+des services qui prennent le verrou d’organisation ; son verrou de session entre
+récupérations ne protège pas d’un accès SQL direct. Prévoir des connexions dédiées,
+sans pooling de transaction incompatible avec un verrou de session, puis vérifier
+la libération sur incident. Ne jamais prolonger une transaction de production
+avec les fichiers de rendez-vous propres aux fixtures.
+
+Sur `GRAPH_BUSY`, conserver le plan et vérifier l’opération déjà en cours ; ne
+pas supprimer son verrou, journal ou marqueur. Sur `GRAPH_STALE`, refaire la
+revue après comparaison des modifications, sans réutiliser la décision ancienne.
+Sur `GRAPH_PROTECTED_STATE`, arrêter le réimport des états exclus et demander la
+qualification métier dédiée. Un refus ne justifie ni rétrogradation du contrat,
+ni remise en brouillon d’un résultat, ni désactivation d’une garde SQL.
+Sur `GRAPH_RECOVERED_ROW_CHANGED` ou `GRAPH_FILE_CONFLICT`, conserver les deux
+versions pour revue restreinte ; ne pas écraser la plus récente. Sur journal
+indisponible ou échec cryptographique, préserver les preuves et restituer les
+éléments originaux depuis le coffre ; ne pas recréer une preuve d’approbation.
+
+Si SQL a commité mais les fichiers sont incomplets, l’opération reste pending.
+Garder le service Alpha fermé jusqu’à vérification du journal, des lignes
+récupérées, des décisions de conservation et des fichiers. Une reprise répétée
+doit retrouver un seul marqueur/audit et les mêmes empreintes, sans réinsérer
+l’historique. Les historiques contractuels avancés, signatures/approbations et
+événements de résultat manquants sont refusés par l’aide de récupération actuelle.
+
+Fiche de recette à conserver dans l’espace opérateur restreint : référence
+d’incident, cible autorisée, date UTC, révision/SHA, opérateur/vérificateur,
+organisation et périmètre, sauvegarde et empreinte, identifiants de clés sans
+secrets, décisions de conservation, barrière d’écriture, plan et approbation,
+états/modules présents et exclus, résultat attendu/observé S5-01 à S5-12, mesures
+de charge et RPO/RTO, comptes de lignes et empreintes base/fichiers avant/après,
+preuves Beta/globales, marqueur/audit et état pending/completed, anomalies,
+retour arrière/retest, réception d’alerte, décision de réouverture et signataires.
+Toute preuve manquante reste « non vérifiée » ; aucune qualification hébergée
+n’est acquise dans ce lot local.

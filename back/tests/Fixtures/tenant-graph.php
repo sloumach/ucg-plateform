@@ -1,13 +1,18 @@
 <?php
 
+use App\Modules\Competition\Application\Services\MatchResultService;
+use App\Modules\Competition\Application\Services\MatchScoreService;
+use App\Modules\Competition\Application\Services\MatchService;
 use App\Modules\Competition\Domain\Models\MatchParticipant;
 use App\Modules\Competition\Domain\Models\MatchRecord;
+use App\Modules\Contracts\Application\Services\ContractService;
 use App\Modules\Contracts\Domain\Models\ContractDocument;
 use App\Modules\Contracts\Domain\Models\ContractDocumentVersion;
 use App\Modules\Contracts\Domain\Models\ContractObligation;
 use App\Modules\Contracts\Domain\Models\ContractParty;
 use App\Modules\Contracts\Domain\Models\ContractRecord;
 use App\Modules\Contracts\Domain\Models\ContractTransition;
+use App\Modules\Identity\Domain\Models\User;
 use App\Modules\People\Application\Data\PersonData;
 use App\Modules\People\Application\Services\PersonService;
 use App\Modules\People\Domain\Models\ExternalGameAccount;
@@ -23,6 +28,7 @@ use App\Modules\Teams\Domain\Models\TeamMembership;
 use App\Modules\Tenancy\Application\Contracts\TenantArtifacts;
 use App\Modules\Tenancy\Application\Services\TenantResolver;
 use App\Modules\Tenancy\Domain\Models\Organization;
+use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
 use App\Modules\Tenancy\Domain\Models\OrganizationRole;
 use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use App\Modules\Tenancy\Infrastructure\Persistence\DatabasePortabilityRepository;
@@ -35,7 +41,7 @@ use Tests\Fixtures\RecoveryGraphJournal;
 use Tests\Fixtures\RecoveryGraphRepository;
 
 if (getenv('UCG_RECOVERY_FIXTURE') !== 'v1' || getenv('UCG_BROWSER_ENGINE') !== 'pgsql'
-    || ! in_array($argv[1] ?? '', ['base', 'graph', 'export-alpha', 'export-beta', 'plan', 'apply', 'rollback', 'crash-after-sql', 'resume', 'crash-after-file', 'hold', 'unhold', 'alpha-change', 'beta-change', 'verify', 'changed-row-probe', 'purge-marker'], true)) {
+    || ! in_array($argv[1] ?? '', ['base', 'graph', 'protected', 'export-alpha', 'export-beta', 'plan', 'apply', 'rollback', 'crash-after-sql', 'resume', 'crash-after-file', 'hold', 'unhold', 'alpha-change', 'beta-change', 'verify', 'changed-row-probe', 'purge-marker', 'concurrency-status'], true)) {
     throw new RuntimeException('Owned PostgreSQL graph fixture required.');
 }
 try {
@@ -50,7 +56,22 @@ try {
     $graph = new RecoveryGraphRepository($db, $catalog);
     $root = (string) getenv('UCG_BROWSER_ROOT');
     $sourceKey = (string) getenv('UCG_GRAPH_SOURCE_KEY');
-    $journal = new RecoveryGraphJournal($app, $db, $graph, $catalog, $root, (string) getenv('UCG_BROWSER_TOKEN'), $sourceKey);
+    $checkpoint = static function (string $phase) use ($root): void {
+        if (getenv('UCG_GRAPH_PAUSE') !== $phase) {
+            return;
+        }
+        if (file_put_contents($root.'/graph-ready-'.$phase, 'ready', LOCK_EX) === false) {
+            throw new RuntimeException('GRAPH_CHECKPOINT');
+        }
+        $deadline = hrtime(true) + 60_000_000_000;
+        while (! is_file($root.'/graph-release-'.$phase)) {
+            if (hrtime(true) >= $deadline) {
+                throw new RuntimeException('GRAPH_CHECKPOINT_TIMEOUT');
+            }
+            usleep(10_000);
+        }
+    };
+    $journal = new RecoveryGraphJournal($app, $db, $graph, $catalog, $root, (string) getenv('UCG_BROWSER_TOKEN'), $sourceKey, $checkpoint);
     $operation = $argv[1];
 
     if ($operation === 'base') {
@@ -64,7 +85,56 @@ try {
             OrganizationRoleAssignment::factory()->create(['organization_id' => $organization->id,
                 'user_id' => $organization->owner_user_id, 'membership_id' => null, 'role_id' => $role->id, 'scope_id' => $organization->id]);
         }
+        $validator = User::factory()->withMfa()->create(['email' => 'recovery-validator@example.test']);
+        $membership = OrganizationMembership::factory()->create(['organization_id' => $alpha->id, 'user_id' => $validator->id]);
+        $role = OrganizationRole::factory()->create(['organization_id' => $alpha->id,
+            'permissions' => ['administrative.read', 'administrative.write', 'administrative.validate', 'sports.read', 'sports.write', 'sports.validate'], 'privileged' => true]);
+        OrganizationRoleAssignment::factory()->create(['organization_id' => $alpha->id, 'user_id' => $validator->id,
+            'membership_id' => $membership->id, 'role_id' => $role->id, 'scope_id' => $alpha->id]);
         echo json_encode(['base' => true], JSON_THROW_ON_ERROR);
+        exit;
+    }
+    if ($operation === 'protected') {
+        $validator = User::query()->where('email', 'recovery-validator@example.test')->sole();
+        $reviewer = $app->make(TenantResolver::class)->resolve($alpha->id, '', $validator->id, (string) Str::uuid());
+        $person = Person::query()->where('organization_id', $alpha->id)->where('pseudonym', 'Graph person')->sole();
+        $contracts = $app->make(ContractService::class);
+        $contract = ContractRecord::query()->where('organization_id', $alpha->id)->sole();
+        $protectedPhase = 'GRAPH_PROTECTED_CONTRACT_DATES';
+        $contract = $contracts->save($context, ['version' => $contract->version, 'starts_on' => now()->toDateString()], $contract->id);
+        $protectedPhase = 'GRAPH_PROTECTED_CONTRACT_REVIEW';
+        $contract = $contracts->transition($context, $contract->id, ['version' => $contract->version, 'status' => 'in_review']);
+        $protectedPhase = 'GRAPH_PROTECTED_CONTRACT_APPROVAL';
+        $contract = $contracts->transition($reviewer, $contract->id, ['version' => $contract->version, 'status' => 'approved']);
+        $game = GameCatalogueEntry::query()->where('kind', 'game')->where('key', 'valorant')->sole();
+        $other = Person::query()->where('organization_id', $alpha->id)->where('id', '!=', $person->id)->firstOrFail();
+        $matches = $app->make(MatchService::class);
+        $protectedPhase = 'GRAPH_PROTECTED_MATCH_CREATE';
+        $match = $matches->save($context, ['game_id' => $game->id, 'title' => 'Protected recovery match', 'kind' => 'scrim', 'format' => 'bo1',
+            'starts_at' => now()->addDays(3)->startOfHour()->format('Y-m-d\TH:i:sP'),
+            'ends_at' => now()->addDays(3)->startOfHour()->addHour()->format('Y-m-d\TH:i:sP'), 'origin_timezone' => 'UTC',
+            'responsible_person_id' => $person->id, 'participants' => [['kind' => 'person', 'source_id' => $person->id], ['kind' => 'person', 'source_id' => $other->id]]]);
+        $protectedPhase = 'GRAPH_PROTECTED_MATCH_CONFIRM';
+        $match = $matches->transition($context, $match->id, ['version' => $match->version, 'status' => 'confirmed', 'reason' => 'Synthetic recovery qualification.']);
+        $match = $matches->transition($context, $match->id, ['version' => $match->version, 'status' => 'in_progress', 'reason' => 'Synthetic recovery qualification.']);
+        $protectedPhase = 'GRAPH_PROTECTED_MATCH_SCORES';
+        $scores = $app->make(MatchScoreService::class);
+        $rules = $scores->save($context, $match->id, ['version' => $match->version, 'allow_draw' => false, 'game_limit' => 1,
+            'reason' => 'Synthetic recovery score rules.'], true, null);
+        $firstParticipant = $match->participants->firstOrFail();
+        $secondParticipant = $match->participants->skip(1)->firstOrFail();
+        $gameScore = $scores->save($context, $match->id, ['version' => $rules['match_version'], 'outcome' => 'played',
+            'map' => 'Fictitious recovery map', 'game_patch' => 'fixture-v1', 'reason' => 'Synthetic recovery match scores.',
+            'results' => [['participant_id' => $firstParticipant->id, 'score' => 13], ['participant_id' => $secondParticipant->id, 'score' => 7]]], false, null);
+        $results = $app->make(MatchResultService::class);
+        $protectedPhase = 'GRAPH_PROTECTED_MATCH_SUBMIT';
+        $submitted = $results->change($context, $match->id, ['version' => $gameScore['match_version'], 'outcome' => 'played',
+            'proof_reference' => 'Fictitious recovery evidence',
+            'confirm_proof' => true, 'reason' => 'Synthetic recovery qualification.'], 'submit');
+        $protectedPhase = 'GRAPH_PROTECTED_MATCH_APPROVAL';
+        $approved = $results->change($reviewer, $match->id, ['version' => $submitted['match_version'], 'submission_id' => $submitted['submission']['id'],
+            'confirm_evidence' => true, 'reason' => 'Independent synthetic evidence review.'], 'approve');
+        echo json_encode(['contract' => $contract->status, 'match' => $approved['status'], 'independent' => $validator->id !== $alpha->owner_user_id], JSON_THROW_ON_ERROR);
         exit;
     }
     if ($operation === 'graph') {
@@ -113,6 +183,13 @@ try {
             $files[] = ['id' => $artifact['id'], 'contents' => base64_encode($contents), 'sha256' => hash('sha256', $contents)];
         }
         $source = ['version' => 1, 'tenant' => $organization->id, 'schema' => $graph->schemaHash(), 'rows' => $graph->rows($organization->id), 'files' => $files];
+        if (getenv('UCG_GRAPH_SELECTION') === 'without-matches') {
+            foreach (array_keys($source['rows']) as $table) {
+                if ($table === 'matches' || str_starts_with($table, 'match_')) {
+                    $source['rows'][$table] = [];
+                }
+            }
+        }
         // Faults are confined to this owned fixture, to test authenticated but invalid input.
         switch (getenv('UCG_GRAPH_FAULT')) {
             case 'column': $source['rows']['people'][0]['unregistered_column'] = 'refuse';
@@ -134,11 +211,21 @@ try {
         exit;
     }
     if (in_array($operation, ['alpha-change', 'beta-change'], true)) {
+        if (getenv('UCG_GRAPH_WRITER_PROBE') === 'v1') {
+            $db->select("SELECT set_config('application_name', 'ucg-graph-writer', false)");
+        }
         $organization = $operation === 'alpha-change' ? $alpha : $beta;
         $scope = $app->make(TenantResolver::class)->resolve($organization->id, '', $organization->owner_user_id, (string) Str::uuid());
-        $person = Person::query()->where('organization_id', $organization->id)->orderBy('id')->firstOrFail();
+        $person = Person::query()->where('organization_id', $organization->id)
+            ->when(getenv('UCG_GRAPH_WRITER_PROBE') === 'v1', fn ($query) => $query->where('pseudonym', '!=', 'Graph person'))
+            ->orderBy('id')->firstOrFail();
         $app->make(PersonService::class)->update($scope, $person->id, new PersonData(['pseudonym' => $operation.' after plan'], $person->version));
         echo json_encode(['changed' => true], JSON_THROW_ON_ERROR);
+        exit;
+    }
+    if ($operation === 'concurrency-status') {
+        echo json_encode(['waitingWriters' => (int) $db->scalar("SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND application_name='ucg-graph-writer' AND wait_event_type='Lock'"),
+            'markers' => $db->table('tenant_portability_operations')->where('organization_id', $alpha->id)->where('kind', 'recovery')->count()], JSON_THROW_ON_ERROR);
         exit;
     }
     if ($operation === 'hold') {
@@ -214,6 +301,9 @@ try {
     }
 } catch (Throwable $exception) {
     $reason = preg_match('/^GRAPH_[A-Z_]+$/D', $exception->getMessage()) === 1 ? $exception->getMessage() : 'GRAPH_FIXTURE_FAILED';
+    if ($reason === 'GRAPH_FIXTURE_FAILED' && isset($protectedPhase)) {
+        $reason = $protectedPhase;
+    }
     fwrite(STDERR, 'Graph fixture failed: '.$exception::class.PHP_EOL);
     echo json_encode(['refused' => $reason], JSON_THROW_ON_ERROR);
     exit(2);

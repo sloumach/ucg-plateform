@@ -92,7 +92,9 @@ final readonly class RecoveryGraphRepository
                         throw new RuntimeException('GRAPH_IDENTITY_COLLISION');
                     }
                     if (($table === 'contracts' && ($row['status'] ?? null) !== 'draft')
-                        || ($table === 'matches' && ($row['status'] ?? null) !== 'proposed')) {
+                        || ($table === 'matches' && ($row['status'] ?? null) !== 'proposed')
+                        || ($table === 'contract_transitions' && (($row['from_status'] ?? null) !== null || ($row['to_status'] ?? null) !== 'draft'))
+                        || in_array($table, ['contract_document_signatures', 'contract_amendment_approvals', 'contract_approved_copies', 'match_result_events'], true)) {
                         throw new RuntimeException('GRAPH_PROTECTED_STATE');
                     }
                     $missing[$key] = ['table' => $table, 'data' => $row];

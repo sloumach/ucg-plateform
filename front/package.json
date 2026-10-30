@@ -26,6 +26,7 @@
     "test:recovery": "node --test tests/real-api/recovery.test.mjs",
     "test:recovery:tenant": "node --test tests/real-api/tenant-recovery.test.mjs",
     "test:recovery:graph": "node --test tests/real-api/tenant-graph.test.mjs",
+    "test:recovery:qualification": "node --test tests/real-api/tenant-qualification.test.mjs",
     "test:recovery:pitr:harness": "node --test tests/real-api/pitr-protocol.test.mjs",
     "test:recovery:pitr": "node --test tests/real-api/pitr.test.mjs",
     "test:retention:harness": "node --test tests/real-api/retention-review.test.mjs",

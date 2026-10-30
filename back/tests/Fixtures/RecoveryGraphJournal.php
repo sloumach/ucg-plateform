@@ -11,6 +11,7 @@ use App\Support\Audit\AuditAction;
 use App\Support\Audit\AuditReason;
 use App\Support\Audit\AuditTarget;
 use App\Support\Audit\AuditWriteData;
+use Closure;
 use Illuminate\Contracts\Encryption\Encrypter;
 use Illuminate\Database\Connection;
 use Illuminate\Foundation\Application;
@@ -22,7 +23,8 @@ final readonly class RecoveryGraphJournal
 {
     public function __construct(private Application $app, private Connection $db,
         private RecoveryGraphRepository $graph, private DatabasePortabilityRepository $catalog,
-        private string $root, private string $token, private string $sourceKey) {}
+        private string $root, private string $token, private string $sourceKey,
+        private ?Closure $checkpoint = null) {}
 
     /** @param array<string,mixed> $packet
      * @return array<string,mixed>
@@ -89,6 +91,24 @@ final readonly class RecoveryGraphJournal
     public function apply(TenantContext $context, array $signed, string $fault = ''): array
     {
         $this->authorize($context);
+        // A session lock spans both SQL commit and restartable file installation.
+        $key = 'ucg:recovery-graph:'.$context->organizationId;
+        if (! $this->db->scalar('SELECT pg_try_advisory_lock(hashtextextended(?, 0))', [$key])) {
+            throw new RuntimeException('GRAPH_BUSY');
+        }
+        try {
+            return $this->applyLocked($context, $signed, $fault);
+        } finally {
+            $this->db->select('SELECT pg_advisory_unlock(hashtextextended(?, 0))', [$key]);
+        }
+    }
+
+    /** @param array<string,mixed> $signed
+     * @return array<string,mixed>
+     */
+    private function applyLocked(TenantContext $context, array $signed, string $fault): array
+    {
+        $this->authorize($context);
         $plan = $signed['plan'] ?? null;
         if (! is_array($plan) || ! is_string($signed['signature'] ?? null)
             || ! hash_equals(hash_hmac('sha256', RecoveryGraphRepository::hash($plan), $this->token), $signed['signature'])
@@ -133,6 +153,9 @@ final readonly class RecoveryGraphJournal
                 if (RecoveryGraphRepository::hash($current) !== RecoveryGraphRepository::hash($plan['review'])) {
                     throw new RuntimeException('GRAPH_STALE');
                 }
+                if ($this->checkpoint !== null) {
+                    ($this->checkpoint)('sql');
+                }
                 foreach ($current['ordered'] as $key) {
                     $record = $current['missing'][$key];
                     $this->db->table($record['table'])->insert($record['data']);
@@ -159,34 +182,42 @@ final readonly class RecoveryGraphJournal
         if (($details['plan_hash'] ?? null) !== RecoveryGraphRepository::hash($plan)) {
             throw new RuntimeException('GRAPH_MARKER');
         }
-        foreach ($plan['review']['missing'] as $record) {
-            $key = DatabasePortabilityRepository::TABLES[$record['table']];
-            $restored = $this->db->table($record['table'])->where('organization_id', $context->organizationId)
-                ->where($key, $record['data'][$key])->first(array_keys($record['data']));
-            if ($restored === null || RecoveryGraphRepository::hash($restored) !== RecoveryGraphRepository::hash($record['data'])) {
-                throw new RuntimeException('GRAPH_RECOVERED_ROW_CHANGED');
-            }
-        }
-        $fileActions = $this->files($context, $source['files'], true);
-        foreach ($fileActions as $action) {
-            if (! file_exists($action['path'])) {
-                $stage = $this->root.'/graph-file-'.hash('sha256', $action['contents']);
-                if (! file_exists($stage)) {
-                    $this->write($stage, $action['contents']);
-                }
-                if (is_link($stage) || hash_file('sha256', $stage) !== hash('sha256', $action['contents']) || ! link($stage, $action['path'])) {
-                    throw new RuntimeException('GRAPH_FILE_INSTALL');
-                }
-            }
-            if ($fault === 'crash-after-file') {
-                exit(74);
-            }
-        }
-        if ($marker->status !== 'completed') {
-            $this->catalog->update($context->organizationId, $marker->id, ['status' => 'completed']);
-        }
 
-        return ['completed' => true, 'insertedRows' => $details['inserted_rows'], 'operation' => $plan['operation']];
+        return $this->db->transaction(function () use ($context, $plan, $source, $marker, $details, $fault): array {
+            $this->app->make(TenantBusinessGuard::class)->lock($context);
+            $this->authorize($context);
+            if ($this->checkpoint !== null) {
+                ($this->checkpoint)('files');
+            }
+            foreach ($plan['review']['missing'] as $record) {
+                $key = DatabasePortabilityRepository::TABLES[$record['table']];
+                $restored = $this->db->table($record['table'])->where('organization_id', $context->organizationId)
+                    ->where($key, $record['data'][$key])->first(array_keys($record['data']));
+                if ($restored === null || RecoveryGraphRepository::hash($restored) !== RecoveryGraphRepository::hash($record['data'])) {
+                    throw new RuntimeException('GRAPH_RECOVERED_ROW_CHANGED');
+                }
+            }
+            $fileActions = $this->files($context, $source['files'], true);
+            foreach ($fileActions as $action) {
+                if (! file_exists($action['path'])) {
+                    $stage = $this->root.'/graph-file-'.hash('sha256', $action['contents']);
+                    if (! file_exists($stage)) {
+                        $this->write($stage, $action['contents']);
+                    }
+                    if (is_link($stage) || hash_file('sha256', $stage) !== hash('sha256', $action['contents']) || ! link($stage, $action['path'])) {
+                        throw new RuntimeException('GRAPH_FILE_INSTALL');
+                    }
+                }
+                if ($fault === 'crash-after-file') {
+                    exit(74);
+                }
+            }
+            if ($marker->status !== 'completed') {
+                $this->catalog->update($context->organizationId, $marker->id, ['status' => 'completed']);
+            }
+
+            return ['completed' => true, 'insertedRows' => $details['inserted_rows'], 'operation' => $plan['operation']];
+        });
     }
 
     /** @return array<string,mixed> */
