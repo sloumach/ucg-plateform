@@ -88,6 +88,28 @@ class PersonArchiveTest extends TestCase
         $this->assertDatabaseCount('organization_audit_events', 0);
     }
 
+    #[Group('tenant-isolation')]
+    public function test_multi_organization_actor_cannot_mix_archived_lists_or_archive_and_restore_parents(): void
+    {
+        [$alpha, $local, $actor] = $this->scenario();
+        $beta = Organization::factory()->create();
+        $this->grantPeopleAccess($beta, $actor, ['sports.read', 'sports.write', 'administrative.read', 'administrative.write']);
+        $foreign = Person::factory()->create(['organization_id' => $beta->id, 'status' => 'former', 'pseudonym' => 'BetaArchive']);
+        PersonDeparture::factory()->create(['organization_id' => $beta->id, 'person_id' => $foreign->id]);
+        $before = (array) DB::table('people')->where('id', $foreign->id)->firstOrFail();
+        $this->deleteJson($this->path($alpha, $foreign), ['version' => $foreign->version, 'confirm' => true])->assertNotFound();
+        $this->postJson($this->path($alpha, $foreign).'/restore', ['version' => $foreign->version, 'confirm' => true])->assertNotFound();
+        $this->assertSame($before, (array) DB::table('people')->where('id', $foreign->id)->firstOrFail());
+        $archived = $this->deleteJson($this->path($beta, $foreign), ['version' => $foreign->version, 'confirm' => true])->assertOk();
+        $this->getJson($this->path($alpha).'?archive=only')->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson($this->path($beta).'?archive=only')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $foreign->id);
+        $this->postJson($this->path($alpha, $foreign).'/restore', ['version' => $archived->json('data.version'), 'confirm' => true])->assertNotFound();
+        $this->postJson($this->path($beta, $foreign).'/restore', ['version' => $archived->json('data.version'), 'confirm' => true])->assertOk();
+        $this->assertNotSoftDeleted('people', ['id' => $foreign->id]);
+        $this->assertNotSoftDeleted('people', ['id' => $local->id]);
+        $this->assertDatabaseCount('tenant_erasure_operations', 0);
+    }
+
     /** @return array<string, array{array<string, mixed>}> */
     public static function invalidPayloads(): array
     {

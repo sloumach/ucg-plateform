@@ -6,7 +6,19 @@
 ## Point de reprise
 
 - Dernière mise à jour : 31 octobre 2026.
-- Tâche courante : **OPS-008 — finalisation documentaire en un seul commit**.
+- Tâche courante : **QA-002 — consolidation de la matrice en un seul commit**.
+  L’utilisateur valide la CI puis corrige explicitement OPS-008 en QA-002.
+  Un seul commit local demandé, aucun push. Cinq cas ajoutés dans les tests
+  d’archivage et d’effacement pour un acteur habilité dans deux organisations ;
+  frontières cible/opération/intention signée/quarantaine, refus sans mutation et
+  actions légitimes de Beta conservées. Groupe critique SQLite : 261 réussites,
+  3 913 assertions, zéro exclusion ; Reverb réel local : une réussite/26 assertions.
+  PostgreSQL 17 jetable : mêmes 261 réussites/3 913 assertions, zéro exclusion,
+  cluster nettoyé. Pint/PHPStan et Composer strict valides.
+  Commande Composer dédiée et matrice REC-23–36 mise à jour avec OPS-005/007.
+  QA-005/REC-34 reste ouvert sur la performance réellement non validée. Bilan final
+  et preuve PostgreSQL en fin de document ; aucun changement métier ou migration.
+- Livraison précédente : **OPS-008 — finalisation documentaire en un seul commit**.
   Démarrage prudent autorisé après le push OPS-007 537eeff ; un seul commit local,
   aucun push demandé pour ce nouvel ensemble. Neuf fiches, chaîne d’escalade,
   fiche d’incident privée, états de transmission et grille de clôture/mise en
@@ -16,6 +28,7 @@
   aucun message envoyé ni incident réel. L’utilisateur garde accès/premier support ;
   les autres titulaires, suppléants, contacts et canaux restent à qualifier.
   Bilan en fin de document ; nouvelles CI OPS-006/007 non déclarées validées.
+  Commit 870c376 poussé sur origin/staging ; l’utilisateur valide la CI avant QA-002.
 - Livraison précédente : **OPS-007 — qualification complète en un seul commit**.
   Démarrage prudent autorisé par l’utilisateur après OPS-006 ; un seul commit,
   aucun push demandé pour ce nouvel ensemble. Tests sur données fictives isolées.
@@ -10028,3 +10041,65 @@ nommer titulaires/suppléants et contacts privés, adopter horaires et seuils,
 consigner l’accord de mise en service. Aucune astreinte, réception humaine ou
 qualification d’hébergement n’est déduite des tests. Un seul commit local demandé,
 sans push effectué pour cette livraison.
+
+## UCG-QA-002 — Matrice courante et frontières d’effacement (31 octobre 2026)
+
+L’utilisateur valide la CI précédente et précise QA-002 après une confusion avec
+OPS-008 déjà livré. Une seule livraison committée, aucun push demandé. La revue
+part de la consolidation existante et des ajouts OPS-004 à OPS-008 ; les nouveaux
+points sensibles sont l’archivage réversible et les commandes d’effacement/rejeu.
+
+Cinq scénarios critiques ajoutés, sans modification métier : acteur disposant des
+droits de lecture/écriture dans Alpha et Beta pour les archives HTTP, et opérateur
+explicitement autorisé pour les deux organisations dans l’effacement serveur.
+Une personne étrangère ne peut pas être approuvée sous Alpha ; une opération Beta
+ne peut pas être inspectée, reprise ou acquittée via Alpha ; une intention Beta
+signée ne peut pas être rejouée ou réétiquetée en Alpha. La clôture de l’effacement
+Alpha ne libère pas Beta et l’intention Beta ne bloque pas la lecture Alpha déjà
+réconciliée. Les listes/archives et restaurations HTTP restent liées au parent,
+alors que les actions légitimes Beta restent possibles. Instantanés des lignes,
+versions/progressions, preuves et permis vérifiés après les refus.
+
+La commande Composer test:isolation réutilise le groupe tenant-isolation et écrit
+un rapport JUnit privé ignoré ; elle reprend la préparation standard des tests.
+Les nouveaux cas sont déjà inclus dans les suites SQLite et PostgreSQL existantes
+de CI, sans ajout d’un second passage complet au workflow. Aucun nouveau paquet,
+endpoint, politique ou migration. Composer valide ; Pint et PHPStan niveau 8 verts.
+
+La matrice REC-23–36 du README est actualisée : récupération avancée OPS-005,
+vrai export/effacement/pg_restore OPS-007, transport Reverb, étapes Redis dédiées,
+webhooks hors P0 sur décision utilisateur. Le rapport OPS-007 précédent est relu :
+succès/nettoyage et dix-huit empreintes de sources toujours concordants. Les longs
+laboratoires de restauration ne sont pas présentés comme réexécutés dans ce lot.
+QA-005/REC-34 reste explicitement ouvert : p95 connu non conforme et topologie
+représentative à qualifier ; des tests de quotas ne prouvent pas une performance.
+Les limites externes REC-29/35 restent distinctes. Aucun critère n’est abaissé et
+la clôture globale QA-002 n’est pas déduite du seul groupe critique vert.
+
+Validation SQLite : **261 réussites, 3 913 assertions, zéro exclusion**, 119,33 s.
+Transport Reverb réel local : **une réussite, 26 assertions**, 10,51 s ; processus
+et deux connexions fictives propres au test, aucun transport hébergé utilisé.
+La qualification PostgreSQL se fait sur un cluster neuf vérifié par le laboratoire,
+avec caches temporaires et origines de tests explicites ; aucun assouplissement
+MFA/CSRF/Sanctum. Les essais initiaux de lanceur (chemins absolus Windows, puis
+origine navigateur différente) ont échoué avant qualification, sans correction
+du produit ni transformation de ces refus en succès. Bilan PostgreSQL final ci-dessous.
+
+**Bilan final PostgreSQL 17 : 261 réussites, 3 913 assertions, aucun échec/exclusion,
+226,08 s** pour PHPUnit ; nettoyage du cluster temporaire confirmé. Le profil
+phpunit.xml est repris en conservant les seules variables DB du cluster possédé,
+des caches temporaires compatibles Windows et les origines HTTP de tests. Le
+pilote de diffusion est Reverb, comme dans la suite native : le profil navigateur
+hérité utilisait log et avait refusé cinq autorisations de canal avant cet
+alignement. Aucun changement ni assouplissement d’autorisation n’a été appliqué
+pour obtenir ce résultat. Les cinq nouveaux scénarios sont tous verts sur les
+deux moteurs ; aucun défaut métier nouveau n’a été constaté dans ces frontières.
+
+Rapports ignorés : back/reports/phpunit-qa002-sqlite.xml,
+phpunit-qa002-postgresql.xml (sortie texte associée), phpunit-qa002-reverb.xml.
+Pint, PHPStan niveau 8, Composer validate --strict et diff --check verts. Les six
+fichiers de livraison sont tests/commande Composer/documentation ; aucune migration,
+dépendance, configuration d’environnement réel ni suite CI supplémentaire.
+Consolidation locale QA-002 livrée en un seul commit demandé, sans push. La
+performance REC-34/QA-005 et les preuves externes applicables restent nécessaires
+à la clôture globale ; les nouvelles preuves de sécurité ne les remplacent pas.

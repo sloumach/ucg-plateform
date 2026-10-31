@@ -56,6 +56,11 @@
             "@php artisan config:clear --ansi @no_additional_args",
             "@php artisan test"
         ],
+        "test:isolation": [
+            "@php -r \"is_dir('reports') || mkdir('reports', 0777, true);\"",
+            "@php artisan config:clear --ansi @no_additional_args",
+            "@php vendor/bin/phpunit --group tenant-isolation --no-progress --log-junit reports/phpunit-tenant-isolation.xml"
+        ],
         "queue:work:local": "@php artisan queue:work database --queue=critical,default,notifications,broadcasts,reports --sleep=1 --tries=3 --timeout=300",
         "test:ci": [
             "@php -r \"is_dir('reports') || mkdir('reports', 0777, true);\"",

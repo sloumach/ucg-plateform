@@ -8,6 +8,7 @@ use App\Modules\Contracts\Domain\Models\ContractRecord;
 use App\Modules\People\Domain\Models\Person;
 use App\Modules\People\Domain\Models\PersonDeparture;
 use App\Modules\Tenancy\Application\Data\OrganizationAuditData;
+use App\Modules\Tenancy\Application\Services\ErasureAccessGate;
 use App\Modules\Tenancy\Application\Services\ManualErasureService;
 use App\Modules\Tenancy\Application\Services\RetentionControlService;
 use App\Modules\Tenancy\Domain\Contracts\ArtifactLedger;
@@ -20,12 +21,14 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Database\QueryException;
+use Illuminate\Database\RecordNotFoundException;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Mockery;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 class ManualErasureTest extends TestCase
@@ -237,6 +240,106 @@ class ManualErasureTest extends TestCase
             $admin->exec('DROP DATABASE IF EXISTS "'.$name.'" WITH (FORCE)');
             DB::purge('erasure_pg_admin');
         }
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_shared_operator_cannot_approve_a_foreign_person_under_a_local_organization(): void
+    {
+        [$alpha, $person, $beta, $foreign] = $this->twoOrganizations();
+        $before = (array) DB::table('people')->where('id', $foreign->id)->firstOrFail();
+        $service = app(ManualErasureService::class);
+        $plan = $service->plan($alpha->id, $this->audit($alpha), 'person', $foreign->id)->data['plan'];
+        $this->assertContains('person_not_soft_deleted', $plan['blockers']);
+        $this->conflict(fn () => $service->begin($alpha->id, $this->audit($alpha), 'person', $foreign->id,
+            $plan['source_digest'], 'foreign-person-refused', $foreign->id), 'ERASURE_PLAN_CHANGED');
+        $this->assertSame($before, (array) DB::table('people')->where('id', $foreign->id)->firstOrFail());
+        $this->assertDatabaseHas('people', ['id' => $person->id]);
+        $this->assertDatabaseCount('tenant_erasure_operations', 0);
+        $this->assertSame([], app(ErasureJournal::class)->intents($alpha->id, 0, 1000));
+        $this->assertSame([], app(ErasureJournal::class)->intents($beta->id, 0, 1000));
+        $this->assertNull(app(RetentionControlRepository::class)->state($alpha->id)['quarantine']);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_foreign_operation_cannot_be_inspected_resumed_or_acknowledged_even_by_a_shared_operator(): void
+    {
+        [$alpha, $person, $beta, $foreign] = $this->twoOrganizations();
+        $operation = $this->begin($beta, $foreign->id);
+        $before = DB::table('tenant_erasure_operations')->where('id', $operation['id'])->first();
+        $events = DB::table('tenant_erasure_events')->count();
+        $service = app(ManualErasureService::class);
+        foreach ([fn () => $service->inspect($alpha->id, $this->audit($alpha), $operation['id']),
+            fn () => $service->resume($alpha->id, $this->audit($alpha), $operation['id'])] as $action) {
+            try {
+                $action();
+                $this->fail('An authorized operator must still select the operation organization.');
+            } catch (RecordNotFoundException) {
+                $this->assertDatabaseHas('people', ['id' => $foreign->id]);
+            }
+        }
+        $this->conflict(fn () => $service->acknowledge($alpha->id, $this->audit($alpha), $operation['id'], 'exports', 'foreign-receipt'), 'ERASURE_BLOCKED');
+        $this->assertSame((array) $before, (array) DB::table('tenant_erasure_operations')->where('id', $operation['id'])->first());
+        $this->assertSame($events, DB::table('tenant_erasure_events')->count());
+        $this->assertDatabaseCount('tenant_erasure_permits', 0);
+        $this->assertSame('awaiting_copies', $this->drain($beta, $operation['id'])['status']);
+        $this->assertDatabaseHas('people', ['id' => $person->id]);
+        $this->assertDatabaseMissing('people', ['id' => $foreign->id]);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_foreign_signed_intent_cannot_be_replayed_or_relabelled_for_another_organization(): void
+    {
+        [$alpha, $person, $beta, $foreign] = $this->twoOrganizations();
+        $operation = $this->begin($beta, $foreign->id);
+        $journal = app(ErasureJournal::class);
+        $intent = $journal->intents($beta->id, 0, 1000)[0];
+        $epoch = (string) Str::uuid7();
+        config(['retention.erasure.restore_mode' => true, 'retention.erasure.restore_epoch' => $epoch]);
+        foreach ([$intent, [...$intent, 'organization_id' => $alpha->id]] as $untrusted) {
+            $this->conflict(fn () => app(ManualErasureService::class)->replayIntent($alpha->id, $this->audit($alpha), $untrusted,
+                $epoch, $journal->head($alpha->id)), 'ERASURE_JOURNAL_CONFLICT');
+        }
+        $this->assertDatabaseCount('tenant_erasure_operations', 1);
+        $this->assertSame($operation, app(ManualErasureService::class)->inspect($beta->id, $this->audit($beta), $operation['id'])->data['operation']);
+        $this->assertDatabaseHas('people', ['id' => $person->id]);
+        $this->assertDatabaseHas('people', ['id' => $foreign->id]);
+        $this->assertNull(app(RetentionControlRepository::class)->state($alpha->id)['quarantine']);
+        $this->assertSame([], $journal->intents($alpha->id, 0, 1000));
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_completing_alpha_does_not_release_beta_or_block_alpha_on_beta_pending_intent(): void
+    {
+        [$alpha, $person, $beta, $foreign] = $this->twoOrganizations();
+        $first = $this->begin($alpha, $person->id);
+        $second = $this->begin($beta, $foreign->id);
+        $this->drain($alpha, $first['id']);
+        $service = app(ManualErasureService::class);
+        foreach (RetentionCatalog::UNVERIFIED_COPIES as $category) {
+            $result = $service->acknowledge($alpha->id, $this->audit($alpha), $first['id'], $category, 'alpha-review-'.$category);
+        }
+        $this->assertSame('completed', $result->data['operation']['status']);
+        app(ErasureAccessGate::class)->assertReadable($alpha->id);
+        $this->conflict(fn () => app(ErasureAccessGate::class)->assertReadable($beta->id), 'ERASURE_RESTORE_BLOCKED');
+        $this->assertNull(app(RetentionControlRepository::class)->state($alpha->id)['quarantine']);
+        $this->assertSame('erasure:'.$second['id'], app(RetentionControlRepository::class)->state($beta->id)['quarantine']);
+        $this->assertDatabaseMissing('people', ['id' => $person->id]);
+        $this->assertDatabaseHas('people', ['id' => $foreign->id]);
+        $this->assertDatabaseHas('users', ['id' => $alpha->owner_user_id]);
+    }
+
+    /** @return array{Organization, Person, Organization, Person} */
+    private function twoOrganizations(): array
+    {
+        [$alpha, $person] = $this->scenario();
+        $beta = Organization::factory()->create(['owner_user_id' => $alpha->owner_user_id, 'status' => 'suspended']);
+        $foreign = Person::factory()->create(['organization_id' => $beta->id, 'status' => 'former', 'deleted_at' => now()]);
+        PersonDeparture::factory()->create(['organization_id' => $beta->id, 'person_id' => $foreign->id]);
+        config(['retention.control_operators' => [$alpha->owner_user_id => [$alpha->id, $beta->id]],
+            'retention.erasure.operators' => [$alpha->owner_user_id => [$alpha->id, $beta->id]]]);
+        app(ManualErasureService::class)->initializeJournal($beta->id, $this->audit($beta));
+
+        return [$alpha, $person, $beta, $foreign];
     }
 
     /** @return array{Organization, Person} */

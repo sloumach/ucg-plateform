@@ -4347,6 +4347,59 @@ le test d'intégration PostgreSQL, les 493 tests frontend, le typage, le lint,
 Pint et PHPStan sont verts. Ces résultats ne ferment pas les autres tickets QA
 ni les validations de services externes ou d'exploitation.
 
+### QA-002 — Matrice courante après OPS-004 à OPS-008 (31 octobre 2026)
+
+Les sections qui suivent conservent l’historique des lots. La matrice courante
+reprend les preuves de récupération et d’effacement finalisées depuis, ainsi que
+les frontières ajoutées pour un acteur explicitement habilité dans Alpha **et**
+Beta. Cinq nouveaux cas couvrent archivage/listes/restauration sous mauvais parent,
+cible étrangère d’effacement, inspection/reprise/reçu d’une opération étrangère,
+rejeu ou réétiquetage d’une intention signée étrangère, et clôture Alpha pendant
+qu’une intention Beta reste en attente. Les refus préservent les données et
+preuves ; les actions correctes dans Beta restent possibles. Une autorisation sur
+deux organisations n’autorise pas à mélanger leurs identifiants.
+
+Commande reproductible depuis `back/`, avec rapport JUnit privé ignoré :
+
+```powershell
+composer test:isolation
+```
+
+Elle sélectionne le groupe critique `tenant-isolation`. Les nouveaux cas font
+aussi partie des suites backend ordinaires et de la sélection PostgreSQL déjà en
+CI (`PersonArchiveTest` et répertoire `Modules/Tenancy`) ; aucune deuxième exécution
+complète n’est ajoutée au workflow. Reverb, Redis et les laboratoires de sauvegarde
+disposent de leurs étapes dédiées, avec leurs conditions explicites.
+
+Validation de cette livraison : **261 tests/3 913 assertions sur SQLite et les
+mêmes résultats sur PostgreSQL 17 jetable**, sans échec ni exclusion ; nettoyage
+du cluster confirmé. Reverb réel local : un test/26 assertions réussi. Pint,
+PHPStan niveau 8 et Composer strict valides. Les rapports privés ignorés sont
+`back/reports/phpunit-qa002-sqlite.xml`, `phpunit-qa002-postgresql.xml` et
+`phpunit-qa002-reverb.xml`. Aucun changement métier ou de migration.
+
+| Critère | Preuve automatisée actuelle | Portée et limite |
+| --- | --- | --- |
+| REC-23 — URL et mutation étrangères | Groupe critique, TenantBusinessRevocationTest, nouveaux cas PersonArchiveTest et ManualErasureTest | Mauvais tenant/parent refusé même avec droits des deux côtés ; preuve et données conservées. Chaque nouveau parcours doit ajouter ses cas négatifs. |
+| REC-24 — recherche/références | TenantSearchTest, choix de références, EffectiveGameCatalogueCacheTest | Contexte et droits revérifiés ; aucun moteur externe absent n’est supposé qualifié. |
+| REC-25 — changement d’organisation | ActiveOrganizationControllerTest, ContextualRolesTest, imports/jobs sérialisés et nouveaux cas d’archivage | Droits Beta conservés sans ressusciter Alpha ; parcours navigateur suivis par QA-003. |
+| REC-26 — clés locales et FK | OrganizationSchemaTest, schémas composites et inspecteur de propriété des tables | Nouvelles migrations à intégrer à l’inventaire de schéma. |
+| REC-27 — cache/export/fichiers | TenantCacheTest, TenantArtifactServiceTest, ReportExportTest, CalendarSubscriptionTest, export opérateur ; Redis en CI | Refus après révocation et namespaces distincts ; Redis n’est pas présenté comme relancé localement ici. |
+| REC-28 — jobs et destinataires | Imports personnes/statistiques, scans, rappels, convocations/changements et exports sérialisés | Tenant persisté et droits courants ; aucun SMTP ou worker hébergé certifié. |
+| REC-29 — temps réel | MatchRealtimeTest, groupe critique, ReverbDeliveryTest avec vrai transport local | Deux tenants et signatures contrôlés ; proxy/TLS et éviction d’une socket déjà abonnée après révocation restent à qualifier sur cible. |
+| REC-30 — webhook entrant | Non applicable au P0, décision utilisateur du 25/10/2026 | API-002 reste futur ; aucune signature de webhook métier absent n’est annoncée testée. |
+| REC-32 — privilège plateforme | PlatformRoleManagementTest et ContextualRolesTest | Un rôle tenant ne confère pas une action plateforme. |
+| REC-33 — accès exceptionnel | PlatformSupportAccessTest | Tenant, opérateur, durée, révocation, audit et expiration ; exploitation réelle distincte. |
+| REC-34 — tenant bruyant | TenantTechnicalLimitsTest, budgets/queues Redis en CI et banc QA-005 déjà automatisé | **Performance non validée** : les mesures QA-005 connues dépassent la cible et la topologie représentative reste à qualifier. Une limite testée ne prouve pas le p95 sous charge. |
+| REC-35 — export/effacement | OrganizationPortabilityTest, ManualErasureTest, ErasureReconciliationTest et `test:retention:erasure` | Export, effacement, crashes et vrai pg_restore sur fixtures, Beta/globales préservés ; politiques CAD-004 et copies externes distinctes des attestations fictives. |
+| REC-36 — récupération logique | `test:recovery:tenant`, `test:recovery:graph`, `test:recovery:qualification` | États avancés, conflits/reprises et modifications récentes de Beta vérifiés ; REC-36 simulé couvert, sans importeur de production ni qualification hébergée implicite. |
+
+Cette matrice n’est pas une certification de production. La couverture automatisée
+locale est consolidée ; **la clôture globale QA-002 reste conditionnée à REC-34 /
+QA-005 et aux preuves externes applicables**. Aucun seuil de performance ni critère
+d’acceptation n’est abaissé pour déclarer la matrice verte. Les résultats courants
+et les exclusions d’environnement explicites sont consignés dans l’état du projet.
+
 ### Matrice d'isolation — premier lot UCG-QA-002
 
 Le premier lot a introduit neuf cas critiques dans le groupe PHPUnit
@@ -4524,7 +4577,8 @@ et limites dans `docs/etat-projet.md`.
 
 ### Consolidation UCG-QA-002 — isolation et révocations
 
-Le groupe `tenant-isolation` compte désormais **246 cas, 3 831 assertions**.
+La consolidation du 25 octobre recensait **246 cas, 3 831 assertions** dans
+le groupe `tenant-isolation` ; la matrice courante figure plus haut.
 La consolidation ajoute 40 cas sur dix familles de ressources, deux cas de
 révocation financière et trois cas après signature d'un canal temps réel.
 Elle intègre également 69 méthodes existantes, soit 84 cas avec leurs jeux de

@@ -1651,6 +1651,19 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 ### UCG-QA-002 — Automatiser la matrice d’isolation
 
 - **Priorité / taille** : P0 / XL
+- **Consolidation courante (31/10/2026)** : cinq frontières ajoutées, avec un acteur
+  explicitement habilité dans deux organisations : archivage/restauration/listes,
+  cibles et opérations d’effacement, intentions signées et quarantaines distinctes.
+  Groupe critique SQLite et PostgreSQL 17 jetable : 261 cas/3 913 assertions
+  réussis par moteur, sans exclusion ; Reverb réel un test/26 assertions, cluster
+  temporaire nettoyé, Pint/PHPStan/Composer strict valides.
+  Commande `composer test:isolation`, rapport dédié ; suites ordinaires/PG de CI
+  couvrent déjà les fichiers modifiés, sans rejouer une suite supplémentaire.
+  Matrice REC-23–36 actualisée dans le README avec les vrais laboratoires OPS-005
+  et OPS-007 ; webhook toujours hors P0. Validation PostgreSQL/Reverb et limites
+  détaillées dans l’état du projet. **Clôture globale encore liée à QA-005/REC-34**
+  et aux qualifications externes applicables ; ni performance ni purge chez un
+  fournisseur déduites des tests de sécurité. Un seul commit local demandé.
 - **Périmètre** : CRUD, URL directe, recherche, export, fichier, cache, job, notification, webhook et temps réel.
 - **Acceptation** : tous les scénarios REC-23 à REC-36 applicables au P0 sont couverts ; tout nouveau module tenant ajoute ses cas négatifs.
 - **Premier lot local (24/10/2026)** : groupe PHPUnit `tenant-isolation`, neuf
