@@ -35,6 +35,30 @@ test('wrong keys, changed ciphertext and truncated envelopes fail before restore
   assert.throws(() => openSnapshot(envelope, key, 'lost application key'), /application key refused/)
 })
 
+test('private export archives round-trip with artifacts while export traversal and extra extensions are refused', () => {
+  const original = snapshot()
+  const exportFile = { ...original.files[0], path: path.replace('/artifacts/', '/exports/') + '.ndjson' }
+  original.files.push(exportFile)
+  assert.deepEqual(openSnapshot(sealSnapshot(original, key, appKey), key, appKey), original)
+  for (const unsafe of [exportFile.path + '.php', exportFile.path.replace('.ndjson', ''), exportFile.path.replace('/exports/', '/exports/../')]) {
+    const altered = snapshot()
+    altered.files[0].path = unsafe
+    assert.throws(() => validateSnapshot(altered, appKey), /path refused/)
+  }
+  const root = realpathSync(mkdtempSync(resolve(tmpdir(), 'ucg-browser-')))
+  const token = 'a'.repeat(64)
+  try {
+    writeFileSync(`${root}/owner`, token)
+    const destination = `${root}/storage/app/private/${exportFile.path}`
+    mkdirSync(resolve(destination, '..'), { recursive: true })
+    writeFileSync(destination, Buffer.from(exportFile.contents, 'base64'))
+    assert.deepEqual(privateFiles(root, token), [exportFile])
+  } finally {
+    assertRecoveryRoot(root, token)
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test('unsafe paths, duplicate files and mismatched content are never accepted', () => {
   for (const unsafe of ['../outside', '/absolute', 'C:\\outside', path + '\n', path.replace('/artifacts/', '/artifacts/../')]) {
     const value = snapshot()

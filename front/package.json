@@ -31,6 +31,7 @@
     "test:recovery:pitr": "node --test tests/real-api/pitr.test.mjs",
     "test:retention:harness": "node --test tests/real-api/retention-review.test.mjs",
     "test:retention:simulation": "node tests/real-api/retention-run.mjs",
+    "test:retention:erasure": "node --test tests/real-api/retention-erasure.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

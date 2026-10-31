@@ -6,7 +6,18 @@
 ## Point de reprise
 
 - Dernière mise à jour : 31 octobre 2026.
-- Tâche courante : **OPS-006 — finalisation complète en un seul commit et push**.
+- Tâche courante : **OPS-007 — qualification complète en un seul commit**.
+  Démarrage prudent autorisé par l’utilisateur après OPS-006 ; un seul commit,
+  aucun push demandé pour ce nouvel ensemble. Tests sur données fictives isolées.
+  Export du graphe avancé, effacement natif avec arrêts après I/O et pendant SQL,
+  contrôle de Beta/comptes globaux, vraie sauvegarde/restauration PostgreSQL puis
+  réconciliation du journal indépendant et quarantaine permanente. Le scénario a
+  reproduit ERASURE_PLAN_CHANGED après pg_restore : écriture différente mais
+  équivalente d’expressions générées. Le calcul utilise désormais le parseur du
+  moteur et des vues temporaires supprimées ; un vrai changement reste refusé.
+  Aucun ancien journal resigné, aucune activation ni purge sur base utilisée.
+  Job CI et procédure raccordés ; validation détaillée en fin de document.
+- Livraison précédente : **OPS-006 — finalisation complète en un seul commit et push**.
   L’utilisateur valide la CI du correctif 98f34ae et autorise toute OPS-006, avec
   prudence, un seul commit et push sur staging. La sécurité PDF/ClamAV est déjà
   livrée ; cette finalisation ajoute le parcours HTTP → job tenant sérialisé →
@@ -18,6 +29,7 @@
   responsable inventée. Tout avis reste bloquant, même suivi ; trois workflows
   exigés pour préparer un candidat. Critères applicatifs couverts ; qualification
   du futur hébergement séparée. Validation et résultats détaillés en fin de document.
+  Commit 49a641d poussé sur origin/staging ; nouvelle CI distante non déclarée validée.
 - Correctif précédent : **CI UCG-COM-001 — réponse effacée pendant le chargement**.
   Échec Playwright signalé après le push 0fb13f7 : body attendu
   « <script>Réponse</script> », chaîne vide reçue. Le formulaire de commentaire
@@ -9901,3 +9913,68 @@ et npm sans avis ni paquet abandonné ; le rapport normalisé est vert. Aucune
 dépendance, migration, configuration de production ni donnée réelle modifiée.
 Les rapports locaux sont ignorés par Git. La nouvelle exécution ClamAV réelle et
 les autres jobs distants restent à confirmer après le push unique demandé.
+
+## UCG-OPS-007 — Effacement et vraie restauration PostgreSQL (31 octobre 2026)
+
+L’utilisateur autorise le démarrage prudent et un seul commit ; aucun push demandé
+pour ce nouvel ensemble. Les tests ajoutés utilisent exclusivement les racines
+temporaires à jeton de propriété du laboratoire existant. Aucune migration ou
+activation sur base utilisée, aucune durée métier supplémentaire ni purge
+automatique. Conservation People illimitée et effacement manuel inchangés.
+
+L’exercice natif exporte un graphe fictif avec contrat approuvé, document/historique,
+obligation terminée, match validé et preuves de résultats. L’export privé est vérifié
+en octets/empreinte avant effacement. Plan sans mutation, refus sans activation,
+avec empreinte périmée ou gel. Arrêt du processus après retrait d’un fichier, avant
+validation SQL ; les métadonnées restent disponibles et le fichier absent est
+accepté à la reprise. Un autre arrêt interrompt la suppression d’une version
+documentaire protégée : le lot SQL est annulé. Les suppressions sont ensuite
+reprises par des processus neufs. Toutes les tables métier et les fichiers Alpha
+sont contrôlés, Beta reçoit une nouvelle écriture puis reste préservée, comme les
+comptes globaux. Les onze références de copies sont des attestations fictives.
+
+La sauvegarde chiffrée pg_dump/fichiers, antérieure aux décisions, est réellement
+restaurée avec pg_restore dans un second cluster. Le journal SQLite signé reste
+dans une base distincte hors sauvegarde métier, avec clé et installation fixes
+pour l’exercice. Les anciennes données restent inaccessibles ; le gel absent est
+importé et revu, l’effacement rejoué, puis une nouvelle réconciliation doit rester
+sans doublon. Une organisation effacée demeure en quarantaine permanente. Ce
+journal sur le poste de test ne prouve aucune séparation physique d’infrastructure.
+
+Défaut reproduit avant correction : ERASURE_PLAN_CHANGED au rejeu après restauration,
+malgré des lignes identiques. pg_restore reparsait des expressions générées de
+organization_access_events (conversion de tableaux), dont l’écriture SQL entrait
+directement dans l’empreinte. DatabaseManualErasureRepository conserve désormais
+ces expressions via une représentation reparsée par PostgreSQL dans une vue
+temporaire propre à la transaction, supprimée immédiatement. Types, nullabilités,
+relations et expressions restent dans l’empreinte ; les FK sont triées de manière
+déterministe. Aucun regex de suppression d’expression, aucune garde SQL désactivée.
+Le test vérifie l’égalité du plan natif avant/après restauration et le refus d’une
+vraie suppression du caractère généré d’une colonne. Les empreintes signées sous
+l’ancien algorithme ne sont jamais resignées ni acceptées automatiquement : une
+incompatibilité exige une revue opérateur. Droit SQL TEMP requis avant activation.
+
+Le format fictif de sauvegarde inclut les exports privés UUID.ndjson en plus des
+artefacts, avec les mêmes bornes et refus de chemins/liens. Le lanceur garde 90 s
+par défaut ; le seul regroupement de reprises d’effacement dispose de 180 s,
+bornés, pour exécuter plusieurs appels natifs. Les limites applicatives de 100
+lignes/fichiers par appel sont inchangées. Le test complet reste borné à dix minutes,
+le job CI dédié à quinze. Il s’exécute indépendamment des parcours navigateur et
+conserve uniquement le rapport expurgé, pas les sauvegardes, journaux ou secrets.
+
+Validation native : 109 cas sélectionnés, **108 réussites, une exclusion réservée
+au journal PostgreSQL, 580 assertions** ; Pint et PHPStan niveau 8 valides. Seize
+tests Node des frontières PostgreSQL, sauvegardes et rétention réussis ; lint et
+syntaxe YAML valides. Le scénario complet fait l’objet du bilan final ci-dessous.
+La recette hébergée, le retrait des copies externes et les validations CAD-004
+restent distincts de cette qualification applicative locale.
+
+Bilan final : **scénario PostgreSQL réussi en 499,34 s, aucun échec/exclusion**.
+Treize contrôles validés, deux clusters nettoyés. Export initial : 61 lignes et
+un fichier ; effacement : 60 lignes, tous les fichiers Alpha retirés. Les 120
+tables Beta et les 23 tables globales sont préservées, ainsi que les fichiers Beta.
+Les dix-huit empreintes de source sont revérifiées en fin de scénario. Le retrait
+des copies reste explicitement une attestation fictive et la quarantaine de
+l’organisation demeure permanente. Rapport ignoré front/reports/retention-erasure-local.json.
+Critères applicatifs et recette locale OPS-007 couverts ; mise en service et
+validations externes distinctes. Un seul commit local demandé, aucun push effectué.

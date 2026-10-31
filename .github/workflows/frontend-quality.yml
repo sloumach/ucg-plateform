@@ -67,6 +67,53 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  retention-erasure:
+    name: Tenant erasure and genuine PostgreSQL restore
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: mbstring, pdo_sqlite, sqlite3, pdo_pgsql
+          coverage: none
+
+      - name: Install PostgreSQL 17 binaries for owned disposable clusters
+        run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get update
+          echo 'create_main_cluster = false' | sudo tee -a /etc/postgresql-common/createcluster.conf
+          sudo apt-get install --yes postgresql-17
+          echo 'UCG_BROWSER_PG_BIN=/usr/lib/postgresql/17/bin' >> "$GITHUB_ENV"
+
+      - name: Install backend dependencies
+        working-directory: back
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Verify fixture boundaries and export snapshot paths
+        run: node --test front/tests/real-api/postgresql.test.mjs front/tests/real-api/recovery-protocol.test.mjs
+
+      - name: Require export erasure crash recovery and reconciliation of a real old backup
+        run: node --test front/tests/real-api/retention-erasure.test.mjs
+
+      - name: Upload synthetic erasure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: retention-erasure-verification
+          path: front/reports/retention-erasure-local.json
+          if-no-files-found: error
+          retention-days: 14
+
   end-to-end:
     name: Playwright end-to-end (${{ matrix.database }})
     runs-on: ubuntu-24.04

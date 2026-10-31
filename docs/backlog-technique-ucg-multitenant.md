@@ -1524,6 +1524,18 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 ### UCG-OPS-007 — Implémenter conservation et purge
 
 - **Priorité / taille** : P0 / L
+- **Finalisation applicative (31/10/2026)** : qualification de bout en bout sur
+  deux clusters PostgreSQL 17 fictifs : export privé, effacement d’un graphe avec
+  contrat approuvé et match validé, arrêts après fichier et pendant suppression
+  SQL, reprise, préservation de Beta et des comptes globaux, vraie restauration
+  d’une sauvegarde ancienne puis réapplication des décisions depuis le journal
+  indépendant. Correction de l’empreinte des expressions générées réécrites par
+  pg_restore : canonicalisation par le moteur, contrôles de vrais changements
+  maintenus. Job CI indépendant et rapport reproductible. Critères applicatifs
+  couverts ; aucune purge automatique, durée métier inventée ou activation réelle.
+  Les attestations fictives ne prouvent pas le retrait des copies externes ;
+  CAD-004, cycle réel des sauvegardes et qualification hébergée restent distincts.
+  Un seul nouveau commit demandé, sans push demandé pour cette livraison.
 - **Correctif CI d’initialisation (28/10/2026)** : la fonction SQLite de refus
   d’effacement est enregistrée par le connecteur à l’ouverture physique du PDO,
   sans forcer de connexion pendant package:discover. Reproduction de l’échec avec

@@ -7,7 +7,7 @@ import { assertHarnessRoot } from './environment.mjs'
 const magic = Buffer.from('UCGOPS04')
 const maxBytes = 32 * 1024 * 1024
 const uuid = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
-const artifactPath = new RegExp(`^tenants/${uuid}/artifacts/${uuid}$`)
+const privateObjectPath = new RegExp(`^tenants/${uuid}/(?:artifacts/${uuid}|exports/${uuid}\\.ndjson)$`)
 export const digest = (value) => createHash('sha256').update(value).digest('hex')
 
 export function assertRecoveryRoot(root, token) {
@@ -35,7 +35,7 @@ export function privateFiles(root, token) {
       if (entry.isDirectory()) visit(path, `${relative}/`)
       else {
         totalBytes += entry.size
-        if (!entry.isFile() || relative.trim() !== relative || !artifactPath.test(relative) || totalBytes > maxBytes || files.length >= 100) throw new Error('Recovery fixture file refused.')
+        if (!entry.isFile() || relative.trim() !== relative || !privateObjectPath.test(relative) || totalBytes > maxBytes || files.length >= 100) throw new Error('Recovery fixture file refused.')
         const contents = readFileSync(path)
         files.push({ path: relative, sha256: digest(contents), contents: contents.toString('base64') })
       }
@@ -54,7 +54,7 @@ export function validateSnapshot(snapshot, appKey) {
   const paths = new Set()
   let bytes = dump.length
   for (const file of snapshot.files) {
-    if (typeof file?.path !== 'string' || file.path.trim() !== file.path || !artifactPath.test(file.path) || paths.has(file.path)
+    if (typeof file?.path !== 'string' || file.path.trim() !== file.path || !privateObjectPath.test(file.path) || paths.has(file.path)
       || typeof file.contents !== 'string' || file.contents.length > maxBytes * 2) throw new Error('Recovery fixture path refused.')
     paths.add(file.path)
     const contents = Buffer.from(file.contents, 'base64')

@@ -339,7 +339,11 @@ final readonly class DatabaseManualErasureRepository implements ManualErasureRep
         $metadata = [];
         foreach ($tables as $table) {
             $columns = array_column($schema->getColumns($table), null, 'name');
+            if ($this->database->getDriverName() === 'pgsql') {
+                $columns = $this->canonicalGeneratedColumns($table, $columns);
+            }
             $foreignKeys = $schema->getForeignKeys($table);
+            usort($foreignKeys, static fn (array $left, array $right): int => strcmp(ErasureManifest::canonical($left), ErasureManifest::canonical($right)));
             $metadata[$table] = [$columns, $foreignKeys];
             $edges[$table] = [];
             foreach ($foreignKeys as $foreignKey) {
@@ -401,6 +405,48 @@ final readonly class DatabaseManualErasureRepository implements ManualErasureRep
         ksort($metadata);
 
         return [$order, $detach, hash('sha256', ErasureManifest::canonical(['driver' => $this->database->getDriverName(), 'tables' => $metadata]))];
+    }
+
+    /**
+     * PostgreSQL can reparse equivalent generated expressions differently during pg_restore.
+     * Ask its own parser/deparser for a stable representation, retaining every expression.
+     * Temporary DDL is rolled back on error and never changes the business table.
+     *
+     * @param  array<string, array<string, mixed>>  $columns
+     * @return array<string, array<string, mixed>>
+     */
+    private function canonicalGeneratedColumns(string $table, array $columns): array
+    {
+        $expressions = [];
+        foreach ($columns as $name => $column) {
+            if (is_array($column['generation'] ?? null) && is_string($column['generation']['expression'] ?? null)) {
+                $expressions[] = $column['generation']['expression'].' AS '.$this->database->getQueryGrammar()->wrap($name);
+            }
+        }
+        if ($expressions === []) {
+            return $columns;
+        }
+        $canonical = $this->database->transaction(function () use ($table, $expressions): string {
+            $view = 'ucg_erasure_schema_'.bin2hex(random_bytes(12));
+            $pdo = $this->database->getPdo();
+            $pdo->exec('CREATE TEMPORARY VIEW pg_temp."'.$view.'" AS SELECT '.implode(', ', $expressions)
+                .' FROM '.$this->database->getQueryGrammar()->wrapTable($table));
+            $definition = $this->database->scalar('SELECT pg_get_viewdef(?::regclass, false)', ['pg_temp.'.$view]);
+            $pdo->exec('DROP VIEW pg_temp."'.$view.'"');
+            if (! is_string($definition)) {
+                throw new LogicException('Unable to canonicalize the erasure schema.');
+            }
+
+            return $definition;
+        });
+        foreach ($columns as &$column) {
+            if (is_array($column['generation'] ?? null)) {
+                $column['generation']['expression'] = $canonical;
+            }
+        }
+        unset($column);
+
+        return $columns;
     }
 
     /** @param ErasureManifestData $manifest

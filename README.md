@@ -5541,7 +5541,78 @@ l’opération et exige un traitement dédié ; aucune suppression partielle imp
 n’est autorisée. Les grands volumes, les systèmes externes et la montée en charge
 doivent être qualifiés avant activation. Aucun écran d’effacement SPA n’est ajouté.
 
-Validation locale de cette extension : **2 937 cas backend, 2 876 réussites,
+#### OPS-007 — Qualification avec sauvegarde et restauration réelles (31 octobre 2026)
+
+Le scénario `npm run test:retention:erasure` depuis `front/` utilise les services
+Laravel natifs et deux clusters PostgreSQL 17 temporaires dont la propriété est
+vérifiée. Il n’accepte aucune connexion applicative existante. Le graphe fictif
+comprend personnes, équipes, contrat approuvé, obligation terminée, document et
+historiques, match validé, règles/scores/preuves et fichiers privés. Il est exporté
+avant effacement ; les octets de l’export sont vérifiés par empreinte et les données
+de l’autre organisation sont exclues de cet export.
+
+Le scénario vérifie la prévisualisation sans mutation, les refus sans activation,
+avec empreinte périmée ou gel, puis l’effacement de toute l’organisation archivée.
+Un processus s’arrête après le retrait effectif d’un fichier, avant validation du
+lot SQL : les métadonnées restent présentes et la reprise accepte l’objet déjà
+absent. Un second arrêt interrompt la suppression d’une version documentaire
+protégée : son lot SQL est annulé, puis rejoué par un nouveau processus. Les lignes
+métier et les fichiers Alpha sont retirés ; les nouvelles écritures Beta, toutes
+ses tables/fichiers et les comptes globaux sont préservés. La racine anonymisée et
+les preuves restent conservées selon le protocole décrit ci-dessus.
+
+Une véritable sauvegarde chiffrée `pg_dump`/fichiers antérieure aux décisions est
+ensuite restaurée avec `pg_restore` dans le second cluster. Le journal signé courant
+reste dans un fichier SQLite distinct hors de cette sauvegarde métier. Le retour
+des anciennes données ne permet pas de rouvrir l’accès : un gel absent de la
+sauvegarde est réimporté pour revue manuelle, puis l’intention d’effacement est
+réappliquée. Une organisation effacée reste en quarantaine permanente. Un nouveau
+passage ne crée aucune opération ou preuve supplémentaire. Les onze références de
+copies sont explicitement **des attestations fictives**, pas une preuve de retrait
+de sauvegardes ou de copies chez un fournisseur. Le journal sur le même poste de
+test ne qualifie aucune indépendance physique d’infrastructure.
+
+Cette qualification a révélé un refus de reprise après `pg_restore` : PostgreSQL
+réécrit certaines expressions de colonnes générées, notamment les conversions
+de tableaux, sans changer leur sens. L’empreinte comparait leur écriture initiale.
+Elle conserve désormais toutes les expressions, reparsées et redécrites par le
+moteur dans une vue temporaire supprimée immédiatement, ainsi que tous les types,
+nullabilités et références. Les clés étrangères sont triées de façon déterministe.
+L’utilisateur SQL doit avoir le droit de créer des objets temporaires ; un échec
+reste bloquant. Aucun déclencheur, contrainte ou colonne métier n’est modifié par
+ce calcul. La suppression réelle du caractère généré d’une colonne reste refusée.
+
+Les approbations et intentions signées sous l’ancienne empreinte ne sont pas
+réécrites ni resignées automatiquement. Une incompatibilité reste bloquante et
+exige une revue opérateur ; refaire les prévisualisations non encore approuvées
+avec cette version. L’activation demeure désactivée par défaut et aucune opération
+existante sur une base utilisée n’est modifiée par cette livraison.
+
+Le job CI `Tenant erasure and genuine PostgreSQL restore`, indépendant des parcours
+navigateur, exécute le même scénario sans installer de dépendances frontend. Il
+conserve `front/reports/retention-erasure-local.json` : résultats, empreintes des
+sources et de la sauvegarde, contrôles d’isolation et confirmation du nettoyage.
+Les sauvegardes fictives acceptent désormais aussi les chemins fermés
+`tenants/UUID/exports/UUID.ndjson`, avec les mêmes bornes, refus de liens et contrôles
+d’intégrité que les artefacts. Aucun chemin libre ni import opérationnel n’est ajouté.
+
+Les critères applicatifs d’effacement distinct du soft delete, audité, reprenable
+et testé sont couverts par cette qualification et les tests natifs. La décision de
+conservation illimitée des personnes avec effacement manuel est inchangée. Aucune
+durée métier supplémentaire ni purge automatique n’est déduite de cet exercice.
+Les validations CAD-004, les copies externes, la qualification du futur hébergement
+et son cycle réel de sauvegardes restent des préalables à l’exploitation concernée.
+
+Validation de cette finalisation : scénario PostgreSQL complet réussi en 499,34 s,
+treize contrôles et nettoyage des deux clusters confirmés. Export de 61 lignes et
+un fichier ; 60 lignes retirées, 120 tables Beta et 23 tables globales préservées.
+Les empreintes de dix-huit fichiers source sont revérifiées en fin d’exercice.
+Tests natifs : 108 réussites, une exclusion conditionnelle, 580 assertions ; seize
+tests Node de frontières/protocole/rétention réussis. Pint, PHPStan niveau 8, lint
+et YAML valides. Livraison en un seul commit local ; CI distante à confirmer après
+un futur push.
+
+Validation locale historique de l’extension du 28 octobre : **2 937 cas backend, 2 876 réussites,
 61 exclusions conditionnelles, 18 430 assertions, aucun échec/erreur**. PostgreSQL 17
 temporaire : périmètre élargi 160 tests/870 assertions ; protocole final 42 tests/293
 assertions ; cas complémentaires 15 tests/81 assertions et retours arrière historiques
