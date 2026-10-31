@@ -5,8 +5,20 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 30 octobre 2026.
-- Tâche courante : **correctif CI UCG-COM-001 — réponse effacée pendant le chargement**.
+- Dernière mise à jour : 31 octobre 2026.
+- Tâche courante : **OPS-006 — finalisation complète en un seul commit et push**.
+  L’utilisateur valide la CI du correctif 98f34ae et autorise toute OPS-006, avec
+  prudence, un seul commit et push sur staging. La sécurité PDF/ClamAV est déjà
+  livrée ; cette finalisation ajoute le parcours HTTP → job tenant sérialisé →
+  téléchargement propre/quarantaine et le suivi exécutable des vulnérabilités.
+  Workflow dédié sans installation des paquets, audits Composer/npm et rapport
+  normalisé, cron quotidien sur branche par défaut, push/PR et déclenchement manuel.
+  Registre versionné : responsable par avis, première détection, évaluation,
+  délais et clôture prouvée ; aucun avis présent aujourd’hui, aucune identité
+  responsable inventée. Tout avis reste bloquant, même suivi ; trois workflows
+  exigés pour préparer un candidat. Critères applicatifs couverts ; qualification
+  du futur hébergement séparée. Validation et résultats détaillés en fin de document.
+- Correctif précédent : **CI UCG-COM-001 — réponse effacée pendant le chargement**.
   Échec Playwright signalé après le push 0fb13f7 : body attendu
   « <script>Réponse</script> », chaîne vide reçue. Le formulaire de commentaire
   était démonté pendant une lecture de la discussion ; les champs non contrôlés
@@ -15,9 +27,9 @@
   Un submit programmatique est également ignoré pendant cette attente.
   Régression déterministe en échec avant correction puis valide : texte et case
   de notification préservés après une nouvelle lecture, puis payload exact envoyé.
-  OPS-006 n’est pas commencé. Validation : 53 parcours Playwright réussis sans
+  Validation : 53 parcours Playwright réussis sans
   nouvelle tentative, 11 tests du panneau, lint et TypeScript valides.
-  Correctif local ; nouvelle CI distante à confirmer après livraison.
+  Commit 98f34ae poussé sur origin/staging ; CI validée par l’utilisateur le 31 octobre.
 - Lot précédent : **OPS-005 — finalisation complète de la simulation REC-36**,
   commit 0fb13f7 poussé sur origin/staging ; la CI a signalé l’échec COM-001 ci-dessus.
   L’utilisateur demande de terminer toute la tâche. Le CDC exige une simulation
@@ -9845,3 +9857,47 @@ La nouvelle CI distante reste à confirmer après livraison. Aucun moteur opéra
 sur base utilisée, import réel ou accord de production n’est revendiqué. Les
 mesures RPO/RTO hébergées, panne machine/perte définitive de clés et qualification
 des futurs volumes/parcours restent dans l’exploitation et la mise en service.
+
+## UCG-OPS-006 — Finalisation applicative complète (31 octobre 2026)
+
+L’utilisateur valide la CI de 98f34ae, demande toute OPS-006 dans un seul commit
+et autorise explicitement le push sur staging. Aucun nouveau lot intermédiaire.
+La livraison conserve les protections existantes et complète les deux critères
+du backlog : quarantaine effective des fichiers dangereux et suivi des avis avec
+échéances. La qualification de l’hébergement est séparée de ces critères applicatifs.
+
+Le test ClamAvIntegrationTest ajoute deux parcours HTTP (PDF propre/dangereux) :
+analyse en attente et téléchargement refusé, artefact chiffré, job sérialisé exécuté
+avec middleware tenant, verdict du scanner, téléchargement exact ou quarantaine,
+aucune nouvelle version au rejeu du job et absence de contenu dans l’audit. Le pair
+TCP local est démarré après la préparation de la base pour que son délai d’acceptation
+ne dépende pas du temps de migration. Le job antivirus CI utilise obligatoirement
+le vrai clamd via CONTRACT_TEST_CLAMAV=true ; aucune substitution sur panne. La sonde
+EICAR du parcours HTTP reste limitée au runner éphémère et à son upload temporaire,
+puis au stockage applicatif chiffré. Les sondes directes antérieures restent en mémoire.
+
+Le nouveau workflow dependency-security.yml audite les verrous sans installation,
+sur push/PR, manuellement et via un cron quotidien (branche par défaut seulement).
+Les statuts natifs restent bloquants et les rapports sont conservés 90 jours.
+front/security-audit.mjs rapproche les deux rapports avec le registre versionné
+.github/dependency-security.json : première détection UTC, responsable par avis,
+évaluation et preuve de clôture. Délais évaluation/correction : critical 1 h/24 h,
+high ou abandon Composer 24 h/7 j, moderate 7 j/30 j, low/info 30 j/90 j.
+Rapport tronqué/absent, erreur réseau, total incohérent et sévérité inconnue sont
+refusés. Un avis suivi reste bloquant ; absence de suivi et réapparition après
+clôture sont signalées, comme les retards. Aucune exemption de vulnérabilité.
+Le registre est vide, conformément aux audits actuels ; aucune identité responsable
+n’a été attribuée sans accord. Chaque futur avis exige son responsable avant suivi.
+Le candidat de release exige les trois workflows sur son commit/branche exacts.
+
+Validation locale : **138 cas documentaires, 136 réussites et deux sondes réelles
+exclues conditionnellement**, 909 assertions sur la suite initiale ; **73 tests
+CSV/textes et isolation réussis**, 676 assertions. Le parcours final retesté après
+formatage/typage passe deux cas/60 assertions, avec les deux sondes opt-in exclues.
+**25 tests Node audit/release réussis** ; les neuf tests du suivi sont de nouveau
+valides après le durcissement des totaux. Pint, PHPStan niveau 8, lint et syntaxe
+des trois workflows modifiés/ajoutés sont valides. Audits natifs actuels Composer
+et npm sans avis ni paquet abandonné ; le rapport normalisé est vert. Aucune
+dépendance, migration, configuration de production ni donnée réelle modifiée.
+Les rapports locaux sont ignorés par Git. La nouvelle exécution ClamAV réelle et
+les autres jobs distants restent à confirmer après le push unique demandé.

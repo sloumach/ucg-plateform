@@ -6113,22 +6113,87 @@ et [npm](https://docs.npmjs.com/cli/v11/commands/npm-audit/), à l'instant du la
 | Composer | Aucun avis ni paquet abandonné remonté ; aucune dépendance PHP modifiée. |
 | Audit npm après correction | Zéro vulnérabilité remontée ; aucun niveau omis. |
 
-Pour les prochains avis, le référent maintenance UCG reste à désigner. Ouvrir un
-suivi par avis/ensemble de versions avec identifiant, source, date, sévérité,
-exposition réelle (runtime/outillage), responsable, échéance et preuve de clôture.
-Les cibles de traitement proposées sont : critique, évaluation immédiate/correctif
-sous 24 h ; high, évaluation sous un jour/correctif sous sept jours ; moderate,
-sept/trente jours ; low, trente/quatre-vingt-dix jours. Ces cibles opérationnelles
-restent à adopter par le responsable ; elles n'autorisent pas une livraison avec
-un audit rouge. Tester les mises à jour puis réauditer le verrou ; un avis sans
-correctif appelle une décision explicite et des mesures documentées, pas une
-suppression du contrôle CI.
+#### Finalisation OPS-006 — 31 octobre 2026
 
-La CI de `50e4b37`, dont les deux tests ClamAV réels, est validée par l’utilisateur
-le 26 octobre 2026. **OPS-006 reste ouvert pour la recette de son déploiement sur
-le futur hébergement.**
-Un audit vert ne constitue pas une preuve d'absence de toute vulnérabilité, ni
-une qualification exhaustive du scanner ou des fichiers des autres modules.
+Les critères applicatifs SEC-06/SEC-09 et OPS-006 sont couverts : analyse des PDF,
+quarantaine, contrôles adaptés des CSV/textes, audits bloquants et suivi avec délais.
+La CI de `50e4b37`, dont les deux sondes ClamAV réelles, a été validée le 26 octobre.
+La CI du correctif `98f34ae` est validée par l’utilisateur avant cette finalisation.
+La nouvelle exécution distante reste à confirmer après le push de cette livraison.
+La qualification du futur hébergement constitue une opération de déploiement
+distincte ; aucune activation de scanner ou modification de données réelles ici.
+
+`ClamAvIntegrationTest` complète les sondes par deux parcours HTTP de bout en bout :
+dépôt d’un PDF en attente, chiffrement, job sérialisé et middleware tenant, verdict,
+téléchargement exact du fichier propre ou refus du fichier dangereux, conservation
+du fichier chiffré et rejeu du job sans changement du verdict. En local, le transport
+utilise explicitement le pair TCP simulé avec une pièce jointe inoffensive ; dans
+le job antivirus `CONTRACT_TEST_CLAMAV=true` impose le vrai moteur et la pièce jointe
+EICAR. Une panne réelle ne déclenche aucun repli simulé. Pour ce parcours HTTP,
+la sonde transite par un fichier temporaire d’upload du runner éphémère ; seul le
+stockage applicatif de test est conservé chiffré. Les deux sondes directes existantes
+restent en mémoire. Les CSV sont soumis aux parseurs bornés (UTF-8, structure,
+octets nuls, lignes/colonnes/champs) ; les documents de compétition sont du texte
+privé généré par l’application, et ne sont pas des dépôts de PDF supplémentaires.
+
+Le workflow `dependency-security.yml` audite les deux verrous sans installer leurs
+paquets, à chaque push/PR, sur lancement manuel et quotidiennement à 06:17 UTC.
+GitHub n’exécute le cron qu’une fois ce workflow présent sur la branche par défaut ;
+les push/PR et le lancement manuel permettent les contrôles des autres branches.
+Les rapports natifs et `dependency-security.json` sont conservés 90 jours. Réseau
+indisponible, rapport invalide, paquet abandonné ou avis détecté font échouer le job.
+Le candidat de release exige désormais les trois workflows backend, frontend et
+sécurité réussis sur son commit et sa branche exacts ; aucun déploiement automatique.
+
+Le registre versionné `.github/dependency-security.json` contient un suivi par
+identifiant normalisé : `composer:paquet:PKSA-…`, `composer:paquet:abandoned` ou
+`npm:paquet` (incluant les avis et dépendances transitives). Il est vide car les
+audits actuels ne remontent aucun avis ; aucun responsable personnel n’est inventé.
+À la détection, inscrire la première date du rapport et une personne responsable,
+puis analyser l’exposition runtime/outillage et consigner l’évaluation. Exemple
+**fictif à remplacer**, sans exemption de l’audit :
+
+```json
+{
+  "id": "npm:paquet-fictif",
+  "owner": "Personne chargée de la correction",
+  "status": "open",
+  "first_seen_at": "2026-10-31T12:00:00.000Z",
+  "assessed_at": "2026-10-31T13:00:00.000Z",
+  "assessment": "Exposition examinée ; correction et tests à réaliser."
+}
+```
+
+| Sévérité | Évaluation au plus tard | Correction au plus tard |
+| --- | --- | --- |
+| critical | 1 heure | 24 heures |
+| high et paquet Composer abandonné | 24 heures | 7 jours |
+| moderate / medium | 7 jours | 30 jours |
+| low / info | 30 jours | 90 jours |
+
+Les délais sont calculés depuis `first_seen_at` en heures écoulées UTC. Conserver
+la première détection lors des revues du registre : un nouveau scan ne réécrit
+jamais les dates. Sans suivi, le rapport marque l’avis `untracked`, sans responsable
+ni date durable et avec échéances provisoires ; la CI reste rouge. Un avis suivi
+reste également bloquant, même avant échéance. Le rapport signale les retards et
+réouvre tout avis encore présent malgré une clôture déclarée. Après correction,
+réaudit et tests, passer à `resolved` avec `resolved_at` et `evidence` (commit,
+rapport et validation). La disparition d’un avis encore `open` impose cette clôture
+documentée. Un avis sans correctif appelle une décision et des mesures documentées,
+sans suppression du contrôle ni ajout d’exclusion. Le registre reste dans Git et
+ne dépend pas de la durée de conservation des artefacts. Aucun ticket ni message
+externe n’est créé automatiquement.
+
+Reproduire le rapport à la racine, après les audits natifs :
+
+```powershell
+node front/security-audit.mjs back/reports/composer-audit.json front/reports/npm-audit.json .github/dependency-security.json front/reports/dependency-security.json
+node --test front/tests/real-api/security-audit.test.mjs front/tests/real-api/release.test.mjs
+```
+
+Un audit vert ne prouve pas l’absence de toute vulnérabilité. La qualification
+du réseau privé, du stockage, des signatures, des workers et du scanner sur le
+futur hébergement reste à effectuer avant son activation.
 
 ## UCG-OPS-008 — Procédures d’incident et de support
 

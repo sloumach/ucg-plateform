@@ -38,7 +38,7 @@ jobs:
           cache: npm
           cache-dependency-path: front/package-lock.json
 
-      - name: Require both latest quality workflows on this exact commit
+      - name: Require backend, frontend and security workflows on this exact commit
         run: node front/release-ci.mjs
         env:
           GITHUB_TOKEN: ${{ github.token }}

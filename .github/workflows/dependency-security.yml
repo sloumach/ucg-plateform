@@ -1,0 +1,55 @@
+name: Dependency security follow-up
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          tools: composer:v2
+          coverage: none
+      - name: Test audit normalization and immutable tracking deadlines
+        run: node --test front/tests/real-api/security-audit.test.mjs
+      - name: Audit both locks and produce actionable tracking evidence
+        shell: bash
+        run: |
+          mkdir -p back/reports front/reports
+          composer_status=0
+          npm_status=0
+          review_status=0
+          (cd back && composer audit --locked --abandoned=fail --format=json) > back/reports/composer-audit.json || composer_status=$?
+          (cd front && npm audit --package-lock-only --audit-level=low --json) > front/reports/npm-audit.json || npm_status=$?
+          node front/security-audit.mjs back/reports/composer-audit.json front/reports/npm-audit.json .github/dependency-security.json front/reports/dependency-security.json || review_status=$?
+          if (( composer_status != 0 || npm_status != 0 || review_status != 0 )); then
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-security-follow-up
+          path: |
+            back/reports/composer-audit.json
+            front/reports/npm-audit.json
+            front/reports/dependency-security.json
+          retention-days: 90
+          if-no-files-found: error

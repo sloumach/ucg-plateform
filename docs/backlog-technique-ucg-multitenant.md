@@ -1495,6 +1495,16 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 ### UCG-OPS-006 — Appliquer la sécurité des fichiers et dépendances
 
 - **Priorité / taille** : P0 / L
+- **Finalisation applicative (31/10/2026)** : critères fichiers dangereux en
+  quarantaine et vulnérabilités suivies avec délai couverts. Deux parcours HTTP
+  dépôt → job sérialisé → téléchargement propre/refus dangereux ajoutés à la
+  qualification ClamAV réelle en CI (pair TCP explicite localement). Audits
+  quotidiens/manuels/push/PR des deux verrous, registre versionné des premières
+  détections, responsables, évaluations et clôtures ; échéances par sévérité et
+  retards calculés sans remise à zéro. Audit rouge toujours bloquant, même suivi.
+  Troisième workflow requis pour un candidat de release. Qualification du futur
+  hébergement séparée, aucune activation réelle ; nouvelle CI à confirmer après
+  livraison. Les paragraphes ci-dessous conservent l’historique du ticket.
 - **Périmètre** : analyse antivirus ou équivalente, MIME réel, tailles, dépendances, scans et correctifs.
 - **Acceptation** : fichiers dangereux mis en quarantaine ; vulnérabilités suivies avec délai de traitement.
 - **Trois lots consolidés (25/10/2026)** : contrôles PDF/MIME/extension/taille et

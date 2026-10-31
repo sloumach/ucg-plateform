@@ -252,7 +252,7 @@ jobs:
           cat "$scan_root/stdout.log"
           exit 1
 
-      - name: Require the real scanner to accept clean bytes and reject EICAR
+      - name: Require real ClamAV probes and HTTP upload worker quarantine journeys
         run: php artisan test --compact tests/Feature/ClamAvIntegrationTest.php --log-junit=reports/phpunit-clamav.xml
         env:
           CONTRACT_TEST_CLAMAV: 'true'

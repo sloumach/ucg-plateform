@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-export const requiredWorkflows = ['backend-quality.yml', 'frontend-quality.yml']
+export const requiredWorkflows = ['backend-quality.yml', 'frontend-quality.yml', 'dependency-security.yml']
 const positive = (value) => Number.isSafeInteger(value) && value > 0
 
 function validateScope(repository, revision, branch) {
@@ -20,7 +20,7 @@ export function selectQualityEvidence(repository, revision, branch, workflows) {
     matching.sort((a, b) => b.run_number - a.run_number || b.run_attempt - a.run_attempt)
     const latest = matching[0]
     if (!latest || latest.status !== 'completed' || latest.conclusion !== 'success') {
-      throw new Error('Latest backend and frontend push workflows must both succeed on this exact commit and branch.')
+      throw new Error('Latest backend, frontend and dependency security push workflows must succeed on this exact commit and branch.')
     }
     return { workflow, id: latest.id, attempt: latest.run_attempt }
   })
@@ -65,7 +65,7 @@ async function collect() {
   const evidence = selectQualityEvidence(repository, revision, branch, workflows)
   mkdirSync('front/reports', { recursive: true })
   writeFileSync('front/reports/release-ci.json', JSON.stringify(evidence, null, 2), { flag: 'wx', mode: 0o600 })
-  console.log('Backend and frontend quality runs verified for the exact candidate commit.')
+  console.log('Backend, frontend and dependency security runs verified for the exact candidate commit.')
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

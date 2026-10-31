@@ -234,16 +234,18 @@ const successful = (id = 10) => ({ id, run_number: 1, run_attempt: 1, head_sha: 
   head_repository: { full_name: 'fixture/project' }, status: 'completed', conclusion: 'success' })
 const quality = () => Object.fromEntries(requiredWorkflows.map((name, index) => [name, [successful(10 + index)]]))
 
-test('quality gate requires exact source, branch and repository for both successful push workflows', () => {
+test('quality gate requires exact source, branch and repository for all three successful push workflows', () => {
   const report = selectQualityEvidence('fixture/project', revision, 'staging', quality())
-  assert.equal(report.runs.length, 2)
+  assert.equal(report.runs.length, 3)
   assert.equal(report.sourceRevision, revision)
   for (const change of [{ conclusion: 'failure' }, { conclusion: 'cancelled' }, { conclusion: 'skipped' },
     { status: 'in_progress' }, { event: 'pull_request' }, { head_sha: 'b'.repeat(40) }, { head_branch: 'other' },
     { head_repository: { full_name: 'foreign/project' } }]) {
-    const runs = quality()
-    runs['backend-quality.yml'] = [{ ...successful(), ...change }]
-    assert.throws(() => selectQualityEvidence('fixture/project', revision, 'staging', runs))
+    for (const workflow of requiredWorkflows) {
+      const runs = quality()
+      runs[workflow] = [{ ...successful(), ...change }]
+      assert.throws(() => selectQualityEvidence('fixture/project', revision, 'staging', runs))
+    }
   }
   assert.throws(() => selectQualityEvidence('fixture/project', revision, 'staging', {}))
 })
