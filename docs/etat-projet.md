@@ -6,7 +6,17 @@
 ## Point de reprise
 
 - Dernière mise à jour : 31 octobre 2026.
-- Tâche courante : **OPS-007 — qualification complète en un seul commit**.
+- Tâche courante : **OPS-008 — finalisation documentaire en un seul commit**.
+  Démarrage prudent autorisé après le push OPS-007 537eeff ; un seul commit local,
+  aucun push demandé pour ce nouvel ensemble. Neuf fiches, chaîne d’escalade,
+  fiche d’incident privée, états de transmission et grille de clôture/mise en
+  service ; actualisation OPS-004 à OPS-007 et exercices EX-09–18. Vérifications
+  existantes réexécutées : 128 tests backend/757 assertions et 25 tests Node,
+  zéro échec/exclusion. Aucun code applicatif ou configuration de CI modifiés,
+  aucun message envoyé ni incident réel. L’utilisateur garde accès/premier support ;
+  les autres titulaires, suppléants, contacts et canaux restent à qualifier.
+  Bilan en fin de document ; nouvelles CI OPS-006/007 non déclarées validées.
+- Livraison précédente : **OPS-007 — qualification complète en un seul commit**.
   Démarrage prudent autorisé par l’utilisateur après OPS-006 ; un seul commit,
   aucun push demandé pour ce nouvel ensemble. Tests sur données fictives isolées.
   Export du graphe avancé, effacement natif avec arrêts après I/O et pendant SQL,
@@ -17,6 +27,7 @@
   moteur et des vues temporaires supprimées ; un vrai changement reste refusé.
   Aucun ancien journal resigné, aucune activation ni purge sur base utilisée.
   Job CI et procédure raccordés ; validation détaillée en fin de document.
+  Commit 537eeff poussé sur origin/staging ; CI distante reste à confirmer.
 - Livraison précédente : **OPS-006 — finalisation complète en un seul commit et push**.
   L’utilisateur valide la CI du correctif 98f34ae et autorise toute OPS-006, avec
   prudence, un seul commit et push sur staging. La sécurité PDF/ClamAV est déjà
@@ -9978,3 +9989,42 @@ des copies reste explicitement une attestation fictive et la quarantaine de
 l’organisation demeure permanente. Rapport ignoré front/reports/retention-erasure-local.json.
 Critères applicatifs et recette locale OPS-007 couverts ; mise en service et
 validations externes distinctes. Un seul commit local demandé, aucun push effectué.
+
+## UCG-OPS-008 — Dossier final et revue sur table (31 octobre 2026)
+
+L’utilisateur demande le démarrage prudent et une seule livraison committée ;
+aucun push demandé. Mise à jour documentaire uniquement : procédures incident,
+README, backlog et état du projet. Aucune route, configuration, commande ou
+nouveau moteur d’incident ajouté. Le rôle utilisateur déjà confirmé reste accès
+et premier support ; aucun responsable/contact supplémentaire n’est inventé.
+
+Neuf fiches F1–F9 couvrent désormais le suivi des vulnérabilités OPS-006 et les
+incidents d’effacement/réconciliation OPS-007. La récupération renvoie aux recettes
+OPS-004/005 et au rapprochement du journal courant avant retour de service.
+Décisions explicites sur les refus de schéma/journal, la reprise au même UUID,
+les onze catégories de copies, les anciennes signatures et la quarantaine
+permanente d’une organisation effacée. Les délais techniques des vulnérabilités
+sont repris de l’outil existant, sans remise à zéro ni exemption d’audit.
+
+Chaîne d’escalade, fiche privée prête à renseigner et grille de clôture/mise en
+service complètent le dossier. Distinction des états préparé/approuvé/envoyé/reçu/
+accusé et de la clôture humaine par rapport au registre technique. Sans annuaire,
+suppléant ou canal de secours qualifié, l’escalade reste non transmise et la mise
+en service refusée. Dix exercices EX-09–18 rejoignent les huit historiques, avec
+inject, décision, preuve et limite. Les exercices sont une revue sur table de
+l’agent ; aucun participant réel, message envoyé, panne injectée ou nouvel accès.
+
+Validation réexécutée : **128 tests backend, 757 assertions, zéro échec/exclusion**,
+alertes, supervision, diagnostics de sauvegardes, quarantaine documentaire, support
+temporaire, jobs tenant et réconciliation. **25 tests Node audit/release réussis**,
+zéro exclusion. Dix liens/ancres du dossier contrôlés, tous valides ; diff --check
+valide. Les longs scénarios PostgreSQL antérieurs n’ont pas été relancés pour ce
+travail documentaire. Rapport PHPUnit ignoré back/reports/phpunit-ops008.xml ;
+résultats Node conservés dans la présente transmission.
+
+Préparation documentaire et revue locale OPS-008 finalisées. Avant exploitation :
+nommer titulaires/suppléants et contacts privés, adopter horaires et seuils,
+éprouver canaux principal/secours et accès aux preuves sur cible autorisée, puis
+consigner l’accord de mise en service. Aucune astreinte, réception humaine ou
+qualification d’hébergement n’est déduite des tests. Un seul commit local demandé,
+sans push effectué pour cette livraison.

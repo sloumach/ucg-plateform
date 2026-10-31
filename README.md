@@ -6269,16 +6269,29 @@ futur hébergement reste à effectuer avant son activation.
 ## UCG-OPS-008 — Procédures d’incident et de support
 
 Les [procédures d’incident et de support](docs/procedures-incident-support.md)
-regroupent les trois lots : sept fiches d’intervention, rôles/seuils/escalade et
-preuves/messages, puis huit exercices fictifs sur table. Les parcours couvrent
-indisponibilité, fuite suspectée, dépendance, file, restauration, fichier et accès
-exceptionnel. Les commandes et barrières sont confrontées au code existant ;
-aucun incident réel ni envoi de message n’est déclenché.
+regroupent désormais neuf fiches : indisponibilité, fuite suspectée, dépendance,
+file, restauration, fichier suspect, accès exceptionnel, vulnérabilité de
+dépendance et effacement/réconciliation interrompus. La version du 31 octobre
+2026 intègre OPS-004 à OPS-007, une chaîne d’escalade, une fiche privée prête à
+renseigner, les états de communication préparé/approuvé/envoyé/reçu/accusé et une
+grille de clôture/mise en service. L’acquittement d’une alerte ne prouve ni sa
+réception humaine ni la clôture de l’incident.
+
+Dix nouveaux exercices sur table EX-09–18 complètent les huit historiques, avec
+décision, preuve attendue et limite explicites. Vérifications réexécutées : 128
+tests backend/757 assertions et 25 tests Node audit/release, tous réussis sans
+exclusion. Les longs exercices de restauration déjà qualifiés ne sont pas
+présentés comme relancés pendant cette revue. Aucune commande d’intervention sur
+base utilisée, panne réelle, attribution d’accès ou envoi de message.
 
 Les fonctions sont définies, mais les personnes, suppléants et contacts restent
-à désigner. Les délais proposés doivent être adoptés ; ils ne constituent pas
-une astreinte déjà disponible. **OPS-008 reste ouvert avant exploitation réelle**
-sur ces validations et la qualification de l’hébergement, toujours différé.
+à désigner dans l’annuaire privé, hormis le premier support/gestion des accès déjà
+assuré par l’utilisateur. **Préparation documentaire et revue locale OPS-008
+finalisées.** Adopter les seuils/horaires, éprouver les canaux principal/secours
+et l’espace de preuves, puis recueillir l’accord de mise en service restent
+nécessaires avant exploitation réelle. Aucune astreinte n’est déclarée disponible
+et le futur hébergement reste à qualifier. Livraison dans un seul commit local,
+sans push demandé pour cet ensemble.
 
 ## UCG-QA-004 — Concurrence et idempotence, trois lots locaux
 

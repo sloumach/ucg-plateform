@@ -1,8 +1,10 @@
 # UCG-OPS-008 — Procédures d’incident et de support
 
-Version du 26 octobre 2026. Trois lots : fiches d’intervention, coordination et
-preuves, exercices fictifs. La CI de `50e4b37`, dont les deux sondes ClamAV
-réelles, est validée par l’utilisateur. Cela ne qualifie pas le futur hébergement.
+Version du 31 octobre 2026. Neuf fiches d’intervention, coordination, preuves et
+exercices fictifs, actualisés après OPS-004 à OPS-007. Les exercices historiques
+du 26 octobre sont conservés comme tels. La CI de `50e4b37`, dont les deux sondes
+ClamAV réelles, a été validée ; les livraisons récentes ne sont pas supposées
+qualifiées sur l’hébergement. Cette version est une préparation locale complète.
 
 ## 1. Cadre d’utilisation
 
@@ -30,6 +32,7 @@ n’est pas un compte d’administration de l’hébergement.
 
 | Rôle fonctionnel | Responsabilité | Titulaire / suppléant / contact |
 | --- | --- | --- |
+| Premier support et gestion des accès utilisateurs | Recueille le signalement minimal, vérifie le parcours autorisé et transmet au coordinateur ; gère les accès dans ses habilitations | Utilisateur, confirmé le 29/10/2026 ; suppléant et contact privé à renseigner |
 | Coordinateur d’incident | Ouvre le suivi, classe l’incident, autorise le périmètre d’intervention, fixe la prochaine information, décide du rétablissement avec le vérificateur | À désigner |
 | Opérateur technique | Diagnostique dans son périmètre autorisé, prépare le retour arrière, exécute et trace chaque action | À désigner |
 | Référent sécurité et données | Pilote les suspicions de fuite, protège les preuves, fait examiner les obligations applicables avec CAD-004 | À désigner |
@@ -55,6 +58,16 @@ volumes et aux horaires ; les pauses planifiées ou jobs volontairement différ�
 ne sont pas automatiquement des incidents. À impact ou périmètre incertain,
 retenir le niveau supérieur jusqu’à vérification. Les seuils n’impliquent pas
 qu’une mesure ou une notification existe déjà dans le logiciel.
+
+**Chaîne d’escalade à renseigner avant ouverture réelle** : premier support →
+coordinateur (ou son suppléant) → opérateur du composant ; référent sécurité en
+parallèle pour S1 ou exposition suspectée. Le vérificateur intervient avant le
+retour et la clôture. Si le destinataire ne répond pas dans la cible ci-dessus,
+utiliser le suppléant puis le contact d’escalade désigné dans l’annuaire privé.
+Sans annuaire ou canal de secours qualifié, déclarer « escalade non transmise »,
+conserver l’état protégé et refuser la mise en service ; aucun contact n’est deviné.
+Le fournisseur n’est sollicité par une personne habilitée qu’après qualification
+du besoin et expurgation des éléments transmis. Ce document n’envoie rien.
 
 ## 3. Suivi, preuves et messages
 
@@ -100,6 +113,32 @@ jusqu’à [...]. Restrictions restantes [...]. Clôture ou nouvelle revue à [.
 Séparer rétablissement technique et clôture. Une fuite suspectée nécessite une
 évaluation distincte des obligations de notification par les personnes habilitées,
 selon les faits et pays concernés ; cette procédure n’invente aucun délai légal.
+
+### Fiche d’incident prête à renseigner, dans l’espace privé autorisé
+
+```text
+Référence humaine INC-AAAA-MM-JJ-NNN / UUID incident technique lié aux alertes :
+Statut : ouvert | contenu | rétabli sous surveillance | clos
+Environnement / branche / SHA / versions et migrations :
+Détection UTC / fuseau source / source du signal / niveau et justification :
+Périmètre confirmé / périmètre inconnu / tenants autorisés :
+Coordinateur / suppléant / opérateur / sécurité si applicable / vérificateur :
+Canal principal / secours / contact d’escalade / disponibilité vérifiée :
+Faits / hypothèses / inconnues / décision de contention et son autorisation :
+Chronologie : heure UTC | acteur | action et cible | autorisation | résultat
+Preuves : référence privée | empreinte | déposant | heure | droits d’accès
+Messages : préparé par | approuvé par | canal | envoyé à | reçu à | accusé par
+Retour : parcours initial | contrôle tenant témoin | accès révoqués | travaux différés
+Surveillance : début / fin / contrôles attendus / prochain point horodaté
+Suites : action | responsable nommé | échéance | preuve attendue | état
+Clôture : cause ou incertitude résiduelle | preuves | coordinateur et vérificateur
+```
+
+L’UUID utilisé par `ops:alerts --incident` doit être valide et rattaché à la
+référence humaine ; `INC-…` seul n’est pas un UUID. Un signal local, une entrée
+`acknowledged` ou une commande réussie ne remplit pas les champs « envoyé »,
+« reçu » et « accusé ». Laisser ces champs non vérifiés tant que le canal humain
+ne les prouve pas. Aucun secret, corps de fichier ou contact privé dans Git.
 
 ## 4. Fiches d’intervention
 
@@ -187,7 +226,9 @@ selon les faits et pays concernés ; cette procédure n’invente aucun délai l
 1. Identifier perte suspectée, tenant, instant cible, modifications plus récentes,
    sauvegardes et clés disponibles. Geler la décision d’écriture jusqu’à revue
    de l’intégrité ; ne pas réactiver une organisation clôturée pour réimporter.
-2. Appliquer les prérequis et limites des [exercices OPS-004/005](../README.md#consolidation-locale-ops-005--lots-1-à-4).
+2. Appliquer les prérequis de [sauvegarde/PITR OPS-004](../README.md#ops-004--pitr-coffre-chiffré-et-preuves-de-sauvegarde),
+   de [récupération sélective OPS-005](#ops-005-final--recette-de-récupération-sélective)
+   et de [réconciliation des effacements OPS-007](#f9--effacement-interrompu-ou-données-effacées-réapparues).
    Les scripts de laboratoire créent leurs propres clusters fictifs : ils ne sont
    pas des commandes de restauration de production ni une qualification de toutes
    les tables et de tous leurs états.
@@ -199,6 +240,9 @@ selon les faits et pays concernés ; cette procédure n’invente aucun délai l
    cible, reprise après interruption, clés et barrière d’écriture. Après application,
    vérifier intégrité, audit, fichiers, absence de doublon et données du tenant témoin.
    Ne pas annoncer de RPO/RTO tant que l’infrastructure représentative n’est pas testée.
+5. Après restauration, garder l’admission, les workers et le scheduler concernés
+   suspendus jusqu’à rapprochement avec le journal courant des gels/effacements.
+   Le succès de pg_restore ou d’un réimport ne permet pas de contourner F9.
 
 ### F6 — Fichier suspect ou scanner indisponible
 
@@ -238,6 +282,94 @@ selon les faits et pays concernés ; cette procédure n’invente aucun délai l
    le refus du diagnostic, relever les événements d’ouverture/lecture/révocation.
    La révocation/réattribution du rôle ne doit pas ressusciter un ancien accès.
 
+### F8 — Avis de vulnérabilité ou audit de dépendances en échec
+
+1. Le mainteneur application relève SHA/branche, date du scan, job et artefact
+   `dependency-security-follow-up`, rapports natifs et rapport normalisé. Consulter
+   le [suivi OPS-006](../README.md#finalisation-ops-006--31-octobre-2026).
+   Une erreur réseau, un rapport invalide ou incomplet ne signifie pas zéro faille.
+   Sans avis lisible, traiter d’abord la panne du contrôle, conserver l’échec et
+   demander un nouveau scan sur le même verrou ; aucune exclusion temporaire.
+2. Pour chaque avis confirmé, inscrire l’identifiant normalisé, la première date
+   de détection et un responsable nommé dans `.github/dependency-security.json`.
+   `untracked` signifie suivi manquant ; ses échéances sont provisoires. Conserver
+   la plus ancienne date attestée, analyser exposition runtime/outillage et portée,
+   puis renseigner `assessed_at` et `assessment`. Un signe crédible d’exploitation
+   ou de compromission déclenche F2/S1 immédiatement ; la seule sévérité de l’avis
+   ne prouve pas qu’une fuite a eu lieu.
+3. Suivre les délais techniques OPS-006 depuis la première détection, en UTC :
+
+   | Sévérité | Évaluation | Correction |
+   | --- | --- | --- |
+   | critical | 1 h | 24 h |
+   | high / paquet Composer abandonné | 24 h | 7 jours |
+   | moderate / medium | 7 jours | 30 jours |
+   | low / info | 30 jours | 90 jours |
+
+   Si l’échéance ne peut pas être tenue, le responsable informe le coordinateur
+   avant son dépassement, consigne exposition, mesures et prochain point. Ce suivi
+   n’autorise pas une livraison avec audit rouge. L’absence de responsable exige
+   l’escalade ; elle ne reporte pas la date initiale.
+4. Préparer une correction compatible, tests et réaudit des deux verrous. Ne pas
+   lancer de mise à jour forcée globale, supprimer un avis ou abaisser la gravité
+   pour obtenir du vert. Un avis sans correctif reste ouvert avec les mesures
+   documentées et l’escalade appropriée. Les audits natifs restent bloquants.
+5. Quand l’avis disparaît après correction vérifiée, documenter `resolved_at` et
+   `evidence` (commit, rapport et validation) avant `status=resolved`. La disparition
+   d’un avis `open` produit `closure_required` ; une réapparition produit `reopened`
+   et demande une nouvelle revue. Les trois workflows backend, frontend et sécurité
+   doivent réussir sur le commit/branche exacts du candidat de release. Ni une
+   ancienne CI verte ni la clôture du registre ne remplacent cette vérification.
+
+### F9 — Effacement interrompu ou données effacées réapparues
+
+1. Identifier organisation, opération, scope/cible, état, version applicative,
+   journal indépendant et incident. Le référent données et l’opérateur préservent
+   la quarantaine ; le coordinateur autorise le périmètre de diagnostic. Une
+   réapparition après restauration reste inaccessible ; si une exposition est
+   suspectée, passer aussi à F2/S1. Ne pas relancer un nouvel effacement pour
+   remplacer l’UUID de l’opération interrompue.
+2. Depuis `back/`, seules les inspections suivantes sont à préparer sur une cible
+   autorisée, avec un opérateur réellement habilité ; elles n’accordent pas de droits :
+
+   ```text
+   php artisan organizations:retention-control UUID_ORGANISATION --actor=ID_COMPTE --reason="INC : inspection autorisee"
+   php artisan organizations:erase UUID_ORGANISATION --action=inspect --operation=UUID_OPERATION --actor=ID_COMPTE --reason="INC : progression"
+   php artisan organizations:reconcile-erasure UUID_ORGANISATION --actor=ID_COMPTE --reason="INC : inspection du journal courant"
+   ```
+
+3. Pour un effacement interrompu, conserver intention signée, métadonnées et
+   preuves. Après vérification de la cause, du gel et de la cible, une reprise
+   autorisée réutilise le même UUID, au plus 100 fichiers ou lignes par appel.
+   Un fichier absent après un arrêt peut avoir été retiré avant rollback SQL :
+   laisser la reprise native rapprocher les états et la comptabilité. Ne pas
+   supprimer manuellement les métadonnées, réimporter le fichier ou effacer les
+   permis/verrous pour « débloquer » l’opération.
+4. Après restauration, appliquer [la procédure OPS-007](../README.md#ops-007--gel-métier-effacement-manuel-et-réconciliation-28-octobre-2026)
+   en maintenance : journal courant et clé indépendants conservés hors sauvegarde
+   métier, nouvel epoch, inspection puis confirmation explicite de son empreinte.
+   Un gel réimporté exige une revue humaine ; sa levée n’est pas déduite d’une
+   ancienne sauvegarde. Reprendre les opérations issues du rejeu et vérifier
+   lignes/fichiers, historique, Beta et comptes globaux. L’organisation effacée
+   reste en quarantaine permanente ; aucune décision de « réouverture » ne la vise.
+5. Traiter les refus selon leur cause, avec les originaux conservés :
+
+   | Code | Décision |
+   | --- | --- |
+   | `ERASURE_PLAN_CHANGED` | Revoir source, schéma, version et empreinte. La version OPS-007 finalisée canonicalise les expressions générées équivalentes après pg_restore ; un changement réel ou une ancienne signature incompatible exige une revue. Ne pas resigner le journal automatiquement. |
+   | `ERASURE_GUARDS_CHANGED` | Arrêter les suppressions, comparer migrations et protections avec la version autorisée. Aucun déclencheur/FK désactivé et aucun permis fabriqué à la main. |
+   | `ERASURE_JOURNAL_UNAVAILABLE`, `ERASURE_JOURNAL_CONFLICT` | Garder l’accès bloqué ; restituer le journal et sa clé depuis leur emplacement revu. Ne pas réinitialiser un journal vide ou changer installation/clé pour masquer le refus. |
+   | `ERASURE_BLOCKED`, `ERASURE_RESTORE_BLOCKED`, `RETENTION_PRESERVATION_ACTIVE` | Examiner gel, quarantaine, mode restauration et preuves manquantes ; obtenir la décision du référent compétent, sans forcer la levée. |
+   | `ERASURE_RESIDUE`, `ERASURE_COPIES_PENDING` | Examiner objets/lignes restants et catégories de copies, consigner les références réelles. `completed` atteste retrait local et revues opérateur, pas destruction chez le fournisseur. |
+   | `ERASURE_LIMIT`, `ERASURE_GRAPH_BLOCKED` | Conserver le plan et la progression, faire préparer un traitement borné adapté. Pas de suppression globale ou modification des limites en urgence sans revue. |
+
+6. La clôture du traitement local exige absence de résidu dans le scope approuvé,
+   comptabilité cohérente, audit, non-duplication, témoins Beta/globaux préservés,
+   revue des onze catégories de copies et état final attendu. Les copies externes
+   non vérifiées restent ouvertes dans un suivi nommé ; elles ne sont pas attestées
+   à partir des références fictives d’un laboratoire. Une restauration ancienne
+   destinée à annuler un effacement ne constitue jamais un retour arrière sûr.
+
 ## 5. Clôture et préparation avant données réelles
 
 Le coordinateur et le vérificateur consignent : cause confirmée ou incertitude
@@ -248,6 +380,23 @@ Créer des actions suivies avec responsable, échéance proposée et preuve atte
 un risque non résolu empêche la clôture ou reste explicitement porté par un suivi
 accepté par le responsable compétent. Fixer une revue après S1/S2, cible proposée
 dans les cinq jours ouvrés, sans effacer les traces initiales.
+
+### Décision de clôture et passage à l’exploitation
+
+| Contrôle | Preuve à référencer | Si manquant |
+| --- | --- | --- |
+| Parcours initial et témoin autorisé | Résultats horodatés, droits et portée vérifiés | Rester en investigation/surveillance |
+| Jobs, fichiers et décisions d’effacement | Effet métier vérifié, pas de doublon, quarantaine et copies rapprochées | Garder le composant ou tenant protégé |
+| Accès exceptionnels | Révocation/expiration testée et audit | Rester ouvert, réduire l’exposition dans le périmètre autorisé |
+| Communication | Message approuvé, envoi/réception/accusé attestés sur canal qualifié | Marquer non transmis et escalader |
+| Risques et suites | Responsable, échéance et preuve attendue pour chaque action restante | Pas de clôture implicite |
+| Accord de clôture | Coordinateur et vérificateur, date UTC et références | Incident non clos |
+| Ouverture réelle du support | Titulaires/suppléants/contacts, horaires, seuils adoptés, preuve d’essai du canal principal/secours et accès aux preuves | Mise en service refusée ; préparation locale seulement |
+
+La résolution automatique d’un composant dans le registre d’alertes ne clôt pas
+la fiche d’incident humaine. Un canal testé dans un double logiciel ne remplit pas
+la preuve de réception. Garder l’annuaire et les preuves nominatives dans l’espace
+restreint ; leur contenu n’est pas requis dans ce dépôt.
 
 Avant exploitation réelle : nommer les titulaires/suppléants, éprouver le canal de
 secours, adopter niveaux/délais, définir l’espace de preuve et sa conservation,
@@ -276,6 +425,44 @@ cohérence, pas une répétition d’astreinte ni une mesure de disponibilité.
 Les contrôles techniques locaux et leurs résultats sont consignés dans
 [l’état du projet](etat-projet.md). Aucun délai de prise en charge, message,
 RPO/RTO ou intervention en production n’a été mesuré pendant ces exercices.
+
+## 7. Revue finale et exercices du 31 octobre 2026
+
+Revue sur table réalisée par l’agent sur cette version, sans participants ni
+contacts UCG inventés. Les tests ci-dessous utilisent données fictives et doubles
+isolés ; ils prouvent les mécanismes indiqués, pas une réception humaine, une
+astreinte disponible ou une intervention sur hébergement. Aucun message envoyé,
+aucun droit accordé et aucune commande d’intervention exécutée sur une base utilisée.
+
+| Référence / inject fictif | Décision exercée et preuve de sortie | Vérification disponible / limite |
+| --- | --- | --- |
+| EX-09 : une alerte locale existe, `alert_dispatched=false`, personne ne confirme réception | Conserver l’incident ouvert, distinguer enregistrement/acquittement technique et réception ; appliquer l’escalade de §2 | OperationsAlertLifecycleTest et SupervisionDiagnosticsTest : aucun envoi, déduplication et cycle observés. Canal humain encore à qualifier. |
+| EX-10 : reçu de sauvegarde signé et frais, mais restauration non qualifiée | F5 et OPS-004-FINAL : vérifier chaîne, fichiers, cible et exercice ; le reçu seul ne permet pas la réouverture | BackupDiagnosticsTest couvre reçus/limites. Mesures RPO/RTO et preuve fournisseur distinctes. |
+| EX-11 : récupération sélective en attente après SQL, fichiers incomplets | F5 et OPS-005-FINAL : garder Alpha fermé, conserver le journal et reprendre la même récupération ; comparer Beta | Rapport local OPS-005 déjà réussi : états approuvés/validés, interruptions et refus. Pas de nouvel exercice PostgreSQL relancé pour cette revue documentaire. |
+| EX-12 : faille high nouvellement détectée, sans responsable, prochain scan le lendemain | F8 : créer le suivi avec première détection conservée, nommer un responsable, évaluer sous 24 h/corriger sous 7 j ; aucune remise à zéro ni livraison rouge | security-audit.test.mjs : `untracked`, échéances fixes et blocage même quand suivi. Responsable réel à nommer au constat. |
+| EX-13 : avis marqué résolu mais encore présent, ou audit en erreur réseau | F8 : `reopened` ou contrôle non concluant ; tests/réaudit du verrou, aucune exclusion ni clôture sur rapport vide | security-audit.test.mjs et release.test.mjs : refus des rapports invalides et des preuves CI inadéquates. Aucun registre externe interrogé pendant cet exercice. |
+| EX-14 : fichier retiré, arrêt avant validation SQL, métadonnées encore présentes | F9 : quarantaine, inspection puis reprise native avec le même UUID ; contrôler comptabilité et copie concernée | Rapport OPS-007 réussi : arrêt après I/O, rollback SQL et reprise. Le retrait d’un fichier ne suffit pas à clore l’opération. |
+| EX-15 : ancienne sauvegarde fait réapparaître une personne effacée et oublie un gel | F5/F9 : maintenance, journal courant, réimport/revue du gel, rejeu de la décision avant tout accès | ErasureReconciliationTest rejoué et rapport de vraie restauration OPS-007 déjà réussi. Le journal indépendant ne doit pas être restauré au même ancien instant. |
+| EX-16 : schéma réellement changé, journal indisponible ou ancienne signature incompatible | F9 : conserver le refus, identifier version/migrations et originaux ; aucune désactivation de garde ni réinitialisation du journal | ErasureReconciliationTest et rapport OPS-007 : équivalence PostgreSQL acceptée, vrai changement refusé. Revue opérateur obligatoire en cas d’incompatibilité. |
+| EX-17 : incident techniquement rétabli, accès temporaire encore actif et contrôle incomplet | F7 et §5 : révoquer/vérifier, compléter le témoin et la surveillance avant clôture à deux rôles | PlatformSupportAccessTest et OperationsAlertLifecycleTest : révocation/expiration, observations incomplètes et réouverture couvertes. Une alerte `resolved` ne signe pas la clôture humaine. |
+| EX-18 : coordinateur absent, suppléant et canal de secours non renseignés | §2/§5 : signaler l’escalade non transmise, garder l’état protégé, refuser l’ouverture réelle du support | La grille de mise en service reste non satisfaite ; aucun nom, numéro, envoi ou disponibilité n’est supposé. |
+
+Validation réexécutée pour cette livraison : **128 tests backend, 757 assertions,
+zéro échec/exclusion**, sur alertes, supervision, diagnostics de sauvegardes,
+quarantaine, accès support, jobs tenant et réconciliation. **25 tests Node
+audit/release réussis**, sans exclusion. Le rapport PHPUnit privé est ignoré sous
+`back/reports/phpunit-ops008.xml` ; les résultats Node sont consignés dans l’état
+du projet. Ils ne remplacent pas les preuves restreintes d’un incident réel.
+Les longs exercices OPS-004/005/007 déjà
+qualifiés localement ne sont pas présentés comme réexécutés ici.
+
+**Dossier documentaire et revue locale OPS-008 finalisés.** Les fonctions,
+seuils proposés, chaîne d’escalade, modèles de message et critères de clôture sont
+définis. Avant exploitation : inscrire les titulaires/suppléants et contacts dans
+l’annuaire privé, adopter les seuils/horaires, éprouver les canaux principal et
+de secours ainsi que l’accès aux preuves, puis consigner l’accord de mise en
+service. Ces validations organisationnelles restent ouvertes ; aucun incident
+réel, canal actif ou accord de production n’est déclaré.
 
 ## OPS-003 — Traiter les résultats du diagnostic
 

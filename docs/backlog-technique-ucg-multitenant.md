@@ -1617,6 +1617,16 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 ### UCG-OPS-008 — Rédiger les procédures d’incident et support
 
 - **Priorité / taille** : P0 / M
+- **Finalisation documentaire locale (31/10/2026)** : neuf fiches à jour après
+  OPS-004/005/006/007, dont vulnérabilités avec suivi/délais et effacement/reprise
+  après restauration. Chaîne d’escalade, fiche privée prête à renseigner, séparation
+  enregistrement/acquittement/transmission/réception et grille de clôture/mise en
+  service. Dix exercices EX-09–18 complètent les huit historiques ; 128 tests
+  backend/757 assertions et 25 tests Node audit/release réussis sans exclusion.
+  Aucun incident, message ou accès réel ; longs exercices non relancés pour une
+  revue documentaire. Un seul commit demandé, sans push. Les personnes, suppléants,
+  contacts privés, seuils/horaires adoptés et essais des canaux sur hébergement
+  restent des préalables organisationnels à l’exploitation.
 - **Périmètre** : indisponibilité, fuite suspectée, intégration en panne, file bloquée, restauration et accès exceptionnel.
 - **Acceptation** : responsables, seuils, escalade, communication et preuves de clôture définis.
 - **Trois lots locaux (26/10/2026)** : dossier dédié
