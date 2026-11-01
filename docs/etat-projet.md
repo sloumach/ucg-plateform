@@ -10103,3 +10103,120 @@ dépendance, configuration d’environnement réel ni suite CI supplémentaire.
 Consolidation locale QA-002 livrée en un seul commit demandé, sans push. La
 performance REC-34/QA-005 et les preuves externes applicables restent nécessaires
 à la clôture globale ; les nouvelles preuves de sécurité ne les remplacent pas.
+
+## UCG-QA-005 — Banc Linux, corrections mesurées et durée soutenue (1er novembre 2026)
+
+L’utilisateur demande la reprise de QA-005. Le moteur Docker, auparavant arrêté,
+est démarré ; la qualification locale concurrente devient possible. Les trois
+volets locaux sont exécutés dans une seule livraison : environnement adapté,
+corrections motivées par les mesures et recette prolongée. L’hébergement demeure
+différé ; aucun service ou jeu de données réel n’est utilisé et aucun push n’est
+effectué pour cette livraison.
+
+Le banc utilise un conteneur Linux jetable avec nginx/PHP-FPM (16 processus),
+PostgreSQL 17, Redis et Horizon, configuration local du projet non assouplie.
+Trois superviseurs/cinq workers sont observés. Les services partagent quatre CPU,
+six Gio et une limite de 256 PID ; le générateur Node 24 tourne sur l’hôte Windows,
+hors de ce budget, sur la même machine physique i5-9600KF à six cœurs. Les
+connexions HTTP sont publiées uniquement en boucle locale ; PostgreSQL/Redis
+restent internes. Pas de TLS, rendu navigateur, transport temps réel ou capacité
+hébergée déduite de ces mesures.
+
+La copie de sources est filtrée : pas de montage du checkout, de .env, de données
+de stockage ou de liens symboliques. Le code des namespaces Storage est conservé,
+avec test de régression du filtre. Le premier filtre trop large et les essais de
+construction refusés ne qualifient aucune performance. La couche de dépendances
+filtrées est mise en cache selon le lock, le manifeste Composer, le filtre et le
+Dockerfile ; aucune dépendance applicative n’est installée/mise à jour. Les images
+de test restent en cache, les conteneurs/clusters/données sont supprimés après
+vérification du nom, du label d’appartenance et des marqueurs existants du laboratoire.
+Les moteurs Docker distants et la surcharge DOCKER_HOST sont refusés. Les gardes
+PostgreSQL vérifient encore version, token, port et chemin réel avant le bootstrap.
+
+Les horodatages PHP prouvent des traitements simultanés, avec un pic de seize
+handlers pendant pressure. Horizon fournit des fenêtres réservées/terminées sans
+payload. Un passage HTTP qui s’achevait avant le début des imports a été refusé :
+la seule mise en file n’est pas un chevauchement. Une phase supplémentaire démarre
+désormais sur une réservation réelle d’import ; son état HTTP peut rester queued
+entre les transactions de chunks. Les p95 Beta pendant les jobs sont vérifiés
+séparément pour éviter de les diluer dans les lectures après traitement.
+
+Le profilage anonyme (load-profile-1793492524359.json) montre les lectures répétées
+d’organisations/adhésions/rôles et le coût de connexion. L’historique des parties
+prend aussi un verrou exclusif de lecture sur le même match. Deux corrections
+bornées sont livrées : le contexte interne des routes de ressources ne matérialise
+plus une liste de permissions inutilisée ; les services/projections recontrôlent
+leurs droits et l’API d’organisation active garde son comportement complet. La
+lecture cohérente des scores prend un verrou partagé dans la transaction ; les
+écritures gardent leur verrou exclusif. Aucun cache de droits entre appels, index
+spéculatif, suppression d’autorisation ou changement de quota.
+
+Le nouveau test PostgreSQL utilise trois connexions : une première lecture reste
+ouverte, une seconde lecture via MatchScoreService réussit, puis un écrivain
+exclusif reçoit le délai de verrou attendu. Il reste bloqué après la libération du
+premier lecteur et réussit après celle du second. Les versions restent identiques
+et aucune partie n’est créée. Les courses d’écriture existantes restent vertes.
+La résolution interne conserve les refus de tenant étranger ; budget de deux
+requêtes, liste UI inchangée, révocations et projections fraîches testées.
+
+### Comparaison avant/après, même profil pressure et même topologie
+
+Les deux passages complets seedent 500 comptes, 100 sessions authentifiées,
+1 000 matchs et 100 000 parties, puis exécutent 894 lectures et huit lectures Alpha.
+Chaque passage termine trois imports/3 000 créations, trois exports de 500 lignes
+et 123 jobs, sans erreur ou refus mesuré ni job restant/échoué. Les 300 lectures
+Beta des deux phases chevauchent les traitements : 150 pendant les exports,
+150 pendant les imports. Intégrité ciblée Beta/Gamma et nettoyage conformes.
+
+| p95 Beta | Avant | Après |
+| --- | ---: | ---: |
+| Référence | 3 311,70 ms | 2 861,50 ms |
+| Exports | 7 265,03 ms | 5 994,11 ms |
+| Imports | 7 118,86 ms | 6 298,14 ms |
+| Récupération | 3 598,85 ms | 3 239,10 ms |
+
+Personnes/matchs/parties passent de 37/33/40 à 32/28/35 requêtes SQL maximum ;
+croissance page 25 → 100 nulle. Les p95 restent **non conformes aux 500 ms** et le
+code de sortie est 1. Les gains observés portent sur les deux corrections ensemble,
+avec un générateur fermé, sur un poste partagé : aucune capacité de production ou
+attribution exclusive à une seule correction. Le contrôle séquentiel antérieur
+(load-pressure-1793491622292.json) documente la sérialisation, avec p95 Beta pendant
+charge 11,94 s ; il n’est pas le comparateur applicatif du tableau à quatre phases.
+
+### Recette à lectures espacées
+
+Même jeu de données et mêmes traitements lourds. Après 150 lectures Beta de
+référence, 99 lecteurs démarrent à 50 ms d’intervalle et réalisent quinze lectures
+chacun, avec un intervalle de douze secondes ; une session Alpha ajoute une lecture
+environ chaque seconde. La référence et la récupération gardent le même espacement,
+sur trois lectures par lecteur. C’est un modèle fermé avec temps de réflexion,
+pas une arrivée fixe à saturation ; 100 sessions ne signifient pas 100 requêtes
+continuellement en vol. Le pic observé est de quatre handlers simultanés.
+
+Phase principale 184,99 s ; 1 785 lectures et 161 lectures Alpha au total, aucune
+erreur/refus. P95 Beta référence/charge/récupération : **138,96 / 139,46 / 140,34 ms**.
+Les 351 lectures Beta qui chevauchent les jobs ont un p95 de **141,39 ms** ;
+301 croisent des imports, 50 des exports. Les sous-groupes de ressources restent
+sous 500 ms. Trois exports, 3 000 créations, 123 jobs, aucun job restant/échoué,
+intégrité ciblée, empreintes suivies pendant le run et nettoyage conformes.
+Ce résultat valide ce modèle local à lectures espacées et ne valide pas la rafale.
+
+Rapports privés ignorés : front/reports/load-pressure-1793493390332.json (avant),
+load-pressure-1793494198302.json (après), load-endurance-1793494694339.json.
+Les trois ont completed/sourcesUnchanged/cleanup=true ; seul endurance a la cible
+globale à true. Les empreintes PHP/JS suivies des deux derniers correspondent à la
+livraison ; les rapports avant correction conservent leurs empreintes d’origine.
+Les données restent synthétiques et ne certifient pas des résultats sportifs approuvés.
+
+Validation : **219 tests SQLite/1 403 assertions**, **261 tests d’isolation/3 913
+assertions**, **88 tests PostgreSQL/621 assertions sans exclusion** ; ces sélections
+se recouvrent. Le cluster PostgreSQL natif temporaire est arrêté et supprimé.
+Vingt tests Node, lint, Pint et PHPStan niveau 8 verts. Les nouvelles protections
+s’intègrent dans les sélections CI existantes ; aucune suite de charge lourde n’est
+ajoutée comme prétexte à allonger la CI normale.
+
+**QA-005/REC-34 demeurent ouverts** : les rafales dépassent toujours 500 ms et la
+capacité de la cible hébergée reste à qualifier. Les 2 000 visiteurs publics ne sont
+pas exécutés : pas de page publique métier P0 ; aucune route de santé ne les remplace.
+Les trois volets locaux sont réalisés et livrés ensemble, sans déclarer une clôture
+globale ou un accord de mise en service.

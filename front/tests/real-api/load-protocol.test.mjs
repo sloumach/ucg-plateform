@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
-import { assertLocalOrigin, backoffMilliseconds, loadProfile, measurementResource, percentile, readTimingHeaders, summarize, validatePeople } from './load-protocol.mjs'
+import { assertLocalOrigin, backoffMilliseconds, heavyWorkReads, loadProfile, measurementResource, percentile, readTimingHeaders, serverConcurrency, summarize, validatePeople } from './load-protocol.mjs'
 
 test('load runner refuses targets, custom volumes and unknown profiles before creating resources', () => {
   assert.equal(loadProfile([]).name, 'smoke')
@@ -139,7 +139,7 @@ test('resource metrics retain slow match pages and do not hide errors in a faste
 
 test('every supported PHP profile still refuses a foreign root before database access', () => {
   const cwd = fileURLToPath(new URL('../../../back', import.meta.url))
-  for (const name of ['profile', 'volume', 'pressure']) {
+  for (const name of ['profile', 'volume', 'pressure', 'endurance']) {
     const result = spawnSync('php', ['tests/Fixtures/load-seed.php'], {
       cwd, env: { ...process.env, UCG_LOAD_PROFILE: name, UCG_BROWSER_ENGINE: 'pgsql', DB_CONNECTION: 'pgsql', UCG_BROWSER_ROOT: cwd, UCG_BROWSER_TOKEN: 'b'.repeat(64) },
       encoding: 'utf8', windowsHide: true,
@@ -147,6 +147,44 @@ test('every supported PHP profile still refuses a foreign root before database a
     assert.notEqual(result.status, 0)
     assert.match(result.stdout + result.stderr, /Isolated browser environment required/)
   }
+})
+
+test('server concurrency requires overlapping measured handlers rather than only dispatched clients', () => {
+  const first = { ok: true, workerPid: 10, appStarted: 100, appEnded: 101 }
+  const second = { ok: true, workerPid: 11, appStarted: 101, appEnded: 102 }
+  assert.equal(serverConcurrency([first, second]).peakMeasuredHandlers, 1)
+  assert.deepEqual(serverConcurrency([first, { ...second, appStarted: 100.5 }]), { peakMeasuredHandlers: 2, workerPids: [10, 11] })
+  assert.throws(() => serverConcurrency([{ ...first, appStarted: NaN }]), /instrumentation/)
+  assert.throws(() => serverConcurrency([{ ...first, appEnded: 99 }]), /instrumentation/)
+  const profile = loadProfile(['--profile=endurance'])
+  assert.equal(profile.readers + 1, 100)
+  assert.equal(profile.samples * profile.intervalMs, 180000)
+  assert.equal(profile.games, 100000)
+  assert.equal(profile.targetP95Ms, 500)
+})
+
+test('Horizon load helpers refuse remote Redis before bootstrapping any database or worker', () => {
+  const cwd = fileURLToPath(new URL('../../../back', import.meta.url))
+  for (const file of ['load-horizon.php', 'load-queue-audit.php']) {
+    const result = spawnSync('php', [`tests/Fixtures/${file}`], {
+      cwd, env: { ...process.env, UCG_LOAD_CONCURRENT: 'true', QUEUE_CONNECTION: 'redis', REDIS_HOST: 'example.test' },
+      encoding: 'utf8', windowsHide: true,
+    })
+    assert.notEqual(result.status, 0)
+    assert.match(result.stdout + result.stderr, /An owned Redis load runtime is required/)
+    assert.doesNotMatch(result.stdout + result.stderr, /SQLSTATE|Connection refused/)
+  }
+})
+
+test('heavy work overlap uses actual worker execution windows and excludes queue waiting and later reads', () => {
+  const samples = [
+    { ok: true, appStarted: 10, appEnded: 11 },
+    { ok: true, appStarted: 11, appEnded: 12 },
+    { ok: true, appStarted: 13, appEnded: 14 },
+  ]
+  assert.deepEqual(heavyWorkReads(samples, [{ started: 11, ended: 13 }]), [samples[1]])
+  assert.deepEqual(heavyWorkReads(samples, []), [])
+  assert.throws(() => heavyWorkReads(samples, [{ started: 12, ended: 11 }]), /job window/)
 })
 
 test('backpressure waits are bounded and do not reinterpret malformed Retry-After values', () => {

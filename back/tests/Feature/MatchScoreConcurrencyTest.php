@@ -2,7 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Modules\Competition\Application\Services\MatchScoreService;
+use App\Modules\Competition\Domain\Contracts\MatchRepository;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -15,6 +18,84 @@ use Tests\TestCase;
 class MatchScoreConcurrencyTest extends TestCase
 {
     use AuthenticatesWithMfa, ProvidesMatchScores, ProvidesPeopleAccess;
+
+    public function test_coherent_history_readers_share_the_match_but_exclude_writers_until_both_finish(): void
+    {
+        if (DB::getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Real history read locks run in the PostgreSQL CI selection.');
+        }
+        $original = DB::getDefaultConnection();
+        $config = config('database.connections.pgsql');
+        $admin = DB::connection()->getPdo();
+        $database = 'ucg_match_read_'.bin2hex(random_bytes(6));
+        $connections = ['match_read_primary', 'match_read_peer', 'match_read_writer'];
+        $created = false;
+        try {
+            $admin->exec('CREATE DATABASE "'.$database.'"');
+            $created = true;
+            foreach ($connections as $name) {
+                config(['database.connections.'.$name => [...$config, 'url' => null, 'database' => $database]]);
+            }
+            DB::setDefaultConnection($connections[0]);
+            $this->assertSame(0, Artisan::call('migrate', ['--force' => true, '--no-interaction' => true]));
+            $scenario = $this->scoreScenario();
+            $organization = $scenario['org'];
+            $actor = $scenario['writer'];
+            $match = $scenario['record'];
+            $viewer = ['person_id' => null, 'team_ids' => []];
+            $primary = DB::connection($connections[0]);
+            $peer = DB::connection($connections[1]);
+            $writer = DB::connection($connections[2]);
+            $primary->beginTransaction();
+            $record = app(MatchRepository::class)->findForSharedRead($organization->id, $match['id'], $actor->id, $viewer, false);
+            $this->assertSame($match['version'], $record->version);
+
+            DB::setDefaultConnection($connections[1]);
+            $peer->beginTransaction();
+            $peer->statement("SET LOCAL lock_timeout = '500ms'");
+            $history = app(MatchScoreService::class)->index($this->personContext($organization, $actor), $match['id'], ['per_page' => 25]);
+            $this->assertSame($match['version'], $history['match_version']);
+            $this->assertSame(0, $history['games']->total());
+
+            DB::setDefaultConnection($connections[2]);
+            $assertWriterBlocked = function () use ($writer, $organization, $match, $actor, $viewer): void {
+                $writer->beginTransaction();
+                $writer->statement("SET LOCAL lock_timeout = '500ms'");
+                try {
+                    app(MatchRepository::class)->find($organization->id, $match['id'], $actor->id, $viewer, false, true);
+                    $this->fail('A score writer must wait for coherent history readers.');
+                } catch (QueryException $exception) {
+                    $this->assertSame('55P03', $exception->errorInfo[0] ?? null);
+                } finally {
+                    $writer->rollBack();
+                }
+            };
+            $assertWriterBlocked();
+            $primary->rollBack();
+            $assertWriterBlocked();
+            $peer->rollBack();
+            $writer->beginTransaction();
+            $writer->statement("SET LOCAL lock_timeout = '500ms'");
+            $this->assertSame($match['version'], app(MatchRepository::class)->find($organization->id, $match['id'], $actor->id, $viewer, false, true)->version);
+            $writer->rollBack();
+            $this->assertDatabaseCount('matches', 1);
+            $this->assertDatabaseCount('match_game_instances', 0);
+        } finally {
+            DB::setDefaultConnection($original);
+            foreach ($connections as $name) {
+                $connection = DB::getConnections()[$name] ?? null;
+                if ($connection !== null) {
+                    while ($connection->transactionLevel() > 0) {
+                        $connection->rollBack();
+                    }
+                }
+                DB::purge($name);
+            }
+            if ($created) {
+                $admin->exec('DROP DATABASE "'.$database.'" WITH (FORCE)');
+            }
+        }
+    }
 
     /** @return array<string,array{string}> */
     public static function races(): array

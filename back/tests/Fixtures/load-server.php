@@ -65,6 +65,9 @@ $response->headers->set('X-UCG-Connection-Ms', (string) round($connectionMillise
 $response->headers->set('X-UCG-First-Query-Ms', (string) round($firstQueryMilliseconds ?? 0.0, 3));
 $response->headers->set('X-UCG-Bootstrap-Ms', (string) round($bootstrapMilliseconds, 3));
 $response->headers->set('X-UCG-Handler-Ms', (string) round((microtime(true) - $handlingStarted) * 1000, 3));
+$response->headers->set('X-UCG-Worker-Pid', (string) getmypid());
+$response->headers->set('X-UCG-App-Started', sprintf('%.6F', LARAVEL_START));
+$response->headers->set('X-UCG-App-Ended', sprintf('%.6F', microtime(true)));
 $refusal = $request->attributes->get(LimitTenantRequests::REFUSAL_ATTRIBUTE);
 if (is_string($refusal)) {
     $response->headers->set('X-UCG-Rate-Refusal', $refusal);

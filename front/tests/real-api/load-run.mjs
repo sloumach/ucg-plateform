@@ -11,10 +11,16 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { request } from '@playwright/test'
 import { assertHarnessRoot, isolatedEnvironment } from './environment.mjs'
 import { TemporaryPostgres } from './postgresql.mjs'
-import { assertLocalOrigin, backoffMilliseconds, loadProfile, measurementResource, readTimingHeaders, summarize, validatePeople } from './load-protocol.mjs'
+import { LoadContainer } from './load-container.mjs'
+import { assertLocalOrigin, backoffMilliseconds, heavyWorkReads, loadProfile, measurementResource, readTimingHeaders, serverConcurrency, summarize, validatePeople } from './load-protocol.mjs'
 
 // Validate CLI before creating a directory, starting a process or contacting a target.
-const profile = loadProfile(process.argv.slice(2))
+const arguments_ = process.argv.slice(2)
+const containerized = arguments_.includes('--docker')
+const sequential = arguments_.includes('--sequential')
+assert.ok(arguments_.filter((value) => value === '--docker').length <= 1)
+assert.ok(arguments_.filter((value) => value === '--sequential').length <= 1 && (!sequential || containerized))
+const profile = loadProfile(arguments_.filter((value) => !['--docker', '--sequential'].includes(value)))
 const front = fileURLToPath(new URL('../..', import.meta.url))
 const backend = resolve(front, '../back')
 const root = realpathSync(mkdtempSync(resolve(tmpdir(), 'ucg-browser-')))
@@ -32,12 +38,20 @@ const report = {
   sourceWorkingTreeDirty: gitStatus.status === 0 ? Boolean(gitStatus.stdout.trim()) : null,
   harnessSha256: Object.fromEntries([
     'tests/real-api/load-run.mjs', 'tests/real-api/load-protocol.mjs', 'tests/real-api/environment.mjs', 'tests/real-api/postgresql.mjs',
+    'tests/real-api/load-container.mjs', 'tests/real-api/load-runtime.mjs', 'tests/real-api/load-runtime.Dockerfile',
+    '../back/tests/Fixtures/load-horizon.php', '../back/tests/Fixtures/load-queue-audit.php',
     '../back/tests/Fixtures/load-application.php', '../back/tests/Fixtures/load-seed.php', '../back/tests/Fixtures/load-server.php',
     '../back/tests/Fixtures/load-audit.php', '../back/tests/Fixtures/browser-application.php', '../back/tests/Fixtures/browser-postgresql.php', '../back/tests/Fixtures/browser-worker.php',
     '../back/tests/Fixtures/load-volume.php',
     '../back/app/Modules/Tenancy/Application/Services/TenantDataProjectionService.php',
     '../back/app/Modules/Tenancy/Presentation/Http/Middleware/LimitTenantRequests.php',
     '../back/app/Modules/People/Application/Services/PersonService.php',
+    '../back/app/Modules/Tenancy/Application/Services/TenantResolver.php',
+    '../back/app/Modules/Tenancy/Application/Services/TenantPermissionService.php',
+    '../back/app/Modules/Tenancy/Presentation/Http/Middleware/ResolveTenantContext.php',
+    '../back/app/Modules/Competition/Domain/Contracts/MatchRepository.php',
+    '../back/app/Modules/Competition/Infrastructure/Persistence/EloquentMatchRepository.php',
+    '../back/app/Modules/Competition/Application/Services/MatchScoreService.php',
   ].map((path) => [path, createHash('sha256').update(readFileSync(resolve(front, path))).digest('hex')])),
   startedAt: new Date().toISOString(), completed: false, cleanup: false, sourcesUnchanged: false,
   topology: { database: 'PostgreSQL 17 disposable', httpServer: 'PHP built-in development server', httpProcesses: profile.httpProcesses ?? 2, workers: 1, queue: 'database', cache: 'database', loadModel: 'closed-loop authenticated sessions', tls: false },
@@ -46,6 +60,7 @@ const report = {
   phases: {}, samples: {},
 }
 let postgres
+let container
 let environment
 let fixtureData
 let activeRequests = 0
@@ -55,7 +70,7 @@ const outstandingByServer = new Map()
 const stop = () => abort.abort()
 process.once('SIGINT', stop)
 process.once('SIGTERM', stop)
-const deadlineTimer = setTimeout(stop, profile.timeoutMs ?? 300_000)
+const deadlineTimer = setTimeout(stop, containerized ? 1_800_000 : profile.timeoutMs ?? 300_000)
 
 async function port() {
   for (;;) {
@@ -68,6 +83,7 @@ async function port() {
 }
 
 function execute(file) {
+  if (container) return container.execute(file)
   return new Promise((done, reject) => {
     const child = spawn('php', [`tests/Fixtures/${file}`], { cwd: backend, env: environment, windowsHide: true, signal: abort.signal, timeout: profile.games ? 420_000 : 90_000, stdio: ['ignore', 'pipe', 'pipe'] })
     let output = ''
@@ -92,6 +108,19 @@ function execute(file) {
 }
 
 async function start(args, env, ready) {
+  if (container) {
+    if (ready === null) { report.horizonStarted = await container.worker(); return }
+    const until = performance.now() + 45_000
+    while (performance.now() < until && !abort.signal.aborted) {
+      try {
+        const response = await fetch(ready, { signal: AbortSignal.timeout(1000), redirect: 'error' })
+        await response.arrayBuffer()
+        if (response.ok) return
+      } catch { /* bounded readiness polling */ }
+      await delay(200)
+    }
+    throw new Error('Container HTTP readiness timed out')
+  }
   const descriptor = openSync(`${root}/process-${servers.length}.log`, 'a', 0o600)
   const child = spawn('php', args, { cwd: backend, env, windowsHide: true, signal: abort.signal, stdio: ['ignore', descriptor, descriptor] })
   closeSync(descriptor)
@@ -180,9 +209,13 @@ async function peopleSample(actor_, organization, ids, pageSize, resource = 'peo
     const queries = Number(header)
     if (status !== 200 || !header || !Number.isInteger(queries) || queries < 1) throw new Error('HTTP or query instrumentation failure')
     const { sqlMs, bootstrapMs, handlerMs, connectionMs, firstQueryMs } = readTimingHeaders(response.headers())
+    const workerPid = Number(response.headers()['x-ucg-worker-pid'])
+    const appStarted = Number(response.headers()['x-ucg-app-started'])
+    const appEnded = Number(response.headers()['x-ucg-app-ended'])
     validatePeople(payload, ids, pageSize)
-    return { status, ok: true, ms: performance.now() - started, startedMs: started, endedMs: performance.now(), queries, sqlMs, bootstrapMs, handlerMs, connectionMs, firstQueryMs, pageSize, resource, server, outstandingOnServer }
-  } catch {
+    return { status, ok: true, ms: performance.now() - started, startedMs: started, endedMs: performance.now(), queries, sqlMs, bootstrapMs, handlerMs, connectionMs, firstQueryMs, pageSize, resource, server, outstandingOnServer, workerPid, appStarted, appEnded }
+  } catch (error) {
+    report.firstReadFailure ??= { status, resource, pageSize, reason: error.message }
     if (status === 200 || (status === 429 && backoffMs === 0)) abort.abort()
     return { status, ok: false, ms: performance.now() - started, startedMs: started, endedMs: performance.now(), pageSize, resource, backoffMs, rateRefusal, server, outstandingOnServer }
   } finally {
@@ -193,13 +226,16 @@ async function peopleSample(actor_, organization, ids, pageSize, resource = 'peo
 }
 
 async function phase(name, readers) {
-  console.log(`QA-005 ${name}: ${profile.samples * readers.length} measured reads, ${readers.length} reader sessions.`)
+  const count = profile.intervalMs && !name.startsWith('noisy') ? 3 : profile.samples
+  console.log(`QA-005 ${name}: ${count * readers.length} measured reads, ${readers.length} reader sessions.`)
   const samples = []
   const phaseStarted = performance.now()
   peakRequests = activeRequests
   report.samples[name] = samples
   await Promise.all(readers.map(async (reader, actorIndex) => {
-    for (let index = 0; index < profile.samples; index++) {
+    if (profile.rampMs) await delay(actorIndex * profile.rampMs)
+    for (let index = 0; index < count; index++) {
+      const iterationStarted = performance.now()
       // Alpha's people list legitimately grows during imports; immutable ID checks
       // stay on its match history while Beta's people list remains protected.
       const resource = measurementResource(profile, reader.tenant, index + actorIndex)
@@ -208,15 +244,17 @@ async function phase(name, readers) {
       samples.push({ ...sample, tenant: reader.tenant, actor: actorIndex })
       if (abort.signal.aborted) break
       if (sample.backoffMs) await delay(sample.backoffMs, undefined, { signal: abort.signal }).catch(() => {})
+      if (profile.intervalMs) await delay(Math.max(0, profile.intervalMs - (performance.now() - iterationStarted)), undefined, { signal: abort.signal }).catch(() => {})
     }
   }))
   report.phases[name] = summarize(samples)
+  report.phases[name].serverConcurrency = serverConcurrency(samples)
   report.phases[name].readerSessions = readers.length
   report.phases[name].peakOutstandingRequests = peakRequests
   report.phases[name].durationMs = performance.now() - phaseStarted
   report.phases[name].requestsPerSecond = samples.length / (report.phases[name].durationMs / 1000)
   report.phases[name].tenants = Object.fromEntries([...new Set(samples.map((sample) => sample.tenant))].map((tenant) => [tenant, summarize(samples.filter((sample) => sample.tenant === tenant))]))
-  assert.equal(samples.length, profile.samples * readers.length, 'Measurement phase incomplete')
+  assert.equal(samples.length, count * readers.length, 'Measurement phase incomplete')
 }
 
 try {
@@ -224,12 +262,23 @@ try {
   writeFileSync(`${root}/.env`, '', { flag: 'wx', mode: 0o600 })
   for (const path of ['app/private', 'app/public', 'framework/cache/data', 'framework/sessions', 'framework/views', 'logs']) mkdirSync(`${root}/storage/${path}`, { recursive: true })
   const alphaPort = await port()
-  const betaPort = await port()
+  const betaPort = containerized ? alphaPort : await port()
   const frontPort = await port()
   const pgPort = await port()
   environment = { ...isolatedEnvironment(root, token, alphaPort, frontPort), APP_KEY: `base64:${randomBytes(32).toString('base64')}`, UCG_LOAD_PROFILE: profile.name }
-  postgres = new TemporaryPostgres(root, token, pgPort, process.env.UCG_BROWSER_PG_BIN, environment, abort.signal)
-  Object.assign(environment, await postgres.start())
+  if (containerized) {
+    container = new LoadContainer(root, token, front, profile, sequential)
+    environment = await container.start(alphaPort, frontPort)
+    report.topology = { database: 'PostgreSQL 17 disposable', httpServer: sequential ? 'nginx + sequential PHP development server (control)' : 'nginx + PHP-FPM', httpProcesses: sequential ? 1 : 16,
+      workers: 'Horizon local supervisors: critical 1, default up to 2, reports 1', queue: 'Redis', cache: 'Redis', loadModel: 'closed-loop authenticated sessions', tls: false,
+      generator: 'native host process outside the service container', resources: { serviceCpus: 4, serviceMemoryGiB: 6, pids: 256 } }
+    if (profile.intervalMs) report.topology.pacing = { readerIntervalMs: profile.intervalMs, readerRampMs: profile.rampMs, alphaThinkMs: profile.noiseIntervalMs }
+    report.limits = report.limits.filter((value) => !['local development topology only', 'no Redis/Horizon qualification'].includes(value))
+    report.limits.push('local Linux container qualification; shared physical workstation and Docker VM, no production capacity certification', 'all service processes share one resource budget; no network or TLS latency representative of hosting')
+  } else {
+    postgres = new TemporaryPostgres(root, token, pgPort, process.env.UCG_BROWSER_PG_BIN, environment, abort.signal)
+    Object.assign(environment, await postgres.start())
+  }
   const fixture = JSON.parse(await execute('load-seed.php'))
   fixtureData = fixture
   writeFileSync(`${root}/fixture.json`, JSON.stringify(fixture), { flag: 'wx', mode: 0o600 })
@@ -246,7 +295,7 @@ try {
   report.populatedSchemaRefused = true
   await start(['-S', `127.0.0.1:${alphaPort}`, 'tests/Fixtures/load-server.php'], environment, `http://127.0.0.1:${alphaPort}/api/v1/system/status`)
   const origins = [`http://127.0.0.1:${alphaPort}`, `http://127.0.0.1:${betaPort}`]
-  for (let index = 2; index < (profile.httpProcesses ?? 2); index++) origins.push(`http://127.0.0.1:${await port()}`)
+  for (let index = 2; !containerized && index < (profile.httpProcesses ?? 2); index++) origins.push(`http://127.0.0.1:${await port()}`)
   for (const origin of origins.slice(1)) await start(['-S', new URL(origin).host, 'tests/Fixtures/load-server.php'], { ...environment, APP_URL: origin }, `${origin}/api/v1/system/status`)
   serverOrigins.push(...origins)
   const alpha = await actor(`http://127.0.0.1:${alphaPort}`, fixture.actors.alpha, fixture.organizations.alpha)
@@ -266,7 +315,10 @@ try {
   report.dataset.activeSessions = contexts.length
   const protectedReaders = readers.filter((reader) => reader.tenant === 'beta')
   const betaIds = new Set(fixture.people.beta)
-  for (let index = 0; index < profile.warmup; index++) assert.equal((await peopleSample(beta, fixture.organizations.beta, betaIds, index % 2 ? 100 : 25)).ok, true)
+  for (let index = 0; index < profile.warmup; index++) {
+    const sample = await peopleSample(beta, fixture.organizations.beta, betaIds, index % 2 ? 100 : 25)
+    assert.equal(sample.ok, true, `Warmup failed: ${report.firstReadFailure?.reason ?? 'unknown'}`)
+  }
   await phase('baseline', protectedReaders)
 
   // Queue exports before starting the worker so their dispatch and completion are observable.
@@ -302,25 +354,46 @@ try {
     report.queuedWork = { exports: exports.length, imports: imports.length, importRows: profile.imports * profile.importRows, workerPolicy: 'one database worker, FIFO reports queue with bounded import chunks' }
   }
   await start(['tests/Fixtures/browser-worker.php'], environment, null)
-  let makingNoise = true
   const noiseStarted = performance.now()
   const noiseSamples = []
-  const noise = (async () => {
-    const resource = profile.games ? 'matches' : 'people'
-    const alphaIds = new Set(fixture[resource].alpha)
-    while (makingNoise && noiseSamples.length < 300 && !abort.signal.aborted) {
-      noiseSamples.push(await peopleSample(alpha, fixture.organizations.alpha, alphaIds, 100, resource))
-      if (noiseSamples.at(-1).backoffMs) await delay(noiseSamples.at(-1).backoffMs, undefined, { signal: abort.signal }).catch(() => {})
+  async function noisyPhase(name) {
+    let makingNoise = true
+    const noise = (async () => {
+      const resource = profile.games ? 'matches' : 'people'
+      const alphaIds = new Set(fixture[resource].alpha)
+      while (makingNoise && noiseSamples.length < 300 && !abort.signal.aborted) {
+        noiseSamples.push(await peopleSample(alpha, fixture.organizations.alpha, alphaIds, 100, resource))
+        if (profile.noiseIntervalMs) await delay(profile.noiseIntervalMs, undefined, { signal: abort.signal }).catch(() => {})
+        if (noiseSamples.at(-1).backoffMs) await delay(noiseSamples.at(-1).backoffMs, undefined, { signal: abort.signal }).catch(() => {})
+      }
+    })()
+    try { await phase(name, readers) }
+    finally { makingNoise = false; await noise }
+  }
+  await noisyPhase('noisy')
+  if (container && profile.imports) {
+    // A faster HTTP pool can finish its export-phase reads before FIFO imports begin.
+    // Measure a second phase once a real import is processing; never infer overlap from enqueueing.
+    const readyUntil = performance.now() + 180_000
+    let processing = false
+    while (!abort.signal.aborted) {
+      const audit = JSON.parse(await execute('load-queue-audit.php'))
+      if (audit.reservedImports > 0) { processing = true; break }
+      if (audit.pending === 0) break
+      assert.equal(audit.failed, 0, 'Import failed before its measurement phase')
+      assert.ok(performance.now() < readyUntil, 'Import measurement readiness timed out')
+      await delay(250)
     }
-  })()
-  try { await phase('noisy', readers) }
-  finally { makingNoise = false; await noise }
+    if (processing) await noisyPhase('noisyImports')
+  }
   report.samples.alphaNoise = noiseSamples
   report.alphaNoise = summarize(noiseSamples)
+  if (container && !sequential && profile.readers > 1) assert.ok(Math.max(report.phases.baseline.serverConcurrency.peakMeasuredHandlers, report.phases.noisy.serverConcurrency.peakMeasuredHandlers) > 1, 'Concurrent backend execution was not observed')
   const noiseEnded = performance.now()
-  report.overlap = { readsWithinAlphaSession: report.samples.noisy.filter((sample) => sample.startedMs >= noiseStarted && sample.endedMs <= noiseEnded).length,
-    readsIntersectingAlphaRequest: report.samples.noisy.filter((sample) => noiseSamples.some((noise_) => noise_.startedMs < sample.endedMs && noise_.endedMs > sample.startedMs)).length }
-  assert.equal(report.overlap.readsWithinAlphaSession, profile.samples * readers.length, 'Noisy session ended before all reader measurements')
+  const noisySamples = [...report.samples.noisy, ...(report.samples.noisyImports ?? [])]
+  report.overlap = { readsWithinAlphaSession: noisySamples.filter((sample) => sample.startedMs >= noiseStarted && sample.endedMs <= noiseEnded).length,
+    readsIntersectingAlphaRequest: noisySamples.filter((sample) => noiseSamples.some((noise_) => noise_.startedMs < sample.endedMs && noise_.endedMs > sample.startedMs)).length }
+  assert.equal(report.overlap.readsWithinAlphaSession, profile.samples * readers.length * (report.samples.noisyImports ? 2 : 1), 'Noisy session ended before all reader measurements')
   const until = performance.now() + (profile.imports ? 300_000 : 60_000)
   for (const id of exports) {
     let row
@@ -348,6 +421,21 @@ try {
   }
   await phase('recovery', protectedReaders)
   report.after = JSON.parse(await execute('load-audit.php'))
+  if (container) {
+    report.horizonAfter = JSON.parse(await execute('load-queue-audit.php'))
+    assert.equal(report.horizonAfter.failed, 0, 'Horizon recorded failed jobs')
+    assert.equal(report.horizonAfter.pending, 0, 'Redis still contains queued/reserved/delayed jobs')
+    assert.ok(report.horizonAfter.supervisors > 0)
+    const duringJobs = heavyWorkReads(noisySamples, report.horizonAfter.windows)
+    const betaDuringJobs = duringJobs.filter((sample) => sample.tenant === 'beta')
+    report.overlap.readsIntersectingHeavyJob = duringJobs.length
+    report.overlap.betaReadsIntersectingHeavyJob = betaDuringJobs.length
+    report.overlap.byJob = Object.fromEntries(['ProcessPersonImport', 'BuildReportExport'].map((name) => [name, heavyWorkReads(noisySamples, report.horizonAfter.windows.filter((window) => window.name === name)).filter((sample) => sample.tenant === 'beta').length]))
+    assert.ok(betaDuringJobs.length > 0, 'No measured Beta read overlapped actual heavy job execution')
+    if (profile.imports) assert.ok(report.overlap.byJob.ProcessPersonImport > 0, 'No measured Beta read overlapped an actual import job')
+    report.betaDuringHeavyJobs = summarize(betaDuringJobs)
+    if (report.queuedWork) report.queuedWork.workerPolicy = report.topology.workers
+  }
   assert.deepEqual(report.after.untouched, report.before.untouched, 'Beta or Gamma records/artifacts changed')
   assert.equal(report.after.failedJobs, 0)
   assert.equal(report.after.pendingJobs, 0)
@@ -363,7 +451,9 @@ try {
   report.impact = { p95DeltaMs: protectedDuring.p95Ms - protectedBefore.p95Ms, p95Ratio: protectedDuring.p95Ms / protectedBefore.p95Ms }
   report.interactiveTarget = { p95LessThanMs: profile.targetP95Ms, metInAllPhases: Object.values(report.phases).every((value) => value.p95Ms < profile.targetP95Ms
     && value.errors === 0 && Object.values(value.tenants).every((tenant) => Object.values(tenant.resources).every((size) => size.p95Ms < profile.targetP95Ms)))
-    && report.alphaNoise.errors === 0 }
+    && report.alphaNoise.errors === 0
+    && (!report.betaDuringHeavyJobs || (report.betaDuringHeavyJobs.p95Ms < profile.targetP95Ms
+      && Object.values(report.betaDuringHeavyJobs.resources).every((value) => value.p95Ms < profile.targetP95Ms))) }
   report.queryGrowth = Object.fromEntries(Object.entries(report.phases).map(([name, phase_]) => [name, phase_.queryCounts[100].max - phase_.queryCounts[25].max]))
   report.sourcesUnchanged = Object.entries(report.harnessSha256).every(([path, digest]) => createHash('sha256').update(readFileSync(resolve(front, path))).digest('hex') === digest)
   assert.equal(report.sourcesUnchanged, true, 'Tracked sources changed during the run; measurements cannot qualify these sources')
@@ -376,6 +466,11 @@ try {
 } finally {
   clearTimeout(deadlineTimer)
   await Promise.allSettled(contexts.map((context) => context.dispose()))
+  let containerStopped = true
+  if (container) {
+    try { await container.stop(); report.containerRuntime = container.runtime; report.containerDiagnostics = container.diagnostic }
+    catch { containerStopped = false; process.exitCode = 1 }
+  }
   if (profile.name === 'profile' && existsSync(`${root}/query-profile.jsonl`)) {
     try {
       const groups = new Map()
@@ -393,6 +488,7 @@ try {
   }
   if (profile.name === 'profile' && !report.sqlProfile) { report.profilingIncomplete = true; process.exitCode = 1 }
   try {
+    assert.equal(containerStopped, true, 'Owned container cleanup could not be proven')
     const results = await Promise.allSettled(servers.map(async ({ child, closed }) => {
       if (child.exitCode === null && child.signalCode === null && child.pid) child.kill()
       let timer

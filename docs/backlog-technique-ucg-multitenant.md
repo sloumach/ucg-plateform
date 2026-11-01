@@ -1934,6 +1934,25 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Priorité / taille** : P0 / L
 - **Périmètre** : 500 comptes, 100 actifs simultanés, 100 000 parties, 2 000 visiteurs publics et charges asymétriques.
 - **Acceptation** : p95 mesuré, nombre de requêtes contrôlé et autres tenants protégés pendant les traitements lourds.
+- **Qualification locale Linux (01/11/2026)** : moteur Docker désormais disponible ;
+  banc jetable nginx/PHP-FPM 16 processus, PostgreSQL 17, Redis et Horizon réels,
+  générateur sur l’hôte hors conteneur. Même enveloppe quatre CPU/six Gio, 500
+  comptes, 100 sessions et 100 000 parties. Verrou partagé pour l’historique des
+  parties et suppression du snapshot de permissions inutilisé du contexte interne,
+  sans cache de droits ; autorisations fraîches et liste UI conservées. Concurrence
+  lecteurs/écrivain vérifiée sur PostgreSQL. Avant/après PHP-FPM : p95 Beta exports
+  7,27 → 5,99 s, imports 7,12 → 6,30 s ; cinq requêtes SQL retirées par lecture.
+  Deux passages complets : 894 lectures, huit lectures Alpha, 3 000 créations,
+  trois exports/123 jobs, zéro erreur/refus ; intégrité ciblée et nettoyage conformes.
+  Endurance : 100 sessions, 1 785 lectures/161 lectures Alpha, trois minutes à
+  intervalle de douze secondes ; p95 Beta pendant charge 139,46 ms, dont 141,39 ms
+  pour les lectures qui chevauchent réellement les jobs. Seuil 500 ms tenu dans ce
+  modèle. 219 tests SQLite ciblés, 261 d’isolation, 88 PostgreSQL et 20 Node verts,
+  sélections recouvrantes. **Trois volets locaux exécutés en une livraison ;
+  QA-005/REC-34 restent ouverts** : rafales toujours non conformes, capacité hébergée
+  non qualifiée/report maintenu, visiteurs publics métier absents du P0 donc non
+  exécutés. Aucun seuil ou volume diminué ; détails, rapports et limites dans
+  README.md et etat-projet.md.
 - **Reprise prudente (29/10/2026)** : diagnostic isolé de résolution PDO et de la
   première requête, répartition des lectures simultanées côté client par serveur.
   En-têtes absents/invalides refusés et empreintes suivies revérifiées en fin de

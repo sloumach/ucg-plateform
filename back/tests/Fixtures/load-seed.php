@@ -27,7 +27,7 @@ if ($kernel->call('migrate', ['--force' => true, '--no-interaction' => true]) !=
 
 $owner = User::factory()->withMfa()->create(['email' => 'load-owner@example.test']);
 $profile = getenv('UCG_LOAD_PROFILE');
-$large = in_array($profile, ['volume', 'pressure'], true);
+$large = in_array($profile, ['volume', 'pressure', 'endurance'], true);
 $fixture = ['profile' => $profile, 'organizations' => [], 'actors' => [], 'people' => [], 'readers' => [], 'matches' => [],
     'from' => now()->toDateString(), 'to' => now()->addDay()->toDateString()];
 foreach (['alpha' => 500, 'beta' => 120, 'gamma' => 10] as $label => $count) {
@@ -45,7 +45,7 @@ foreach (['alpha' => 500, 'beta' => 120, 'gamma' => 10] as $label => $count) {
     $actor = User::factory()->withMfa()->create(['email' => $email, 'password' => 'Load-fixture-only-2026!']);
     $membership = OrganizationMembership::factory()->create(['organization_id' => $organization->id, 'user_id' => $actor->id]);
     $permissions = $label === 'alpha' ? ['sports.read', 'reporting.export', 'reporting.direction',
-        ...($profile === 'pressure' ? ['sports.write', 'administrative.read', 'administrative.write'] : [])] : ['sports.read'];
+        ...(in_array($profile, ['pressure', 'endurance'], true) ? ['sports.write', 'administrative.read', 'administrative.write'] : [])] : ['sports.read'];
     $role = OrganizationRole::factory()->create([
         'organization_id' => $organization->id, 'permissions' => $permissions, 'privileged' => $label === 'alpha',
     ]);

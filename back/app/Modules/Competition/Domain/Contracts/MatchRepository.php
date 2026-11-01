@@ -26,6 +26,9 @@ interface MatchRepository
     /** @param array{person_id:string|null,team_ids:list<string>} $viewer */
     public function find(string $org, string $id, int $actor, array $viewer, bool $management, bool $lock = false): MatchRecord;
 
+    /** @param array{person_id:string|null,team_ids:list<string>} $viewer */
+    public function findForSharedRead(string $org, string $id, int $actor, array $viewer, bool $management): MatchRecord;
+
     /** @param array{person_id:string|null,team_ids:list<string>} $viewer
      * @param list<string> $ids
      * @return array<string,MatchRecord> */

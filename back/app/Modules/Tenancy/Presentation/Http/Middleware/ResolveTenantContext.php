@@ -36,7 +36,7 @@ final readonly class ResolveTenantContext
             }
             $context = $this->resolver->resolve(
                 $routeOrganizationId, $request->getHost(),
-                (int) $user->getAuthIdentifier(), RequestId::for($request),
+                (int) $user->getAuthIdentifier(), RequestId::for($request), includePermissions: false,
             );
             $request->attributes->set(TenantContext::ATTRIBUTE, $context);
             Context::add('tenant_id', $context->organizationId);

@@ -4,14 +4,36 @@ const profiles = Object.freeze({
   profile: Object.freeze({ ...smokeProfile, name: 'profile' }),
   volume: Object.freeze({ ...smokeProfile, name: 'volume', samples: 3, httpProcesses: 4, readers: 99, accounts: 500, games: 100000, timeoutMs: 900000 }),
   pressure: Object.freeze({ ...smokeProfile, name: 'pressure', samples: 3, httpProcesses: 4, readers: 99, accounts: 500, games: 100000, imports: 3, importRows: 1000, timeoutMs: 900000 }),
+  endurance: Object.freeze({ ...smokeProfile, name: 'endurance', samples: 15, intervalMs: 12000, rampMs: 50, noiseIntervalMs: 1000, readers: 99, accounts: 500, games: 100000, imports: 3, importRows: 1000, timeoutMs: 900000 }),
 })
 
 export function loadProfile(arguments_) {
   const name = arguments_.length === 0 ? 'smoke' : arguments_[0]?.replace(/^--profile=/, '')
   if (arguments_.length > 1 || (arguments_.length && !arguments_[0].startsWith('--profile=')) || !Object.hasOwn(profiles, name)) {
-    throw new Error('Only fixed smoke, profile, volume and pressure profiles are supported; external URLs, databases and custom volumes are refused.')
+    throw new Error('Only fixed smoke, profile, volume, pressure and endurance profiles are supported; external URLs, databases and custom volumes are refused.')
   }
   return profiles[name]
+}
+
+export function serverConcurrency(samples) {
+  const events = []
+  for (const sample of samples.filter((value) => value.ok)) {
+    if (!Number.isInteger(sample.workerPid) || sample.workerPid <= 0 || !Number.isFinite(sample.appStarted) || !Number.isFinite(sample.appEnded)
+      || sample.appStarted <= 0 || sample.appEnded < sample.appStarted) throw new Error('Missing server concurrency instrumentation')
+    events.push({ at: sample.appStarted, delta: 1 }, { at: sample.appEnded, delta: -1 })
+  }
+  events.sort((left, right) => left.at - right.at || left.delta - right.delta)
+  let active = 0
+  let peak = 0
+  for (const event of events) { active += event.delta; peak = Math.max(peak, active) }
+  return { peakMeasuredHandlers: peak, workerPids: [...new Set(samples.filter((value) => value.ok).map((value) => value.workerPid))].sort((a, b) => a - b) }
+}
+
+export function heavyWorkReads(samples, windows) {
+  if (windows.some((value) => !Number.isFinite(value.started) || !Number.isFinite(value.ended) || value.started <= 0 || value.ended < value.started)) {
+    throw new Error('Invalid measured heavy job window')
+  }
+  return samples.filter((sample) => sample.ok && windows.some((window) => sample.appStarted < window.ended && sample.appEnded > window.started))
 }
 
 export function percentile(values, fraction) {

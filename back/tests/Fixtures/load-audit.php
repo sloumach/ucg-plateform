@@ -12,7 +12,7 @@ if (! is_string($root)) {
     throw new RuntimeException('Load fixture root unavailable.');
 }
 $fixture = json_decode((string) file_get_contents($root.'/fixture.json'), true, flags: JSON_THROW_ON_ERROR);
-if (! is_array($fixture) || ! in_array($fixture['profile'] ?? null, ['smoke', 'profile', 'volume', 'pressure'], true)
+if (! is_array($fixture) || ! in_array($fixture['profile'] ?? null, ['smoke', 'profile', 'volume', 'pressure', 'endurance'], true)
     || ! is_array($fixture['organizations'] ?? null)) {
     throw new RuntimeException('Load fixture unavailable.');
 }

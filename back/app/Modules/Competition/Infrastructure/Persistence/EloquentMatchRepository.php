@@ -50,6 +50,11 @@ final readonly class EloquentMatchRepository implements MatchRepository
         return $this->visible($org, $actor, $viewer, $management)->with('participants')->when($lock, fn (Builder $q) => $q->lockForUpdate())->findOrFail($id);
     }
 
+    public function findForSharedRead(string $org, string $id, int $actor, array $viewer, bool $management): MatchRecord
+    {
+        return $this->visible($org, $actor, $viewer, $management)->with('participants')->sharedLock()->findOrFail($id);
+    }
+
     public function visibleByIds(string $org, int $actor, array $viewer, array $ids): array
     {
         return $this->visible($org, $actor, $viewer, false)->whereIn('id', $ids)->get()->keyBy('id')->all();

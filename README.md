@@ -4390,7 +4390,7 @@ PHPStan niveau 8 et Composer strict valides. Les rapports privés ignorés sont
 | REC-30 — webhook entrant | Non applicable au P0, décision utilisateur du 25/10/2026 | API-002 reste futur ; aucune signature de webhook métier absent n’est annoncée testée. |
 | REC-32 — privilège plateforme | PlatformRoleManagementTest et ContextualRolesTest | Un rôle tenant ne confère pas une action plateforme. |
 | REC-33 — accès exceptionnel | PlatformSupportAccessTest | Tenant, opérateur, durée, révocation, audit et expiration ; exploitation réelle distincte. |
-| REC-34 — tenant bruyant | TenantTechnicalLimitsTest, budgets/queues Redis en CI et banc QA-005 déjà automatisé | **Performance non validée** : les mesures QA-005 connues dépassent la cible et la topologie représentative reste à qualifier. Une limite testée ne prouve pas le p95 sous charge. |
+| REC-34 — tenant bruyant | TenantTechnicalLimitsTest, budgets/queues Redis en CI, banc nginx/PHP-FPM et Redis/Horizon QA-005 | **Réserve performance ouverte** : 100 sessions à lectures espacées, p95 Beta pendant charge 139,46 ms ; rafales, 5,99 / 6,30 s pendant exports/imports. Intégrité ciblée vérifiée ; capacité hébergée non qualifiée. |
 | REC-35 — export/effacement | OrganizationPortabilityTest, ManualErasureTest, ErasureReconciliationTest et `test:retention:erasure` | Export, effacement, crashes et vrai pg_restore sur fixtures, Beta/globales préservés ; politiques CAD-004 et copies externes distinctes des attestations fictives. |
 | REC-36 — récupération logique | `test:recovery:tenant`, `test:recovery:graph`, `test:recovery:qualification` | États avancés, conflits/reprises et modifications récentes de Beta vérifiés ; REC-36 simulé couvert, sans importeur de production ni qualification hébergée implicite. |
 
@@ -7539,3 +7539,122 @@ définit les preuves encore attendues. Références techniques PostgreSQL 17 :
 [basic_archive](https://www.postgresql.org/docs/17/basic-archive.html),
 [sauvegarde physique](https://www.postgresql.org/docs/17/app-pgbasebackup.html),
 [vérification](https://www.postgresql.org/docs/17/app-pgverifybackup.html).
+
+## UCG-QA-005 — Banc Linux concurrent et durée soutenue
+
+Depuis `front`, Docker Desktop/Linux disponible et dépendances PHP/Node du dépôt
+installées :
+
+```sh
+npm run test:load:harness
+node tests/real-api/load-run.mjs --docker --sequential --profile=pressure
+npm run test:load:concurrent
+npm run test:load:endurance
+```
+
+Le contrôle séquentiel et le passage PHP-FPM réutilisent exactement le profil
+pressure : 500 comptes, 100 sessions authentifiées, 1 000 matchs/100 000 parties,
+trois imports de 1 000 lignes et trois exports de 500 personnes. Une phase de
+297 lectures couvre les exports ; si des imports sont encore en cours, une seconde
+phase de 297 lectures commence quand Horizon réserve réellement un import. L’état
+HTTP du lot peut rester queued entre les transactions de ses chunks et ne prouve
+donc pas son exécution. Le contrôle utilise
+un serveur PHP séquentiel derrière nginx ; le passage concurrent utilise seize
+processus PHP-FPM. PostgreSQL 17, Redis, Horizon et l’enveloppe de ressources sont
+identiques : quatre CPU, six Gio et 256 PID maximum pour les services. Le générateur
+Node/Playwright s’exécute sur l’hôte, hors de ce conteneur ; la machine physique
+reste partagée. Les anciens profils natifs restent disponibles.
+
+Endurance conserve les mêmes volumes et traitements lourds. Après une référence
+de 150 lectures Beta, 99 lecteurs démarrent par paliers de 50 ms, puis effectuent
+quinze lectures chacun, espacées de douze secondes ; la session Alpha bruyante
+ajoute une lecture par seconde environ. Chaque lecteur reste actif trois minutes,
+avec 150 lectures Beta de récupération. La référence et la récupération utilisent
+le même espacement de douze secondes et la même rampe, soit environ 38,5 s chacune.
+Il s’agit d’un modèle fermé avec temps de
+réflexion, sans débit d’arrivée imposé ni certification de résistance à saturation.
+La temporisation n’altère pas les latences des requêtes ; les erreurs et 429 restent
+comptés et le seuil p95 de 500 ms reste inchangé. Les quotas applicatifs restent actifs.
+
+Le laboratoire copie une liste explicite de sources et bibliothèques dans un
+répertoire temporaire, en excluant secrets, données et liens symboliques. Les
+dépendances filtrées sont mises en cache selon composer.lock, le manifeste Composer
+installé, la version du filtre et le Dockerfile ; toute modification manuelle du
+vendor impose une reconstruction de cette couche. Les dossiers de code nommés
+Storage restent inclus, contrairement au stockage mutable à la racine du backend.
+La copie applicative est transférée par archive dans le système de fichiers Linux
+du conteneur : aucun montage du
+checkout ou des données réelles. Seul HTTP est publié sur une adresse de boucle
+locale ; PostgreSQL et Redis écoutent uniquement dans le conteneur. Les caches,
+artefacts et cluster sont neufs. Les gardes PostgreSQL existantes vérifient encore
+token, chemin réel du cluster, version et manifeste avant chaque bootstrap de test.
+Le nettoyage exige le nom et le label d’appartenance ; aucun prune ou nettoyage
+de services étrangers. L’image de test mise en cache est conservée pour réutilisation.
+
+Les rapports privés ignorés `front/reports/load-*.json` conservent latences et
+erreurs, compteurs SQL, diagnostics, chevauchements réels de traitements/PID PHP,
+intégrité ciblée Beta/Gamma, jobs PostgreSQL et files/échecs/superviseurs Horizon,
+empreintes ciblées et preuve de nettoyage. Les horodatages de réservation et de
+fin Horizon sont conservés sans payload ; les lectures Beta qui chevauchent les
+jobs ont leur propre p95 et leur propre vérification du seuil. Aucun chevauchement
+réel avec les imports ne peut être remplacé par leur seule présence dans la file.
+Un seuil dépassé conserve le rapport
+et renvoie un code non nul. Les changements de topologie mesurent l’effet du banc ;
+ils ne prouvent pas une optimisation du code métier. L’hébergement, TLS, réseau,
+rendu navigateur et temps réel restent à qualifier séparément. Les pages publiques
+P0 étant absentes, aucun endpoint de santé ne remplace les 2 000 visiteurs publics.
+
+Les lectures cohérentes de l’historique des parties utilisent désormais un verrou
+partagé sur le match dans leur transaction. Les lecteurs peuvent avancer ensemble ;
+les écritures de scores, transitions et corrections conservent leur verrou exclusif.
+Un test PostgreSQL à trois connexions vérifie deux lecteurs simultanés et le blocage
+de l’écrivain jusqu’à leur libération. Le mode partagé conserve le conflit avec les
+écritures décrit par [PostgreSQL 17](https://www.postgresql.org/docs/17/explicit-locking.html#LOCKING-ROWS).
+Le contexte interne des routes de ressources évite aussi de matérialiser une liste
+de permissions inutilisée : les services et projections conservent leurs contrôles
+frais, tandis que l’API d’organisation active conserve sa liste de permissions.
+
+### Mesures locales du 1er novembre 2026
+
+Comparaison applicative à topologie PHP-FPM inchangée, même profil pressure,
+100 sessions et mêmes volumes. Les deux passages mesurent 894 lectures, plus huit
+lectures Alpha bruyantes ; 300 lectures Beta chevauchent les jobs, dont 150 pendant
+les exports et 150 pendant les imports. Les quotas restent à 600 requêtes/minute
+par tenant. Les deux corrections sont mesurées ensemble.
+
+| p95 Beta | Avant corrections | Après corrections |
+| --- | ---: | ---: |
+| Référence | 3 311,70 ms | 2 861,50 ms |
+| Pendant les exports | 7 265,03 ms | 5 994,11 ms |
+| Pendant les imports | 7 118,86 ms | 6 298,14 ms |
+| Récupération | 3 598,85 ms | 3 239,10 ms |
+
+Les lectures personnes/matchs/parties passent respectivement de 37/33/40 à
+32/28/35 requêtes SQL maximum, sans croissance entre pages 25 et 100. Aucun refus
+ou échec de lecture ; trois exports, 3 000 créations et 123 jobs terminés dans
+chaque passage. Intégrité ciblée Beta/Gamma, empreintes suivies pendant l’exécution
+et nettoyage conformes. **Le profil en rafale échoue toujours au seuil de 500 ms** ;
+son code de sortie non nul est conservé. La baisse observée sur ce poste partagé
+ne garantit pas un gain identique ailleurs.
+
+La recette endurance termine ses 1 785 lectures et 161 lectures Alpha sans erreur.
+Les p95 Beta sont de 138,96 / 139,46 / 140,34 ms avant/pendant/après la charge.
+Le sous-ensemble de 351 lectures Beta chevauchant les jobs atteint 141,39 ms au p95,
+avec des témoins pour les exports et les imports. Le seuil est tenu pour toutes
+les phases et ressources de ce modèle à lectures espacées. La phase principale
+dure 184,99 s ; ce résultat ne valide pas la rafale sans temps de réflexion.
+
+Rapports privés ignorés : `front/reports/load-pressure-1793493390332.json` (avant),
+`load-pressure-1793494198302.json` (après),
+`load-endurance-1793494694339.json`. Ils ont completed, sourcesUnchanged et cleanup
+à true ; seul endurance a interactiveTarget.metInAllPhases à true. Les fichiers
+PHP/JS suivis des deux derniers rapports correspondent à la livraison. Vérifications
+fonctionnelles : 219 tests SQLite ciblés, 261 tests d’isolation, 88 tests PostgreSQL
+dont la nouvelle concurrence de lecture, 20 tests Node, Pint/PHPStan/lint verts.
+Les sélections se recouvrent et ne constituent pas une somme de tests distincts.
+
+Les trois volets locaux — banc, corrections/comparaison, durée soutenue — sont
+exécutés. **QA-005/REC-34 restent ouverts** pour les rafales non conformes et la
+qualification de la cible hébergée, toujours différée. Les 2 000 visiteurs publics
+ne sont pas exécutés en l’absence de pages publiques métier P0. Aucune réserve
+de performance ni validation de mise en service n’est déduite des tests fonctionnels.

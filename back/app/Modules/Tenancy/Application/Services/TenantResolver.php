@@ -19,7 +19,7 @@ final readonly class TenantResolver
         private ErasureAccessGate $erasureGate,
     ) {}
 
-    public function resolve(?string $routeOrganizationId, string $host, int $actorUserId, string $requestId): TenantContext
+    public function resolve(?string $routeOrganizationId, string $host, int $actorUserId, string $requestId, bool $includePermissions = true): TenantContext
     {
         $domainOrganizationId = $this->domains->organizationIdFor($host);
         if ($routeOrganizationId !== null && ! Str::isUuid($routeOrganizationId)) {
@@ -56,7 +56,7 @@ final readonly class TenantResolver
         return new TenantContext(
             $context->organizationId, $context->actorUserId, $context->slug, $context->timezone,
             $context->language, $context->requestId, $context->roles, $context->isOwner,
-            $context->organizationName, $context->membershipId, $this->authorization->permissions($context),
+            $context->organizationName, $context->membershipId, $includePermissions ? $this->authorization->permissions($context) : [],
         );
     }
 }

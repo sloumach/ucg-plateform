@@ -9,12 +9,16 @@ use App\Modules\People\Application\Data\PersonListQuery;
 use App\Modules\People\Application\Services\PersonService;
 use App\Modules\People\Domain\Models\GameProfile;
 use App\Modules\People\Domain\Models\Person;
+use App\Modules\Tenancy\Application\Contracts\TenantAuthorization;
+use App\Modules\Tenancy\Application\Services\TenantResolver;
 use App\Modules\Tenancy\Domain\Models\Organization;
 use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Fixtures\AuthenticatesWithMfa;
@@ -238,6 +242,41 @@ class PersonListTest extends TestCase
         $this->assertSame($person->pseudonym, $page->items()[0]['pseudonym']);
         $this->assertSame($person->first_name, $page->items()[0]['first_name']);
         $this->assertLessThanOrEqual(16, $queries);
+    }
+
+    public function test_internal_resolution_defers_display_permissions_but_still_checks_tenant_access(): void
+    {
+        [$organization, $user] = $this->reader();
+        $resolver = app(TenantResolver::class);
+        $context = $resolver->resolve($organization->id, 'localhost', $user->id, (string) Str::uuid(), includePermissions: false);
+
+        $this->assertSame([], $context->permissions());
+        $this->assertSame(['organization.view', 'sports.read'], app(TenantAuthorization::class)->permissions($context));
+        $display = $resolver->resolve($organization->id, 'localhost', $user->id, (string) Str::uuid());
+        $this->assertSame(['organization.view', 'sports.read'], $display->permissions());
+
+        $foreign = Organization::factory()->create();
+        $this->expectException(ModelNotFoundException::class);
+        $resolver->resolve($foreign->id, 'localhost', $user->id, (string) Str::uuid(), includePermissions: false);
+    }
+
+    public function test_internal_context_has_a_bounded_query_budget_without_materializing_display_permissions(): void
+    {
+        [$organization, $user] = $this->reader();
+        $resolver = app(TenantResolver::class);
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        try {
+            $context = $resolver->resolve($organization->id, 'localhost', $user->id, (string) Str::uuid(), includePermissions: false);
+            $queries = count(DB::getQueryLog());
+        } finally {
+            DB::disableQueryLog();
+            DB::flushQueryLog();
+        }
+
+        $this->assertSame($organization->id, $context->organizationId);
+        $this->assertSame([], $context->permissions());
+        $this->assertLessThanOrEqual(2, $queries);
     }
 
     public function test_same_listing_service_rechecks_revoked_permissions_on_the_next_call(): void

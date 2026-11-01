@@ -54,9 +54,9 @@ final readonly class MatchScoreService
             $this->write($context);
         }
 
-        // Hold the match lock until the summary and page are materialized at the same version.
+        // Shared readers keep summary/page at one version and still exclude score writers.
         return $this->database->transaction(function () use ($context, $match, $management, $values): array {
-            $record = $this->matches->find($context->organizationId, $match, $context->actorUserId, $this->references->viewer($context), $management, true);
+            $record = $this->matches->findForSharedRead($context->organizationId, $match, $context->actorUserId, $this->references->viewer($context), $management);
             $rules = $this->scores->rules($context->organizationId, $record->id);
             $games = $this->effective->apply($context->organizationId, $record->id, $this->scores->games($context->organizationId, $record->id));
 
