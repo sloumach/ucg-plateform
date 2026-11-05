@@ -6,11 +6,16 @@
 ## Point de reprise
 
 - Dernière mise à jour : **5 novembre 2026**.
-- Tâche courante : **correctif CI — avis de sécurité Symfony du 4 novembre**.
-  Après le push `f04044a`, Frontend quality est vert ; Backend quality et
-  Dependency security follow-up échouent sur les audits. Huit avis affectent cinq
-  composants Symfony du lock. Mise à jour corrective ciblée vers 8.1.11, sans
-  modification de composer.json, du frontend ou des contrôles de CI.
+- Tâche courante : **correctif CI — retours arrière de schéma PostgreSQL**.
+  Après le correctif de sécurité `387e72f`, les tests PostgreSQL révèlent trois
+  démontages partiels oubliés dans ExternalOpponentSchemaTest, MatchSchemaTest et
+  AcademyTest : communication_contexts dépend encore des matchs et des séances.
+  Les tests retirent désormais cette migration enfant avant leurs tables parentes,
+  puis la recréent après elles. CommunicationContextTest rejoint aussi la sélection
+  PostgreSQL de la CI. Les migrations et contraintes métier restent inchangées.
+- Correctif précédent : **avis de sécurité Symfony du 4 novembre**, commit
+  `387e72f` poussé sur origin/staging. Huit avis affectaient cinq composants du lock ;
+  mise à jour ciblée vers 8.1.11, sans assouplissement des audits.
 - Livraison précédente : **COM-001 — raccordements aux événements, matchs et séances**,
   commit local unique `f04044a`, puis push demandé et effectué sur origin/staging. Annonces contextuelles et
   discussions directes raccordées aux référentiels existants et aux écrans React.
@@ -10418,3 +10423,28 @@ documentaire et portabilité : 214 tests réussis / 2 029 assertions, zéro excl
 Aucun nouveau test applicatif ajouté pour recopier le comportement des bibliothèques.
 Les nouveaux résultats CI doivent être vérifiés sur le SHA du correctif livré ;
 les validations locales ne sont pas présentées comme une CI distante réussie.
+
+## Correctif CI — dépendances des retours arrière PostgreSQL (5 novembre 2026)
+
+Le journal CI transmis après `387e72f` montre trois échecs parmi 2 760 tests
+PostgreSQL : ExternalOpponentSchemaTest et MatchSchemaTest tentent de supprimer
+matches ; AcademyTest tente de supprimer academy_sessions. Les clés étrangères
+de communication_contexts empêchent ces démontages partiels. Ces trois tests
+avaient été oubliés dans le lot COM-001 ; SQLite ne signalait pas cette dépendance.
+
+Chaque scénario retire maintenant la migration communication_contexts avant les
+tables parentes, puis la recrée après elles et avant ses contrôles fonctionnels,
+d’inventaire ou de conservation d’historique. Aucun changement des migrations,
+des clés étrangères ou des gardes de conservation. CommunicationContextTest est
+ajouté à la sélection PostgreSQL existante de Backend quality ; aucun test exclu.
+
+Validation locale : 65 tests ciblés SQLite / 406 assertions ; sélection complète
+des classes SchemaTest, AcademyTest et CommunicationContextTest sur PostgreSQL 17,
+328 tests / 1 298 assertions, aucune erreur, exclusion ou test risqué (187,13 s).
+Le premier essai isolé avait une origine Sanctum incompatible avec les fixtures,
+entraînant des refus MFA ; le paramétrage du lancement a été corrigé avant cette
+relance réussie, sans changement applicatif. Cluster temporaire arrêté et supprimé.
+Pint, PHPStan niveau 8, parsing du workflow YAML et git diff --check réussis.
+Les rapports JUnit restent ignorés dans back/reports. La suite PostgreSQL entière
+de la CI n’a pas été réexécutée localement ; son résultat distant reste à confirmer
+sur le prochain commit. Aucune base de travail ou d’hébergement modifiée.

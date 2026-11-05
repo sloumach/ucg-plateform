@@ -275,6 +275,8 @@ class AcademyTest extends TestCase
 
     public function test_empty_schema_can_rollback_but_populated_history_cannot(): void
     {
+        $contexts = require database_path('migrations/2026_11_05_123111_create_communication_contexts_table.php');
+        $contexts->down();
         $coaching = require database_path('migrations/2026_10_22_224821_create_academy_objectives_and_feedback.php');
         $coaching->down();
         $sessions = require database_path('migrations/2026_10_22_172532_create_academy_sessions_and_attendances.php');
@@ -284,6 +286,7 @@ class AcademyTest extends TestCase
         $migration->up();
         $sessions->up();
         $coaching->up();
+        $contexts->up();
         $org = $this->editor();
         $this->postJson($this->path($org), ['name' => 'Conservé'])->assertCreated();
         $this->expectException(\RuntimeException::class);

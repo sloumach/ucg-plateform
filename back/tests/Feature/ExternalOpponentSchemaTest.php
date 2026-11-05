@@ -126,6 +126,8 @@ class ExternalOpponentSchemaTest extends TestCase
     public function test_empty_migration_round_trip_recreates_guards(): void
     {
         $this->assertDatabaseCount('external_opponents', 0);
+        $contexts = require database_path('migrations/2026_11_05_123111_create_communication_contexts_table.php');
+        $contexts->down();
         $migration = require database_path('migrations/2026_10_14_121838_create_external_opponents_and_snapshots.php');
         $matches = require database_path('migrations/2026_10_17_225945_create_matches_participants_and_status_events.php');
         $matchLineups = require database_path('migrations/2026_10_18_101019_create_match_lineup_revisions.php');
@@ -159,6 +161,7 @@ class ExternalOpponentSchemaTest extends TestCase
         $statisticalExecution->up();
         $statisticalCalculations->up();
         $outcomes->up();
+        $contexts->up();
         $this->assertSame([], app(TenantSchemaInspector::class)->violations());
         $opponent = ExternalOpponent::factory()->create();
         $this->reject(fn () => DB::table('external_opponents')->where('id', $opponent->id)->delete());
