@@ -2,6 +2,7 @@
 
 namespace App\Modules\Competition\Providers;
 
+use App\Modules\Competition\Application\Contracts\CommunicationMatchDirectory;
 use App\Modules\Competition\Application\Contracts\CompetitionDashboard;
 use App\Modules\Competition\Application\Contracts\CompetitionSearch;
 use App\Modules\Competition\Application\Contracts\DataPreparationReferences;
@@ -9,6 +10,7 @@ use App\Modules\Competition\Application\Contracts\MatchRecalculationQueue;
 use App\Modules\Competition\Application\Contracts\MatchScorePublisher;
 use App\Modules\Competition\Application\Contracts\MatchSourceAudit;
 use App\Modules\Competition\Application\Contracts\ObservationMatchDirectory;
+use App\Modules\Competition\Application\Services\CommunicationMatchService;
 use App\Modules\Competition\Application\Services\CompetitionDashboardService;
 use App\Modules\Competition\Application\Services\CompetitionSearchService;
 use App\Modules\Competition\Application\Services\MatchSourceAuditService;
@@ -50,6 +52,7 @@ final class CompetitionServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(CommunicationMatchDirectory::class, CommunicationMatchService::class);
         $this->app->bind(DataPreparationReferences::class, EloquentDataPreparationReferences::class);
         $this->app->bind(MatchSourceAudit::class, MatchSourceAuditService::class);
         $this->app->bind(CompetitionSearch::class, CompetitionSearchService::class);

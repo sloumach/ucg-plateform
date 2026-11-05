@@ -280,12 +280,13 @@ class ContractFinancialGovernanceTest extends TestCase
 
     public function test_empty_governance_migration_round_trip_preserves_schema_and_original_guards(): void
     {
-        $this->withoutRetentionGuards(function (): void {
+        $this->withoutRetentionGuards(function (\Closure $restoreCommunicationContexts): void {
             $this->assertDatabaseCount('contracts', 0);
             $migration = require database_path('migrations/2026_10_14_231650_add_contract_financial_governance.php');
             $migration->down();
             $migration->up();
             $this->assertSame([], app(TenantSchemaInspector::class)->violations());
+            $restoreCommunicationContexts();
             app(PortabilityRepository::class)->assertCatalog();
             $contract = ContractRecord::factory()->create();
             $this->rejectSql(fn () => DB::table('contracts')->where('id', $contract->id)->update(['status' => 'signed']));

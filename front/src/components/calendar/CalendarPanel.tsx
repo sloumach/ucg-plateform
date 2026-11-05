@@ -1,3 +1,4 @@
+import { ContextDiscussion } from '../communication/ContextDiscussion'
 import { useState } from 'react'
 import type { ActiveOrganization } from '../../api/tenancy'
 import { calendarKinds, calendarText as text, calendarDate as date, safeCalendarUrl, type CalendarActivity, type CalendarPage } from '../../api/calendar'
@@ -84,6 +85,7 @@ export function CalendarPanel({ active, disabled, onInvalid }: Props) {
         {canWrite && !item.archived_at && <div className="flex flex-wrap gap-3"><Button disabled={blocked} onClick={() => { setEditor(item); setCancellation(null) }}>{text('edit')}</Button>
           <Button disabled={blocked} onClick={() => { setCancellation(item); setEditor(null) }}>{changeText('cancelAction')}</Button>
         </div>}
+        {!item.archived_at && !item.cancelled_at && <ContextDiscussion {...{ active, onInvalid }} type="event" id={item.id} disabled={blocked} />}
       </li>)}</ol>
       {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(next) => { setPage(next); setEditor(null); setCancellation(null) }} />}
       {editor && <CalendarForm key={editor === 'new' ? 'new' : editor.id + editor.version} {...{ active, root, onInvalid }} item={editor === 'new' ? null : editor}

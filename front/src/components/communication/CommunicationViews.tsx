@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { ContextDiscussion } from './ContextDiscussion'
 import type { ApiClientError } from '../../api/errors'
 import { communicationText as text, communicationDate as date, type Announcement, type AnnouncementComment, type CommunicationEvent, type CommunicationPreferences } from '../../api/communication'
 import { Button } from '../Button'
@@ -58,11 +59,11 @@ export function CommunicationInbox({ active, root, onInvalid, disabled, refresh,
     {selected && <AnnouncementPreview key={selected} {...{ active, root, disabled, onInvalid }} id={selected} />}
   </div>
 }
-function AnnouncementPreview({ active, root, id, onInvalid }: CommunicationProps & { root: string; id: string }) {
+function AnnouncementPreview({ active, root, id, onInvalid, disabled }: CommunicationProps & { root: string; id: string }) {
   const { data, loading, error } = useCommunicationValue<Announcement>(root + '/announcements/' + id, active, onInvalid)
   return <section aria-label={text('announcementDetail')} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-3">
     <CommunicationLoadState {...{ loading, error }} />
-    {data && <><h3 className="font-bold [overflow-wrap:anywhere]">{data.title}</h3><p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{data.body}</p><p>{text('replyInFeed')}</p></>}
+    {data && <><h3 className="font-bold [overflow-wrap:anywhere]">{data.title}</h3><p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{data.body}</p>{data.discussion && data.target_id && (data.target_type === 'event' || data.target_type === 'match' || data.target_type === 'session') ? <ContextDiscussion {...{ active, onInvalid, disabled }} type={data.target_type} id={data.target_id} /> : <p>{text('replyInFeed')}</p>}</>}
   </section>
 }
 export function CommunicationPreferencesForm({ active, root, onInvalid, disabled, errors, onSubmit }: CommunicationProps & { root: string; errors: Errors; onSubmit: Submit }) {

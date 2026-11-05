@@ -30,7 +30,7 @@ final readonly class CommunicationService
 {
     public function __construct(private CommunicationRepository $records, private CommunicationTeamsDirectory $teams,
         private CommunicationRolesDirectory $roles, private TenantAuthorization $authorization, private TenantBusinessGuard $guard,
-        private TenantAuditJournal $audit, private Factory $validator, private ConnectionInterface $database) {}
+        private TenantAuditJournal $audit, private Factory $validator, private ConnectionInterface $database, private CommunicationContexts $contexts) {}
 
     /** @param array<string, mixed> $input
      * @return LengthAwarePaginator<int, Announcement>
@@ -70,6 +70,10 @@ final readonly class CommunicationService
         $page = (int) ($values['page'] ?? 1);
         $perPage = (int) ($values['per_page'] ?? 10);
 
+        if (isset(CommunicationContexts::COLUMNS[$values['type']])) {
+            return $this->contexts->source($values['type'])->choices($context, $page, $perPage);
+        }
+
         return $values['type'] === 'role' ? $this->roles->choices($context, $page, $perPage)
             : $this->teams->choices($context, $values['type'], $page, $perPage);
     }
@@ -82,7 +86,10 @@ final readonly class CommunicationService
         $record = $this->database->transaction(function () use ($context, $id, $values, $ip): Announcement {
             $this->guard->lock($context);
             $this->write($context);
-            $record = $id === null ? null : $this->records->find($context->organizationId, $id, new CommunicationAudience([], [], []), true, true);
+            $record = $id === null ? null : $this->records->find($context->organizationId, $id, $this->audience($context), true, true);
+            if ($record?->context?->discussion) {
+                throw new DomainConflictException(__('communication.discussion_fixed'), 'COMMUNICATION_DISCUSSION_FIXED');
+            }
             if ($record !== null) {
                 $this->version($record->version, $values['version']);
             }
@@ -92,6 +99,10 @@ final readonly class CommunicationService
             $action = $values['action'] ?? ($id === null ? 'created' : 'updated');
             $attributes = isset($values['action']) ? $this->transition($context, $record, $values) : $this->draft($context, $record, $values);
             $saved = $this->records->save($record, [...$attributes, 'version' => (string) Str::uuid()]);
+            $type = $values['target_type'] ?? null;
+            if (! isset($values['action']) && is_string($type) && isset(CommunicationContexts::COLUMNS[$type]) && $saved->context === null) {
+                $this->records->bindContext($saved, CommunicationContexts::COLUMNS[$type], strtolower($values['target_id']), false);
+            }
             if ($action === 'publish' && ($values['notify_members'] ?? false)) {
                 $this->records->event($saved, $context->actorUserId);
             }
@@ -194,6 +205,74 @@ final readonly class CommunicationService
         });
     }
 
+    /** @param array<string, mixed> $input
+     * @return LengthAwarePaginator<int, array{id: string, label: string}> */
+    public function contextTargets(TenantContext $context, array $input): LengthAwarePaginator
+    {
+        $values = $this->validated($context, $input, 'contextTargets');
+
+        return $this->contexts->source($values['type'])->choices($context, (int) ($values['page'] ?? 1), (int) ($values['per_page'] ?? 10));
+    }
+
+    /** @param array<string, mixed> $input
+     * @return array{comments: LengthAwarePaginator<int, AnnouncementComment>, context: array<string, mixed>} */
+    public function discussion(TenantContext $context, string $type, string $id, array $input): array
+    {
+        $values = $this->validated($context, $input, 'discussion');
+        $source = $this->contexts->source($type)->resolve($context, $id);
+        $thread = $this->records->discussion($context->organizationId, CommunicationContexts::COLUMNS[$type], strtolower($id));
+        if ($thread !== null) {
+            $thread = $this->records->find($context->organizationId, $thread->id, $this->audience($context), false);
+        }
+        $page = $thread === null
+            ? new \Illuminate\Pagination\LengthAwarePaginator([], 0, (int) ($values['per_page'] ?? 10), (int) ($values['page'] ?? 1))
+            : $this->records->comments($context->organizationId, $thread->id, (int) ($values['page'] ?? 1), (int) ($values['per_page'] ?? 10));
+        foreach ($page->items() as $comment) {
+            $comment->setAttribute('is_mine', $comment->created_by === $context->actorUserId);
+        }
+
+        return ['comments' => $page, 'context' => [...$source, 'type' => $type, 'thread_version' => $thread?->version,
+            'can_comment' => $this->authorization->allows($context, 'communication.comment') && ($thread === null || $thread->comments_enabled)]];
+    }
+
+    /** @param array<string, mixed> $input */
+    public function discuss(TenantContext $context, string $type, string $id, array $input, ?string $ip = null): AnnouncementComment
+    {
+        $values = $this->validated($context, $input, 'discuss');
+        $this->authorization->authorize($context, 'communication.comment');
+
+        return $this->database->transaction(function () use ($context, $type, $id, $values, $ip): AnnouncementComment {
+            $this->guard->lock($context);
+            $this->authorization->authorize($context, 'communication.read');
+            $this->authorization->authorize($context, 'communication.comment');
+            $source = $this->contexts->source($type)->resolve($context, $id);
+            $this->version($source['version'], $values['version']);
+            $column = CommunicationContexts::COLUMNS[$type];
+            $thread = $this->records->discussion($context->organizationId, $column, strtolower($id));
+            $this->version($thread?->version, $values['thread_version']);
+            if ($thread === null) {
+                // Creation and first comment share the tenant lock and transaction; GET never creates history.
+                $thread = $this->records->save(null, ['organization_id' => $context->organizationId, 'title' => mb_substr($source['label'], 0, 160),
+                    'body' => __('communication.discussion_body'), 'target_type' => 'organization', 'status' => 'draft', 'comments_enabled' => true,
+                    'created_by' => $context->actorUserId, 'version' => (string) Str::uuid()]);
+                $this->records->bindContext($thread, $column, $source['id'], true);
+                $thread = $this->records->save($thread, ['status' => 'published', 'published_by' => $context->actorUserId, 'published_at' => now()]);
+            }
+            $thread = $this->records->find($context->organizationId, $thread->id, $this->audience($context), false, true);
+            if (! $thread->comments_enabled) {
+                throw new DomainConflictException(__('communication.comments_closed'), 'COMMUNICATION_COMMENTS_CLOSED');
+            }
+            $saved = $this->records->comment($thread, $context->actorUserId, trim($values['body']));
+            if ($values['notify_members'] ?? false) {
+                $this->records->event($thread, $context->actorUserId, $saved->id);
+            }
+            $this->audit($context, $thread->id, 'comment', $ip);
+            $saved->setAttribute('is_mine', true);
+
+            return $saved;
+        });
+    }
+
     /** @param array<string, mixed> $values
      * @return array<string, mixed>
      */
@@ -205,13 +284,16 @@ final readonly class CommunicationService
         if (array_diff(array_keys($values), ['version']) === [] || array_intersect(array_keys($values), ['confirm_publication', 'notify_members']) !== []) {
             throw ValidationException::withMessages(['record' => __('communication.empty')]);
         }
-        $type = $values['target_type'] ?? ($record === null ? 'organization' : $record->target_type);
-        $id = array_key_exists('target_id', $values) ? $values['target_id'] : (isset($values['target_type']) ? null : $record?->targetId());
+        $type = $values['target_type'] ?? ($record === null ? 'organization' : $record->audienceType());
+        $id = array_key_exists('target_id', $values) ? $values['target_id'] : (isset($values['target_type']) ? null : $record?->audienceId());
         $id = is_string($id) ? strtolower($id) : null;
         if (($type === 'organization') !== ($id === null)) {
             throw ValidationException::withMessages(['target_id' => __('communication.target')]);
         }
         $this->assertTarget($context, $type, $id);
+        if ($record?->context !== null && ($type !== $record->audienceType() || $id !== $record->audienceId())) {
+            throw ValidationException::withMessages(['target_id' => __('communication.context_fixed')]);
+        }
         $attributes = array_intersect_key($values, array_flip(['title', 'body', 'comments_enabled', 'expires_at']));
         foreach (['title', 'body'] as $key) {
             if (isset($attributes[$key])) {
@@ -220,7 +302,7 @@ final readonly class CommunicationService
         }
 
         return [...($record === null ? ['organization_id' => $context->organizationId, 'created_by' => $context->actorUserId, 'status' => 'draft'] : []),
-            ...$attributes, 'target_type' => $type, 'team_id' => $type === 'team' ? $id : null,
+            ...$attributes, 'target_type' => isset(CommunicationContexts::COLUMNS[$type]) ? 'organization' : $type, 'team_id' => $type === 'team' ? $id : null,
             'game_id' => $type === 'game' ? $id : null, 'role_id' => $type === 'role' ? $id : null];
     }
 
@@ -244,7 +326,7 @@ final readonly class CommunicationService
             if ($record->status !== 'draft') {
                 throw new DomainConflictException(__('communication.draft_required'), 'COMMUNICATION_TRANSITION_INVALID');
             }
-            $this->assertTarget($context, $record->target_type, $record->targetId());
+            $this->assertTarget($context, $record->audienceType(), $record->audienceId());
             if ($record->expires_at !== null && ! CarbonImmutable::instance($record->expires_at)->isFuture()) {
                 throw ValidationException::withMessages(['expires_at' => __('communication.future')]);
             }
@@ -268,6 +350,9 @@ final readonly class CommunicationService
 
     private function assertTarget(TenantContext $context, string $type, ?string $id): void
     {
+        if (isset(CommunicationContexts::COLUMNS[$type]) && $id !== null) {
+            $this->contexts->source($type)->resolve($context, $id);
+        }
         if ($type === 'role' && $id !== null) {
             $this->roles->assertActive($context, $id);
         }
@@ -280,7 +365,7 @@ final readonly class CommunicationService
     {
         $sporting = $this->teams->current($context);
 
-        return new CommunicationAudience($sporting['teams'], $sporting['games'], $this->roles->current($context));
+        return new CommunicationAudience($sporting['teams'], $sporting['games'], $this->roles->current($context), $this->contexts->visibleIds($context));
     }
 
     /** @param array<string, mixed> $values */

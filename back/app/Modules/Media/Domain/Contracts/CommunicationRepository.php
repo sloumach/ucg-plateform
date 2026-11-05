@@ -10,6 +10,10 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface CommunicationRepository
 {
+    public function bindContext(Announcement $record, string $column, string $id, bool $discussion): void;
+
+    public function discussion(string $org, string $column, string $id): ?Announcement;
+
     /** @param array<string, mixed> $filters
      * @return LengthAwarePaginator<int, Announcement>
      */

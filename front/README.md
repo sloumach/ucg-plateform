@@ -37,7 +37,26 @@ npm run test:e2e
 Le test Playwright démarre automatiquement Laravel et Vite et vérifie notamment
 le parcours de connexion ainsi que son ordre de navigation au clavier.
 
+### Discussions contextuelles — COM-001
+
+Les raccordements COM-001 du 05/11/2026 ajoutent les discussions directement sur
+les cartes du planning, des matchs et des séances, avec chargement à l’ouverture,
+pagination, confirmation et brouillon conservé pendant une actualisation.
+`ContextDiscussion` exige la lecture de communication et celle du module source ;
+le serveur revérifie l’audience et les versions de l’objet/du fil. Les notifications
+internes permettent également d’ouvrir une discussion. Le formulaire d’annonce
+propose les nouvelles cibles selon les permissions ; un rattachement contextuel
+est verrouillé dès la création du brouillon. Le référentiel général de tâches
+reste à cadrer. Contrat détaillé et migration nécessaire dans le README racine.
+
 ### Mesures de charge locales — UCG-QA-005
+
+**Périmètre au 05/11/2026** : ces outils sont conservés pour diagnostic facultatif.
+La qualification de performance dépendant de l’hébergement est exclue du travail
+actuel de développement ; aucun profil de charge n’est un préalable à la validation
+applicative P0. Les tests fonctionnels des garde-fous restent requis en CI.
+Les codes de sortie, seuils et mesures existants sont inchangés : un essai en
+échec reste en échec. Voir le [cadrage courant](../README.md#périmètre-actuel--développement-5-novembre-2026).
 
 Depuis `front/`, avec PHP/PDO PostgreSQL, les dépendances du dépôt et les binaires
 PostgreSQL 17 accessibles dans PATH :
@@ -160,7 +179,11 @@ serveurs PHP de développement partageant le poste avec le générateur. Ces ess
 ne qualifient pas l'hébergement ni REC-34. La CI exécute les dix tests de garde-fous,
 sans seuil de latence sur runner partagé.
 
-### Recette finale sur infrastructure représentative — à exécuter
+### Protocole conservé — hors périmètre actuel de développement
+
+Depuis le 05/11/2026, cette recette de performance n’est plus une tâche à exécuter
+dans le périmètre courant. Une éventuelle reprise nécessite un cadrage distinct
+sur l’hébergement retenu ; les valeurs ci-dessous restent des références historiques.
 
 L'hébergement reste différé sur décision utilisateur du 25 octobre 2026. Le
 lanceur local refuse les services distants : il ne faut pas supprimer ses

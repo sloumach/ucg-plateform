@@ -6,9 +6,15 @@ use App\Modules\Scheduling\Domain\CalendarAudience;
 use App\Modules\Scheduling\Domain\Models\CalendarActivity;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Query\Builder;
 
 interface CalendarRepository
 {
+    public function communicationIds(string $org, CalendarAudience $audience): Builder;
+
+    /** @return LengthAwarePaginator<int, CalendarActivity> */
+    public function communicationChoices(string $org, CalendarAudience $audience, int $page, int $perPage): LengthAwarePaginator;
+
     public function visibleForChange(string $org, string $id, CalendarAudience $audience): bool;
 
     /** @return list<array{id:string,title:string,starts_at:CarbonImmutable,ends_at:CarbonImmutable,updated_at:CarbonImmutable}> */

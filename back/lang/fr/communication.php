@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'context_fixed' => 'Le rattachement de cette annonce est définitif. Créez un autre brouillon pour changer de contexte.',
+    'discussion_fixed' => 'Cette discussion est liée à son objet et ne peut pas être modifiée comme une annonce.',
+    'discussion_body' => 'Discussion liée à cet élément. Les droits sont vérifiés à chaque consultation.',
     'closed' => 'Ce champ n’est pas accepté pour cette opération.',
     'too_many_scopes' => 'Le nombre de périmètres actifs dépasse la limite de consultation. Contactez un administrateur.',
     'saved' => 'La communication a été enregistrée.',

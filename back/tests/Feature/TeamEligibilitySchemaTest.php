@@ -19,10 +19,11 @@ class TeamEligibilitySchemaTest extends TestCase
 
     public function test_empty_roundtrip_and_export_inventory(): void
     {
-        $this->withoutRetentionGuards(function (): void {
+        $this->withoutRetentionGuards(function (\Closure $restoreCommunicationContexts): void {
             $migration = require database_path('migrations/2026_10_13_215251_create_team_eligibility_rules_and_reports.php');
             $migration->down();
             $migration->up();
+            $restoreCommunicationContexts();
             app(PortabilityRepository::class)->assertCatalog();
             $this->assertDatabaseCount('team_eligibility_rulesets', 0);
         });

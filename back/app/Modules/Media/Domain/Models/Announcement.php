@@ -6,6 +6,7 @@ use Database\Factories\AnnouncementFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /** @property string $id
@@ -52,5 +53,21 @@ final class Announcement extends Model
         return match ($this->target_type) {
             'team' => $this->team_id, 'game' => $this->game_id, 'role' => $this->role_id, default => null
         };
+    }
+
+    /** @return HasOne<CommunicationContext, $this> */
+    public function context(): HasOne
+    {
+        return $this->hasOne(CommunicationContext::class, 'announcement_id');
+    }
+
+    public function audienceType(): string
+    {
+        return $this->context?->type() ?? $this->target_type;
+    }
+
+    public function audienceId(): ?string
+    {
+        return $this->context?->targetId() ?? $this->targetId();
     }
 }

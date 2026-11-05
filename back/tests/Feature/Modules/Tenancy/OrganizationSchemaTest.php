@@ -88,6 +88,8 @@ class OrganizationSchemaTest extends TestCase
     public function test_migrations_can_be_reversed_and_reapplied_in_the_test_database(): void
     {
         $this->assertTrue(Schema::hasTable('users'));
+        $communicationContexts = require database_path('migrations/2026_11_05_123111_create_communication_contexts_table.php');
+        $communicationContexts->down();
         $erasureGuards = require database_path('migrations/2026_10_28_083717_authorize_scoped_manual_erasure_guards.php');
         $erasureGuards->down();
         $erasurePlane = require database_path('migrations/2026_10_28_083716_create_manual_erasure_control_plane.php');
@@ -282,6 +284,7 @@ class OrganizationSchemaTest extends TestCase
         $freeze->up();
         $erasurePlane->up();
         $erasureGuards->up();
+        $communicationContexts->up();
         $this->assertTrue(Schema::hasTable('organization_retention_events'));
         $this->assertTrue(Schema::hasTable('dashboard_source_versions'));
         $this->assertTrue(Schema::hasTable('dashboard_indicators'));

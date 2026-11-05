@@ -5,14 +5,19 @@ namespace Tests\Feature\Modules\Tenancy;
 use App\Exceptions\ArtifactStorageException;
 use App\Exceptions\DomainConflictException;
 use App\Modules\Contracts\Domain\Models\ContractRecord;
+use App\Modules\Media\Domain\Contracts\CommunicationRepository;
+use App\Modules\Media\Domain\Models\Announcement;
+use App\Modules\Media\Domain\Models\AnnouncementComment;
 use App\Modules\People\Domain\Models\Person;
 use App\Modules\People\Domain\Models\PersonDeparture;
+use App\Modules\Scheduling\Domain\Models\CalendarActivity;
 use App\Modules\Tenancy\Application\Data\OrganizationAuditData;
 use App\Modules\Tenancy\Application\Services\ErasureAccessGate;
 use App\Modules\Tenancy\Application\Services\ManualErasureService;
 use App\Modules\Tenancy\Application\Services\RetentionControlService;
 use App\Modules\Tenancy\Domain\Contracts\ArtifactLedger;
 use App\Modules\Tenancy\Domain\Contracts\ErasureJournal;
+use App\Modules\Tenancy\Domain\Contracts\PortabilityRepository;
 use App\Modules\Tenancy\Domain\Contracts\RetentionControlRepository;
 use App\Modules\Tenancy\Domain\Models\Organization;
 use App\Modules\Tenancy\Domain\RetentionCatalog;
@@ -136,6 +141,36 @@ class ManualErasureTest extends TestCase
             app(ManualErasureService::class)->acknowledge($org->id, $this->audit($org), $operation['id'], $category, 'verified-'.$category);
         }
         $this->assertSame('erasure:'.$operation['id'], app(RetentionControlRepository::class)->state($org->id)['quarantine']);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_contextual_discussions_are_exported_and_erased_without_touching_another_organization(): void
+    {
+        [$org] = $this->scenario('archived');
+        $beta = Organization::factory()->create();
+        $records = app(CommunicationRepository::class);
+        foreach ([$org, $beta] as $tenant) {
+            $activity = CalendarActivity::factory()->create(['organization_id' => $tenant->id]);
+            $thread = Announcement::factory()->create(['organization_id' => $tenant->id]);
+            $records->bindContext($thread, 'activity_id', $activity->id, true);
+            $thread->forceFill(['status' => 'published', 'published_by' => $tenant->owner_user_id, 'published_at' => now()])->save();
+            AnnouncementComment::factory()->create(['organization_id' => $tenant->id, 'announcement_id' => $thread->id]);
+        }
+        $portability = app(PortabilityRepository::class);
+        $rows = iterator_to_array($portability->rows($org->id, 1000));
+        $bindings = array_values(array_filter($rows, fn (array $row): bool => $row['table'] === 'communication_contexts'));
+        $this->assertCount(1, $bindings);
+        $this->assertSame($org->id, $bindings[0]['data']['organization_id']);
+        $betaBinding = DB::table('communication_contexts')->where('organization_id', $beta->id)->firstOrFail();
+        $operation = $this->begin($org, $org->id, null, 'organization');
+        $operation = $this->drain($org, $operation['id']);
+        $this->assertSame('awaiting_copies', $operation['status']);
+        $this->assertDatabaseMissing('communication_contexts', ['organization_id' => $org->id]);
+        $this->assertDatabaseMissing('announcement_comments', ['organization_id' => $org->id]);
+        $this->assertDatabaseMissing('announcements', ['organization_id' => $org->id]);
+        $this->assertDatabaseHas('communication_contexts', ['id' => $betaBinding->id, 'organization_id' => $beta->id]);
+        $this->assertDatabaseHas('announcements', ['id' => $betaBinding->announcement_id]);
+        $this->assertDatabaseCount('announcement_comments', 1);
     }
 
     public function test_ordinary_sql_guards_remain_active_and_damaged_guards_block_erasure(): void

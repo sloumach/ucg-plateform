@@ -2,6 +2,40 @@
 
 Plateforme de gestion esports multi-tenant d'Ultra Cyber Game.
 
+## Périmètre actuel — développement (5 novembre 2026)
+
+Les tests de performance dépendant de l’hébergement sont exclus du périmètre
+actuel : capacité, latence sous charge, rafales, endurance sur cible, réseau/TLS,
+rendu navigateur et audience publique. Ils ne bloquent plus le développement
+P0 ni sa validation applicative. QA-005/REC-34 sont suspendus pour leur volet
+qualification de performance ; aucun nouveau banc de charge n’est requis à ce stade.
+Leur éventuelle reprise fera l’objet d’un cadrage distinct lors du choix de l’hébergement.
+
+Les contrôles applicatifs restent requis : pagination, prévention des N+1,
+budgets SQL, quotas, autorisations, isolation, transactions, concurrence et
+idempotence. Les résultats de charge existants restent historiques : les rafales
+mesurées au-delà de 500 ms ne deviennent pas conformes par ce changement de périmètre.
+Les seuils et scripts de charge existants sont conservés ; leur exécution reste facultative
+pour le développement. Cette décision ne vaut pas accord de mise en production.
+
+Le [point de reprise et l’audit des reports](docs/etat-projet.md#point-de-reprise)
+précisent les tâches encore ouvertes. Cette décision remplace les anciennes
+mentions imposant la qualification de performance comme prochain chantier obligatoire.
+
+## Discussions contextuelles — COM-001
+
+COM-001 raccorde désormais les annonces et discussions aux événements du planning,
+matchs et séances d’académie. Le bouton « Ouvrir la discussion » apparaît sur ces
+objets selon les permissions. Le système général de tâches reste à cadrer séparément.
+Voir le [contrat des raccordements contextuels](docs/conventions-api.md#raccordements-contextuels-com-001--05112026).
+
+Avant usage de ce complément, sauvegarder puis appliquer les migrations avec
+`php artisan migrate` depuis `back/`. La migration additive
+`2026_11_05_123111_create_communication_contexts_table` n’a été exécutée ici que
+sur des bases de test isolées. Elle ne modifie pas les anciennes annonces et son
+rollback refuse la perte de rattachements existants. Ne pas utiliser `migrate:fresh`
+sur la base de travail. Le nouveau catalogue couvre 121 tables tenant.
+
 ## Structure
 
 Les tickets `UCG-IAM-003/004` fournissent les rôles configurables, leurs
@@ -2178,8 +2212,9 @@ plateforme. Les annonces organisation ciblent les lecteurs habilités ; équipe 
 jeu ciblent les personnes liées au compte avec une période d’effectif effective
 dans une équipe active et un jeu activé. Un rôle cible une attribution effective
 à l’échelle de l’organisation, liée à l’adhésion actuelle (ou au propriétaire).
-Le mode gestion permet la consultation administrative hors audience mais pas
-la participation. Les listes filtrent avant pagination et comptage.
+Le mode gestion permet la consultation administrative hors audience équipe/jeu/rôle
+mais pas la participation. Pour les annonces contextuelles, l’accès à l’objet
+source reste obligatoire même en gestion. Les listes filtrent avant pagination et comptage.
 
 Un brouillon est éditable. Publier exige sa version et une confirmation explicite ;
 contenu, cible et expiration sont ensuite figés. Pour corriger, retirer puis créer
@@ -4390,7 +4425,7 @@ PHPStan niveau 8 et Composer strict valides. Les rapports privés ignorés sont
 | REC-30 — webhook entrant | Non applicable au P0, décision utilisateur du 25/10/2026 | API-002 reste futur ; aucune signature de webhook métier absent n’est annoncée testée. |
 | REC-32 — privilège plateforme | PlatformRoleManagementTest et ContextualRolesTest | Un rôle tenant ne confère pas une action plateforme. |
 | REC-33 — accès exceptionnel | PlatformSupportAccessTest | Tenant, opérateur, durée, révocation, audit et expiration ; exploitation réelle distincte. |
-| REC-34 — tenant bruyant | TenantTechnicalLimitsTest, budgets/queues Redis en CI, banc nginx/PHP-FPM et Redis/Horizon QA-005 | **Réserve performance ouverte** : 100 sessions à lectures espacées, p95 Beta pendant charge 139,46 ms ; rafales, 5,99 / 6,30 s pendant exports/imports. Intégrité ciblée vérifiée ; capacité hébergée non qualifiée. |
+| REC-34 — tenant bruyant | TenantTechnicalLimitsTest, budgets/queues Redis en CI, banc nginx/PHP-FPM et Redis/Horizon QA-005 | Contrôles applicatifs maintenus. Qualification de performance suspendue hors périmètre de développement depuis le 05/11/2026. Mesures historiques : p95 Beta 139,46 ms à lectures espacées ; rafales 5,99 / 6,30 s, non conformes. Aucune capacité hébergée validée. |
 | REC-35 — export/effacement | OrganizationPortabilityTest, ManualErasureTest, ErasureReconciliationTest et `test:retention:erasure` | Export, effacement, crashes et vrai pg_restore sur fixtures, Beta/globales préservés ; politiques CAD-004 et copies externes distinctes des attestations fictives. |
 | REC-36 — récupération logique | `test:recovery:tenant`, `test:recovery:graph`, `test:recovery:qualification` | États avancés, conflits/reprises et modifications récentes de Beta vérifiés ; REC-36 simulé couvert, sans importeur de production ni qualification hébergée implicite. |
 
@@ -6944,7 +6979,7 @@ reste « bloqué », pas « vérifié ». Les lignes de préparation documentair
 | R2-09 | Restauration sur cible isolée, intégrité/déchiffrement/tenant témoin et durées mesurées | Exploitant et vérificateur | Non réalisée sur hébergement |
 | R2-10 | Sondes, seuils adoptés, alertes reçues et responsabilités de réponse confirmées | Exploitation et support | Non éprouvé sur hébergement |
 | R2-11 | Files, scheduler, transport mail, scanner et temps réel selon modules activés ; absence de doublons après reprise | Exploitation et responsables métier | À vérifier sur cible |
-| R2-12 | Charge/latence et isolation de la configuration retenue, écarts QA-005 traités et limites déclarées | Réalisation et vérificateur | QA-005 ouvert, aucune capacité validée |
+| R2-12 | Qualification de capacité/latence à recadrer lors du choix de l’hébergement ; isolation applicative maintenue | Réalisation et vérificateur | Hors périmètre actuel de développement depuis le 05/11/2026 ; aucune capacité validée |
 | R2-13 | Plan de livraison et retour arrière revu, sauvegarde préalable et déclencheurs d’arrêt | Exploitant et décideur | À préparer pour la cible exacte |
 | R2-14 | Aucun incident critique/bloquant ouvert, anomalies retestées, réserves et éléments non testés visibles | Support et vérificateur | À rapprocher à la date de lancement |
 | R2-15 | Accord de mise en production spécifique à l’environnement/version/périmètre, fenêtre et responsables | Décideur | Non donné |
@@ -7654,7 +7689,9 @@ dont la nouvelle concurrence de lecture, 20 tests Node, Pint/PHPStan/lint verts.
 Les sélections se recouvrent et ne constituent pas une somme de tests distincts.
 
 Les trois volets locaux — banc, corrections/comparaison, durée soutenue — sont
-exécutés. **QA-005/REC-34 restent ouverts** pour les rafales non conformes et la
-qualification de la cible hébergée, toujours différée. Les 2 000 visiteurs publics
+exécutés. **Bilan historique au 01/11/2026** : QA-005/REC-34 restaient ouverts pour
+les rafales non conformes et la cible hébergée. Depuis le 05/11/2026, ce volet de
+performance est suspendu hors périmètre de développement (voir en tête du README).
+Les 2 000 visiteurs publics
 ne sont pas exécutés en l’absence de pages publiques métier P0. Aucune réserve
 de performance ni validation de mise en service n’est déduite des tests fonctionnels.

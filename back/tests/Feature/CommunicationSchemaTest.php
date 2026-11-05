@@ -93,10 +93,13 @@ class CommunicationSchemaTest extends TestCase
 
     public function test_empty_migration_round_trip_and_rollback_data_guard(): void
     {
+        $contexts = require database_path('migrations/2026_11_05_123111_create_communication_contexts_table.php');
+        $contexts->down();
         $migration = require database_path('migrations/2026_10_16_210818_create_communication_tables.php');
         $migration->down();
         $this->assertFalse(Schema::hasTable('announcements'));
         $migration->up();
+        $contexts->up();
         Announcement::factory()->create();
         try {
             $migration->down();

@@ -7,9 +7,26 @@ use App\Modules\Academy\Domain\Models\AcademyAttendance;
 use App\Modules\Academy\Domain\Models\AcademySession;
 use App\Modules\Academy\Domain\Models\AcademySessionRevision;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Query\Builder;
 
 final readonly class EloquentAcademySessionRepository implements AcademySessionRepository
 {
+    public function communicationIds(string $org): Builder
+    {
+        return AcademySession::query()->where('organization_id', $org)->where('status', '!=', 'cancelled')->select('academy_sessions.id')->toBase();
+    }
+
+    public function communicationChoices(string $org, int $page, int $perPage): LengthAwarePaginator
+    {
+        return AcademySession::query()->where('organization_id', $org)->where('status', '!=', 'cancelled')->orderByDesc('starts_at')->orderBy('id')
+            ->paginate($perPage, ['id', 'title', 'version'], 'page', $page);
+    }
+
+    public function communicationSession(string $org, string $id): AcademySession
+    {
+        return AcademySession::query()->where('organization_id', $org)->where('status', '!=', 'cancelled')->findOrFail($id);
+    }
+
     public function sessions(string $org, string $cycle, int $page, int $perPage): LengthAwarePaginator
     {
         return AcademySession::query()->where('organization_id', $org)->where('cycle_id', strtolower($cycle))->with('responsibleEnrollment')->withCount('attendances')

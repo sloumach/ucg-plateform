@@ -2,6 +2,8 @@
 
 namespace App\Modules\Academy\Providers;
 
+use App\Modules\Academy\Application\Contracts\CommunicationSessionDirectory;
+use App\Modules\Academy\Application\Services\CommunicationSessionService;
 use App\Modules\Academy\Domain\Contracts\AcademyCoachingRepository;
 use App\Modules\Academy\Domain\Contracts\AcademyRepository;
 use App\Modules\Academy\Domain\Contracts\AcademySessionRepository;
@@ -22,6 +24,7 @@ final class AcademyServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(CommunicationSessionDirectory::class, CommunicationSessionService::class);
         $this->app->bind(AcademyCoachingRepository::class, EloquentAcademyCoachingRepository::class);
         $this->app->bind(AcademySessionRepository::class, EloquentAcademySessionRepository::class);
         $this->app->bind(AcademyRepository::class, EloquentAcademyRepository::class);

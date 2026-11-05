@@ -6,6 +6,7 @@ use App\Modules\Media\Domain\CommunicationAudience;
 use App\Modules\Media\Domain\Contracts\CommunicationRepository;
 use App\Modules\Media\Domain\Models\Announcement;
 use App\Modules\Media\Domain\Models\AnnouncementComment;
+use App\Modules\Media\Domain\Models\CommunicationContext;
 use App\Modules\Media\Domain\Models\CommunicationEvent;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\ConnectionInterface;
@@ -17,9 +18,30 @@ final readonly class EloquentCommunicationRepository implements CommunicationRep
 {
     public function __construct(private ConnectionInterface $database) {}
 
+    public function bindContext(Announcement $record, string $column, string $id, bool $discussion): void
+    {
+        if (! in_array($column, ['activity_id', 'match_id', 'session_id'], true)) {
+            throw new \InvalidArgumentException('Unsupported communication reference.');
+        }
+        $binding = new CommunicationContext;
+        $binding->forceFill(['id' => (string) Str::uuid(), 'organization_id' => $record->organization_id,
+            'announcement_id' => $record->id, $column => $id, 'discussion' => $discussion, 'created_at' => now()])->save();
+        $record->setRelation('context', $binding);
+    }
+
+    public function discussion(string $org, string $column, string $id): ?Announcement
+    {
+        if (! in_array($column, ['activity_id', 'match_id', 'session_id'], true)) {
+            throw new \InvalidArgumentException('Unsupported communication reference.');
+        }
+
+        return Announcement::query()->where('organization_id', $org)->whereHas('context', fn (Builder $q) => $q
+            ->where('organization_id', $org)->where('discussion', true)->where($column, $id))->with('context')->first();
+    }
+
     public function paginate(string $org, CommunicationAudience $audience, array $filters, bool $management): LengthAwarePaginator
     {
-        $q = $this->visible($org, $audience, $management);
+        $q = $this->visible($org, $audience, $management)->whereDoesntHave('context', fn (Builder $q) => $q->where('discussion', true));
         if (isset($filters['status'])) {
             $q->where('status', $filters['status']);
         }
@@ -39,7 +61,7 @@ final readonly class EloquentCommunicationRepository implements CommunicationRep
         $record ??= new Announcement;
         $record->forceFill($attributes)->save();
 
-        return $record;
+        return $record->loadMissing('context');
     }
 
     public function comments(string $org, string $announcementId, int $page, int $perPage): LengthAwarePaginator
@@ -99,7 +121,16 @@ final readonly class EloquentCommunicationRepository implements CommunicationRep
     /** @return Builder<Announcement> */
     private function visible(string $org, CommunicationAudience $audience, bool $management = false): Builder
     {
-        $q = Announcement::query()->where('organization_id', $org);
+        $q = Announcement::query()->where('organization_id', $org)->with('context');
+        // Contextual content always requires access to its source, including management previews and inbox counts.
+        $q->where(fn (Builder $scope) => $scope->whereDoesntHave('context')->orWhereHas('context', function (Builder $binding) use ($org, $audience): void {
+            $binding->where('organization_id', $org)->where(function (Builder $allowed) use ($audience): void {
+                $allowed->whereRaw('1 = 0');
+                foreach ($audience->contexts as $column => $query) {
+                    $allowed->orWhereIn($column, clone $query);
+                }
+            });
+        }));
         if ($management) {
             return $q;
         }

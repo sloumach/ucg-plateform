@@ -25,7 +25,7 @@ dépendance signifie que le module de gauche peut consommer l’API publique du 
 | `Contracts` | `Tenancy`, `People` |
 | `Partnerships` | `Tenancy`, `People`, `Teams`, `Contracts` |
 | `Finance` | `Tenancy`, `Contracts`, `Partnerships` |
-| `Media` | `Tenancy`, `People`, `Teams` |
+| `Media` | `Tenancy`, `People`, `Teams`, `Scheduling`, `Competition`, `Academy` |
 | `Reporting` | tous les modules métier nécessaires à ses projections de lecture |
 
 `Reporting` est un consommateur terminal : aucun autre module ne doit dépendre de lui.
@@ -1574,6 +1574,41 @@ des contrats publics tenant et des contrôles scrim issus du référentiel réel
 
 ## Communications internes — socle UCG-COM-001
 
+**Extension du 05/11/2026.** Media possède aussi `communication_contexts`. Le
+socle et ses cinq tables ci-dessous restent conservés. Les contrats publics
+`CommunicationCalendarDirectory`, `CommunicationMatchDirectory` et
+`CommunicationSessionDirectory` appartiennent respectivement à Scheduling,
+Competition et Academy, avec un contrat technique commun `ContextSource`.
+Media les consomme via `CommunicationContexts` ; aucun modèle d’un autre module
+n’est importé. Le graphe autorise ces trois nouvelles dépendances et reste acyclique.
+
+Le rattachement conserve une FK composite tenant/objet dans une seule des colonnes
+`activity_id`, `match_id`, `session_id`, et une FK tenant/annonce. Les anciens types
+SQL d’annonce sont conservés : une annonce contextuelle utilise en interne la
+cible organisation, restreinte obligatoirement par son rattachement ; sa Resource
+expose le vrai type `event`, `match` ou `session`. Une sous-requête propriétaire
+filtre le contexte avant déchiffrement, comptage et pagination, même en gestion
+et dans la boîte interne. La relation de rattachement est chargée par lot.
+Les vérifications ne matérialisent pas tous les identifiants visibles en mémoire.
+
+Les droits sont `communication.read` plus `calendar.read`, `sports.read` ou
+`academy.read` et l’audience actuelle du module. Les séances utilisent l’accès
+staff existant ; `academy.self.read` seul ne donne pas accès aux discussions staff.
+Les événements archivés/annulés, matchs annulés et séances annulées sont exclus.
+Un commentaire direct exige en plus `communication.comment`, sans `write` ou
+`publish`. Sous verrou organisation, le premier POST crée un fil et son premier
+commentaire dans la même transaction auditée. Les GET ne créent rien. Les fils
+directs restent hors du fil d’annonces, accessibles depuis leur objet et depuis
+l’aperçu d’une notification. Les versions de l’objet et du fil sont contrôlées.
+
+Les rattachements sont définitifs, même pour un brouillon ; les anciennes annonces
+sans contexte gardent leur fonctionnement. La migration additive protège forme,
+unicité du fil, conservation et effacement sous permis, enregistre les empreintes
+des guards et refuse un rollback contenant des rattachements. Le catalogue
+portabilité/conservation passe à 121 tables. Les tests de migrations historiques
+retirent le nouveau dépendant avant leurs parents, puis rétablissent le schéma
+complet pour les contrôles d’inventaire. Le référentiel de tâches reste à cadrer.
+
 Media possède `announcements`, `announcement_comments`, `communication_events`,
 `communication_preferences` et `communication_receipts`. Flux MVC existant :
 CommunicationRequest fermée, CommunicationPolicy par action, CommunicationService,
@@ -1586,7 +1621,8 @@ CommunicationRolesDirectory (Tenancy) exposent des choix minimaux paginés,
 le contrôle d’une cible active et les identifiants effectifs du compte courant.
 Les requêtes restent dans les repositories de leurs modules propriétaires.
 Teams obtient la personne liée via SportingPeopleDirectory de People. Media
-n’importe aucun modèle d’un autre module et le graphe de dépendances reste inchangé.
+n’importe aucun modèle d’un autre module ; les dépendances supplémentaires de
+l’extension sont décrites ci-dessus.
 Les ensembles effectifs sont bornés à 1 000 et une limite dépassée échoue explicitement.
 
 CommunicationAudience est une valeur éphémère par requête ; la visibilité est
@@ -1626,8 +1662,8 @@ Le panneau React est chargé à la demande selon communication.read, avec une cl
 tenant/révision/permissions. Lectures abortables ; confirmation et révision via
 le hook de mutation existant, erreurs 409 sans rejeu, texte échappé, pagination
 des annonces/références/réponses/notifications et préférences propres au tenant.
-Les liens vers tâches, matchs, séances et événements restent un reliquat explicite
-de COM-001 : aucun modèle ou identifiant libre simulé dans ces frontières vides.
+Depuis le 05/11/2026, événements, matchs et séances sont raccordés par leurs
+référentiels réels. Le système général de tâches reste un reliquat distinct à cadrer.
 
 ## Activités du calendrier — UCG-CAL-001
 

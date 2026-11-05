@@ -14,6 +14,12 @@ use Illuminate\Support\Str;
 
 final readonly class EloquentMatchRepository implements MatchRepository
 {
+    public function communicationChoices(string $org, int $actor, array $viewer, int $page, int $perPage): LengthAwarePaginator
+    {
+        return $this->visible($org, $actor, $viewer, false)->where('status', '!=', 'cancelled')->orderByDesc('starts_at')->orderBy('id')
+            ->paginate($perPage, ['id', 'title', 'version'], 'page', $page);
+    }
+
     /** @param array{person_id:string|null,team_ids:list<string>} $viewer */
     public function search(string $org, int $actor, array $viewer, string $term, ?string $after, int $size): SearchPage
     {

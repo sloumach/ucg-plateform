@@ -17,7 +17,11 @@ final class CommunicationInput
             'index' => [...$page, 'management' => ['sometimes', 'boolean'], 'status' => ['sometimes', Rule::in(['draft', 'published', 'withdrawn'])]],
             'show' => ['management' => ['sometimes', 'boolean']],
             'comments' => [...$page, 'management' => ['sometimes', 'boolean']],
-            'targets' => [...$page, 'type' => ['required', Rule::in(['team', 'game', 'role'])]],
+            'targets' => [...$page, 'type' => ['required', Rule::in(['team', 'game', 'role', 'event', 'match', 'session'])]],
+            'contextTargets' => [...$page, 'type' => ['required', Rule::in(['event', 'match', 'session'])]],
+            'discussion' => $page,
+            'discuss' => ['version' => ['required', 'uuid'], 'thread_version' => ['present', 'nullable', 'uuid'],
+                'body' => ['required', 'string', 'max:4000', 'regex:/\\S/u'], 'notify_members' => ['sometimes', 'boolean']],
             'inbox' => [...$page, 'unread' => ['sometimes', 'boolean']],
             'store' => self::draftRules(),
             'update' => [...self::draftRules(false), 'version' => ['required', 'uuid'], 'action' => ['sometimes', Rule::in(['publish', 'withdraw', 'comments'])],
@@ -34,7 +38,7 @@ final class CommunicationInput
         $r = $creating ? 'required' : 'sometimes';
 
         return ['title' => [$r, 'required', 'string', 'max:160', 'regex:/\\S/u'], 'body' => [$r, 'required', 'string', 'max:12000', 'regex:/\\S/u'],
-            'target_type' => [$r, 'required', Rule::in(['organization', 'team', 'game', 'role'])],
+            'target_type' => [$r, 'required', Rule::in(['organization', 'team', 'game', 'role', 'event', 'match', 'session'])],
             'target_id' => ['sometimes', 'nullable', 'uuid'], 'comments_enabled' => ['sometimes', 'boolean'],
             'expires_at' => ['sometimes', 'nullable', 'date_format:Y-m-d\\TH:i:sP', 'after:now']];
     }

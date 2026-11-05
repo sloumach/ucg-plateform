@@ -20,7 +20,7 @@ class TeamLineupSchemaTest extends TestCase
 
     public function test_empty_round_trip_recreates_constraints_and_export_catalog(): void
     {
-        $this->withoutRetentionGuards(function (): void {
+        $this->withoutRetentionGuards(function (\Closure $restoreCommunicationContexts): void {
             $this->assertDatabaseCount('team_lineups', 0);
             $migration = require database_path('migrations/2026_10_13_204834_create_team_lineup_tables.php');
             $eligibility = require database_path('migrations/2026_10_13_215251_create_team_eligibility_rules_and_reports.php');
@@ -28,6 +28,7 @@ class TeamLineupSchemaTest extends TestCase
             $migration->down();
             $migration->up();
             $eligibility->up();
+            $restoreCommunicationContexts();
             app(PortabilityRepository::class)->assertCatalog();
             $this->assertSame([], app(TenantSchemaInspector::class)->violations());
             $this->assertDatabaseCount('team_lineup_entries', 0);

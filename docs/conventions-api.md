@@ -2430,7 +2430,10 @@ comment pour participation. Aucun accès implicite propriétaire/plateforme.
 | POST | /announcements | Créer un brouillon |
 | GET | /announcements/{id} | Détail autorisé |
 | PATCH | /announcements/{id} | Éditer le brouillon ou une action isolée |
-| GET | /targets?type=team\|game\|role | Références actives id/label paginées, write requis |
+| GET | /targets?type=team\|game\|role\|event\|match\|session | Références actives id/label paginées, write requis et accès à l’objet pour les contextes |
+| GET | /context-targets?type=event\|match\|session | Références id/label paginées pour discussions, read et droit de lecture du module requis |
+| GET | /discussions/{type}/{contextId} | Commentaires paginés et métadonnées du contexte actuel ; aucune création |
+| POST | /discussions/{type}/{contextId} | Ajouter un commentaire ; création atomique du premier fil si nécessaire |
 | GET/POST | /announcements/{id}/comments | Lire/ajouter une réponse |
 | GET | /inbox | Remise des notifications visibles au compte courant |
 | POST | /inbox/{event}/read | Lecture idempotente d’un événement encore accessible |
@@ -2485,8 +2488,64 @@ COMMUNICATION_WITHDRAWN, COMMUNICATION_TRANSITION_INVALID,
 COMMUNICATION_COMMENTS_CLOSED. 404 pour ressource hors tenant/hors audience ou
 cible inactive ; 403 pour permission absente ; 422 pour payload fermé/incohérent.
 Une annonce expirée ou retirée disparaît des lectures ordinaires et de l’inbox.
-Pas de DELETE. event_id/task_id/match_id/session_id libres refusés : intégrations
-aux futurs référentiels encore à livrer, sans prétendre achever ces volets.
+Pas de DELETE. Les champs libres event_id/task_id/match_id/session_id restent
+refusés. Depuis le 05/11/2026, les vrais référentiels événement/match/séance sont
+résolus via les routes et types validés ci-dessous. Le système de tâches reste
+distinct et aucun type `task` n’est accepté.
+
+### Raccordements contextuels COM-001 — 05/11/2026
+
+`target_type` accepte aussi `event`, `match` et `session`, avec `target_id` UUID
+obligatoire en pratique et résolu dans l’organisation courante. Créer/publier
+une annonce exige les permissions de communication habituelles et l’accès actuel
+à sa cible. Un rattachement contextuel ne peut plus être changé dès la création,
+même en brouillon ; modifier titre/corps reste possible avant publication.
+La Resource expose le type réel et l’identifiant de l’objet. Un fil direct expose
+en plus `discussion: true` ; il ne peut pas être modifié comme une annonce
+(`409 COMMUNICATION_DISCUSSION_FIXED`). Ce fil est absent des listes d’annonces.
+
+Pour les deux routes `/discussions/{type}/{contextId}`, les types sont fermés à
+`event|match|session`. Lecture : `communication.read` et respectivement
+`calendar.read`, `sports.read`, `academy.read`, plus audience actuelle de l’objet.
+Gestion des annonces ou `academy.self.read` ne contournent pas cette audience.
+Écriture : `communication.comment` en plus, sans obligation de `write`/`publish`.
+Les exigences MFA, confirmation de tenant, révision de session et CSRF restent actives.
+
+GET accepte `page` et `per_page` (1–100). `data` contient les mêmes Resources de
+commentaires que le socle ; `meta` conserve sa pagination et son request_id.
+Une clé racine `context` fournit `{id, label, version, type, thread_version,
+can_comment}`. `thread_version` est null avant le premier commentaire. POST exige
+`version` (UUID courant de l’objet), `thread_version` (clé présente, null ou UUID
+lu), `body` (1–4 000 caractères non blancs) ; `notify_members` est facultatif.
+La réponse 201 est une Resource de commentaire avec notification succès standard.
+Les modifications/refus de droit sont revérifiés sous verrou ; une version
+périmée renvoie 409 sans fil, commentaire ni notification supplémentaires.
+
+La notification de réponse conserve l’opt-in auteur/participants du socle ; elle
+ne fige pas les destinataires. Objet devenu inaccessible : anciennes URL,
+comptages, aperçus et remise de notifications filtrés. Pas de transport externe.
+
+Exemple SPA après sélection de tenant, avec les en-têtes habituels du client et
+confirmation de l’organisation avant le POST :
+
+```ts
+const path = `tenants/${organizationId}/communication/discussions/event/${activityId}`
+const page = await tenancyRequest<{
+  data: AnnouncementComment[]
+  context: { version: string; thread_version: string | null }
+}>(path + '?per_page=10&page=1', { revision })
+await tenancyRequest(path, {
+  method: 'POST', revision,
+  body: {
+    version: page.context.version, thread_version: page.context.thread_version,
+    body: 'Préparation confirmée.', notify_members: false,
+  },
+})
+```
+
+Après succès ou conflit, relire le fil ; ne pas rejouer automatiquement l’envoi.
+La migration additive est nécessaire avant usage ; les mesures de performance
+liées à l’hébergement restent hors périmètre actuel de développement.
 
 Exemple de commentaire après lecture de la version courante :
 

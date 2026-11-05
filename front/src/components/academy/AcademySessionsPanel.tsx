@@ -1,3 +1,4 @@
+import { ContextDiscussion } from '../communication/ContextDiscussion'
 import { useState } from 'react'
 import type { ActiveOrganization } from '../../api/tenancy'
 import type { Cohort, AcademyCycle } from '../../api/academy'
@@ -44,6 +45,7 @@ export function AcademySessionsPanel({ active, cohort, cycle, disabled, onInvali
           {calendar && item.activity && <Button disabled={blocked} onClick={() => { setEditor(item); setSelectedId(null); setCancelling(null) }}>{text('edit')} {item.title}</Button>}
           <Button disabled={blocked} onClick={() => { setCancelling(item); setEditor(null); setSelectedId(null) }}>{text('cancel')} {item.title}</Button>
         </>}
+        {item.status !== 'cancelled' && <ContextDiscussion {...{ active, onInvalid }} type="session" id={item.id} disabled={blocked} />}
       </li>)}</ul>
       {read.result && <Pagination currentPage={read.result.meta.current_page} totalPages={read.result.meta.last_page} disabled={blocked} onPageChange={(next) => { setPage(next); setEditor(null); setSelectedId(null); setCancelling(null) }} />}
       {editor && manage && calendar && <AcademySessionForm key={editor === 'new' ? 'new' : editor.id + editor.version} active={active} cohort={cohort} cycle={cycle} session={editor === 'new' ? null : editor} disabled={blocked} onInvalid={onInvalid} errors={mutation.errors(base + (editor === 'new' ? '' : '/' + editor.id))} onCancel={() => setEditor(null)} onSubmit={(event, body) => mutation.propose(event, text('save'), base + (editor === 'new' ? '' : '/' + editor.id), body, editor !== 'new')} />}

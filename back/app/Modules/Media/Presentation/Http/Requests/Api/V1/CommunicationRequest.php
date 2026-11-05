@@ -18,7 +18,7 @@ final class CommunicationRequest extends FormRequest
     public function authorize(TenantContext $context): bool
     {
         $ability = match ($this->operation()) {
-            'store', 'update', 'targets' => 'manage', 'comment' => 'comment', default => 'viewAny'
+            'store', 'update', 'targets' => 'manage', 'comment', 'discuss' => 'comment', default => 'viewAny'
         };
 
         return $this->user()?->can($ability, [Announcement::class, $context]) ?? false;

@@ -15,6 +15,17 @@ final readonly class EloquentCalendarRepository implements CalendarRepository
 {
     public function __construct(private EloquentCalendarVisibility $visibility) {}
 
+    public function communicationIds(string $org, CalendarAudience $audience): \Illuminate\Database\Query\Builder
+    {
+        return $this->visibility->query($org, $audience)->whereNull('cancelled_at')->select('calendar_activities.id')->toBase();
+    }
+
+    public function communicationChoices(string $org, CalendarAudience $audience, int $page, int $perPage): LengthAwarePaginator
+    {
+        return $this->visibility->query($org, $audience)->whereNull('cancelled_at')->orderByDesc('starts_at')->orderBy('id')
+            ->paginate($perPage, ['id', 'title', 'version'], 'page', $page);
+    }
+
     public function visibleForChange(string $org, string $id, CalendarAudience $audience): bool
     {
         return $this->visibility->query($org, $audience, includeCancelled: true)->whereKey($id)->exists();

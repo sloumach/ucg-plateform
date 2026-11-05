@@ -94,7 +94,7 @@ class PersonImportSchemaTest extends TestCase
 
     public function test_empty_rollback_and_reapply_preserve_the_tenant_schema(): void
     {
-        $this->withoutRetentionGuards(function (): void {
+        $this->withoutRetentionGuards(function (\Closure $restoreCommunicationContexts): void {
             $migration = require database_path('migrations/2026_10_12_211057_create_person_import_tables.php');
             $documents = require database_path('migrations/2026_10_14_193828_create_contract_documents_and_immutable_versions.php');
             $scans = require database_path('migrations/2026_10_14_204339_create_contract_document_scans.php');
@@ -119,6 +119,7 @@ class PersonImportSchemaTest extends TestCase
             $scans->up();
             $governance->up();
             $reminders->up();
+            $restoreCommunicationContexts();
             $this->assertSame([], app(TenantSchemaInspector::class)->violations());
             app(PortabilityRepository::class)->assertCatalog();
         });

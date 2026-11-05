@@ -35,6 +35,24 @@ beforeEach(() => {
   })
 })
 describe('communications ciblées', () => {
+  it('conserve le rattachement verrouillé lors de la modification d’un brouillon contextuel', async () => {
+    rows = [{ ...base, status: 'draft', can_comment: false, published_at: null, target_type: 'event', target_id: id }]
+    const user = userEvent.setup()
+    show({ ...active, context: { ...active.context!, permissions: [...active.context!.permissions, 'calendar.read'] } })
+    await open(user)
+    await user.click(screen.getByRole('button', { name: 'Gérer les annonces' }))
+    await user.click(await screen.findByRole('button', { name: 'Modifier le brouillon' }))
+    const form = within(screen.getByRole('form', { name: 'Enregistrer le brouillon' }))
+    expect(form.getByLabelText('Type de destinataires')).toBeDisabled()
+    expect(form.getByLabelText('Destinataire', { exact: true })).toBeDisabled()
+    await user.clear(form.getByLabelText('Titre de l’annonce'))
+    await user.type(form.getByLabelText('Titre de l’annonce'), 'Titre corrigé')
+    await user.click(form.getByRole('button', { name: 'Enregistrer le brouillon' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
+    await waitFor(() => expect(request).toHaveBeenCalledWith(root + '/announcements/' + id, expect.objectContaining({ method: 'PATCH',
+      body: expect.objectContaining({ target_type: 'event', target_id: id, title: 'Titre corrigé', version }) })))
+  })
+
   it('ne charge rien avant ouverture ou sans permission', () => {
     const { unmount } = show(); expect(request).not.toHaveBeenCalled(); unmount()
     show({ ...active, context: { ...active.context!, permissions: ['media.read'] } })

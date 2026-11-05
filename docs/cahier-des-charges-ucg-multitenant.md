@@ -971,6 +971,17 @@ Ces exigences s’inspirent des recommandations officielles sur les habilitation
 
 ### 20.1 Enveloppe initiale à valider
 
+**Décision de périmètre — 05/11/2026.** Le travail actuel porte sur le développement.
+Les tests de performance dépendant de l’hébergement (capacité, latence sous charge,
+rafales, endurance sur cible, réseau/TLS, rendu et audience publique) sont exclus
+de ce périmètre et de ses critères de validation applicative P0. QA-005 et le volet
+performance de REC-34 sont suspendus ; les objectifs ci-dessous sont conservés
+comme références à recadrer séparément lors du choix de l’hébergement, sans
+obligation de nouvelle campagne locale pour les atteindre. Les mesures déjà
+effectuées conservent leurs résultats et limites. Les contrôles applicatifs de
+la section 20.3 restent exigés. Les exigences d’exploitation, de sécurité et de
+sauvegarde restent distinctes ; aucune mise en service n’est validée par cette décision.
+
 Hypothèse de dimensionnement pour la recette : UCG et au moins deux tenants de test isolés, 500 comptes internes ou associés au total, 100 utilisateurs actifs simultanément, 100 000 parties historisées et 2 000 visiteurs simultanés sur les pages publiques lors d’un événement. Les scénarios mesurent la charge agrégée et l’effet d’un tenant fortement actif sur les autres. Ce sont des hypothèses de test, non les effectifs déclarés d’UCG et non une capacité déjà prouvée.
 
 | Exigence | Cible proposée | Condition de mesure |
@@ -1109,13 +1120,13 @@ Résolution du tenant, organisations, adhésions et isolation précèdent tous l
 | REC-30 | Un webhook porte un identifiant externe existant dans deux tenants | L’intégration, la signature et la clé d’idempotence déterminent sans ambiguïté le bon tenant |
 | REC-32 | Un admin d’organisation tente d’obtenir un rôle plateforme | Refus, audit et absence de modification de privilège |
 | REC-33 | Un superadmin ouvre un accès exceptionnel | Tenant, motif, durée et actions sont journalisés ; l’accès expire automatiquement |
-| REC-34 | Un tenant fortement actif lance de nombreux imports et exports | Les limites empêchent la dégradation incontrôlée des autres organisations |
+| REC-34 | Un tenant fortement actif lance de nombreux imports et exports | Quotas, bornes, isolation et intégrité restent contrôlés au niveau applicatif. La qualification de latence/capacité sous charge est suspendue hors périmètre de développement depuis le 05/11/2026 ; aucune garantie de non-dégradation mesurée n’est déduite des seuls tests fonctionnels. |
 | REC-35 | Un tenant demande export puis suppression | Données exportées de manière complète, purge conforme et autres tenants inchangés |
 | REC-36 | Une récupération logique d’un tenant est simulée | Données et fichiers sont réconciliés sans écraser les mises à jour des autres organisations |
 
 La recette vérifie les autorisations positives et négatives, l’isolation inter-tenant, les transactions, l’idempotence, les règles sportives et les scénarios d’échec. Les tests unitaires portent sur les règles ; les tests d’intégration sur données, contraintes relationnelles, autorisations, caches, jobs et fournisseurs simulés ; les tests navigateur sur les parcours essentiels et les changements d’organisation.
 
-Une fonction P1 ou P2 n’est pas exigée pour valider P0. Les scénarios correspondants sont activés lors du lot concerné. Les scénarios multi-tenant applicables aux fonctions du socle, notamment les accès directs, recherches, changements de contexte, caches, jobs, webhooks, rôles plateforme, limites de charge et récupérations logiques, sont toutefois des exigences P0. La livraison exige l’absence d’anomalie critique ou bloquante, la validation des parcours P0 et le transfert des procédures d’exploitation.
+Une fonction P1 ou P2 n’est pas exigée pour valider P0. Les scénarios correspondants sont activés lors du lot concerné. Les scénarios multi-tenant applicables aux fonctions du socle, notamment les accès directs, recherches, changements de contexte, caches, jobs, webhooks effectivement livrés, rôles plateforme, quotas applicatifs et récupérations logiques, restent des exigences P0. Depuis le 05/11/2026, la qualification de performance sur infrastructure est exclue de la validation du développement P0 (section 20.1). La livraison opérationnelle reste distincte : absence d’anomalie critique ou bloquante, validation des parcours P0 et transfert des procédures d’exploitation.
 
 ## 23 Planning équipe et estimation
 

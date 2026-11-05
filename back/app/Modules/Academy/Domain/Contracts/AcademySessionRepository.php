@@ -6,9 +6,17 @@ use App\Modules\Academy\Domain\Models\AcademyAttendance;
 use App\Modules\Academy\Domain\Models\AcademySession;
 use App\Modules\Academy\Domain\Models\AcademySessionRevision;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Query\Builder;
 
 interface AcademySessionRepository
 {
+    public function communicationIds(string $org): Builder;
+
+    /** @return LengthAwarePaginator<int, AcademySession> */
+    public function communicationChoices(string $org, int $page, int $perPage): LengthAwarePaginator;
+
+    public function communicationSession(string $org, string $id): AcademySession;
+
     /** @return LengthAwarePaginator<int, AcademySession> */
     public function sessions(string $org, string $cycle, int $page, int $perPage): LengthAwarePaginator;
 

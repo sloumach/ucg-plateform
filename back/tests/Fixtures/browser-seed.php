@@ -64,6 +64,9 @@ $calendarUser = User::factory()->withMfa()->create([
 ]);
 $calendarAlpha = Organization::factory()->create(['name' => 'Calendar Alpha', 'slug' => 'calendar-alpha']);
 $calendarBeta = Organization::factory()->create(['name' => 'Calendar Beta', 'slug' => 'calendar-beta']);
+$communicationUser = User::factory()->withMfa()->create(['name' => 'Browser communication staff', 'email' => 'browser-communication@example.test', 'password' => 'Browser-fixture-only-2026!']);
+$communicationAlpha = Organization::factory()->create(['name' => 'Communication Alpha', 'slug' => 'communication-alpha', 'timezone' => 'UTC']);
+$communicationBeta = Organization::factory()->create(['name' => 'Communication Beta', 'slug' => 'communication-beta', 'timezone' => 'UTC']);
 $matchUser = User::factory()->withMfa()->create([
     'name' => 'Browser match staff', 'email' => 'browser-match@example.test', 'password' => 'Browser-fixture-only-2026!',
 ]);
@@ -95,6 +98,8 @@ $invitationBeta = Organization::factory()->create(['name' => 'Invitation Beta', 
 $mfaOwner = User::factory()->create(['name' => 'Browser MFA owner', 'email' => 'browser-mfa@example.test', 'password' => 'Browser-fixture-only-2026!']);
 $mfaOrganization = Organization::factory()->create(['owner_user_id' => $mfaOwner->id, 'name' => 'MFA Alpha', 'slug' => 'mfa-alpha']);
 foreach ([
+    [$communicationUser, $communicationAlpha, ['communication.read', 'communication.write', 'communication.publish', 'communication.comment', 'calendar.read']],
+    [$communicationUser, $communicationBeta, ['communication.read', 'communication.comment', 'calendar.read']],
     [$user, $alpha, ['sports.read', 'sports.write']], [$user, $beta, ['sports.read']],
     [$rosterUser, $rosterAlpha, ['sports.read', 'sports.write', 'teams.manage']], [$rosterUser, $rosterBeta, ['sports.read']],
     [$calendarUser, $calendarAlpha, ['calendar.read', 'calendar.write', 'availability.read']], [$calendarUser, $calendarBeta, ['calendar.read']],
@@ -128,6 +133,10 @@ $rosterBetaTeam = Team::factory()->create(['organization_id' => $rosterBeta->id,
 $rosterBetaMembership = TeamMembership::factory()->create(['organization_id' => $rosterBeta->id, 'team_id' => $rosterBetaTeam->id, 'person_id' => $rosterBetaPerson->id]);
 $foreignTeam = Team::factory()->create(['organization_id' => $foreign->id, 'name' => 'Foreign roster team']);
 $calendarDay = now()->addDays(2)->toDateString();
+$communicationActivity = CalendarActivity::factory()->shared()->create(['organization_id' => $communicationAlpha->id,
+    'created_by' => $communicationUser->id, 'title' => 'Événement de discussion', 'starts_at' => $calendarDay.' 10:00:00', 'ends_at' => $calendarDay.' 11:00:00']);
+$communicationBetaActivity = CalendarActivity::factory()->create(['organization_id' => $communicationBeta->id,
+    'created_by' => $communicationUser->id, 'title' => 'Événement privé Beta', 'starts_at' => $calendarDay.' 10:00:00', 'ends_at' => $calendarDay.' 11:00:00']);
 $calendarPerson = Person::factory()->create(['organization_id' => $calendarAlpha->id, 'pseudonym' => 'Calendar player A', 'status' => 'active']);
 $calendarSecondPerson = Person::factory()->create(['organization_id' => $calendarAlpha->id, 'pseudonym' => 'Calendar player B', 'status' => 'active']);
 $calendarTeam = Team::factory()->create(['organization_id' => $calendarAlpha->id, 'name' => 'Calendar team']);
@@ -180,6 +189,7 @@ echo json_encode([
         'betaPerson' => $rosterBetaPerson->id, 'foreignTeam' => $foreignTeam->id,
         'betaMembership' => $rosterBetaMembership->id,
         'game' => GameCatalogueEntry::query()->where('kind', 'game')->where('key', 'valorant')->firstOrFail()->id],
+    'communication' => ['alpha' => $communicationAlpha->id, 'beta' => $communicationBeta->id, 'activity' => $communicationActivity->id, 'betaActivity' => $communicationBetaActivity->id, 'day' => $calendarDay],
     'calendar' => ['alpha' => $calendarAlpha->id, 'beta' => $calendarBeta->id, 'day' => $calendarDay,
         'person' => $calendarPerson->id, 'secondPerson' => $calendarSecondPerson->id, 'team' => $calendarTeam->id,
         'betaActivity' => $calendarBetaActivity->id, 'foreignActivity' => $calendarForeignActivity->id],

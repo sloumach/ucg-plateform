@@ -41,6 +41,30 @@ final class CommunicationController extends Controller
         return MediaTeamResource::collection($this->service->targets($context, $request->validated()))->response()->header('Cache-Control', 'private, no-store');
     }
 
+    public function contextTargets(CommunicationRequest $request, TenantContext $context): JsonResponse
+    {
+        $this->gate->authorize('viewAny', [Announcement::class, $context]);
+
+        return MediaTeamResource::collection($this->service->contextTargets($context, $request->validated()))->response()->header('Cache-Control', 'private, no-store');
+    }
+
+    public function discussion(CommunicationRequest $request, TenantContext $context, string $tenant, string $type, string $contextId): JsonResponse
+    {
+        $this->gate->authorize('viewAny', [Announcement::class, $context]);
+        $result = $this->service->discussion($context, $type, $contextId, $request->validated());
+
+        return AnnouncementCommentResource::collection($result['comments'])->additional(['context' => $result['context']])
+            ->response()->header('Cache-Control', 'private, no-store');
+    }
+
+    public function discuss(CommunicationRequest $request, TenantContext $context, string $tenant, string $type, string $contextId): JsonResponse
+    {
+        $this->gate->authorize('comment', [Announcement::class, $context]);
+
+        return AnnouncementCommentResource::make($this->service->discuss($context, $type, $contextId, $request->validated(), $request->ip()))
+            ->additional($this->notification())->response()->setStatusCode(201)->header('Cache-Control', 'private, no-store');
+    }
+
     public function store(CommunicationRequest $request, TenantContext $context): JsonResponse
     {
         $this->gate->authorize('manage', [Announcement::class, $context]);

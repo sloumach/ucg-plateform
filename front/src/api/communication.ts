@@ -1,6 +1,6 @@
 import { t, type TranslationKey } from '../i18n/fr'
 export type Announcement = {
-  id: string; title: string; body: string; target_type: 'organization' | 'team' | 'game' | 'role'; target_id: string | null
+  id: string; title: string; body: string; discussion?: boolean; target_type: 'organization' | 'team' | 'game' | 'role' | 'event' | 'match' | 'session'; target_id: string | null
   status: 'draft' | 'published' | 'withdrawn'; comments_enabled: boolean; can_comment: boolean
   published_at: string | null; expires_at: string | null; withdrawn_at: string | null; version: string
 }

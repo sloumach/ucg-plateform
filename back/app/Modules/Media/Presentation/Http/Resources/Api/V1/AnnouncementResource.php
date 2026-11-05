@@ -14,7 +14,8 @@ final class AnnouncementResource extends ApiResource
         /** @var Announcement $item */
         $item = $this->resource;
 
-        return ['id' => $item->id, 'title' => $item->title, 'body' => $item->body, 'target_type' => $item->target_type, 'target_id' => $item->targetId(),
+        return ['id' => $item->id, 'title' => $item->title, 'body' => $item->body, 'target_type' => $item->audienceType(), 'target_id' => $item->audienceId(),
+            ...($item->context?->discussion ? ['discussion' => true] : []),
             'status' => $item->status, 'comments_enabled' => $item->comments_enabled, 'can_comment' => (bool) $item->getAttribute('can_comment'),
             'published_at' => $item->published_at?->toIso8601String(), 'expires_at' => $item->expires_at?->toIso8601String(),
             'withdrawn_at' => $item->withdrawn_at?->toIso8601String(), 'version' => $item->version];

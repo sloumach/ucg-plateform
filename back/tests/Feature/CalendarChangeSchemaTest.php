@@ -58,7 +58,7 @@ class CalendarChangeSchemaTest extends TestCase
 
     public function test_migration_round_trip_inventory_export_and_retained_history_guard(): void
     {
-        $this->withoutRetentionGuards(function (): void {
+        $this->withoutRetentionGuards(function (\Closure $restoreCommunicationContexts): void {
             $migration = require database_path('migrations/2026_10_17_220751_create_calendar_changes_and_recipients.php');
             $migration->down();
             $this->assertFalse(Schema::hasTable('calendar_changes'));
@@ -66,6 +66,7 @@ class CalendarChangeSchemaTest extends TestCase
             $migration->up();
             $notice = CalendarChangeRecipient::factory()->create();
             $this->assertSame([], app(TenantSchemaInspector::class)->violations());
+            $restoreCommunicationContexts();
             $repo = app(PortabilityRepository::class);
             $repo->assertCatalog();
             $rows = iterator_to_array($repo->rows($notice->organization_id, 100));

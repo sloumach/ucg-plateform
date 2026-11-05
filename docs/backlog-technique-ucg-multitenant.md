@@ -45,6 +45,16 @@ Les requêtes ne prennent jamais `organization_id` depuis le corps de la requêt
 
 ## 3 Ordre de réalisation recommandé
 
+**Mise à jour du 05/11/2026 — priorité au développement.** Les tests de performance
+dépendant de l’hébergement sont exclus du périmètre actuel. Le volet performance
+QA-005/REC-34 est suspendu, sans être déclaré réussi ; aucune nouvelle campagne
+de charge locale n’est requise pour poursuivre ou valider le développement P0.
+Pagination, budgets SQL, quotas, isolation, concurrence et idempotence restent
+exigés. La qualification de capacité sera recadrée séparément si l’hébergement
+est engagé. Cette décision prévaut sur les anciennes recommandations de reprise
+QA-005 ci-dessous ; les bilans datés restent historiques. Le registre courant
+des tâches reportées figure au point de reprise de `etat-projet.md`.
+
 1. Cadrage technique, architecture et environnements.
 2. Tenancy, identité, sécurité et audit.
 3. Personnes, jeux, équipes et affectations.
@@ -1167,10 +1177,12 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 
 ### UCG-COM-001 — Publier annonces et commentaires ciblés
 
-- **État** : socle livré (`8d48651` poussé), CI et migration validées par l’utilisateur avant CAL-001. Migration vérifiée Ran, batch 30. Le ticket demeure partiel pour ses rattachements contextuels.
+- **État au 05/11/2026** : socle historique `8d48651` conservé ; raccordements aux événements, matchs et séances livrés dans le présent lot, demandé en un seul commit local sans push. Le système général de tâches reste un lot distinct à cadrer ; le périmètre initial incluant ces tâches n’est pas déclaré intégralement terminé.
 - **Livré** : annonces tenant/équipe/jeu/rôle, brouillons versionnés, publication confirmée, contenu publié figé, retrait définitif, discussions sous les annonces, ouverture des commentaires, boîte interne et préférences par compte/tenant. Permissions communication.read/write/publish/comment explicites, MFA, audience courante filtrée avant comptage/pagination ; notifications remises seulement si les droits sont toujours effectifs. Pas d’envoi externe ni de liste figée de destinataires.
 - **Sécurité** : cinq tables tenant, FKs composites, textes chiffrés, historique append-only, audit atomique minimal, rollback sans perte de données, portabilité exhaustive ; références et listes paginées. API fermée, contrôles sous verrou organisation et absence de participation hors audience même en mode gestion.
-- **Reliquat explicite** : ciblage événement et commentaires sur tâches/matchs/séances, dépendants de leurs futurs référentiels. Aucun UUID libre accepté pour ces contextes. COM-002 Discord et MOD-001 restent P1.
+- **Complément livré** : annonces ciblées `event`/`match`/`session` et discussions directes depuis leurs écrans, sans droit de publication requis pour commenter. Premier commentaire et fil créés atomiquement ; GET sans écriture, versions source/fil, pagination et notifications internes sur opt-in. Droits de l’objet revérifiés en SQL avant comptes et pages, y compris gestion, anciennes URL et notifications ; aucune liste d’UUID d’événements matérialisée.
+- **Persistance** : migration additive `2026_11_05_123111_create_communication_contexts_table`, FKs composites vers les trois référentiels, rattachement immuable, un fil par objet. Portabilité/conservation : 121 tables tenant cataloguées, effacement manuel sous permis existants, autre organisation préservée. Aucune migration appliquée à la base de travail utilisée.
+- **Reliquat explicite** : commentaires sur tâches, sans référentiel général existant ; création d’un système de tâches non engagée dans ce commit. COM-002 Discord et MOD-001 restent P1. Les anciennes mentions de report des matchs/séances/événements sont remplacées par ce bilan.
 
 - **Priorité / taille** : P0 / L
 - **Périmètre** : annonces par tenant/équipe/jeu/rôle/événement et commentaires sur tâches, matchs et séances.
@@ -1661,9 +1673,11 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   couvrent déjà les fichiers modifiés, sans rejouer une suite supplémentaire.
   Matrice REC-23–36 actualisée dans le README avec les vrais laboratoires OPS-005
   et OPS-007 ; webhook toujours hors P0. Validation PostgreSQL/Reverb et limites
-  détaillées dans l’état du projet. **Clôture globale encore liée à QA-005/REC-34**
-  et aux qualifications externes applicables ; ni performance ni purge chez un
-  fournisseur déduites des tests de sécurité. Un seul commit local demandé.
+  détaillées dans l’état du projet. **Au 05/11/2026, la validation applicative
+  QA-002 ne dépend plus de la qualification de performance QA-005/REC-34**.
+  Les qualifications externes applicables restent distinctes de cette validation ;
+  ni performance ni purge chez un fournisseur ne sont déduites des tests de sécurité.
+  Un seul commit local demandé lors de cette consolidation.
 - **Périmètre** : CRUD, URL directe, recherche, export, fichier, cache, job, notification, webhook et temps réel.
 - **Acceptation** : tous les scénarios REC-23 à REC-36 applicables au P0 sont couverts ; tout nouveau module tenant ajoute ses cas négatifs.
 - **Premier lot local (24/10/2026)** : groupe PHPUnit `tenant-isolation`, neuf
@@ -1932,8 +1946,21 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 ### UCG-QA-005 — Tester performances et tenant bruyant
 
 - **Priorité / taille** : P0 / L
-- **Périmètre** : 500 comptes, 100 actifs simultanés, 100 000 parties, 2 000 visiteurs publics et charges asymétriques.
-- **Acceptation** : p95 mesuré, nombre de requêtes contrôlé et autres tenants protégés pendant les traitements lourds.
+- **Statut courant (05/11/2026)** : volet qualification de performance suspendu,
+  hors périmètre actuel de développement, sans reclassement en réussite. La priorité
+  P0 ci-dessus est celle du backlog initial ; elle n’impose plus cette campagne
+  comme condition de validation applicative. Aucun nouveau banc local ou hébergé
+  n’est requis à ce stade. Les bilans datés ci-dessous retracent les essais antérieurs.
+- **Périmètre conservé en référence** : 500 comptes, 100 actifs simultanés,
+  100 000 parties, 2 000 visiteurs publics et charges asymétriques ; à recadrer
+  séparément si la qualification d’hébergement est engagée.
+- **Contrôles de développement maintenus** : budgets de requêtes, pagination,
+  quotas, autorisations, isolation et intégrité pendant les traitements lourds,
+  concurrence et idempotence. Les tests existants restent actifs.
+- **Qualification de performance exclue du périmètre courant** : seuils p95,
+  capacité et latence sous rafales/endurance, réseau/TLS et audience publique.
+  QA-002 n’attend plus ces mesures pour sa validation applicative ; aucune
+  capacité de production ni clôture de mise en service n’est revendiquée.
 - **Qualification locale Linux (01/11/2026)** : moteur Docker désormais disponible ;
   banc jetable nginx/PHP-FPM 16 processus, PostgreSQL 17, Redis et Horizon réels,
   générateur sur l’hôte hors conteneur. Même enveloppe quatre CPU/six Gio, 500
@@ -1948,8 +1975,8 @@ Ce module suit les participations de l’organisation à des compétitions gér�
   intervalle de douze secondes ; p95 Beta pendant charge 139,46 ms, dont 141,39 ms
   pour les lectures qui chevauchent réellement les jobs. Seuil 500 ms tenu dans ce
   modèle. 219 tests SQLite ciblés, 261 d’isolation, 88 PostgreSQL et 20 Node verts,
-  sélections recouvrantes. **Trois volets locaux exécutés en une livraison ;
-  QA-005/REC-34 restent ouverts** : rafales toujours non conformes, capacité hébergée
+  sélections recouvrantes. **Bilan historique au 01/11/2026 : trois volets locaux
+  exécutés en une livraison ; QA-005/REC-34 restaient ouverts** : rafales non conformes, capacité hébergée
   non qualifiée/report maintenu, visiteurs publics métier absents du P0 donc non
   exécutés. Aucun seuil ou volume diminué ; détails, rapports et limites dans
   README.md et etat-projet.md.

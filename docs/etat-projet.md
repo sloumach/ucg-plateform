@@ -5,7 +5,152 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : 31 octobre 2026.
+- Dernière mise à jour : **5 novembre 2026**.
+- Tâche courante : **COM-001 — raccordements aux événements, matchs et séances**,
+  livraison demandée en un seul commit local, sans push. Annonces contextuelles et
+  discussions directes raccordées aux référentiels existants et aux écrans React.
+  Le système général de tâches reste à cadrer ; il n’est pas créé par ce lot et
+  aucune décision de le retirer du périmètre P0 initial n’est déduite.
+- Le lot inclut les ajustements documentaires de périmètre demandés auparavant
+  et encore non commités. Point de départ de code : `15d36d8` du 1er novembre 2026.
+  Aucune migration appliquée à la base de travail ; une migration additive est à
+  appliquer avant usage de ces nouvelles routes.
+- **Décision applicable maintenant** : les tests de performance dépendant de
+  l’hébergement sont exclus du périmètre actuel de développement. Le volet
+  qualification de performance QA-005/REC-34 est suspendu ; il ne bloque plus
+  le développement P0 ni sa validation applicative, notamment QA-002. Aucune
+  nouvelle campagne locale de rafale/endurance n’est requise à ce stade.
+  Une reprise éventuelle sera cadrée séparément lors du choix de l’hébergement.
+- **Exigences maintenues** : pagination, prévention des N+1, budgets SQL, quotas,
+  autorisations et révocations, isolation, intégrité, concurrence, idempotence,
+  tests fonctionnels et contrôles de CI existants. Le cadrage de performance ne
+  modifie aucun seuil, script de charge ou quota ; les changements applicatifs
+  et la migration du présent lot concernent exclusivement les raccordements COM-001.
+- **Résultats conservés** : le dernier banc local réussit le modèle à lectures
+  espacées (p95 Beta sous charge 139,46 ms), mais échoue aux rafales (5,99/6,30 s
+  pendant exports/imports, cible 500 ms). Ces échecs ne sont pas reclassés en
+  réussites. Aucune capacité hébergée ou autorisation de mise en service n’est déduite.
+- Le travail courant revient au développement et à ses contrôles applicatifs.
+  Aucun ticket P1/P2 n’est automatiquement promu au P0 et aucun nouveau module
+  métier n’est lancé par cette seule révision. Les décisions, données et
+  qualifications externes ci-dessous restent identifiées séparément.
+
+### Audit des tâches reportées et des commits — 05/11/2026
+
+Revue du backlog, des derniers bilans de livraison et de l’historique Git local
+jusqu’à `15d36d8`. La présence d’un commit prouve une livraison versionnée,
+pas une nouvelle validation de la CI distante. Les anciennes mentions « reste
+à faire » doivent être lues avec les compléments postérieurs répertoriés ici.
+
+| Sujet précédemment reporté | Preuve versionnée examinée | Situation courante |
+| --- | --- | --- |
+| Banc concurrent, corrections mesurées et durée soutenue QA-005 | `15d36d8` (01/11), après `c04431c`, `c1d3fb7`, `83607c9` | Trois volets locaux livrés. Mesures conservées ; poursuite de qualification de performance suspendue hors périmètre actuel. Ne pas reprendre l’ancien diagnostic comme tâche non commencée. |
+| Compléments d’isolation QA-002 | `9b4c3ac` (31/10) | 261 tests/3 913 assertions sur SQLite et PostgreSQL, plus Reverb local dans le bilan existant. Plus de dépendance à la qualification de performance pour la validation applicative ; pas de déclaration de clôture de release. |
+| Parcours navigateur QA-003 | `9dcbb4a` (25/10) et correctif COM-001 `98f34ae` (30/10) | Qualification et correctifs déjà livrés ; ne pas redémarrer les anciens lots de préparation navigateur. |
+| Rattachements contextuels COM-001 — reliquat identifié puis traité dans le présent lot | Socle `8d48651`, correctif de formulaire `98f34ae`, complément du 05/11 demandé en un commit local | Annonces `event`/`match`/`session` et commentaires directs sur ces trois objets livrés via leurs contrats publics. FKs et guards, droits frais avant pagination/comptages/notifications, UI et tests ajoutés. Les commentaires restent stockés sous leur fil d’annonce interne ; une table de rattachement le lie à l’objet réel. Le référentiel général « tâches » reste à cadrer, sans clôture intégrale du périmètre initial COM-001. |
+| Concurrence et idempotence QA-004 | `434d3a6` (26/10) | Trois lots locaux livrés, 178 tests PostgreSQL dans le bilan existant. Futures intégrations et transports réels restent distincts. |
+| Récupération des contrats approuvés et matchs validés OPS-005/REC-36 | `0fb13f7` (30/10), après `ae2708f` et `0fe99bc` | Réimport des états avancés et simulation locale terminés. L’ancienne mention « reste à développer » est dépassée. Pas de moteur opérateur de récupération générale livré par cette fixture. |
+| Effacement, reprise et réconciliation après restauration OPS-007 | `537eeff` (31/10), après `07d54f1` | Critères applicatifs et scénario PostgreSQL local couverts ; décisions de conservation et disparition effective des copies externes restent distinctes. |
+| Sécurité des fichiers et dépendances OPS-006 | `49a641d` (31/10), après `50062b0` et ses correctifs | Parcours applicatif et suivi des vulnérabilités livrés. Qualification des services sur cible distincte. |
+| Documentation incidents/support OPS-008 | `870c376` (31/10) | Dossier et exercices livrés. Titulaires, suppléants, contacts et transfert réel restent à qualifier. |
+| Déploiement, supervision et sauvegardes OPS-002/003/004 | `3f70a0c`, `0d0eb97`, `6afde2c` (30/10) | Préparation locale livrée. Adaptateur du futur hébergement, canaux d’alerte réels et recette des sauvegardes restent des travaux d’exploitation différés ; le retrait des tests de performance ne les clôture pas. |
+| Données UCG DATA-001/002 | `aec6bd4`, `3bb43eb` (28/10) | Audit préparatoire et répétition fictive livrés. Sources réelles, revue métier, rapprochement signé et qualification de la reprise réelle restent en attente ; ne pas lancer d’import réel. |
+| Pilote et lancement REL-001/002 | `70d07cc`, correctif `0c89c5d`, `5a1629b` (29/10) | Préparation locale livrée. Équipe/dates/modules, semaine réelle, formation/transfert et accord de mise en service restent ouverts. |
+| Pays, mineurs et conservation CAD-004/006 | `60ab7f3`, après `f771467`, `c676726` (25/10) | Essais fictifs, première population réelle visée en Tunisie. Durées des 18 familles, procédure et validations applicables, équipe/modules du pilote restent à décider avant passage au réel. ACA-005 n’est pas activé. |
+
+**Décisions de cadrage encore à confirmer** : CAD-001 (modèle commercial),
+CAD-002 (validation de la propriété des données), CAD-003 (validation du mode de
+résolution du tenant), CAD-005 (jeux/connecteurs et accès fournisseurs) et
+CAD-006 (périmètre exact du pilote) restent des décisions attendues au backlog.
+Les mécanismes existants ne constituent pas une validation produit de ces
+décisions. Aucun élément de la revue ne justifie de les déclarer clôturées.
+
+**Développement prévu ultérieurement, sans changement de priorité** : TEN-008
+(branding/domaines), IAM-007 (tokens API limités), HUM-006 (recrutement/essais),
+ACA-004/005 (suivi avancé/mineurs), CAL-007/008 (récurrence/logistique), MATCH-008
+(veto), STAT-006 (connecteurs), CTR-007 (signature), SPON-004/005 (rapports/portail),
+MEDIA-002/003, COM-002, MOD-001 (lecteurs/overlay/Discord/signalements), FIN-001–004
+et EQP-001 (finances/équipements), API-001–005 et PUB-001–004 (intégrations et pages
+publiques). Le contrat API v1 et sa documentation existent déjà : les tickets
+API P1 ne signifient pas qu’aucune API n’a été livrée. De même, un dossier de
+module Finance existe comme structure, sans livraison des fonctions financières
+P1. Ces reports ne deviennent pas des tâches P0 manquantes.
+
+**Correction du premier bilan après vérification complémentaire** : le reliquat
+COM-001 avait été omis dans la première synthèse. Les raccordements Planning,
+Matchs et Académie sont maintenant implémentés dans le présent lot ; le référentiel
+général de tâches reste ouvert à cadrage. Prochaine étape : préciser ce reliquat
+et vérifier les autres critères P0 dans le code et les parcours existants avant
+de déclarer le développement terminé. Cette revue n’est pas un audit exhaustif :
+décisions, données réelles et recette métier restent ouvertes. Aucun nouveau
+chantier de charge n’est imposé.
+
+### Livraison COM-001 — objets existants, 05/11/2026
+
+Les contrats publics propriétaires exposent des choix paginés, une résolution
+autorisée et des sous-requêtes de visibilité. Media consomme ces ports et conserve
+le socle d’annonces/commentaires/notifications ; sa carte de dépendances est étendue
+à Scheduling/Competition/Academy sans cycle et sans import de modèle étranger.
+Les discussions directes exigent communication.read/comment et la lecture de
+l’objet, sans permission de publication. Les séances utilisent la lecture staff
+academy.read ; academy.self.read seul ne donne pas accès à ces discussions.
+
+`communication_contexts` ajoute une FK composite pour le parent et chaque type
+d’objet, une forme à une seule référence, des indexes et l’unicité du fil direct.
+GET ne crée rien ; premier fil/commentaire, événement éventuel et audit sont dans
+la même transaction sous verrou organisation. Les versions source/fil sont
+contrôlées ; un conflit n’est pas rejoué. Le rattachement d’un brouillon est
+définitif ; son titre/corps restent éditables avant publication. Les fils directs
+restent hors des listes d’annonces et sont accessibles depuis leur objet et les
+aperçus de notification. Autorisations réévaluées avant pagination/comptage,
+y compris gestion, boîte interne et anciennes URL. Une révocation ou restriction
+de visibilité supprime l’accès ; annulation/archivage des objets pris en compte.
+
+Migration additive uniquement sur bases de test ; catalogue fermé de portabilité
+et conservation porté à 121 tables. Guards SQL d’immuabilité et de gel métier
+enregistrés avec empreintes, suppression uniquement sous permis d’effacement
+existants, autre organisation préservée. Rollback refusé en présence de liens.
+Tests de migrations historiques adaptés à ce nouveau dépendant, sans désactivation
+des contraintes de production. Aucune migration précédente ni dépendance modifiée.
+
+UI : bouton sur les trois écrans, lectures à l’ouverture, texte échappé,
+pagination, confirmation tenant, formulaire désactivé pendant lecture et brouillon
+conservé pendant actualisation. La modification d’un brouillon contextuel conserve
+son identifiant malgré les sélecteurs verrouillés. Notifications exclusivement
+internes et opt-in auteur/participants ; aucune diffusion externe ajoutée.
+
+Validation finale : suite backend complète **3 262 cas, 3 199 réussites,
+20 016 assertions, 63 exclusions conditionnelles**, aucun échec/erreur (584,38 s).
+La sélection PostgreSQL 17 temporaire couvre communications, architecture,
+inventaire de conservation et effacement contextuel : **84 tests/697 assertions,
+sans exclusion**, 68,73 s ; cluster arrêté et nettoyé. Les sélections se recouvrent.
+Frontend : suite complète **501 tests réussis** sur 67 fichiers, puis sélection
+communications **19 tests réussis**, incluant un test supplémentaire de modification
+du brouillon verrouillé ajouté après le passage complet. **Neuf parcours Playwright
+avec API réelle réussis**, sans nouvelle tentative, Chrome déjà installé, ressources
+SQLite/serveurs temporaires nettoyées. Pint, PHPStan niveau 8, TypeScript, lint,
+build Vite et Composer strict valides ; diff sans erreur de whitespace.
+Rapports ignorés : `back/reports/phpunit-com001-sqlite.xml`,
+`phpunit-com001-postgresql.xml` (sortie texte associée) et
+`front/reports/playwright-real.xml`. Aucun rapport privé ajouté au commit.
+Les premiers essais de lanceur PostgreSQL (restriction de jeton Windows, puis
+chemins de cache Windows) et de navigateur (Chromium absent, puis requête de test
+sans révision de session) ne constituent pas des preuves de réussite. Les lanceurs
+ont utilisé ensuite des ressources temporaires vérifiées et Chrome déjà installé,
+sans assouplissement des contrôles applicatifs. Pas de nouveau test de charge.
+
+**Limite de périmètre** : aucune création d’un gestionnaire général de tâches,
+aucun reclassement tacite de ce besoin en P1/P2. Commentaires sur tâches à cadrer
+séparément, COM-002/Discord et MOD-001 inchangés. La CI distante du nouveau commit
+n’est pas déclarée validée ; aucun push ni déploiement demandé pour ce lot.
+
+### Historique de reprise jusqu’au 1er novembre 2026
+
+Les statuts datés ci-dessous retracent les mandats et résultats antérieurs.
+Le cadrage du 05/11/2026 ci-dessus prévaut sur leurs demandes de poursuivre
+QA-005 et leurs dépendances de clôture à la qualification de performance.
+
+- Mise à jour du précédent en-tête : 31 octobre 2026.
 - Tâche courante : **QA-002 — consolidation de la matrice en un seul commit**.
   L’utilisateur valide la CI puis corrige explicitement OPS-008 en QA-002.
   Un seul commit local demandé, aucun push. Cinq cas ajoutés dans les tests
@@ -10215,8 +10360,10 @@ Vingt tests Node, lint, Pint et PHPStan niveau 8 verts. Les nouvelles protection
 s’intègrent dans les sélections CI existantes ; aucune suite de charge lourde n’est
 ajoutée comme prétexte à allonger la CI normale.
 
-**QA-005/REC-34 demeurent ouverts** : les rafales dépassent toujours 500 ms et la
-capacité de la cible hébergée reste à qualifier. Les 2 000 visiteurs publics ne sont
+**Bilan historique au 01/11/2026 : QA-005/REC-34 demeuraient ouverts** : les rafales
+dépassent 500 ms et la capacité hébergée n’est pas qualifiée. Depuis le 05/11/2026,
+ce volet de performance est suspendu hors périmètre actuel de développement ;
+le point de reprise en tête de document prévaut. Les 2 000 visiteurs publics ne sont
 pas exécutés : pas de page publique métier P0 ; aucune route de santé ne les remplace.
 Les trois volets locaux sont réalisés et livrés ensemble, sans déclarer une clôture
 globale ou un accord de mise en service.
