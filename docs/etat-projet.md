@@ -6,13 +6,18 @@
 ## Point de reprise
 
 - Dernière mise à jour : **5 novembre 2026**.
-- Tâche courante : **COM-001 — raccordements aux événements, matchs et séances**,
-  livraison demandée en un seul commit local, sans push. Annonces contextuelles et
+- Tâche courante : **correctif CI — avis de sécurité Symfony du 4 novembre**.
+  Après le push `f04044a`, Frontend quality est vert ; Backend quality et
+  Dependency security follow-up échouent sur les audits. Huit avis affectent cinq
+  composants Symfony du lock. Mise à jour corrective ciblée vers 8.1.11, sans
+  modification de composer.json, du frontend ou des contrôles de CI.
+- Livraison précédente : **COM-001 — raccordements aux événements, matchs et séances**,
+  commit local unique `f04044a`, puis push demandé et effectué sur origin/staging. Annonces contextuelles et
   discussions directes raccordées aux référentiels existants et aux écrans React.
   Le système général de tâches reste à cadrer ; il n’est pas créé par ce lot et
   aucune décision de le retirer du périmètre P0 initial n’est déduite.
-- Le lot inclut les ajustements documentaires de périmètre demandés auparavant
-  et encore non commités. Point de départ de code : `15d36d8` du 1er novembre 2026.
+- Le lot COM-001 inclut les ajustements documentaires de périmètre demandés auparavant,
+  désormais commités. Son point de départ était `15d36d8` du 1er novembre 2026.
   Aucune migration appliquée à la base de travail ; une migration additive est à
   appliquer avant usage de ces nouvelles routes.
 - **Décision applicable maintenant** : les tests de performance dépendant de
@@ -10367,3 +10372,49 @@ le point de reprise en tête de document prévaut. Les 2 000 visiteurs publics n
 pas exécutés : pas de page publique métier P0 ; aucune route de santé ne les remplace.
 Les trois volets locaux sont réalisés et livrés ensemble, sans déclarer une clôture
 globale ou un accord de mise en service.
+
+
+## Correctif CI — correctifs de sécurité Symfony 8.1.11 (5 novembre 2026)
+
+Échecs vérifiés sur le SHA f04044a : [Backend quality](https://github.com/sloumach/ucg-plateform/actions/runs/42040289192)
+à l’étape « Audit locked backend dependencies including development packages »
+et [Dependency security follow-up](https://github.com/sloumach/ucg-plateform/actions/runs/42040289100)
+à l’étape d’audit des deux locks. Frontend quality est réussi. Le backend s’arrête
+avant ses tests applicatifs : ces échecs ne démontrent pas une régression COM-001.
+
+Le rapport Composer contient huit avis publiés le 04/11/2026 sur filesystem,
+http-foundation (quatre avis), http-kernel, routing et yaml. La sévérité fournie
+est null ; le normaliseur existant refuse cette donnée inconnue, conformément
+à son comportement fermé. Ce contrôle n’est ni contourné ni assoupli : les
+versions vulnérables sont remplacées, ce qui supprime les avis du rapport natif.
+
+Mise à jour ciblée de composer.lock : symfony/filesystem 8.1.6 → 8.1.11 ;
+symfony/http-foundation, http-kernel, routing et yaml 8.1.8 → 8.1.11.
+Simulation puis installation avec changements minimaux : exactement cinq paquets
+mis à jour, aucun ajout/retrait, content-hash et contraintes composer.json inchangés.
+Aucun code métier, migration, workflow, registre de dérogation ou dépendance
+frontend modifié. Aucun changement de schéma ni nouveau test de charge.
+
+Les versions corrigées sont confirmées par les avis officiels
+[HTTP Foundation](https://symfony.com/cve-2026-118514),
+[Routing](https://symfony.com/cve-2026-118516) et
+[Filesystem](https://github.com/symfony/symfony/security/advisories/GHSA-6prc-h956-hxjq).
+Les caches compilés de routes devront être régénérés lors du futur déploiement,
+conformément à l’avis Routing ; aucun déploiement ou cache d’une base utilisée
+n’a été modifié ici.
+
+Audits frais Composer locked/abandoned et npm package-lock-only : codes de sortie 0,
+aucun avis ni paquet abandonné ; contrôle commun security-audit passed=true,
+findings=[] et closure_required=[]. Les neuf tests du normaliseur passent,
+y compris le refus d’une sévérité inconnue. Composer strict et PHPStan niveau 8
+valides. Rapports privés ignorés conservés dans back/reports et front/reports ;
+aucun journal CI, jeton ou rapport privé ajouté au dépôt.
+
+Validation backend après mise à jour : profil REL-001 exécuté comme en CI,
+234 tests réussis / 1 921 assertions, zéro exclusion (59,27 s). Sélection
+communications COM-001, authentification/MFA, visibilité, révocations, sécurité
+documentaire et portabilité : 214 tests réussis / 2 029 assertions, zéro exclusion
+(39,40 s). Ces sélections peuvent se recouper ; aucun total cumulé revendiqué.
+Aucun nouveau test applicatif ajouté pour recopier le comportement des bibliothèques.
+Les nouveaux résultats CI doivent être vérifiés sur le SHA du correctif livré ;
+les validations locales ne sont pas présentées comme une CI distante réussie.
