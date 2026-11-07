@@ -19,6 +19,7 @@ beforeEach(() => {
   request.mockImplementation(async (path, options) => {
     if (path === 'active-organization/confirmation') return { data: { ...active, confirmed: true } }
     if (options?.method) return { data: { ...base, ...options.body } }
+    if (path.includes('/media/contexts')) return { data: [{ id, label: 'Contexte pilote', version, is_scrim: true, visibility: 'organization' }], meta: { current_page: 1, last_page: 1, total: 1 } }
     if (path.includes('/media/teams')) return { data: [{ id, label: 'Équipe pilote' }], meta: { current_page: 1, last_page: 1, total: 1 } }
     return { data: rows, meta: { current_page: 1, last_page: 1, total: rows.length } }
   })
@@ -89,5 +90,32 @@ describe('catalogue média', () => {
     await waitFor(() => expect(invalid).toHaveBeenCalled())
     const signal = request.mock.calls[0][1].signal as AbortSignal
     unmount(); expect(signal.aborted).toBe(true)
+  })
+  it.each(['event', 'match'])('rattache le média au contexte %s choisi et transmet sa version', async (type) => {
+    const user = userEvent.setup()
+    show({ ...active, context: { ...active.context!, permissions: [...active.context!.permissions, 'calendar.read', 'sports.read'] } })
+    await open(user); await user.click(screen.getByRole('button', { name: 'Nouveau média' }))
+    await user.type(screen.getByLabelText('Titre du média'), 'VOD contextuelle')
+    await user.selectOptions(screen.getByLabelText('Équipe associée'), id)
+    await user.type(screen.getByLabelText('Lien HTTPS du média'), base.url)
+    await user.selectOptions(screen.getByLabelText('Rattachement complémentaire'), type)
+    expect(screen.getByRole('button', { name: 'Enregistrer le média' })).toBeDisabled()
+    await screen.findByRole('option', { name: 'Contexte pilote' })
+    await user.selectOptions(screen.getByLabelText('Match ou événement associé'), id)
+    expect(screen.getByLabelText('Visibilité autorisée').querySelector('option[value="public"]')).toBeNull()
+    expect(screen.getByLabelText('Contexte du média')).toHaveValue('true')
+    await user.click(screen.getByRole('button', { name: 'Enregistrer le média' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
+    await waitFor(() => expect(request).toHaveBeenCalledWith('tenants/' + org + '/media', expect.objectContaining({ method: 'POST', body: expect.objectContaining({ context_type: type, context_id: id, context_version: version, is_scrim: true, visibility: 'private' }) })))
+  })
+  it('verrouille un rattachement existant et garde sa version lors du renommage', async () => {
+    rows = [{ ...base, context_type: 'event', context_id: id, context_version: version, context_label: '<script>Planning</script>' }]
+    const user = userEvent.setup(); const { container } = show(); await open(user)
+    await user.click(screen.getByRole('button', { name: 'Modifier le média' }))
+    expect(screen.queryByLabelText('Rattachement complémentaire')).not.toBeInTheDocument()
+    expect(container.querySelector('script')).toBeNull()
+    await user.clear(screen.getByLabelText('Titre du média')); await user.type(screen.getByLabelText('Titre du média'), 'Renommé')
+    await user.click(screen.getByRole('button', { name: 'Enregistrer le média' })); await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
+    await waitFor(() => expect(request).toHaveBeenCalledWith('tenants/' + org + '/media/' + id, expect.objectContaining({ method: 'PATCH', body: { title: 'Renommé', context_version: version, version } })))
   })
 })

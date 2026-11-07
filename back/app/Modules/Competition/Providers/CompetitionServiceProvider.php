@@ -9,11 +9,13 @@ use App\Modules\Competition\Application\Contracts\DataPreparationReferences;
 use App\Modules\Competition\Application\Contracts\MatchRecalculationQueue;
 use App\Modules\Competition\Application\Contracts\MatchScorePublisher;
 use App\Modules\Competition\Application\Contracts\MatchSourceAudit;
+use App\Modules\Competition\Application\Contracts\MediaMatchDirectory;
 use App\Modules\Competition\Application\Contracts\ObservationMatchDirectory;
 use App\Modules\Competition\Application\Services\CommunicationMatchService;
 use App\Modules\Competition\Application\Services\CompetitionDashboardService;
 use App\Modules\Competition\Application\Services\CompetitionSearchService;
 use App\Modules\Competition\Application\Services\MatchSourceAuditService;
+use App\Modules\Competition\Application\Services\MediaMatchService;
 use App\Modules\Competition\Application\Services\ObservationMatchService;
 use App\Modules\Competition\Domain\Contracts\CompetitionOutcomeRepository;
 use App\Modules\Competition\Domain\Contracts\CompetitionRegistrationRepository;
@@ -52,6 +54,7 @@ final class CompetitionServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(MediaMatchDirectory::class, MediaMatchService::class);
         $this->app->bind(CommunicationMatchDirectory::class, CommunicationMatchService::class);
         $this->app->bind(DataPreparationReferences::class, EloquentDataPreparationReferences::class);
         $this->app->bind(MatchSourceAudit::class, MatchSourceAuditService::class);

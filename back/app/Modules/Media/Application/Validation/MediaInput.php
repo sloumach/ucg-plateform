@@ -15,13 +15,21 @@ final class MediaInput
     public const array VISIBILITIES = ['private', 'organization', 'public'];
 
     /** @return array<string, array<mixed>> */
+    public static function contextRules(): array
+    {
+        return [...self::pageRules(true), 'type' => ['required', Rule::in(['event', 'match'])]];
+    }
+
+    /** @return array<string, array<mixed>> */
     public static function pageRules(bool $references = false): array
     {
         $page = ['page' => ['sometimes', 'integer', 'min:1', 'max:100000'], 'per_page' => ['sometimes', 'integer', 'min:1', 'max:100']];
 
         return $references ? $page : [...$page, 'q' => ['sometimes', 'string', 'max:80', 'regex:/\S/u'],
             'kind' => ['sometimes', Rule::in(self::KINDS)], 'status' => ['sometimes', Rule::in(self::STATUSES)],
-            'team_id' => ['sometimes', 'uuid'], 'archived' => ['sometimes', 'boolean']];
+            'team_id' => ['sometimes', 'uuid'], 'archived' => ['sometimes', 'boolean'],
+            'context_type' => ['required_with:context_id', Rule::in(['event', 'match'])],
+            'context_id' => ['required_with:context_type', 'uuid']];
     }
 
     /** @return array<string, array<mixed>> */
@@ -38,7 +46,9 @@ final class MediaInput
             'status_observed_at' => ['sometimes', 'required', 'date_format:Y-m-d\TH:i:sP', 'before_or_equal:now'],
             'is_scrim' => ['sometimes', 'boolean'], 'visibility' => ['sometimes', 'required', Rule::in(self::VISIBILITIES)],
             'publish_at' => ['sometimes', 'nullable', 'date_format:Y-m-d\TH:i:sP'],
-            'confirm_sharing' => ['sometimes', 'accepted'], 'archive' => ['sometimes', 'accepted']];
+            'confirm_sharing' => ['sometimes', 'accepted'], 'archive' => ['sometimes', 'accepted'],
+            'context_type' => ['required_with:context_id', Rule::in(['event', 'match'])],
+            'context_id' => ['required_with:context_type', 'uuid'], 'context_version' => ['sometimes', 'required', 'uuid']];
     }
 
     /** @param array<string, mixed> $input

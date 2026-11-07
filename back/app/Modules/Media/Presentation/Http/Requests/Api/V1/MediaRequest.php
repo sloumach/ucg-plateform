@@ -18,6 +18,10 @@ final class MediaRequest extends FormRequest
     /** @return array<string, array<mixed>> */
     public function rules(): array
     {
+        if ($this->routeIs('api.v1.media.contextTargets')) {
+            return MediaInput::contextRules();
+        }
+
         return $this->isMethod('GET') ? MediaInput::pageRules($this->routeIs('api.v1.media.teams')) : MediaInput::saveRules($this->isMethod('POST'));
     }
 

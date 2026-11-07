@@ -10,6 +10,10 @@ use Illuminate\Database\Query\Builder;
 
 interface CalendarRepository
 {
+    /** @param list<string> $ids
+     * @return array<string, array{id: string, label: string, version: string, is_scrim: bool, visibility: string}> */
+    public function mediaMetadata(string $org, array $ids, Builder $visible): array;
+
     public function communicationIds(string $org, CalendarAudience $audience): Builder;
 
     /** @return LengthAwarePaginator<int, CalendarActivity> */

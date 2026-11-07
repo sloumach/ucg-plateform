@@ -14,6 +14,16 @@ use Illuminate\Support\Str;
 
 final readonly class EloquentMatchRepository implements MatchRepository
 {
+    public function mediaMetadata(string $org, array $ids, Query $visible): array
+    {
+        $result = [];
+        foreach (MatchRecord::query()->where('organization_id', $org)->whereIn('id', $ids)->whereIn('id', $visible)->limit(100)->get(['id', 'title', 'version', 'kind', 'visibility']) as $row) {
+            $result[$row->id] = ['id' => $row->id, 'label' => $row->title, 'version' => $row->version, 'is_scrim' => $row->kind === 'scrim', 'visibility' => $row->visibility];
+        }
+
+        return $result;
+    }
+
     public function communicationChoices(string $org, int $actor, array $viewer, int $page, int $perPage): LengthAwarePaginator
     {
         return $this->visible($org, $actor, $viewer, false)->where('status', '!=', 'cancelled')->orderByDesc('starts_at')->orderBy('id')

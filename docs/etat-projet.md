@@ -6,11 +6,17 @@
 ## Point de reprise
 
 - Dernière mise à jour : **7 novembre 2026**.
-- Tâche courante : **COM-001 — tâches internes**, périmètre proposé puis accepté
+- Tâche courante : **MEDIA-001 — rattachements match/événement**, développement
+  complet et push demandés. API, interface, SQL, conservation et tests livrés ;
+  validations locales terminées, bilan ci-dessous. La CI du nouveau commit devra
+  être vérifiée après le push ; la base de travail reste à migrer avant utilisation.
+- **COM-001 tâches internes `938be34` poussé et CI validée par l’utilisateur**
+  avant MEDIA-001. Aucune migration sur sa base de travail confirmée à ce stade.
+- Livraison précédente : **COM-001 — tâches internes**, périmètre proposé puis accepté
   par l’utilisateur : titre, description, responsable facultatif, échéance, statuts
   à faire/en cours/terminée, commentaires et notifications internes configurables.
   Implémentation API et React terminée et validée localement ; bilan détaillé
-  ci-dessous. Aucun autre module P1 lancé. La CI du nouveau lot reste à exécuter.
+  ci-dessous. Aucun autre module P1 lancé. Sa CI est désormais validée par l’utilisateur.
 - **CI précédente validée par l’utilisateur** avant cette étape : correctif
   `268791e` poussé sur staging. Cette validation porte sur ce SHA, pas sur le lot courant.
 - Correctif CI précédent — retours arrière de schéma PostgreSQL :
@@ -41,8 +47,8 @@
 - **Exigences maintenues** : pagination, prévention des N+1, budgets SQL, quotas,
   autorisations et révocations, isolation, intégrité, concurrence, idempotence,
   tests fonctionnels et contrôles de CI existants. Le cadrage de performance ne
-  modifie aucun seuil, script de charge ou quota ; les changements applicatifs
-  et la migration du présent lot concernent exclusivement les raccordements COM-001.
+  modifie aucun seuil, script de charge ou quota. Les compléments applicatifs
+  COM-001 et MEDIA-001 sont décrits dans leurs bilans de livraison ci-dessous.
 - **Résultats conservés** : le dernier banc local réussit le modèle à lectures
   espacées (p95 Beta sous charge 139,46 ms), mais échoue aux rafales (5,99/6,30 s
   pendant exports/imports, cible 500 ms). Ces échecs ne sont pas reclassés en
@@ -102,6 +108,55 @@ les autres critères P0 dans le code et les parcours existants avant
 de déclarer le développement terminé. Cette revue n’est pas un audit exhaustif :
 décisions, données réelles et recette métier restent ouvertes. Aucun nouveau
 chantier de charge n’est imposé.
+
+### Livraison MEDIA-001 — rattachements match/événement, 07/11/2026
+
+L’équipe reste le classement principal ; un média peut être lié une fois à un
+match ou à un événement existant du tenant. Les anciens médias ne sont ni repris
+ni reclassés. Sélection de références paginées, versions source et média vérifiées
+sous verrou tenant, lien immuable, API/React, lecture depuis les cartes sources.
+Les statuts et observations restent manuels, distincts des scores. Aucun lecteur
+tiers, transport externe ou fonctionnalité P1 ajouté.
+
+Media consomme les ports publics MediaCalendarDirectory/MediaMatchDirectory,
+réutilisant les audiences courantes des modules propriétaires. SQL de visibilité,
+partage et scrim appliqué avant comptes/pages, même pour les gestionnaires ;
+métadonnées résolues par lot. Une révocation ou restriction masque aussi l’ancienne
+URL. Une restriction intervenue entre sélection et métadonnées provoque un refus
+de réponse au lecteur. Scrim déduit de l’objet et impossible à désactiver par le
+payload ; partage interne confirmé, objet partagé et délai de scrim requis.
+Les médias contextualisés n’acceptent pas la visibilité publique.
+
+Migration additive `2026_11_07_171421_create_media_contexts_table` : FKs composites
+tenant/média/objet, clé composite parent, forme exclusive, index et immuabilité.
+Gardes de gel et effacement manuel autorisé enregistrées avec empreintes.
+Portabilité/conservation étendues à 124 tables tenant. L’effacement d’organisation
+retire les liens et médias sans toucher l’autre tenant ; les tests de migrations
+historiques retirent le nouvel enfant avant ses parents. Migration exécutée
+uniquement sur bases de test ; aucune modification de la base de travail.
+
+Validation : passage backend complet **3 307 cas**, **3 244 réussis**, **63
+exclusions conditionnelles**, zéro échec/erreur, **20 344 assertions**. Sélection
+PostgreSQL 17 schémas/médias/effacement : **444 tests / 1 886 assertions**, aucune
+exclusion. Après les derniers ajustements de confidentialité et de présentation,
+**125 tests SQLite / 693 assertions**, puis **125 tests PostgreSQL / 693 assertions**
+réussis ; les sélections se recouvrent. Le dernier ajustement d’ordre des choix a
+ensuite été revérifié dans les 125 tests SQLite. Pas de nouveau passage complet
+unique revendiqué après ces ajustements ciblés.
+
+Frontend : **515 tests / 69 fichiers** réussis ; contrôles ciblés finaux des deux
+types de contexte et des visibilités permises : **14 tests** réussis. **9 scénarios
+navigateur réels** réussis, sans retry ; le parcours communication crée une VOD
+liée à un événement, la relit depuis le calendrier et vérifie son refus depuis
+l’autre organisation. TypeScript, lint, Pint, PHPStan niveau 8 et build Vite valides.
+Rapports privés ignorés dans back/reports et front/reports ; tous les clusters,
+serveurs et répertoires temporaires créés par les lanceurs ont été nettoyés.
+
+Commit unique et push du lot autorisés par l’utilisateur. La validation de la CI
+précédente `938be34` n’est pas étendue au nouveau commit. La revue des autres
+critères P0 reste la prochaine étape ; aucune clôture globale de P0 ou
+qualification d’hébergement déduite. Les tests de performance sur hébergement
+restent exclus du travail de développement courant.
 
 ### Livraison COM-001 — tâches internes, 07/11/2026
 

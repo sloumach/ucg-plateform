@@ -1567,10 +1567,34 @@ référent. La disponibilité reste une observation manuelle distincte d’un sc
 un renommage ne réaffirme pas une ancienne observation. L’horodatage tenant sert
 à l’affichage, les saisies locales sont converties en ISO avec fuseau.
 
-Seul le rattachement équipe est opérationnel : Competition et Scheduling restent
-des frontières vides pour matchs/événements. Aucun UUID libre ni nouvelle
-dépendance Media → Competition/Scheduling n’est introduit. Ces liaisons exigeront
-des contrats publics tenant et des contrôles scrim issus du référentiel réel.
+Complément du 07/11/2026 : MediaContexts consomme MediaCalendarDirectory et
+MediaMatchDirectory, ports publics des modules Scheduling et Competition. Leurs
+adaptateurs réutilisent la visibilité des discussions et exposent des requêtes
+de visibilité/partage/scrim et des métadonnées bornées résolues par leurs propres
+repositories. Aucun modèle étranger importé dans Media ni cycle ajouté.
+
+media_contexts porte un lien facultatif, immuable et unique par média vers un
+match ou une activité. L’équipe reste le classement principal. FKs composites
+tenant/média/objet, forme à une seule référence, index, gel et effacement sous
+permis sont protégés en SQL et inscrits au registre d’empreintes. La migration
+ajoute la clé unique composite nécessaire au parent sans changer ses colonnes.
+Le catalogue fermé couvre 124 tables tenant, dont media_items et media_contexts.
+Les retours arrière de schémas historiques retirent ce nouvel enfant en premier
+et le recréent après tous ses parents ; aucune ancienne migration réécrite.
+
+Les sous-requêtes de source filtrent médias et comptages avant pagination même
+en gestion. Les libellés, versions et classifications courantes sont ensuite
+résolus par lot, avec refus si l’objet n’est plus accessible. Pour un lecteur,
+un média devenu privé pendant cette dernière lecture n’est pas retourné.
+Un scrim est déduit du référentiel ; les anciens partages sans classification et
+délai adéquats disparaissent. Les médias contextualisés restent au maximum
+partagés dans l’organisation et ne peuvent élargir un objet privé. Les mutations
+vérifient version média et version source sous le verrou tenant et auditent
+atomiquement l’action, sans répliquer le titre ou le lien dans les journaux.
+
+MediaContextPicker transmet la référence et sa version ; le contexte existant
+est verrouillé dans le formulaire. ContextMedia affiche des liens paginés depuis
+les cartes calendriers/matchs, sur ouverture volontaire et sans lecteur tiers.
 
 ## Communications internes — socle UCG-COM-001
 

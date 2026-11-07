@@ -2375,13 +2375,15 @@ verrou de session et droits revérifiés sous verrou organisation.
 | --- | --- | --- |
 | GET / | media.read | Page de médias autorisés |
 | GET /teams | media.read | Choix id/label d’équipes actives, paginés |
+| GET /contexts?type=event\|match | media.read + lecture de l’objet | Références id/label/version/confidentialité/scrim paginées |
 | GET /{media} | media.read | Détail visible, sinon 404 |
 | POST / | media.read + media.write | Création privée par défaut |
 | PATCH /{media} | media.read + media.write | Modification avec version |
 | POST/PATCH avec partage maintenu | ajouter media.publish | Confirmation explicite obligatoire |
 
 Filtres fermés : page 1–100000, per_page 1–100, q (préfixe littéral, 80),
-kind, status, team_id, archived (booléen ; true exige media.write).
+kind, status, team_id, archived (booléen ; true exige media.write),
+context_type event/match et context_id UUID (les deux ensemble).
 /teams accepte seulement page/per_page. Tri created_at descendant puis id.
 Un lecteur ne reçoit ni média privé, ni archive, ni partage dont publish_at
 est futur, y compris lors d’un accès direct. Les réponses sont private/no-store.
@@ -2400,9 +2402,10 @@ déjà partagé. Le service conserve l’acteur et la date d’autorisation. Pou
 scrim, publish_at est obligatoire et futur à l’autorisation, à sa reclassification
 en scrim ou au changement de date. Le retrait du partage efface ces données.
 public désigne une autorisation externe : aucun endpoint anonyme ou changement
-de visibilité chez Twitch/YouTube. Le contexte scrim est déclaratif, sans match
-créé. Seul team_id est disponible ; match_id/event_id/score et les champs serveur
-sont refusés.
+de visibilité chez Twitch/YouTube. Le contexte scrim est déclaratif pour les
+médias d’équipe sans objet lié. Les champs libres match_id/event_id/score et
+les champs serveur restent refusés ; les nouveaux rattachements utilisent les
+champs et contrôles ci-dessous.
 
 PATCH exige version ; une archive est demandée uniquement avec version + archive
 accepté. Pas de DELETE, pas de réouverture. Codes 409 MEDIA_VERSION_STALE et
@@ -2415,6 +2418,64 @@ effective_visibility, publish_at, archived_at, version. Aucun score ou mesure
 d’audience. Les liens sont normalisés par MediaLink, sans accès réseau :
 HTTPS, hôtes exacts, chemins compatibles type/fournisseur, aucun paramètre de
 suivi ni identifiant secret. Un lien accepté n’est pas une vérification d’existence.
+
+### Rattachements match/événement — MEDIA-001, 07/11/2026
+
+L’équipe associée reste obligatoire comme classement principal. Le média peut
+recevoir un contexte facultatif : context_type event/match, context_id UUID de
+l’objet existant, context_version UUID courant de l’objet. Ces trois valeurs
+viennent de GET /contexts?type=... ; page/per_page sont bornés comme les listes.
+Pas de saisie d’UUID libre dans l’interface. À la création ou lors de l’ajout
+sur un ancien média, le serveur résout l’objet du tenant et vérifie sa version
+sous le verrou de l’organisation. Référence inexistante/étrangère/inaccessible :
+404 ; permission calendar.read ou sports.read absente : 403 ; version périmée :
+409 MEDIA_CONTEXT_VERSION_STALE sans écriture partielle.
+
+Le rattachement devient immuable ; un PATCH de contenu sur un média lié doit
+reprendre sa context_version courante. Pour changer d’objet, créer un autre
+média. L’archivage conserve le contrat existant version + archive uniquement.
+La réponse liée ajoute context_type, context_id, context_label, context_version
+et context_visibility. La confidentialité et le caractère scrim sont lus depuis
+les contrats publics des propriétaires, par lot ; aucun titre source figé dans
+le journal d’audit ou dans la table de lien.
+
+La consultation exige media.read et la visibilité de l’objet réel, même en
+mode gestion, avant comptage/pagination. Un lecteur sans media.write doit
+également recevoir un média partagé effectif, un objet partagé à l’organisation
+et une autorisation différée valide pour un scrim. Révocation, annulation,
+archivage ou restriction de l’objet rendent les anciennes URL inaccessibles.
+Si la restriction apparaît pendant le chargement des métadonnées, l’API refuse
+la réponse plutôt que de renvoyer un lien devenu privé.
+
+is_scrim=true est imposé si l’objet courant est un scrim, même si le client
+transmet false. Une reclassification en scrim masque les anciens médias partagés
+sans autorisation de scrim. Les médias liés utilisent private/organization :
+public est refusé ; un objet privé ne permet pas un partage interne. Partage :
+media.publish, confirm_sharing, et publish_at futur pour les conditions de scrim
+déjà définies. Aucune modification de la visibilité chez le fournisseur.
+
+Exemple avec le client SPA existant, après sélection et confirmation du tenant :
+
+```ts
+const choices = await tenancyRequest<{ data: Array<{ id: string; version: string }> }>(
+  `tenants/${organizationId}/media/contexts?type=match&per_page=10&page=1`, { revision },
+)
+const match = choices.data.find((choice) => choice.id === selectedMatchId)
+if (match) {
+  await tenancyRequest(`tenants/${organizationId}/media`, {
+    method: 'POST', revision,
+    body: { title: 'VOD du match', team_id: teamId, kind: 'vod', provider: 'youtube',
+      url: 'https://youtu.be/abcdefghijk', context_type: 'match',
+      context_id: match.id, context_version: match.version },
+  })
+}
+```
+
+Les fiches match/calendrier chargent GET /media?context_type=...&context_id=...
+à l’ouverture, avec pagination, observation manuelle datée et lien externe sûr.
+La migration additive `2026_11_07_171421_create_media_contexts_table` est requise ;
+elle ne reprend ni ne reclasse les médias déjà existants. L’API et l’interface
+n’ajoutent pas de lecteur intégré ni de collecte de disponibilité fournisseur.
 
 ## Annonces, commentaires et notifications internes — socle UCG-COM-001
 

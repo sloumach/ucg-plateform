@@ -6,13 +6,16 @@ use App\Exceptions\ArtifactStorageException;
 use App\Exceptions\DomainConflictException;
 use App\Modules\Contracts\Domain\Models\ContractRecord;
 use App\Modules\Media\Domain\Contracts\CommunicationRepository;
+use App\Modules\Media\Domain\Contracts\MediaRepository;
 use App\Modules\Media\Domain\Contracts\WorkTaskRepository;
 use App\Modules\Media\Domain\Models\Announcement;
 use App\Modules\Media\Domain\Models\AnnouncementComment;
+use App\Modules\Media\Domain\Models\MediaItem;
 use App\Modules\Media\Domain\Models\WorkTask;
 use App\Modules\People\Domain\Models\Person;
 use App\Modules\People\Domain\Models\PersonDeparture;
 use App\Modules\Scheduling\Domain\Models\CalendarActivity;
+use App\Modules\Teams\Domain\Models\Team;
 use App\Modules\Tenancy\Application\Data\OrganizationAuditData;
 use App\Modules\Tenancy\Application\Services\ErasureAccessGate;
 use App\Modules\Tenancy\Application\Services\ManualErasureService;
@@ -190,6 +193,30 @@ class ManualErasureTest extends TestCase
         $this->assertDatabaseMissing('announcements', ['id' => $task->announcement_id]);
         $this->assertDatabaseHas('work_tasks', ['id' => $beta->id]);
         $this->assertDatabaseHas('announcements', ['id' => $beta->announcement_id]);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_media_contexts_are_exported_and_erased_only_for_the_selected_organization(): void
+    {
+        [$org] = $this->scenario('archived');
+        $other = Organization::factory()->create();
+        foreach ([$org, $other] as $tenant) {
+            $team = Team::factory()->create(['organization_id' => $tenant->id]);
+            $item = MediaItem::factory()->create(['team_id' => $team->id]);
+            $source = CalendarActivity::factory()->create(['organization_id' => $tenant->id]);
+            app(MediaRepository::class)->bindContext($item, 'activity_id', $source->id);
+        }
+        $rows = iterator_to_array(app(PortabilityRepository::class)->rows($org->id, 1000));
+        $contexts = array_values(array_filter($rows, fn (array $row): bool => $row['table'] === 'media_contexts'));
+        $this->assertCount(1, $contexts);
+        $this->assertSame($org->id, $contexts[0]['data']['organization_id']);
+        $operation = $this->begin($org, $org->id, null, 'organization');
+        $operation = $this->drain($org, $operation['id']);
+        $this->assertSame('awaiting_copies', $operation['status']);
+        $this->assertDatabaseMissing('media_contexts', ['organization_id' => $org->id]);
+        $this->assertDatabaseMissing('media_items', ['organization_id' => $org->id]);
+        $this->assertDatabaseCount('media_contexts', 1);
+        $this->assertDatabaseHas('media_contexts', ['organization_id' => $other->id]);
     }
 
     public function test_ordinary_sql_guards_remain_active_and_damaged_guards_block_erasure(): void

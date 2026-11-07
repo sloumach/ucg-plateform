@@ -69,10 +69,13 @@ class MediaSchemaTest extends TestCase
 
     public function test_empty_migration_round_trip_restores_constraints(): void
     {
+        $contexts = require database_path('migrations/2026_11_07_171421_create_media_contexts_table.php');
+        $contexts->down();
         $migration = require database_path('migrations/2026_10_16_192806_create_media_items_table.php');
         $migration->down();
         $this->assertFalse(Schema::hasTable('media_items'));
         $migration->up();
+        $contexts->up();
         $this->test_scrim_sharing_requires_release_even_with_authorization();
     }
 

@@ -67,6 +67,7 @@ $calendarBeta = Organization::factory()->create(['name' => 'Calendar Beta', 'slu
 $communicationUser = User::factory()->withMfa()->create(['name' => 'Browser communication staff', 'email' => 'browser-communication@example.test', 'password' => 'Browser-fixture-only-2026!']);
 $communicationAlpha = Organization::factory()->create(['name' => 'Communication Alpha', 'slug' => 'communication-alpha', 'timezone' => 'UTC']);
 $communicationBeta = Organization::factory()->create(['name' => 'Communication Beta', 'slug' => 'communication-beta', 'timezone' => 'UTC']);
+Team::factory()->create(['organization_id' => $communicationAlpha->id, 'name' => 'Équipe communication']);
 $matchUser = User::factory()->withMfa()->create([
     'name' => 'Browser match staff', 'email' => 'browser-match@example.test', 'password' => 'Browser-fixture-only-2026!',
 ]);
@@ -98,8 +99,8 @@ $invitationBeta = Organization::factory()->create(['name' => 'Invitation Beta', 
 $mfaOwner = User::factory()->create(['name' => 'Browser MFA owner', 'email' => 'browser-mfa@example.test', 'password' => 'Browser-fixture-only-2026!']);
 $mfaOrganization = Organization::factory()->create(['owner_user_id' => $mfaOwner->id, 'name' => 'MFA Alpha', 'slug' => 'mfa-alpha']);
 foreach ([
-    [$communicationUser, $communicationAlpha, ['communication.read', 'communication.write', 'communication.publish', 'communication.comment', 'calendar.read', 'tasks.read', 'tasks.manage']],
-    [$communicationUser, $communicationBeta, ['communication.read', 'communication.comment', 'calendar.read', 'tasks.read']],
+    [$communicationUser, $communicationAlpha, ['communication.read', 'communication.write', 'communication.publish', 'communication.comment', 'calendar.read', 'tasks.read', 'tasks.manage', 'media.read', 'media.write', 'media.publish', 'sports.read']],
+    [$communicationUser, $communicationBeta, ['communication.read', 'communication.comment', 'calendar.read', 'tasks.read', 'media.read']],
     [$user, $alpha, ['sports.read', 'sports.write']], [$user, $beta, ['sports.read']],
     [$rosterUser, $rosterAlpha, ['sports.read', 'sports.write', 'teams.manage']], [$rosterUser, $rosterBeta, ['sports.read']],
     [$calendarUser, $calendarAlpha, ['calendar.read', 'calendar.write', 'availability.read']], [$calendarUser, $calendarBeta, ['calendar.read']],

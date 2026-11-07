@@ -13,6 +13,16 @@ use Illuminate\Support\Str;
 
 final readonly class EloquentCalendarRepository implements CalendarRepository
 {
+    public function mediaMetadata(string $org, array $ids, \Illuminate\Database\Query\Builder $visible): array
+    {
+        $result = [];
+        foreach (CalendarActivity::query()->where('organization_id', $org)->whereIn('id', $ids)->whereIn('id', $visible)->limit(100)->get(['id', 'title', 'version', 'kind', 'visibility']) as $row) {
+            $result[$row->id] = ['id' => $row->id, 'label' => $row->title, 'version' => $row->version, 'is_scrim' => $row->kind === 'scrim', 'visibility' => $row->visibility];
+        }
+
+        return $result;
+    }
+
     public function __construct(private EloquentCalendarVisibility $visibility) {}
 
     public function communicationIds(string $org, CalendarAudience $audience): \Illuminate\Database\Query\Builder

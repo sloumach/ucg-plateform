@@ -7,7 +7,7 @@ const fixture = JSON.parse(readFileSync(process.env.UCG_BROWSER_ROOT + '/fixture
 }
 const data = fixture.communication
 
-async function exerciseTask(page: Page, context: BrowserContext) {
+async function exerciseTask(page: Page, context: BrowserContext, mediaId: string) {
   const tasks = page.getByRole('region', { name: 'Tâches internes', exact: true })
   await tasks.getByRole('button', { name: 'Ouvrir les tâches', exact: true }).click()
   await tasks.getByRole('button', { name: 'Créer une tâche', exact: true }).click()
@@ -47,6 +47,38 @@ async function exerciseTask(page: Page, context: BrowserContext) {
   const revision = active.revision as string
   const denied = await context.request.get(api + '/api/v1/tenants/' + data.beta + '/tasks/' + task.id, { headers: { ...headers, 'X-Tenant-Revision': revision } })
   expect(denied.status(), await denied.text()).toBe(404)
+  const hiddenMedia = await context.request.get(api + '/api/v1/tenants/' + data.beta + '/media/' + mediaId, { headers: { ...headers, 'X-Tenant-Revision': revision } })
+  expect(hiddenMedia.status()).toBe(404)
+}
+
+async function exerciseMedia(page: Page): Promise<string> {
+  const media = page.getByRole('region', { name: 'Streams, VOD et clips', exact: true })
+  await media.getByRole('button', { name: 'Ouvrir les médias', exact: true }).click()
+  await media.getByRole('button', { name: 'Nouveau média', exact: true }).click()
+  const form = media.getByRole('form', { name: 'Enregistrer le média', exact: true })
+  await form.getByLabel('Titre du média', { exact: true }).fill('VOD de l’événement réel')
+  await expect(form.getByRole('option', { name: 'Équipe communication', exact: true })).toHaveCount(1)
+  await form.getByLabel('Équipe associée', { exact: true }).selectOption({ label: 'Équipe communication' })
+  await form.getByLabel('Lien HTTPS du média', { exact: true }).fill('https://youtu.be/abcdefghijk')
+  await form.getByLabel('Rattachement complémentaire', { exact: true }).selectOption('event')
+  await expect(form.getByRole('option', { name: 'Événement de discussion', exact: true })).toHaveCount(1)
+  await form.getByLabel('Match ou événement associé', { exact: true }).selectOption(data.activity)
+  await form.getByRole('button', { name: 'Enregistrer le média', exact: true }).click()
+  const created = page.waitForResponse((response) => response.url().endsWith('/media') && response.request().method() === 'POST')
+  await media.getByRole('button', { name: 'Confirmer et continuer', exact: true }).click()
+  const response = await created
+  expect(response.status()).toBe(201)
+  const item = (await response.json()).data as { id: string; context_id: string }
+  expect(item.context_id).toBe(data.activity)
+  const calendar = page.getByRole('region', { name: 'Calendrier des activités', exact: true })
+  const card = calendar.getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'Événement de discussion', exact: true }) })
+  await card.getByRole('button', { name: 'Voir les médias associés', exact: true }).click()
+  const attached = card.getByRole('region', { name: 'Médias associés', exact: true })
+  await expect(attached.getByText('VOD de l’événement réel', { exact: true })).toBeVisible()
+  await attached.getByRole('button', { name: 'Actualiser les médias', exact: true }).click()
+  await expect(attached.getByText('VOD de l’événement réel', { exact: true })).toBeVisible()
+  expect(await attached.locator('iframe,script').count()).toBe(0)
+  return item.id
 }
 
 test('discussion réelle : calendrier, confirmation, commentaire persisté, annonce ciblée et isolation', async ({ page, context }) => {
@@ -100,7 +132,8 @@ test('discussion réelle : calendrier, confirmation, commentaire persisté, anno
   expect(result.status()).toBe(201)
   expect((await result.json()).data.target_id).toBe(data.activity)
   await expect(communication.getByRole('heading', { name: 'Annonce de l’événement', exact: true })).toBeVisible()
-  await exerciseTask(page, context)
+  const mediaId = await exerciseMedia(page)
+  await exerciseTask(page, context, mediaId)
   expect(errors).toEqual([])
   expect(unexpected).toEqual([])
 })

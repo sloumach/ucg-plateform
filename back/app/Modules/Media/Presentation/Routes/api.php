@@ -16,6 +16,7 @@ Route::prefix('tenants/{tenant}/tasks')->whereUuid('tenant')->middleware('tenant
 Route::prefix('tenants/{tenant}/media')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
     Route::get('/', [MediaController::class, 'index'])->name('media.index');
     Route::get('teams', [MediaController::class, 'teams'])->name('media.teams');
+    Route::get('contexts', [MediaController::class, 'contextTargets'])->name('media.contextTargets');
     Route::get('{media}', [MediaController::class, 'show'])->whereUuid('media')->name('media.show');
     Route::post('/', [MediaController::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('media.store');
     Route::patch('{media}', [MediaController::class, 'update'])->whereUuid('media')->middleware('tenant.confirmed')->block(10, 10)->name('media.update');

@@ -53,6 +53,16 @@ les champs modifiés avec la version courante. Les discussions sur tâches réut
 ContextDiscussion ; notifications sur opt-in de l’auteur et des participants.
 Contrat détaillé et migrations nécessaires dans le README racine.
 
+### Médias liés aux matchs et événements — MEDIA-001
+
+Le complément MEDIA-001 du 07/11/2026 ajoute un sélecteur paginé de contexte
+match/événement aux médias, avec transmission de sa version et conservation
+du contexte choisi hors page. Les liens existants deviennent non modifiables.
+Les cartes de match/calendrier proposent « Voir les médias associés », avec
+chargement à l’ouverture, pagination, actualisation et liens externes protégés.
+Pas de lecteur tiers chargé automatiquement. Voir le contrat et la migration
+MEDIA-001 dans le README racine.
+
 ### Mesures de charge locales — UCG-QA-005
 
 **Périmètre au 05/11/2026** : ces outils sont conservés pour diagnostic facultatif.

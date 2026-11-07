@@ -10,6 +10,10 @@ use Illuminate\Database\Query\Builder;
 
 interface MatchRepository
 {
+    /** @param list<string> $ids
+     * @return array<string, array{id: string, label: string, version: string, is_scrim: bool, visibility: string}> */
+    public function mediaMetadata(string $org, array $ids, Builder $visible): array;
+
     /** @param array{person_id:string|null,team_ids:list<string>} $viewer
      * @return LengthAwarePaginator<int, MatchRecord> */
     public function communicationChoices(string $org, int $actor, array $viewer, int $page, int $perPage): LengthAwarePaginator;

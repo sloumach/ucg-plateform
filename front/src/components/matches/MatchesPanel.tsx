@@ -1,4 +1,5 @@
 import { ContextDiscussion } from '../communication/ContextDiscussion'
+import { ContextMedia } from '../media/ContextMedia'
 import { MatchLiveScores } from './MatchLiveScores'
 import { useState } from 'react'
 import type { ActiveOrganization, Page } from '../../api/tenancy'
@@ -80,6 +81,7 @@ export function MatchesPanel({ active, disabled, onInvalid }: Props) {
           {canWrite && item.available_transitions.length > 0 && <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setTransition(item); setEditor(null); setHistory(null) }}>{text('transition')}</Button>}
         </div>
         {item.status !== 'cancelled' && <ContextDiscussion {...{ active, onInvalid }} type="match" id={item.id} disabled={blocked} />}
+        {item.status !== 'cancelled' && <ContextMedia key={item.id + item.version} {...{ active, onInvalid }} type="match" id={item.id} disabled={blocked} />}
       </li>)}</ol>
       {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(next) => { setPage(next); setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null) }} />}
       {editor && <MatchForm key={editor === 'new' ? 'new' : editor.id + editor.version} {...{ active, root, onInvalid }} item={editor === 'new' ? null : editor} disabled={blocked}

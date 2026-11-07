@@ -1,6 +1,11 @@
 <?php
 
 return [
+    'context_fixed' => 'Le rattachement à cet objet est définitif. Créez un autre média pour changer de contexte.',
+    'context_required' => 'Choisissez un match ou un événement existant dans cette organisation.',
+    'context_version' => 'Rechargez le contexte avant d’enregistrer le média.',
+    'context_stale' => 'Le match ou l’événement a changé. Rechargez avant de confirmer.',
+    'context_sharing' => 'Le partage interne exige un objet partagé avec l’organisation. La visibilité publique n’est pas proposée pour ces médias contextualisés.',
     'saved' => 'Le média a été enregistré.',
     'closed' => 'Ce champ ne peut pas être transmis pour cette opération.',
     'required' => 'Ce champ est obligatoire.', 'string' => 'Une chaîne de caractères est attendue.',

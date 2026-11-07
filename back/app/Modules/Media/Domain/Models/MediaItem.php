@@ -6,6 +6,7 @@ use Database\Factories\MediaItemFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /** @property string $id
@@ -22,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon $status_observed_at
  * @property Carbon|null $publish_at
  * @property Carbon|null $archived_at
+ * @property-read MediaContext|null $context
  */
 class MediaItem extends Model
 {
@@ -45,6 +47,16 @@ class MediaItem extends Model
 
     public function effectiveVisibility(): string
     {
-        return $this->archived_at !== null || ($this->publish_at !== null && $this->publish_at->isFuture()) ? 'private' : $this->visibility;
+        if ($this->archived_at !== null || ($this->publish_at !== null && $this->publish_at->isFuture()) || $this->getAttribute('context_private') === true) {
+            return 'private';
+        }
+
+        return $this->context !== null && $this->visibility === 'public' ? 'organization' : $this->visibility;
+    }
+
+    /** @return HasOne<MediaContext, $this> */
+    public function context(): HasOne
+    {
+        return $this->hasOne(MediaContext::class, 'media_id');
     }
 }

@@ -107,6 +107,8 @@ class PersonSchemaTest extends TestCase
     public function test_migration_can_be_reversed_empty_and_reapplied_in_the_test_database(): void
     {
         $this->assertTrue(Schema::hasTable('people'));
+        $mediaContexts = require database_path('migrations/2026_11_07_171421_create_media_contexts_table.php');
+        $mediaContexts->down();
         $workTasks = require database_path('migrations/2026_11_07_145755_create_work_tasks_and_revisions.php');
         $workTasks->down();
         $communicationContexts = require database_path('migrations/2026_11_05_123111_create_communication_contexts_table.php');
@@ -223,6 +225,7 @@ class PersonSchemaTest extends TestCase
         $erasureGuards->up();
         $communicationContexts->up();
         $workTasks->up();
+        $mediaContexts->up();
 
         $this->assertTrue(Schema::hasTable('academy_enrollments'));
         $this->assertTrue(Schema::hasTable('statistical_imports'));

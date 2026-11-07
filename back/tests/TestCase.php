@@ -10,6 +10,8 @@ abstract class TestCase extends BaseTestCase
     /** Reverse the newest dependent guards before exercising a historical partial schema rollback. */
     protected function withoutRetentionGuards(\Closure $roundTrip): void
     {
+        $mediaContexts = require database_path('migrations/2026_11_07_171421_create_media_contexts_table.php');
+        $mediaContexts->down();
         $tasks = require database_path('migrations/2026_11_07_145755_create_work_tasks_and_revisions.php');
         $tasks->down();
         $contexts = require database_path('migrations/2026_11_05_123111_create_communication_contexts_table.php');
@@ -18,14 +20,18 @@ abstract class TestCase extends BaseTestCase
         $contexts->down();
         $wrappers->down();
         try {
-            $roundTrip(static function () use ($contexts, $wrappers, $tasks): void {
+            $roundTrip(static function () use ($contexts, $wrappers, $tasks, $mediaContexts): void {
                 if (! Schema::hasTable('communication_contexts')) {
                     $wrappers->up();
                     $contexts->up();
                     $tasks->up();
+                    $mediaContexts->up();
                 }
             });
         } finally {
+            if (Schema::hasTable('media_contexts')) {
+                $mediaContexts->down();
+            }
             if (Schema::hasTable('work_tasks')) {
                 $tasks->down();
             }
@@ -40,6 +46,7 @@ abstract class TestCase extends BaseTestCase
             $wrappers->up();
             $contexts->up();
             $tasks->up();
+            $mediaContexts->up();
         }
     }
 }

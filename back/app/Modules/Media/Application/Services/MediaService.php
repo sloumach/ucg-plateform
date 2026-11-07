@@ -20,6 +20,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\Validation\Factory;
 use Illuminate\Database\ConnectionInterface;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -28,7 +29,7 @@ final readonly class MediaService
 {
     public function __construct(private MediaRepository $records, private MediaTeamsDirectory $teams,
         private TenantAuthorization $authorization, private TenantBusinessGuard $guard, private TenantAuditJournal $audit,
-        private Factory $validator, private ConnectionInterface $database) {}
+        private Factory $validator, private ConnectionInterface $database, private MediaContexts $contexts) {}
 
     /** @param array<string, mixed> $filters
      * @return LengthAwarePaginator<int, MediaItem>
@@ -41,7 +42,7 @@ final readonly class MediaService
             $this->authorization->authorize($context, 'media.write');
         }
         $page = $this->records->paginate($context->organizationId, $filters,
-            $this->authorization->allows($context, 'media.write'));
+            $this->authorization->allows($context, 'media.write'), $this->contexts->constraints($context));
         $this->label($context, array_values($page->items()));
 
         return $page;
@@ -50,7 +51,7 @@ final readonly class MediaService
     public function find(TenantContext $context, string $id): MediaItem
     {
         $this->authorization->authorize($context, 'media.read');
-        $record = $this->records->find($context->organizationId, $id, $this->authorization->allows($context, 'media.write'));
+        $record = $this->records->find($context->organizationId, $id, $this->authorization->allows($context, 'media.write'), contexts: $this->contexts->constraints($context));
         $this->label($context, [$record]);
 
         return $record;
@@ -66,6 +67,23 @@ final readonly class MediaService
         return $this->teams->paginate($context, (int) ($values['page'] ?? 1), (int) ($values['per_page'] ?? 10));
     }
 
+    /** @param array<string, mixed> $filters
+     * @return LengthAwarePaginator<int, array{id: string, label: string, version: string, is_scrim: bool, visibility: string}> */
+    public function contextTargets(TenantContext $context, array $filters): LengthAwarePaginator
+    {
+        $this->authorization->authorize($context, 'media.read');
+        $values = MediaInput::validate($this->validator, $filters, MediaInput::contextRules());
+        $source = $this->contexts->source($values['type']);
+        $page = $source->choices($context, (int) ($values['page'] ?? 1), (int) ($values['per_page'] ?? 10));
+        $details = $source->metadata($context, array_column($page->items(), 'id'));
+        $ordered = [];
+        foreach ($page->items() as $choice) {
+            $ordered[] = $details[$choice['id']] ?? throw new ModelNotFoundException;
+        }
+
+        return new \Illuminate\Pagination\LengthAwarePaginator($ordered, $page->total(), $page->perPage(), $page->currentPage());
+    }
+
     /** @param array<string, mixed> $input */
     public function save(TenantContext $context, array $input, ?string $id = null, ?string $ipAddress = null): MediaItem
     {
@@ -77,15 +95,19 @@ final readonly class MediaService
         $saved = $this->database->transaction(function () use ($context, $values, $id, $ipAddress): MediaItem {
             $this->guard->lock($context);
             $this->authorizeWrite($context);
-            $record = $id === null ? null : $this->records->find($context->organizationId, $id, true, true);
+            $record = $id === null ? null : $this->records->find($context->organizationId, $id, true, true, $this->contexts->constraints($context));
             if ($record !== null && $record->version !== strtolower((string) $values['version'])) {
                 throw new DomainConflictException(__('media.stale'), 'MEDIA_VERSION_STALE');
             }
             if ($record?->archived_at !== null) {
                 throw new DomainConflictException(__('media.archived'), 'MEDIA_ARCHIVED');
             }
-            $attributes = $this->attributes($context, $values, $record);
+            $source = isset($values['archive']) ? null : $this->contexts->resolve($context, $values, $record);
+            $attributes = $this->attributes($context, $values, $record, $source);
             $saved = $this->records->save($record, $attributes);
+            if ($source !== null && $saved->context === null) {
+                $this->records->bindContext($saved, MediaContexts::COLUMNS[$source['type']], $source['id']);
+            }
             $this->audit->record($context->organizationId, new AuditWriteData($context->actorUserId, AuditAction::DomainChanged,
                 AuditTarget::Organization, $context->organizationId, AuditReason::Domain, $context->requestId, $ipAddress,
                 [], ['media_id' => $saved->id, 'media_action' => isset($values['archive']) ? 'archived' : ($id === null ? 'created' : 'updated')]));
@@ -98,9 +120,10 @@ final readonly class MediaService
     }
 
     /** @param array<string, mixed> $values
+     * @param  array{type: string, id: string, label: string, version: string, is_scrim: bool, visibility: string}|null  $source
      * @return array<string, mixed>
      */
-    private function attributes(TenantContext $context, array $values, ?MediaItem $record): array
+    private function attributes(TenantContext $context, array $values, ?MediaItem $record, ?array $source): array
     {
         if (isset($values['archive'])) {
             if ($record === null || array_diff(array_keys($values), ['version', 'archive']) !== []) {
@@ -110,7 +133,10 @@ final readonly class MediaService
             return ['archived_at' => now(), 'version' => (string) Str::uuid()];
         }
         $attributes = $values;
-        unset($attributes['version'], $attributes['confirm_sharing']);
+        unset($attributes['version'], $attributes['confirm_sharing'], $attributes['context_type'], $attributes['context_id'], $attributes['context_version']);
+        if ($source['is_scrim'] ?? false) {
+            $attributes['is_scrim'] = true;
+        }
         foreach (['title', 'url', 'provider', 'kind', 'team_id'] as $field) {
             if (isset($attributes[$field]) && is_string($attributes[$field])) {
                 $attributes[$field] = trim($attributes[$field]);
@@ -138,6 +164,9 @@ final readonly class MediaService
         }
         $sharing = $combined['visibility'] !== 'private';
         if ($sharing) {
+            if ($source !== null && ($source['visibility'] === 'private' || $combined['visibility'] === 'public')) {
+                throw ValidationException::withMessages(['visibility' => __('media.context_sharing')]);
+            }
             $this->authorization->authorize($context, 'media.publish');
             if (! isset($values['confirm_sharing'])) {
                 throw ValidationException::withMessages(['confirm_sharing' => __('media.confirm')]);
@@ -174,6 +203,13 @@ final readonly class MediaService
     /** @param list<MediaItem> $records */
     private function label(TenantContext $context, array $records): void
     {
+        $this->contexts->decorate($context, $records);
+        $editor = $this->authorization->allows($context, 'media.write');
+        foreach ($records as $record) {
+            if (! $editor && $record->effectiveVisibility() === 'private') {
+                throw new ModelNotFoundException;
+            }
+        }
         $labels = $this->teams->labels($context, array_values(array_unique(array_map(fn (MediaItem $item): string => $item->team_id, $records))));
         foreach ($records as $record) {
             $record->setAttribute('team_label', $labels[$record->team_id] ?? null);

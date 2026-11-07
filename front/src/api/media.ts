@@ -3,11 +3,13 @@ export const mediaKinds = ['stream', 'vod', 'clip'] as const
 export const mediaStatuses = ['scheduled', 'live', 'ended', 'unavailable'] as const
 export const mediaVisibilities = ['private', 'organization', 'public'] as const
 export type MediaItem = {
+  context_type?: 'event' | 'match'; context_id?: string; context_label?: string; context_version?: string; context_visibility?: 'private' | 'organization'
   id: string; team_id: string; team_label: string | null; title: string; kind: typeof mediaKinds[number]; provider: 'twitch' | 'youtube'
   url: string; status: typeof mediaStatuses[number]; status_source: 'manual'; status_observed_at: string
   is_scrim: boolean; visibility: typeof mediaVisibilities[number]; effective_visibility: typeof mediaVisibilities[number]
   publish_at: string | null; archived_at: string | null; version: string
 }
+export type MediaContextTarget = { id: string; label: string; version: string; is_scrim: boolean; visibility: string }
 export function mediaText(key: string) { return t(('media.' + key) as TranslationKey) }
 export function safeMediaUrl(input: string): string | null {
   try {

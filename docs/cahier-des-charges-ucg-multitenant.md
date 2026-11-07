@@ -702,9 +702,14 @@ Livraison MEDIA-001 : catalogue tenant des streams/VOD/clips Twitch/YouTube avec
 rattachement aux équipes existantes, liens contrôlés syntaxiquement sans accès
 réseau, statut manuel et fraîcheur séparés des scores, droits médias explicites,
 privé par défaut et partage de scrim différé autorisé. Le contexte scrim est
-déclaratif ; les fiches matchs/événements ne sont pas encore disponibles et leurs
-identifiants ne sont pas acceptés. Visibilité externe enregistrée sans portail
-public ni changement de visibilité chez le fournisseur. Lecteurs intégrés : P1.
+déclaratif pour les médias sans contexte. Le complément du 07/11/2026 ajoute un
+contexte match/événement facultatif au classement par équipe, avec sélection
+d’un objet réel, version vérifiée et rattachement définitif. Les cartes des objets
+affichent leurs médias autorisés. Droits de l’objet réévalués à la lecture ; scrim
+déduit de sa fiche, partage interne confirmé et différé, jamais plus large que
+la confidentialité de l’objet. Les médias contextualisés ne sont pas publics.
+Visibilité externe du socle enregistrée sans portail public ni changement chez le
+fournisseur. Statut du média toujours distinct du score. Lecteurs intégrés : P1.
 
 - LIVE-01 : associer un stream, une VOD ou un clip à un match, une équipe ou un événement.
 - LIVE-02 : en P1, intégrer les lecteurs officiels Twitch et YouTube selon leurs paramètres et politiques.

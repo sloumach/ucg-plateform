@@ -41,7 +41,23 @@ sur des bases de test isolées. Elle ne modifie pas les anciennes annonces et so
 rollback refuse la perte de rattachements existants. Ne pas utiliser `migrate:fresh`
 sur la base de travail. Le complément tâches nécessite aussi
 `2026_11_07_145755_create_work_tasks_and_revisions`, exécutée uniquement sur les bases
-de test. Le catalogue courant couvre 123 tables tenant ; les historiques sont conservés.
+de test. Les historiques sont conservés.
+
+## Médias liés aux matchs et événements — MEDIA-001
+
+Le complément du 07/11/2026 conserve l’équipe associée et permet un rattachement
+facultatif à un match ou à un événement existant. Sélection dans le formulaire
+média, consultation depuis les cartes matchs/calendrier. Le rattachement est
+définitif ; les droits de lecture de l’objet sont revérifiés en plus des droits
+médias, y compris pour la gestion. Un scrim est reconnu automatiquement depuis
+l’objet. Le partage interne exige un objet partagé et les autorisations habituelles ;
+les lecteurs restent soumis à la date de diffusion différée. Les médias de ces
+contextes ne sont pas proposés en visibilité publique.
+
+Appliquer aussi `2026_11_07_171421_create_media_contexts_table` avant utilisation,
+via `php artisan migrate` depuis back. Aucune migration appliquée ici sur la base
+de travail ; seuls les environnements de test ont été migrés. Catalogue fermé :
+124 tables tenant. Contrat détaillé dans [les conventions API](docs/conventions-api.md).
 
 ## Structure
 

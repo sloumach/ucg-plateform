@@ -5,10 +5,12 @@ namespace App\Modules\Scheduling\Providers;
 use App\Modules\Scheduling\Application\Contracts\AcademySchedule;
 use App\Modules\Scheduling\Application\Contracts\CommunicationCalendarDirectory;
 use App\Modules\Scheduling\Application\Contracts\MatchSchedule;
+use App\Modules\Scheduling\Application\Contracts\MediaCalendarDirectory;
 use App\Modules\Scheduling\Application\Contracts\SchedulingDashboard;
 use App\Modules\Scheduling\Application\Services\AcademyScheduleService;
 use App\Modules\Scheduling\Application\Services\CommunicationCalendarService;
 use App\Modules\Scheduling\Application\Services\MatchScheduleService;
+use App\Modules\Scheduling\Application\Services\MediaCalendarService;
 use App\Modules\Scheduling\Application\Services\SchedulingDashboardService;
 use App\Modules\Scheduling\Domain\Contracts\AcademyScheduleRepository;
 use App\Modules\Scheduling\Domain\Contracts\AvailabilityRepository;
@@ -40,6 +42,7 @@ final class SchedulingServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(MediaCalendarDirectory::class, MediaCalendarService::class);
         $this->app->bind(CommunicationCalendarDirectory::class, CommunicationCalendarService::class);
         $this->app->bind(AcademySchedule::class, AcademyScheduleService::class);
         $this->app->bind(AcademyScheduleRepository::class, EloquentAcademyScheduleRepository::class);

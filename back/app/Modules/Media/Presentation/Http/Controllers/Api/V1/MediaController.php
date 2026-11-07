@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\Media\Application\Services\MediaService;
 use App\Modules\Media\Domain\Models\MediaItem;
 use App\Modules\Media\Presentation\Http\Requests\Api\V1\MediaRequest;
+use App\Modules\Media\Presentation\Http\Resources\Api\V1\MediaContextResource;
 use App\Modules\Media\Presentation\Http\Resources\Api\V1\MediaResource;
 use App\Modules\Media\Presentation\Http\Resources\Api\V1\MediaTeamResource;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
@@ -21,6 +22,13 @@ final class MediaController extends Controller
         $this->gate->authorize('viewAny', [MediaItem::class, $context]);
 
         return MediaResource::collection($this->media->paginate($context, $request->validated()))->response()->header('Cache-Control', 'private, no-store');
+    }
+
+    public function contextTargets(MediaRequest $request, TenantContext $context): JsonResponse
+    {
+        $this->gate->authorize('viewAny', [MediaItem::class, $context]);
+
+        return MediaContextResource::collection($this->media->contextTargets($context, $request->validated()))->response()->header('Cache-Control', 'private, no-store');
     }
 
     public function show(MediaRequest $request, TenantContext $context, string $tenant, string $media): JsonResponse
