@@ -87,7 +87,7 @@ export function CalendarPanel({ active, disabled, onInvalid }: Props) {
           <Button disabled={blocked} onClick={() => { setCancellation(item); setEditor(null) }}>{changeText('cancelAction')}</Button>
         </div>}
         {!item.archived_at && !item.cancelled_at && <ContextDiscussion {...{ active, onInvalid }} type="event" id={item.id} disabled={blocked} />}
-        {!item.archived_at && !item.cancelled_at && <ContextMedia key={item.id + item.version} {...{ active, onInvalid }} type="event" id={item.id} disabled={blocked} />}
+        {!item.archived_at && !item.cancelled_at && <ContextMedia key={'media:' + item.id + ':' + item.version} {...{ active, onInvalid }} type="event" id={item.id} disabled={blocked} />}
       </li>)}</ol>
       {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(next) => { setPage(next); setEditor(null); setCancellation(null) }} />}
       {editor && <CalendarForm key={editor === 'new' ? 'new' : editor.id + editor.version} {...{ active, root, onInvalid }} item={editor === 'new' ? null : editor}

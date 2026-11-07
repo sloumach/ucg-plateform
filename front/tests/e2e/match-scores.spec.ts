@@ -86,6 +86,7 @@ test('règles, remake, score BO3 et conflit sans rejeu sur mobile', async ({ pag
   await expect(scores.getByText('Remake après incident technique.', { exact: true })).toBeVisible()
   await expect(scores.getByRole('form', { name: 'Ajouter une partie' })).toHaveCount(0)
   await scores.getByRole('button', { name: 'Page précédente' }).click()
+  await expect(scores.getByText('Score relevé après la partie jouée.', { exact: true })).toBeVisible()
   stale = true
   const form = scores.getByRole('form', { name: 'Ajouter une partie' })
   await form.getByLabel('Carte de la partie').fill('Arena')

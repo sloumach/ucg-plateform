@@ -6,10 +6,18 @@
 ## Point de reprise
 
 - Dernière mise à jour : **7 novembre 2026**.
-- Tâche courante : **MEDIA-001 — rattachements match/événement**, développement
-  complet et push demandés. API, interface, SQL, conservation et tests livrés ;
-  validations locales terminées, bilan ci-dessous. La CI du nouveau commit devra
-  être vérifiée après le push ; la base de travail reste à migrer avant utilisation.
+- Tâche courante : **correctif CI frontend après MEDIA-001 `004a3ac`**, poussé
+  sur staging. Le journal fourni montre un échec des convocations pour clé React
+  dupliquée et un test des scores intermittent. Clé du bloc médias distinguée
+  de celle des convocations ; régression couverte avec et sans accès médias.
+  Le test des scores attend les données de la première page avant la saisie.
+  Validation locale : **517 tests / 69 fichiers**, lint, TypeScript et build
+  réussis ; **53 parcours Playwright réussis sans retry**, plus **10 répétitions
+  du parcours des scores sans retry**, sous Chrome Windows. La nouvelle CI
+  distante reste à confirmer ; aucun seuil, retry ou contrôle de console affaibli.
+- **MEDIA-001 — rattachements match/événement `004a3ac` poussé** : API, interface,
+  SQL, conservation et tests livrés ; bilan ci-dessous. La base de travail reste
+  à migrer avant utilisation. Le correctif CI courant ne modifie pas le backend.
 - **COM-001 tâches internes `938be34` poussé et CI validée par l’utilisateur**
   avant MEDIA-001. Aucune migration sur sa base de travail confirmée à ce stade.
 - Livraison précédente : **COM-001 — tâches internes**, périmètre proposé puis accepté

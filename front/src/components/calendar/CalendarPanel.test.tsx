@@ -37,6 +37,27 @@ beforeEach(() => {
   })
 })
 describe('calendrier des activités', () => {
+  it.each([false, true])('garde les convocations indépendantes des médias (accès médias : %s)', async (media) => {
+    const handler = request.getMockImplementation()!
+    request.mockImplementation((path, options) => path.includes('/invitations?') || path.includes('/media?') ? Promise.resolve(page([])) : handler(path, options))
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const user = userEvent.setup()
+      show({ ...active, context: { ...active.context!, permissions: [...active.context!.permissions, 'calendar.invitations.manage', ...(media ? ['media.read'] : [])] } })
+      await open(user)
+      const management = within(screen.getByRole('region', { name: 'Convocations de l’activité' }))
+      await user.click(management.getByRole('button', { name: 'Consulter les convocations' }))
+      await management.findByRole('form', { name: 'Préparer les convocations' })
+      if (media) {
+        await user.click(screen.getByRole('button', { name: 'Voir les médias associés' }))
+        await screen.findByRole('region', { name: 'Médias associés' })
+      }
+      expect(management.getByRole('form', { name: 'Préparer les convocations' })).toBeInTheDocument()
+      expect(errors).not.toHaveBeenCalled()
+    } finally {
+      errors.mockRestore()
+    }
+  })
   it('ne charge rien avant ouverture ou sans permission dédiée', () => {
     const { unmount } = show(); expect(request).not.toHaveBeenCalled(); unmount()
     show({ ...active, context: { ...active.context!, permissions: ['sports.read', 'communication.read'] } })
