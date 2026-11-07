@@ -6,8 +6,10 @@ use App\Exceptions\ArtifactStorageException;
 use App\Exceptions\DomainConflictException;
 use App\Modules\Contracts\Domain\Models\ContractRecord;
 use App\Modules\Media\Domain\Contracts\CommunicationRepository;
+use App\Modules\Media\Domain\Contracts\WorkTaskRepository;
 use App\Modules\Media\Domain\Models\Announcement;
 use App\Modules\Media\Domain\Models\AnnouncementComment;
+use App\Modules\Media\Domain\Models\WorkTask;
 use App\Modules\People\Domain\Models\Person;
 use App\Modules\People\Domain\Models\PersonDeparture;
 use App\Modules\Scheduling\Domain\Models\CalendarActivity;
@@ -171,6 +173,23 @@ class ManualErasureTest extends TestCase
         $this->assertDatabaseHas('communication_contexts', ['id' => $betaBinding->id, 'organization_id' => $beta->id]);
         $this->assertDatabaseHas('announcements', ['id' => $betaBinding->announcement_id]);
         $this->assertDatabaseCount('announcement_comments', 1);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_task_history_is_erased_with_its_organization_and_other_tenant_is_preserved(): void
+    {
+        [$org] = $this->scenario('archived');
+        $task = WorkTask::factory()->create(['organization_id' => $org->id]);
+        $beta = WorkTask::factory()->create();
+        app(WorkTaskRepository::class)->revise($task, $task->created_by);
+        $operation = $this->begin($org, $org->id, null, 'organization');
+        $operation = $this->drain($org, $operation['id']);
+        $this->assertSame('awaiting_copies', $operation['status']);
+        $this->assertDatabaseMissing('work_tasks', ['id' => $task->id]);
+        $this->assertDatabaseMissing('work_task_revisions', ['task_id' => $task->id]);
+        $this->assertDatabaseMissing('announcements', ['id' => $task->announcement_id]);
+        $this->assertDatabaseHas('work_tasks', ['id' => $beta->id]);
+        $this->assertDatabaseHas('announcements', ['id' => $beta->announcement_id]);
     }
 
     public function test_ordinary_sql_guards_remain_active_and_damaged_guards_block_erasure(): void

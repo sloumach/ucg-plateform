@@ -112,8 +112,8 @@ class CommunicationContextTest extends TestCase
         $path = $this->root($org);
         $this->postJson($path.'/announcements', ['title' => 'Non', 'body' => 'Non', 'target_type' => 'event', 'target_id' => $private->id])->assertNotFound();
         $this->getJson($path.'/context-targets?type=event')->assertJsonPath('meta.total', 0);
-        $this->getJson($path.'/discussions/task/'.$private->id)->assertNotFound();
-        $this->getJson($path.'/context-targets?type=task')->assertUnprocessable();
+        $this->getJson($path.'/discussions/unknown/'.$private->id)->assertNotFound();
+        $this->getJson($path.'/context-targets?type=unknown')->assertUnprocessable();
         $this->assertDatabaseCount('communication_contexts', 0);
     }
 

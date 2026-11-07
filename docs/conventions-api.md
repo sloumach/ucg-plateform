@@ -2431,7 +2431,7 @@ comment pour participation. Aucun accès implicite propriétaire/plateforme.
 | GET | /announcements/{id} | Détail autorisé |
 | PATCH | /announcements/{id} | Éditer le brouillon ou une action isolée |
 | GET | /targets?type=team\|game\|role\|event\|match\|session | Références actives id/label paginées, write requis et accès à l’objet pour les contextes |
-| GET | /context-targets?type=event\|match\|session | Références id/label paginées pour discussions, read et droit de lecture du module requis |
+| GET | /context-targets?type=event\|match\|session\|task | Références id/label paginées pour discussions, read et droit de lecture du module requis |
 | GET | /discussions/{type}/{contextId} | Commentaires paginés et métadonnées du contexte actuel ; aucune création |
 | POST | /discussions/{type}/{contextId} | Ajouter un commentaire ; création atomique du premier fil si nécessaire |
 | GET/POST | /announcements/{id}/comments | Lire/ajouter une réponse |
@@ -2490,8 +2490,74 @@ cible inactive ; 403 pour permission absente ; 422 pour payload fermé/incohére
 Une annonce expirée ou retirée disparaît des lectures ordinaires et de l’inbox.
 Pas de DELETE. Les champs libres event_id/task_id/match_id/session_id restent
 refusés. Depuis le 05/11/2026, les vrais référentiels événement/match/séance sont
-résolus via les routes et types validés ci-dessous. Le système de tâches reste
-distinct et aucun type `task` n’est accepté.
+résolus via les routes et types validés ci-dessous. Depuis le complément du
+07/11/2026, `task` est également accepté pour les discussions et context-targets,
+avec un véritable identifiant de tâche. Les annonces ciblées n’acceptent pas
+`target_type=task` : leur fil est créé par le référentiel des tâches.
+
+### Tâches internes COM-001 — 07/11/2026
+
+Préfixe `/api/v1/tenants/{tenant}/tasks`. Session Sanctum, MFA et contexte tenant
+courant obligatoires. Les permissions `tasks.read` et `tasks.manage` sont réservées
+aux affectations d’organisation ; un rôle limité à une équipe ne les accorde pas.
+
+| Méthode | Suffixe | Autorisation et comportement |
+| --- | --- | --- |
+| GET | / | tasks.read ; liste paginée, filtres status, assignee_id, due_before |
+| GET | /{task} | tasks.read ; tâche du tenant courant, sinon 404 |
+| GET | /people | tasks.read + tasks.manage ; personnes actuelles id/label paginées |
+| POST | / | tasks.read + tasks.manage et confirmation de tenant ; création atomique |
+| PATCH | /{task} | mêmes droits ; version UUID courante obligatoire |
+
+Payload fermé : `title` requis à la création, non blanc, 160 caractères maximum ;
+`description` nullable, 4 000 caractères maximum ; `assignee_id` UUID nullable ;
+`due_on` date calendaire nullable au format YYYY-MM-DD ; `status` dans
+todo/in_progress/done, défaut todo. En PATCH, n’envoyer que les champs modifiés
+et la version. Une édition vide est refusée ; une version périmée renvoie 409
+WORK_TASK_VERSION_STALE, sans écriture partielle. Les transitions entre les trois
+statuts sont permises, y compris la réouverture. Pas de DELETE métier.
+
+Le responsable doit appartenir au référentiel People du tenant et ne pas être
+parti, ancien ou supprimé. Les libellés courants sont résolus en une requête pour
+la page ; une ancienne référence conservée peut n’avoir plus de libellé accessible.
+Le responsable n’obtient aucun droit supplémentaire. L’échéance est un jour du
+calendrier de l’organisation, sans conversion en instant UTC ni rappel automatique.
+Pagination page 1–100000, per_page 1–100 ; tri création puis UUID déterministe.
+Pas de recherche textuelle sur les titres chiffrés.
+
+Chaque tâche crée son fil interne dans la même transaction que sa première
+révision et son audit. Les fils de tâches restent hors du fil d’annonces.
+`GET/POST /communication/discussions/task/{taskId}` réutilise le contrat des
+discussions ci-dessous : lecture tasks.read + communication.read ; ajout avec
+communication.comment en plus. Version source et thread_version requis à l’ajout.
+Pour une tâche, thread_version est déjà un UUID avant le premier commentaire,
+puisque le fil existe dès la création ; recopier la valeur du GET.
+Les notifications visent l’auteur et les participants ayant activé les réponses ;
+affecter une personne ou changer le statut ne produit pas de notification.
+Révocation de tasks.read : anciennes URL d’annonce et notifications masquées
+avant comptage/pagination, y compris en mode gestion. Les notifications utilisent
+le titre actuel de la tâche. Pas d’e-mail ni de worker requis.
+
+Exemple SPA avec le client existant, après sélection et confirmation du tenant :
+
+```ts
+await tenancyRequest('active-organization/confirmation', {
+  method: 'POST', body: { organization_id: organizationId, revision, confirm: true },
+})
+const created = await tenancyRequest<{ data: { id: string; version: string } }>(
+  `tenants/${organizationId}/tasks`, {
+    method: 'POST', revision,
+    body: { title: 'Préparer le dossier du tournoi', due_on: '2026-12-15', status: 'todo' },
+  },
+)
+await tenancyRequest(`tenants/${organizationId}/tasks/${created.data.id}`, {
+  method: 'PATCH', revision, body: { version: created.data.version, status: 'done' },
+})
+```
+
+Relire la tâche et sa discussion après modification ou conflit ; aucun rejeu
+automatique. Les nouvelles tables et leurs gardes de conservation nécessitent
+la migration additive `2026_11_07_145755_create_work_tasks_and_revisions`.
 
 ### Raccordements contextuels COM-001 — 05/11/2026
 

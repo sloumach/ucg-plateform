@@ -5,8 +5,15 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : **5 novembre 2026**.
-- Tâche courante : **correctif CI — retours arrière de schéma PostgreSQL**.
+- Dernière mise à jour : **7 novembre 2026**.
+- Tâche courante : **COM-001 — tâches internes**, périmètre proposé puis accepté
+  par l’utilisateur : titre, description, responsable facultatif, échéance, statuts
+  à faire/en cours/terminée, commentaires et notifications internes configurables.
+  Implémentation API et React terminée et validée localement ; bilan détaillé
+  ci-dessous. Aucun autre module P1 lancé. La CI du nouveau lot reste à exécuter.
+- **CI précédente validée par l’utilisateur** avant cette étape : correctif
+  `268791e` poussé sur staging. Cette validation porte sur ce SHA, pas sur le lot courant.
+- Correctif CI précédent — retours arrière de schéma PostgreSQL :
   Après le correctif de sécurité `387e72f`, les tests PostgreSQL révèlent trois
   démontages partiels oubliés dans ExternalOpponentSchemaTest, MatchSchemaTest et
   AcademyTest : communication_contexts dépend encore des matchs et des séances.
@@ -19,8 +26,8 @@
 - Livraison précédente : **COM-001 — raccordements aux événements, matchs et séances**,
   commit local unique `f04044a`, puis push demandé et effectué sur origin/staging. Annonces contextuelles et
   discussions directes raccordées aux référentiels existants et aux écrans React.
-  Le système général de tâches reste à cadrer ; il n’est pas créé par ce lot et
-  aucune décision de le retirer du périmètre P0 initial n’est déduite.
+  Ce lot historique ne créait pas de référentiel de tâches ; le complément courant
+  du 07/11 traite maintenant ce reliquat, conformément au périmètre accepté.
 - Le lot COM-001 inclut les ajustements documentaires de périmètre demandés auparavant,
   désormais commités. Son point de départ était `15d36d8` du 1er novembre 2026.
   Aucune migration appliquée à la base de travail ; une migration additive est à
@@ -57,7 +64,7 @@ pas une nouvelle validation de la CI distante. Les anciennes mentions « reste
 | Banc concurrent, corrections mesurées et durée soutenue QA-005 | `15d36d8` (01/11), après `c04431c`, `c1d3fb7`, `83607c9` | Trois volets locaux livrés. Mesures conservées ; poursuite de qualification de performance suspendue hors périmètre actuel. Ne pas reprendre l’ancien diagnostic comme tâche non commencée. |
 | Compléments d’isolation QA-002 | `9b4c3ac` (31/10) | 261 tests/3 913 assertions sur SQLite et PostgreSQL, plus Reverb local dans le bilan existant. Plus de dépendance à la qualification de performance pour la validation applicative ; pas de déclaration de clôture de release. |
 | Parcours navigateur QA-003 | `9dcbb4a` (25/10) et correctif COM-001 `98f34ae` (30/10) | Qualification et correctifs déjà livrés ; ne pas redémarrer les anciens lots de préparation navigateur. |
-| Rattachements contextuels COM-001 — reliquat identifié puis traité dans le présent lot | Socle `8d48651`, correctif de formulaire `98f34ae`, complément du 05/11 demandé en un commit local | Annonces `event`/`match`/`session` et commentaires directs sur ces trois objets livrés via leurs contrats publics. FKs et guards, droits frais avant pagination/comptages/notifications, UI et tests ajoutés. Les commentaires restent stockés sous leur fil d’annonce interne ; une table de rattachement le lie à l’objet réel. Le référentiel général « tâches » reste à cadrer, sans clôture intégrale du périmètre initial COM-001. |
+| Rattachements contextuels COM-001 — reliquat identifié puis traité dans le présent lot | Socle `8d48651`, correctif de formulaire `98f34ae`, complément du 05/11 demandé en un commit local | Annonces `event`/`match`/`session` et commentaires directs sur ces trois objets livrés via leurs contrats publics. FKs et guards, droits frais avant pagination/comptages/notifications, UI et tests ajoutés. Les commentaires restent stockés sous leur fil d’annonce interne ; une table de rattachement le lie à l’objet réel. Ce bilan du 05/11 laissait les tâches à cadrer ; le complément accepté le 07/11 est décrit ci-dessous. |
 | Concurrence et idempotence QA-004 | `434d3a6` (26/10) | Trois lots locaux livrés, 178 tests PostgreSQL dans le bilan existant. Futures intégrations et transports réels restent distincts. |
 | Récupération des contrats approuvés et matchs validés OPS-005/REC-36 | `0fb13f7` (30/10), après `ae2708f` et `0fe99bc` | Réimport des états avancés et simulation locale terminés. L’ancienne mention « reste à développer » est dépassée. Pas de moteur opérateur de récupération générale livré par cette fixture. |
 | Effacement, reprise et réconciliation après restauration OPS-007 | `537eeff` (31/10), après `07d54f1` | Critères applicatifs et scénario PostgreSQL local couverts ; décisions de conservation et disparition effective des copies externes restent distinctes. |
@@ -89,11 +96,63 @@ P1. Ces reports ne deviennent pas des tâches P0 manquantes.
 **Correction du premier bilan après vérification complémentaire** : le reliquat
 COM-001 avait été omis dans la première synthèse. Les raccordements Planning,
 Matchs et Académie sont maintenant implémentés dans le présent lot ; le référentiel
-général de tâches reste ouvert à cadrage. Prochaine étape : préciser ce reliquat
-et vérifier les autres critères P0 dans le code et les parcours existants avant
+général de tâches était encore ouvert à cadrage le 05/11. Depuis l’accord du 07/11,
+ce complément est maintenant implémenté et validé localement. Prochaine étape : vérifier
+les autres critères P0 dans le code et les parcours existants avant
 de déclarer le développement terminé. Cette revue n’est pas un audit exhaustif :
 décisions, données réelles et recette métier restent ouvertes. Aucun nouveau
 chantier de charge n’est imposé.
+
+### Livraison COM-001 — tâches internes, 07/11/2026
+
+Périmètre proposé puis accepté : titre/description, responsable et échéance
+facultatifs, statuts à faire/en cours/terminée et commentaires avec notifications
+internes configurables. API/React dans Media, contrat public People pour les
+responsables, permissions tasks.read/manage réservées à l’organisation. Les
+commentaires exigent aussi communication.read/comment. Un fil interne par tâche,
+exclu des annonces, dont l’accès et les notifications suivent les droits actuels,
+y compris sur l’ancienne URL du fil.
+
+Création/édition sous verrou tenant, version UUID, historique chiffré et audit
+atomiques. Filtres statut/responsable/échéance, pagination bornée et libellés par
+lot. L’échéance est une date métier, sans conversion de fuseau ni rappel
+automatique. Réouverture permise. Pas de suppression métier, de notification
+d’affectation, de sous-tâches ou de nouveau transport externe.
+
+Migration additive `2026_11_07_145755_create_work_tasks_and_revisions` exécutée
+uniquement sur bases de test : deux tables, FKs composites, gardes SQL d’identité,
+d’historique, de gel et d’effacement manuel avec empreintes. Catalogue fermé
+porté de 121 à 123 tables tenant. Démontages historiques adaptés. Les tables et
+versions chiffrées sont exportées et effacées sous permis en préservant une autre
+organisation. La CI PostgreSQL sélectionne les trois nouvelles classes de tests ;
+les nouveaux cas d’isolation portent leur groupe.
+
+Validation : **374 tests PostgreSQL / 1 780 assertions**, zéro exclusion, sur
+PostgreSQL 17 temporaire ensuite arrêté/supprimé. **509 tests frontend / 68
+fichiers** et **9 scénarios navigateur réels** réussis, sans retry. Le parcours
+de communication inclut création/édition/statut/commentaire des tâches et refus
+d’une tâche étrangère après changement de tenant. Le premier essai navigateur
+avait un changement de contexte insuffisamment attendu et réutilisait un même
+compte/TOTP dans deux tests proches ; scénario regroupé puis relancé avec succès,
+sans affaiblissement MFA ni attente arbitraire ajoutée au serveur.
+
+Suite backend complète : **3 289 cas**, 3 225 réussis, 63 exclusions conditionnelles
+et un seul échec sur le compteur d’inventaire resté à 121. Compteur mis à jour à
+123, puis **106 tests ciblés / 809 assertions** tous réussis, comprenant ce test,
+les tâches, les communications et leur effacement. La revue finale a aussi
+complété le catalogue fermé d’audit pour tasks.read/manage et les messages
+d’erreur spécifiques aux tâches. Création du rôle et attribution par l’API,
+gestion sans permission de publication et refus d’attribution sur une équipe :
+**123 tests SQLite / 591 assertions**, puis **123 tests PostgreSQL / 591 assertions**
+réussis après ces ajustements, zéro exclusion. Aucun nouveau passage complet
+unique revendiqué après les ajustements ciblés. Les sélections se recouvrent.
+Pint, PHPStan niveau 8,
+TypeScript, lint et build Vite réussis. Rapports ignorés et ressources temporaires
+nettoyées. Aucune migration appliquée à la base de travail.
+
+La CI du précédent `268791e` est validée par l’utilisateur ; aucune réussite
+distante déduite pour ce nouveau lot. Revue des autres critères P0 encore
+nécessaire avant clôture ; performance liée à l’hébergement toujours suspendue.
 
 ### Livraison COM-001 — objets existants, 05/11/2026
 
@@ -149,10 +208,11 @@ sans révision de session) ne constituent pas des preuves de réussite. Les lanc
 ont utilisé ensuite des ressources temporaires vérifiées et Chrome déjà installé,
 sans assouplissement des contrôles applicatifs. Pas de nouveau test de charge.
 
-**Limite de périmètre** : aucune création d’un gestionnaire général de tâches,
-aucun reclassement tacite de ce besoin en P1/P2. Commentaires sur tâches à cadrer
-séparément, COM-002/Discord et MOD-001 inchangés. La CI distante du nouveau commit
-n’est pas déclarée validée ; aucun push ni déploiement demandé pour ce lot.
+**Limite historique du lot du 05/11** : il ne créait pas de gestionnaire de tâches
+et ne reclassait pas ce besoin en P1/P2. Le complément accepté le 07/11 décrit
+ci-dessus traite maintenant les tâches et leurs commentaires. COM-002/Discord
+et MOD-001 restent inchangés. Pour les validations et pushes ultérieurs,
+le point de reprise courant prévaut ; aucun déploiement effectué.
 
 ### Historique de reprise jusqu’au 1er novembre 2026
 

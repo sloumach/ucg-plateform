@@ -46,8 +46,12 @@ pagination, confirmation et brouillon conservé pendant une actualisation.
 le serveur revérifie l’audience et les versions de l’objet/du fil. Les notifications
 internes permettent également d’ouvrir une discussion. Le formulaire d’annonce
 propose les nouvelles cibles selon les permissions ; un rattachement contextuel
-est verrouillé dès la création du brouillon. Le référentiel général de tâches
-reste à cadrer. Contrat détaillé et migration nécessaire dans le README racine.
+est verrouillé dès la création du brouillon. Le panneau « Tâches internes » ajouté
+le 07/11/2026 propose création, modification, responsable paginé, échéance et trois
+statuts. Le formulaire conserve le responsable actuel hors page et n’envoie que
+les champs modifiés avec la version courante. Les discussions sur tâches réutilisent
+ContextDiscussion ; notifications sur opt-in de l’auteur et des participants.
+Contrat détaillé et migrations nécessaires dans le README racine.
 
 ### Mesures de charge locales — UCG-QA-005
 

@@ -10,7 +10,7 @@ import type { CommunicationProps } from './CommunicationPanel'
 import { AsyncState } from '../feedback/AsyncState'
 import { Alert } from '../feedback/Alert'
 
-type ContextType = 'event' | 'match' | 'session'
+type ContextType = 'event' | 'match' | 'session' | 'task'
 type Props = CommunicationProps & { type: ContextType; id: string }
 type DiscussionPage = Page<AnnouncementComment> & {
   context: { id: string; type: ContextType; label: string; version: string; thread_version: string | null; can_comment: boolean }
@@ -19,7 +19,7 @@ type DiscussionPage = Page<AnnouncementComment> & {
 export function ContextDiscussion(props: Props) {
   const [open, setOpen] = useState(false)
   const permissions = props.active.context?.permissions ?? []
-  const required = { event: 'calendar.read', match: 'sports.read', session: 'academy.read' }[props.type]
+  const required = { event: 'calendar.read', match: 'sports.read', session: 'academy.read', task: 'tasks.read' }[props.type]
   if (!permissions.includes('communication.read') || !permissions.includes(required)) return null
   return <div className="grid min-w-0 gap-3">
     <Button disabled={props.disabled} onClick={() => setOpen(!open)}>{text(open ? 'closeDiscussion' : 'openDiscussion')}</Button>

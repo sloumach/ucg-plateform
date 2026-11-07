@@ -11,10 +11,10 @@ vi.mock('../../api/tenancy', async (original) => ({ ...await original<typeof imp
 const org = '11111111-1111-4111-8111-111111111111', id = '22222222-2222-4222-8222-222222222222'
 const version = '33333333-3333-4333-8333-333333333333', revision = '44444444-4444-4444-8444-444444444444'
 const active: ActiveOrganization = { context: { organization_id: org, name: 'Alpha', slug: 'alpha', language: 'fr', timezone: 'UTC', roles: ['member'],
-  permissions: ['communication.read', 'communication.comment', 'calendar.read', 'sports.read', 'academy.read'], actor_user_id: 42, is_owner: false, membership_id: id }, revision, confirmed: false }
+  permissions: ['communication.read', 'communication.comment', 'calendar.read', 'sports.read', 'academy.read', 'tasks.read'], actor_user_id: 42, is_owner: false, membership_id: id }, revision, confirmed: false }
 const response = () => ({ data: [{ id, announcement_id: id, body: '<script>Réponse</script>', is_mine: false, created_at: '2026-11-05T10:00:00Z' }],
   meta: { current_page: 1, last_page: 1, total: 1 }, context: { id, type: 'event', label: '<img src=x>', version, thread_version: null, can_comment: true } })
-function show(type: 'event' | 'match' | 'session' = 'event', selected = active) {
+function show(type: 'event' | 'match' | 'session' | 'task' = 'event', selected = active) {
   return render(<NotificationProvider><ContextDiscussion active={selected} type={type} id={id} disabled={false} onInvalid={invalid} /></NotificationProvider>)
 }
 beforeEach(() => {
@@ -29,7 +29,7 @@ describe('discussion de contexte', () => {
     expect(screen.queryByRole('button', { name: 'Ouvrir la discussion' })).not.toBeInTheDocument()
     expect(request).not.toHaveBeenCalled()
   })
-  it.each(['event', 'match', 'session'] as const)('charge les commentaires du contexte %s et échappe son contenu', async (type) => {
+  it.each(['event', 'match', 'session', 'task'] as const)('charge les commentaires du contexte %s et échappe son contenu', async (type) => {
     const user = userEvent.setup(); const { container } = show(type)
     await user.click(screen.getByRole('button', { name: 'Ouvrir la discussion' }))
     await screen.findByText('<script>Réponse</script>')

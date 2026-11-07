@@ -24,6 +24,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $published_at
  * @property Carbon|null $expires_at
  * @property Carbon|null $withdrawn_at
+ * @property-read WorkTask|null $task
  */
 final class Announcement extends Model
 {
@@ -63,11 +64,17 @@ final class Announcement extends Model
 
     public function audienceType(): string
     {
-        return $this->context?->type() ?? $this->target_type;
+        return $this->task !== null ? 'task' : ($this->context?->type() ?? $this->target_type);
     }
 
     public function audienceId(): ?string
     {
-        return $this->context?->targetId() ?? $this->targetId();
+        return $this->task->id ?? $this->context?->targetId() ?? $this->targetId();
+    }
+
+    /** @return HasOne<WorkTask, $this> */
+    public function task(): HasOne
+    {
+        return $this->hasOne(WorkTask::class, 'announcement_id');
     }
 }

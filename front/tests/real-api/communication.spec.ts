@@ -1,11 +1,53 @@
 import { readFileSync } from 'node:fs'
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page, type BrowserContext } from '@playwright/test'
 import { api, constrainOrigins, frontend, login } from './support'
 
 const fixture = JSON.parse(readFileSync(process.env.UCG_BROWSER_ROOT + '/fixture.json', 'utf8')) as {
   communication: { alpha: string; beta: string; activity: string; betaActivity: string; day: string }
 }
 const data = fixture.communication
+
+async function exerciseTask(page: Page, context: BrowserContext) {
+  const tasks = page.getByRole('region', { name: 'Tâches internes', exact: true })
+  await tasks.getByRole('button', { name: 'Ouvrir les tâches', exact: true }).click()
+  await tasks.getByRole('button', { name: 'Créer une tâche', exact: true }).click()
+  const form = tasks.getByRole('form', { name: 'Créer une tâche', exact: true })
+  await form.getByLabel('Titre de la tâche', { exact: true }).fill('Dossier de tournoi réel')
+  await form.getByLabel('Description de la tâche', { exact: true }).fill('<script>Préparer les pièces</script>')
+  await form.getByLabel('Échéance', { exact: true }).fill('2026-12-15')
+  await form.getByRole('button', { name: 'Enregistrer la tâche', exact: true }).click()
+  const created = page.waitForResponse((response) => response.url().endsWith('/tasks') && response.request().method() === 'POST')
+  await tasks.getByRole('button', { name: 'Confirmer et continuer', exact: true }).click()
+  const response = await created
+  expect(response.status()).toBe(201)
+  const task = (await response.json()).data as { id: string; version: string }
+  const card = tasks.getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'Dossier de tournoi réel', exact: true }) })
+  await card.getByRole('button', { name: 'Modifier la tâche', exact: true }).click()
+  const edit = tasks.getByRole('form', { name: 'Modifier la tâche', exact: true })
+  await edit.getByLabel('Statut de la tâche', { exact: true }).selectOption('done')
+  await edit.getByRole('button', { name: 'Enregistrer la tâche', exact: true }).click()
+  await tasks.getByRole('button', { name: 'Confirmer et continuer', exact: true }).click()
+  await expect(card.getByText('Terminée', { exact: true })).toBeVisible()
+  await card.getByRole('button', { name: 'Ouvrir la discussion', exact: true }).click()
+  const discussion = card.getByRole('region', { name: 'Discussion liée à cet élément', exact: true })
+  await expect(discussion.getByText('Aucun commentaire accessible.')).toBeVisible()
+  await discussion.getByLabel('Message', { exact: true }).fill('Dossier vérifié et terminé')
+  await discussion.getByRole('button', { name: 'Ajouter le commentaire', exact: true }).click()
+  await discussion.getByRole('button', { name: 'Confirmer et continuer', exact: true }).click()
+  await expect(discussion.getByText('Dossier vérifié et terminé', { exact: true })).toBeVisible()
+  await discussion.getByRole('button', { name: 'Actualiser les communications', exact: true }).click()
+  await expect(discussion.getByText('Dossier vérifié et terminé', { exact: true })).toBeVisible()
+  expect(await tasks.locator('script,img,iframe').count()).toBe(0)
+  await page.getByRole('button', { name: /Ouvrir Communication Beta/ }).click()
+  await expect(page.getByRole('button', { name: 'Ouvrir les tâches', exact: true })).toBeVisible()
+  const headers = { Accept: 'application/json', Origin: frontend }
+  const selected = await context.request.get(api + '/api/v1/active-organization', { headers })
+  const active = (await selected.json()).data
+  expect(active.context.organization_id).toBe(data.beta)
+  const revision = active.revision as string
+  const denied = await context.request.get(api + '/api/v1/tenants/' + data.beta + '/tasks/' + task.id, { headers: { ...headers, 'X-Tenant-Revision': revision } })
+  expect(denied.status(), await denied.text()).toBe(404)
+}
 
 test('discussion réelle : calendrier, confirmation, commentaire persisté, annonce ciblée et isolation', async ({ page, context }) => {
   const unexpected = await constrainOrigins(context)
@@ -58,6 +100,7 @@ test('discussion réelle : calendrier, confirmation, commentaire persisté, anno
   expect(result.status()).toBe(201)
   expect((await result.json()).data.target_id).toBe(data.activity)
   await expect(communication.getByRole('heading', { name: 'Annonce de l’événement', exact: true })).toBeVisible()
+  await exerciseTask(page, context)
   expect(errors).toEqual([])
   expect(unexpected).toEqual([])
 })

@@ -26,15 +26,22 @@ mentions imposant la qualification de performance comme prochain chantier obliga
 
 COM-001 raccorde désormais les annonces et discussions aux événements du planning,
 matchs et séances d’académie. Le bouton « Ouvrir la discussion » apparaît sur ces
-objets selon les permissions. Le système général de tâches reste à cadrer séparément.
+objets selon les permissions. Le complément du 07/11/2026 ajoute les tâches internes :
+titre, description, responsable facultatif, échéance, statuts à faire/en cours/terminée
+et discussion avec notifications internes sur opt-in. Les droits tasks.read/manage
+sont explicites ; les commentaires exigent aussi communication.read/comment.
 Voir le [contrat des raccordements contextuels](docs/conventions-api.md#raccordements-contextuels-com-001--05112026).
+Les [tâches internes et leurs routes](docs/conventions-api.md#tâches-internes-com-001--07112026)
+complètent ce socle.
 
 Avant usage de ce complément, sauvegarder puis appliquer les migrations avec
 `php artisan migrate` depuis `back/`. La migration additive
 `2026_11_05_123111_create_communication_contexts_table` n’a été exécutée ici que
 sur des bases de test isolées. Elle ne modifie pas les anciennes annonces et son
 rollback refuse la perte de rattachements existants. Ne pas utiliser `migrate:fresh`
-sur la base de travail. Le nouveau catalogue couvre 121 tables tenant.
+sur la base de travail. Le complément tâches nécessite aussi
+`2026_11_07_145755_create_work_tasks_and_revisions`, exécutée uniquement sur les bases
+de test. Le catalogue courant couvre 123 tables tenant ; les historiques sont conservés.
 
 ## Structure
 

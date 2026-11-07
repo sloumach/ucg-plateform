@@ -18,7 +18,7 @@ final class CommunicationInput
             'show' => ['management' => ['sometimes', 'boolean']],
             'comments' => [...$page, 'management' => ['sometimes', 'boolean']],
             'targets' => [...$page, 'type' => ['required', Rule::in(['team', 'game', 'role', 'event', 'match', 'session'])]],
-            'contextTargets' => [...$page, 'type' => ['required', Rule::in(['event', 'match', 'session'])]],
+            'contextTargets' => [...$page, 'type' => ['required', Rule::in(['event', 'match', 'session', 'task'])]],
             'discussion' => $page,
             'discuss' => ['version' => ['required', 'uuid'], 'thread_version' => ['present', 'nullable', 'uuid'],
                 'body' => ['required', 'string', 'max:4000', 'regex:/\\S/u'], 'notify_members' => ['sometimes', 'boolean']],

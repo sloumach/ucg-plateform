@@ -87,7 +87,7 @@ final readonly class CommunicationService
             $this->guard->lock($context);
             $this->write($context);
             $record = $id === null ? null : $this->records->find($context->organizationId, $id, $this->audience($context), true, true);
-            if ($record?->context?->discussion) {
+            if ($record?->context?->discussion || $record?->task !== null) {
                 throw new DomainConflictException(__('communication.discussion_fixed'), 'COMMUNICATION_DISCUSSION_FIXED');
             }
             if ($record !== null) {

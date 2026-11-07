@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Modules\Identity\Domain\Models\User;
+use App\Modules\Teams\Domain\Models\Team;
 use App\Modules\Tenancy\Application\Contracts\AuthorizationScopeDirectory;
 use App\Modules\Tenancy\Application\Contracts\TenantAuthorization;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
@@ -61,6 +62,28 @@ class ContextualRolesTest extends TestCase
         $this->assertDatabaseCount('organization_access_events', 2);
         $this->assertDatabaseHas('organization_access_events', ['action' => 'role.created', 'subject_id' => $role['id']]);
         $this->assertDatabaseHas('organization_roles', ['id' => $role['id'], 'active' => false]);
+    }
+
+    public function test_task_permissions_can_be_created_audited_and_assigned_only_to_the_organization(): void
+    {
+        $org = $this->owner();
+        $data = $this->postJson($this->path($org, 'roles'), ['key' => 'task-manager', 'name' => 'Gestion des tâches',
+            'active' => true, 'permissions' => ['tasks.read', 'tasks.manage']])->assertCreated()->assertJsonPath('data.privileged', true)->json('data');
+        $role = OrganizationRole::query()->where('id', $data['id'])->firstOrFail();
+        $user = User::factory()->withMfa()->create();
+        OrganizationMembership::factory()->create(['organization_id' => $org->id, 'user_id' => $user->id]);
+        $payload = $this->assignmentPayload($org, $role, $user->id);
+        $this->postJson($this->path($org, 'role-assignments'), $payload)->assertCreated();
+        $this->actingAsWithMfa($user);
+        $this->postJson($this->path($org, 'tasks'), ['title' => 'Gestion sans droit de publication'])->assertCreated();
+        $this->assertDatabaseCount('work_tasks', 1);
+        $this->assertDatabaseCount('organization_access_events', 2);
+
+        $this->owner($org);
+        $teamId = Team::factory()->create(['organization_id' => $org->id])->id;
+        $this->postJson($this->path($org, 'role-assignments'), [...$payload, 'scope_type' => 'team', 'scope_id' => $teamId])
+            ->assertConflict()->assertJsonPath('code', 'ROLE_SCOPE_INCOMPATIBLE');
+        $this->assertDatabaseCount('organization_role_assignments', 1);
     }
 
     /** @return array<string, array{array<string, mixed>, string}> */

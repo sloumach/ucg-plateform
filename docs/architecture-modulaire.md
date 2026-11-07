@@ -3164,3 +3164,43 @@ fictives éventuelles, sans être ajoutés à fixture.json ni aux sources. Le co
 authentifié ne les sérialise pas et l'interface ne les réaffiche pas au rechargement.
 Le stockage, la base, la clé applicative et les comptes restent temporaires : seize
 tenants et quatorze comptes de scénario/intervenants au total.
+
+## Tâches internes — complément COM-001 du 07/11/2026
+
+Le module Media possède WorkTask et WorkTaskRevision ; aucun module supplémentaire
+ni cycle de dépendance. Le contrôleur utilise un Form Request fermé, une policy,
+WorkTaskService et WorkTaskRepository. Le contrat public WorkTaskPeopleDirectory
+de People fournit les choix, vérifie les références sous verrou et résout les
+pseudonymes par lot, sans importer de modèle étranger dans Media. Les permissions
+tasks.read/manage sont des permissions d’organisation distinctes de la communication.
+
+Une tâche possède une annonce interne organisation, publiée dans la transaction
+de création et exclue du fil d’annonces. Ce lien 1:1 obligatoire, unique et immuable
+permet de réutiliser commentaires, préférences, événements et reçus sans modifier
+la table communication_contexts ni les migrations déjà livrées. WorkTaskContextService
+résout les sources task ; les requêtes de visibilité contrôlent tasks.read avant
+les comptes, pages, aperçus et notifications, même sur l’ancienne URL d’annonce.
+Le titre projeté est le titre actuel de la tâche ; l’annonce n’est pas éditable
+par le contrôleur de gestion des annonces.
+
+Le verrou d’organisation sérialise création, affectation, versions, révisions et
+commentaires. Toute mutation change la version UUID ; la transaction englobe
+fil, tâche, révision chiffrée et audit minimal (UUID/action uniquement). Les
+révisions sont numérotées et append-only. Le statut peut être rouvert, sans
+suppression métier. Le responsable est une personne actuelle facultative ; une
+affectation n’accorde pas de permission ni de notification automatique.
+
+Migration additive : work_tasks et work_task_revisions, FKs composites tenant
+vers annonce/personne/tâche, index de filtres, séquence d’historique et identité
+protégées en SQL sur SQLite/PostgreSQL. Les gardes de gel métier et d’effacement
+manuel autorisé sont inscrites avec leurs empreintes. Portabilité et famille
+communication couvrent les deux tables, soit 123 tables tenant. Les références
+historiques à une personne restent soumises aux blocages d’effacement partagé
+existants ; l’effacement explicite de l’organisation traite tout le graphe.
+
+Les tests de démontage partiel retirent les tâches avant People/announcements et
+avant les gardes historiques ; ils les recréent après les parents. Le callback
+de restauration de l’inventaire inclut ces deux tables. La suite PostgreSQL de
+CI inclut les trois nouvelles classes de tests. Le parcours navigateur des tâches
+prolonge le scénario de communication existant avec une seule authentification,
+pour respecter l’interdiction de réutilisation d’un code TOTP dans le même pas.

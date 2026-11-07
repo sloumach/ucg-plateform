@@ -59,6 +59,8 @@ enum Permission: string
     case CommunicationWrite = 'communication.write';
     case CommunicationPublish = 'communication.publish';
     case CommunicationComment = 'communication.comment';
+    case TasksRead = 'tasks.read';
+    case TasksManage = 'tasks.manage';
     case CalendarRead = 'calendar.read';
     case CalendarExport = 'calendar.export';
     case CalendarWrite = 'calendar.write';
@@ -78,7 +80,7 @@ enum Permission: string
 
     public function organizationOnly(): bool
     {
-        return str_starts_with($this->value, 'reporting.') || str_starts_with($this->value, 'organization.') || str_starts_with($this->value, 'memberships.')
+        return str_starts_with($this->value, 'tasks.') || str_starts_with($this->value, 'reporting.') || str_starts_with($this->value, 'organization.') || str_starts_with($this->value, 'memberships.')
             || str_starts_with($this->value, 'invitations.') || str_starts_with($this->value, 'roles.') || $this === self::AuditView;
     }
 

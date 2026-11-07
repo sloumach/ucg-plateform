@@ -12,15 +12,15 @@ use InvalidArgumentException;
 
 final readonly class CommunicationContexts
 {
-    public const array COLUMNS = ['event' => 'activity_id', 'match' => 'match_id', 'session' => 'session_id'];
+    public const array COLUMNS = ['event' => 'activity_id', 'match' => 'match_id', 'session' => 'session_id', 'task' => 'task_id'];
 
     public function __construct(private CommunicationCalendarDirectory $calendar, private CommunicationMatchDirectory $matches,
-        private CommunicationSessionDirectory $sessions) {}
+        private CommunicationSessionDirectory $sessions, private WorkTaskContextService $tasks) {}
 
     public function source(string $type): ContextSource
     {
         return match ($type) {
-            'event' => $this->calendar, 'match' => $this->matches, 'session' => $this->sessions,
+            'event' => $this->calendar, 'match' => $this->matches, 'session' => $this->sessions, 'task' => $this->tasks,
             default => throw new InvalidArgumentException('Unsupported communication context.'),
         };
     }

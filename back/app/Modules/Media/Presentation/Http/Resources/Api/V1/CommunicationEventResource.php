@@ -15,7 +15,7 @@ final class CommunicationEventResource extends ApiResource
         $item = $this->resource;
 
         return ['id' => $item->id, 'announcement_id' => $item->announcement_id, 'comment_id' => $item->comment_id,
-            'title' => $item->announcement->title, 'kind' => $item->kind, 'read' => $item->getAttribute('read_at') !== null,
+            'title' => $item->announcement->task->title ?? $item->announcement->title, 'kind' => $item->kind, 'read' => $item->getAttribute('read_at') !== null,
             'created_at' => $item->created_at->toIso8601String()];
     }
 }

@@ -98,8 +98,8 @@ $invitationBeta = Organization::factory()->create(['name' => 'Invitation Beta', 
 $mfaOwner = User::factory()->create(['name' => 'Browser MFA owner', 'email' => 'browser-mfa@example.test', 'password' => 'Browser-fixture-only-2026!']);
 $mfaOrganization = Organization::factory()->create(['owner_user_id' => $mfaOwner->id, 'name' => 'MFA Alpha', 'slug' => 'mfa-alpha']);
 foreach ([
-    [$communicationUser, $communicationAlpha, ['communication.read', 'communication.write', 'communication.publish', 'communication.comment', 'calendar.read']],
-    [$communicationUser, $communicationBeta, ['communication.read', 'communication.comment', 'calendar.read']],
+    [$communicationUser, $communicationAlpha, ['communication.read', 'communication.write', 'communication.publish', 'communication.comment', 'calendar.read', 'tasks.read', 'tasks.manage']],
+    [$communicationUser, $communicationBeta, ['communication.read', 'communication.comment', 'calendar.read', 'tasks.read']],
     [$user, $alpha, ['sports.read', 'sports.write']], [$user, $beta, ['sports.read']],
     [$rosterUser, $rosterAlpha, ['sports.read', 'sports.write', 'teams.manage']], [$rosterUser, $rosterBeta, ['sports.read']],
     [$calendarUser, $calendarAlpha, ['calendar.read', 'calendar.write', 'availability.read']], [$calendarUser, $calendarBeta, ['calendar.read']],

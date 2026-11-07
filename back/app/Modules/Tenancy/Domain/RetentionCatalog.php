@@ -24,7 +24,7 @@ final class RetentionCatalog
         'statistics' => ['statistical_calculations', 'statistical_calculation_sources', 'statistical_calculation_revisions', 'statistical_import_executions', 'statistical_import_receipts', 'statistical_imports', 'observation_revisions', 'statistical_observations'],
         'academy' => ['academy_session_revisions', 'academy_attendances', 'academy_objectives', 'academy_feedback', 'academy_coaching_revisions', 'academy_sessions', 'academy_revisions', 'academy_enrollments', 'academy_cycles', 'academy_cohorts'],
         'calendar' => ['calendar_change_recipients', 'calendar_changes', 'calendar_feeds', 'calendar_invitations', 'calendar_invitation_deliveries', 'calendar_resources', 'calendar_reservations', 'calendar_conflict_overrides', 'availabilities', 'availability_revisions', 'calendar_activities', 'calendar_participants'],
-        'communication' => ['announcements', 'communication_contexts', 'announcement_comments', 'communication_events', 'communication_preferences', 'communication_receipts'],
+        'communication' => ['announcements', 'communication_contexts', 'work_tasks', 'work_task_revisions', 'announcement_comments', 'communication_events', 'communication_preferences', 'communication_receipts'],
         'sponsors' => ['sponsorship_campaigns', 'sponsorship_deliverables', 'sponsorship_campaign_events', 'sponsorship_agreements', 'sponsorship_agreement_terms', 'sponsorship_exposures', 'sponsorship_agreement_events', 'sponsors', 'sponsor_contacts', 'sponsorship_opportunities', 'sponsorship_interactions'],
         'media' => ['media_items'],
         'reporting' => ['report_exports', 'dashboard_indicator_revisions', 'dashboard_indicators', 'dashboard_source_versions'],

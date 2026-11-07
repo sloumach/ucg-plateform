@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'task_saved' => 'La tâche a été enregistrée.',
+    'task_stale' => 'Cette tâche a changé. Rechargez-la avant de réessayer.',
+    'task_empty' => 'Renseignez au moins une modification de la tâche.',
+    'task_discussion' => 'Discussion interne liée à une tâche. Les droits sont vérifiés à chaque consultation.',
     'context_fixed' => 'Le rattachement de cette annonce est définitif. Créez un autre brouillon pour changer de contexte.',
     'discussion_fixed' => 'Cette discussion est liée à son objet et ne peut pas être modifiée comme une annonce.',
     'discussion_body' => 'Discussion liée à cet élément. Les droits sont vérifiés à chaque consultation.',

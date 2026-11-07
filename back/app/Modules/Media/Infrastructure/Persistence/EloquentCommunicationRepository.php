@@ -31,6 +31,10 @@ final readonly class EloquentCommunicationRepository implements CommunicationRep
 
     public function discussion(string $org, string $column, string $id): ?Announcement
     {
+        if ($column === 'task_id') {
+            return Announcement::query()->where('organization_id', $org)->whereHas('task', fn (Builder $q) => $q->where('organization_id', $org)->where('id', $id))
+                ->with(['context', 'task'])->first();
+        }
         if (! in_array($column, ['activity_id', 'match_id', 'session_id'], true)) {
             throw new \InvalidArgumentException('Unsupported communication reference.');
         }
@@ -41,7 +45,7 @@ final readonly class EloquentCommunicationRepository implements CommunicationRep
 
     public function paginate(string $org, CommunicationAudience $audience, array $filters, bool $management): LengthAwarePaginator
     {
-        $q = $this->visible($org, $audience, $management)->whereDoesntHave('context', fn (Builder $q) => $q->where('discussion', true));
+        $q = $this->visible($org, $audience, $management)->whereDoesntHave('task')->whereDoesntHave('context', fn (Builder $q) => $q->where('discussion', true));
         if (isset($filters['status'])) {
             $q->where('status', $filters['status']);
         }
@@ -61,7 +65,7 @@ final readonly class EloquentCommunicationRepository implements CommunicationRep
         $record ??= new Announcement;
         $record->forceFill($attributes)->save();
 
-        return $record->loadMissing('context');
+        return $record->loadMissing(['context', 'task']);
     }
 
     public function comments(string $org, string $announcementId, int $page, int $perPage): LengthAwarePaginator
@@ -107,7 +111,7 @@ final readonly class EloquentCommunicationRepository implements CommunicationRep
     public function inbox(string $org, int $userId, CommunicationAudience $audience, array $filters): LengthAwarePaginator
     {
         return $this->deliverable($org, $userId, $audience, (bool) ($filters['unread'] ?? false))
-            ->with('announcement:id,title')->orderByDesc('communication_events.created_at')->orderBy('communication_events.id')
+            ->with(['announcement:id,title', 'announcement.task'])->orderByDesc('communication_events.created_at')->orderBy('communication_events.id')
             ->paginate((int) ($filters['per_page'] ?? 10), ['communication_events.*'], 'page', (int) ($filters['page'] ?? 1));
     }
 
@@ -121,13 +125,21 @@ final readonly class EloquentCommunicationRepository implements CommunicationRep
     /** @return Builder<Announcement> */
     private function visible(string $org, CommunicationAudience $audience, bool $management = false): Builder
     {
-        $q = Announcement::query()->where('organization_id', $org)->with('context');
+        $q = Announcement::query()->where('organization_id', $org)->with(['context', 'task']);
+        $q->where(function (Builder $scope) use ($org, $audience): void {
+            $scope->whereDoesntHave('task');
+            if (isset($audience->contexts['task_id'])) {
+                $scope->orWhereHas('task', fn (Builder $tasks) => $tasks->where('organization_id', $org)->whereIn('id', clone $audience->contexts['task_id']));
+            }
+        });
         // Contextual content always requires access to its source, including management previews and inbox counts.
         $q->where(fn (Builder $scope) => $scope->whereDoesntHave('context')->orWhereHas('context', function (Builder $binding) use ($org, $audience): void {
             $binding->where('organization_id', $org)->where(function (Builder $allowed) use ($audience): void {
                 $allowed->whereRaw('1 = 0');
                 foreach ($audience->contexts as $column => $query) {
-                    $allowed->orWhereIn($column, clone $query);
+                    if ($column !== 'task_id') {
+                        $allowed->orWhereIn($column, clone $query);
+                    }
                 }
             });
         }));

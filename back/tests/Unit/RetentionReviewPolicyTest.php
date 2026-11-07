@@ -19,7 +19,7 @@ class RetentionReviewPolicyTest extends TestCase
         sort($expected);
 
         $this->assertCount(18, RetentionCatalog::FAMILIES);
-        $this->assertCount(121, $tables);
+        $this->assertCount(123, $tables);
         $this->assertSame($expected, $tables);
         $this->assertSame(count($tables), count(array_unique($tables)));
     }
