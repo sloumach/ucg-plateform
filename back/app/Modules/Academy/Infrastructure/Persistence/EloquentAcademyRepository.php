@@ -8,10 +8,11 @@ use App\Modules\Academy\Domain\Models\AcademyEnrollment;
 use App\Modules\Academy\Domain\Models\AcademyRevision;
 use App\Modules\Academy\Domain\Models\Cohort;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Query\Builder;
 
 final readonly class EloquentAcademyRepository implements AcademyRepository
 {
-    public function paginate(string $organizationId, string $kind, array $filters, ?string $cohortId = null): LengthAwarePaginator
+    public function paginate(string $organizationId, string $kind, array $filters, ?string $cohortId = null, ?Builder $visible = null): LengthAwarePaginator
     {
         $query = match ($kind) {
             'cohort' => Cohort::query(), 'cycle' => AcademyCycle::query(),
@@ -19,6 +20,9 @@ final readonly class EloquentAcademyRepository implements AcademyRepository
             default => throw new \InvalidArgumentException('Unknown academy collection.'),
         };
         $query->where('organization_id', strtolower($organizationId));
+        if ($visible !== null) {
+            $query->whereIn($kind === 'cohort' ? 'id' : 'cohort_id', $visible);
+        }
         if ($cohortId !== null) {
             $query->where('cohort_id', strtolower($cohortId));
         }

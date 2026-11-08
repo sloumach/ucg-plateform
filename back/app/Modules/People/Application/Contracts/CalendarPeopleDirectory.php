@@ -10,7 +10,7 @@ interface CalendarPeopleDirectory
     /** @param list<string> $ids
      * @return array<string,int>
      */
-    public function accounts(TenantContext $context, array $ids): array;
+    public function accounts(TenantContext $context, array $ids, ?string $activityId = null): array;
 
     /** @return array{person_id: string|null, timezone: string} */
     public function viewer(TenantContext $context): array;

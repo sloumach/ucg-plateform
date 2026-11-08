@@ -7,12 +7,13 @@ use App\Modules\Academy\Domain\Models\AcademyEnrollment;
 use App\Modules\Academy\Domain\Models\AcademyRevision;
 use App\Modules\Academy\Domain\Models\Cohort;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Query\Builder;
 
 interface AcademyRepository
 {
     /** @param array<string, mixed> $filters
      * @return LengthAwarePaginator<int, Cohort>|LengthAwarePaginator<int, AcademyCycle>|LengthAwarePaginator<int, AcademyEnrollment>|LengthAwarePaginator<int, AcademyRevision> */
-    public function paginate(string $organizationId, string $kind, array $filters, ?string $cohortId = null): LengthAwarePaginator;
+    public function paginate(string $organizationId, string $kind, array $filters, ?string $cohortId = null, ?Builder $visible = null): LengthAwarePaginator;
 
     public function cohort(string $organizationId, string $id, bool $lock = false): Cohort;
 

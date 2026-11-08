@@ -11,6 +11,21 @@ use Illuminate\Database\Eloquent\Builder;
 
 final class EloquentRoleRepository implements RoleRepository
 {
+    public function scopedPermissions(string $org, int $userId, ?string $membershipId, string $type, \Illuminate\Database\Query\Builder $sources): array
+    {
+        $roleIds = $this->grants($org, $userId, $membershipId, now())->where('scope_type', $type)->whereIn('scope_id', $sources)->select('role_id');
+        $roles = OrganizationRole::query()->where('organization_id', $org)->where('active', true)->whereIn('id', $roleIds)->get(['permissions']);
+
+        return array_values(array_unique($roles->flatMap(fn (OrganizationRole $role): array => $role->permissions)->all()));
+    }
+
+    public function scopeIds(string $org, int $userId, ?string $membershipId, string $type, string $permission): \Illuminate\Database\Query\Builder
+    {
+        return $this->grants($org, $userId, $membershipId, now())->where('scope_type', $type)
+            ->whereHas('role', fn (Builder $role) => $role->where('active', true)->whereJsonContains('permissions', $permission))
+            ->select('scope_id')->toBase();
+    }
+
     public function roles(string $organizationId, int $perPage, int $page): LengthAwarePaginator
     {
         return OrganizationRole::query()->where('organization_id', $organizationId)->orderBy('name')->orderBy('id')->paginate($perPage, ['*'], 'page', $page);
@@ -59,13 +74,15 @@ final class EloquentRoleRepository implements RoleRepository
     }
 
     public function hasGrant(string $organizationId, int $userId, ?string $membershipId, string $permission,
-        string $scopeType, string $scopeId, CarbonInterface $start, ?CarbonInterface $end, bool $coverPeriod = false): bool
+        string $scopeType, string $scopeId, CarbonInterface $start, ?CarbonInterface $end, bool $coverPeriod = false, bool $organizationCovers = true): bool
     {
         return $this->grants($organizationId, $userId, $membershipId, $start)
             ->whereHas('role', fn (Builder $role) => $role->where('active', true)->whereJsonContains('permissions', $permission))
-            ->where(function (Builder $scope) use ($organizationId, $scopeType, $scopeId): void {
-                $scope->where(fn (Builder $query) => $query->where('scope_type', 'organization')->where('scope_id', $organizationId))
-                    ->orWhere(fn (Builder $query) => $query->where('scope_type', $scopeType)->where('scope_id', $scopeId));
+            ->where(function (Builder $scope) use ($organizationId, $scopeType, $scopeId, $organizationCovers): void {
+                $scope->where(fn (Builder $query) => $query->where('scope_type', $scopeType)->where('scope_id', $scopeId));
+                if ($organizationCovers) {
+                    $scope->orWhere(fn (Builder $query) => $query->where('scope_type', 'organization')->where('scope_id', $organizationId));
+                }
             })
             ->when($coverPeriod, function (Builder $query) use ($end): void {
                 if ($end === null) {

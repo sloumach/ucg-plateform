@@ -6,13 +6,14 @@
 ## Point de reprise
 
 - Dernière mise à jour : **8 novembre 2026**.
-- Tâche courante : **complément SPON-002 — événements et médias**, tous les lots
-  acceptés : références et versions, autorisations/approbation, compatibilité
-  SPON-003, interface, tests et documentation. Développement et validations
-  étendues terminés, bilan ci-dessous ; livraison regroupée en un commit local.
-  Push et nouvelle CI restent à effectuer. Aucune migration sur la base de travail.
-- **CI `6fc2e84` validée par l’utilisateur** avant ce complément SPON-002.
-  Cette validation ne s’étend pas au nouveau lot. Aucun autre module P1 lancé.
+- Tâche courante : **complément IAM-003 — jeu, cohorte et événement**, tous les
+  lots demandés : annuaires réels, lecture/écriture limitées, dates et
+  révocations, interface, tests et documentation. Commit unique et push autorisés.
+  Développement et validations terminés ; bilan de livraison ci-dessous.
+  Aucun autre module P1 lancé. CI du nouveau commit à confirmer après livraison.
+- **SPON-002 `017248d` poussé par l’utilisateur et CI validée par lui** avant ce
+  complément IAM-003. Cette validation ne s’étend pas au nouveau commit.
+  Aucune migration récente sur la base de travail confirmée.
 - Livraison précédente : **correctif CI frontend après MEDIA-001 `004a3ac`**, poussé
   sur staging. Le journal fourni montre un échec des convocations pour clé React
   dupliquée et un test des scores intermittent. Clé du bloc médias distinguée
@@ -72,6 +73,74 @@
   Aucun ticket P1/P2 n’est automatiquement promu au P0 et aucun nouveau module
   métier n’est lancé par cette seule révision. Les décisions, données et
   qualifications externes ci-dessous restent identifiées séparément.
+
+### Complément IAM-003 — jeu, cohorte et événement, 08/11/2026
+
+Les cinq types organisation/équipe/jeu/cohorte/événement sont enregistrés. Teams,
+Academy et Scheduling valident leurs sources réelles ; Tenancy ne dépend pas
+de leurs modèles. Les permissions compatibles sont fermées : game pour
+sports.read/games.manage sur la configuration du jeu, cohort pour les cinq
+permissions de gestion Academy sur son arborescence, event pour calendar.read/write
+sur l’activité précise. Les permissions incompatibles sont refusées, y compris
+après modification d’une définition existante lors de l’autorisation effective.
+
+Les listes et comptes sont restreints avant pagination. Le mode gestion du
+calendrier intersecte les droits de lecture et d’écriture : aucun mélange de
+droit global et de grant limité n’ouvre les événements privés voisins. Les grants
+explicites de lecture complètent l’audience normale, sans la remplacer. Les
+délégués non propriétaires ne peuvent transformer une lecture globale du
+calendrier en accès privé illimité : grant exact de lecture, ou gestion globale
+lecture/écriture couvrant toute la période déléguée. Les actions rechargent
+les droits sur le parent exact avant et dans la transaction, avec contrôle de
+version et audit existants. Les dates d’effet et l’adhésion bornent les grants ;
+suspension/révocation, MFA, état du tenant et archivage/annulation retirent l’accès.
+Les périodes sportives spécifiques aux équipes restent inchangées. Un jeu actif
+globalement et disponible/configuré dans le tenant peut être administré, y
+compris pour réactiver son réglage local désactivé. Les dates de l’activité ou
+des cycles ne remplacent pas les dates explicites du rôle.
+
+API de références paginées id/libellé, avec roles.assign et lecture source ;
+visibilité privée du calendrier conservée, titres déchiffrés par Scheduling.
+Catalogue enrichi des types compatibles par permission et sélection dans React.
+« Mes accès limités » ouvre les parcours natifs sans modifier le snapshot des
+droits d’organisation. Les permissions d’affichage sont obtenues par requêtes
+sur les définitions bornées des rôles, sans parcourir toutes les affectations.
+
+Les référentiels généraux de personnes, la modification des participants et des
+ressources, le partage, les exports/invitations et les notifications gardent leurs
+permissions propres d’organisation. Un accès limité ne les active pas. Les
+séances conservent la permission calendrier séparée pour leurs créneaux. Un
+conflit privé bloque une édition d’événement limitée sans titre ni UUID du voisin.
+Les destinataires d’une annulation sont résolus avant de fermer son périmètre ;
+l’historique est conservé et le worker garde ses vérifications organisationnelles.
+
+Aucun changement de schéma : inventaire à 125 tables tenant, aucune migration
+créée ou appliquée. Livraison regroupée en un commit destiné à origin/staging ;
+push autorisé par l’utilisateur. L’état de la livraison se vérifie dans Git.
+
+Validation backend complète : **3 346 cas**, **3 283 réussis**, **63 exclusions
+conditionnelles**, **20 715 assertions**, zéro échec/erreur. Après le dernier
+ajustement de délégation, sélection finale SQLite : **105 tests / 1 213 assertions**.
+PostgreSQL 17 : **257 tests / 1 935 assertions** sur les périmètres, calendrier,
+académie, rôles et intégrations ; puis **139 tests / 1 262 assertions** après
+la revue finale de délégation/visibilité/révocations. Ces sélections se recouvrent,
+sans exclusion PostgreSQL ; 19 nouveaux cas de sources contextuelles au total.
+La sélection PostgreSQL de la CI inclut désormais ContextualSourceScopesTest.
+
+Frontend : **533 tests / 71 fichiers** réussis ; TypeScript, lint et build valides.
+**53 parcours Playwright simulés** et **11 parcours Laravel réels** réussis, sans
+retry, sous Chrome Windows. Le nouveau parcours réel attribue les trois types
+dans l’interface, consulte les listes limitées, modifie la cohorte, vérifie les
+refus sur les objets voisins puis révoque les droits depuis un autre compte.
+Le premier essai de ce scénario avait un sélecteur de test incorrect ; il a
+été corrigé en utilisant les noms accessibles réels, sans augmenter timeout/retry.
+Pint et PHPStan niveau 8 valides. Les rapports restent ignorés dans back/reports
+et front/reports. Les clusters PostgreSQL, serveurs et dossiers temporaires des
+lanceurs ont été arrêtés et nettoyés. Aucune base de travail ou hébergée modifiée.
+
+La CI distante du nouveau commit reste à valider ; après celle-ci, reprendre
+l’audit des critères P0 restants. Aucune clôture globale P0 ou qualification de
+l’hébergement déduite ; tests de charge dépendant de l’hébergement toujours exclus.
 
 ### Audit des tâches reportées et des commits — 05/11/2026
 
@@ -180,7 +249,9 @@ leur cache de développement. Le nouveau test attend la fin du changement de
 tenant et vérifie l’UUID actif avant son contrôle d’isolation ; les erreurs console
 sont surveillées après la connexion, hors sonde auth/me initiale attendue en 401.
 
-La base de travail reste à migrer après revue et CI du nouveau lot. Les décisions,
+Ce lot SPON-002 a ensuite été poussé par l’utilisateur (`017248d`), avec CI
+validée par lui avant le complément IAM-003. Sa migration sur la base de travail
+reste non confirmée. Les décisions,
 données réelles, recette métier et revue des autres critères P0 restent ouvertes.
 Les tests de performance dépendant de l’hébergement restent hors périmètre.
 
@@ -1849,8 +1920,8 @@ Vérifications de clôture :
 - Contrat public `TenantAuthorization`, Gate/Policy, Form Requests, DTO/Resources,
   Service/Repository. Relecture des droits en HTTP/services/jobs ; contexte
   périmé sans autorité, MFA global relié aux permissions privilégiées effectives.
-- Organisation entière disponible. Équipe/jeu/cohorte/événement sont préparés,
-  testés avec annuaire factice et refusés jusqu’au raccordement des ressources
+- Bilan historique initial : organisation entière disponible ; les autres types
+  étaient préparés, testés avec annuaire factice et refusés avant raccordement des ressources
   réelles par leurs modules ; IAM-004/005 restent distincts.
 - Interface française paginée, confirmations du tenant, versions conservées,
   gestion accessible des erreurs/focus, lecture des seules affectations du membre.

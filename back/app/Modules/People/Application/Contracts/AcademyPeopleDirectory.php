@@ -14,9 +14,9 @@ interface AcademyPeopleDirectory
     public function choices(TenantContext $context, int $page, int $perPage): LengthAwarePaginator;
 
     /** Resolve an active tenant person; lock only inside the business transaction. */
-    public function account(TenantContext $context, string $personId, bool $lock = false): ?int;
+    public function account(TenantContext $context, string $personId, bool $lock = false, ?string $cohortId = null): ?int;
 
     /** @param list<string> $personIds
      * @return array<string, string> */
-    public function labels(TenantContext $context, array $personIds): array;
+    public function labels(TenantContext $context, array $personIds, ?string $cohortId = null): array;
 }

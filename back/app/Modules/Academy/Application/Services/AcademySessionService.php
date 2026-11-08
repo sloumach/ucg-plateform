@@ -31,11 +31,11 @@ final readonly class AcademySessionService
      * @return LengthAwarePaginator<int, AcademySession> */
     public function paginate(TenantContext $context, string $cohort, string $cycle, array $filters): LengthAwarePaginator
     {
-        $this->access->authorize($context);
+        $this->access->authorize($context, null, $cohort);
         $filters = AcademySessionInput::validate($this->validator, $filters, 'session', false, false);
         $this->access->cycle($context, $cohort, $cycle);
         $page = $this->records->sessions($context->organizationId, strtolower($cycle), (int) ($filters['page'] ?? 1), (int) ($filters['per_page'] ?? 10));
-        $this->project($context, array_values($page->items()));
+        $this->project($context, array_values($page->items()), $cohort);
 
         return $page;
     }
@@ -44,7 +44,7 @@ final readonly class AcademySessionService
      * @return LengthAwarePaginator<int, AcademySessionRevision> */
     public function history(TenantContext $context, string $cohort, string $cycle, string $session, array $filters): LengthAwarePaginator
     {
-        $this->access->authorize($context);
+        $this->access->authorize($context, null, $cohort);
         $filters = AcademySessionInput::validate($this->validator, $filters, 'session', false, false);
         $this->access->cycle($context, $cohort, $cycle);
         $record = $this->records->session($context->organizationId, $cycle, $session);
@@ -56,18 +56,18 @@ final readonly class AcademySessionService
      * @return LengthAwarePaginator<int, AcademyActivity> */
     public function activities(TenantContext $context, string $cohort, string $cycle, array $filters): LengthAwarePaginator
     {
-        $this->access->authorize($context);
+        $this->access->authorize($context, null, $cohort);
         $filters = AcademySessionInput::validate($this->validator, $filters, 'activities', false, false);
         $record = $this->access->cycle($context, $cohort, $cycle);
 
         return $this->schedule->choices($context, $filters['from_date'], $filters['to_date'], $record->timezone,
-            (int) ($filters['page'] ?? 1), (int) ($filters['per_page'] ?? 10));
+            (int) ($filters['page'] ?? 1), (int) ($filters['per_page'] ?? 10), $cohort);
     }
 
     /** @param array<string, mixed> $input */
     public function save(TenantContext $context, string $cohort, string $cycleId, array $input, ?string $id = null, ?string $ip = null): AcademySession
     {
-        $this->access->authorize($context, 'academy.manage');
+        $this->access->authorize($context, 'academy.manage', $cohort);
         $values = AcademySessionInput::validate($this->validator, $input, 'session', $id === null);
         $cycle = $this->access->cycle($context, $cohort, $cycleId);
         $initial = $id === null ? null : $this->records->session($context->organizationId, $cycle->id, $id);
@@ -77,14 +77,14 @@ final readonly class AcademySessionService
         if ($mentor !== null && $mentor->cycle_id !== $cycle->id) {
             throw new ModelNotFoundException;
         }
-        $account = $mentor === null ? null : $this->people->account($context, $mentor->person_id);
+        $account = $mentor === null ? null : $this->people->account($context, $mentor->person_id, false, $cohort);
         if (! $cancelling && $account === null) {
             throw new DomainConflictException(__('academy.person_unavailable'), 'ACADEMY_PERSON_UNAVAILABLE');
         }
         try {
             $saved = $this->database->transaction(function () use ($context, $cohort, $cycle, $values, $id, $ip, $account, $cancelling, $mentorId): AcademySession {
                 $this->guard->lock($context, $account);
-                $this->access->authorize($context, 'academy.manage');
+                $this->access->authorize($context, 'academy.manage', $cohort);
                 $cycle = $this->access->cycle($context, $cohort, $cycle->id, true);
                 $record = $id === null ? new AcademySession : $this->records->session($context->organizationId, $cycle->id, $id, true);
                 if ($record->exists) {
@@ -97,9 +97,9 @@ final readonly class AcademySessionService
                     $attributes = ['status' => 'cancelled'];
                 } else {
                     $activityId = strtolower($values['activity_id'] ?? $record->activity_id);
-                    $activity = $this->access->activity($context, $activityId, $values['activity_version']);
+                    $activity = $this->access->activity($context, $activityId, $values['activity_version'], $cohort);
                     $mentor = $this->access->enrollment($context, $cycle, $mentorId, $activity, true);
-                    if ($this->people->account($context, $mentor->person_id, true) !== $account) {
+                    if ($this->people->account($context, $mentor->person_id, true, $cohort) !== $account) {
                         throw new DomainConflictException(__('academy.person_unavailable'), 'ACADEMY_PERSON_UNAVAILABLE');
                     }
                     $attributes = $this->attributes($record, $values, $activity, $mentorId);
@@ -113,7 +113,7 @@ final readonly class AcademySessionService
         } catch (UniqueConstraintViolationException) {
             throw new DomainConflictException(__('academy_sessions.duplicate'), 'ACADEMY_SESSION_ALREADY_LINKED');
         }
-        $this->project($context, [$saved]);
+        $this->project($context, [$saved], $cohort);
 
         return $saved;
     }
@@ -145,10 +145,10 @@ final readonly class AcademySessionService
     }
 
     /** @param list<AcademySession> $items */
-    private function project(TenantContext $context, array $items): void
+    private function project(TenantContext $context, array $items, string $cohort): void
     {
-        $activities = $this->schedule->available($context, array_values(array_unique(array_map(fn (AcademySession $item): string => $item->activity_id, $items))));
-        $labels = $this->people->labels($context, array_values(array_unique(array_map(fn (AcademySession $item): string => $item->responsibleEnrollment->person_id, $items))));
+        $activities = $this->schedule->available($context, array_values(array_unique(array_map(fn (AcademySession $item): string => $item->activity_id, $items))), false, $cohort);
+        $labels = $this->people->labels($context, array_values(array_unique(array_map(fn (AcademySession $item): string => $item->responsibleEnrollment->person_id, $items))), $cohort);
         foreach ($items as $item) {
             $activity = $activities[$item->activity_id] ?? null;
             $item->setAttribute('schedule', $activity);

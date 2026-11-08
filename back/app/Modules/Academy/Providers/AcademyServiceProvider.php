@@ -13,6 +13,7 @@ use App\Modules\Academy\Domain\Models\Cohort;
 use App\Modules\Academy\Infrastructure\Persistence\EloquentAcademyCoachingRepository;
 use App\Modules\Academy\Infrastructure\Persistence\EloquentAcademyRepository;
 use App\Modules\Academy\Infrastructure\Persistence\EloquentAcademySessionRepository;
+use App\Modules\Academy\Infrastructure\Resolution\CohortAuthorizationScopes;
 use App\Modules\Academy\Presentation\Policies\AcademyCoachingPolicy;
 use App\Modules\Academy\Presentation\Policies\AcademyPolicy;
 use App\Modules\Academy\Presentation\Policies\AcademySessionPolicy;
@@ -32,6 +33,7 @@ final class AcademyServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        config(['tenancy.authorization_scope_resolvers.cohort' => CohortAuthorizationScopes::class]);
         Gate::policy(AcademyObjective::class, AcademyCoachingPolicy::class);
         Gate::policy(AcademySession::class, AcademySessionPolicy::class);
         Gate::policy(Cohort::class, AcademyPolicy::class);

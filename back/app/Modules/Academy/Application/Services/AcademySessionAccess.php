@@ -19,16 +19,21 @@ final readonly class AcademySessionAccess
     public function __construct(private AcademyRepository $academy, private TenantAuthorization $authorization,
         private AcademySchedule $schedule, private AcademyPeopleDirectory $people) {}
 
-    public function authorize(TenantContext $context, ?string $writePermission = null): void
+    public function authorize(TenantContext $context, ?string $writePermission = null, ?string $cohortId = null): void
     {
-        $this->authorization->authorize($context, 'academy.read');
+        if (! $this->authorization->allows($context, 'academy.read')) {
+            $this->authorization->authorize($context, 'academy.read', $cohortId === null ? 'organization' : 'cohort', $cohortId);
+        }
         if ($writePermission !== null) {
-            $this->authorization->authorize($context, $writePermission);
+            if (! $this->authorization->allows($context, $writePermission)) {
+                $this->authorization->authorize($context, $writePermission, $cohortId === null ? 'organization' : 'cohort', $cohortId);
+            }
         }
     }
 
     public function cycle(TenantContext $context, string $cohortId, string $cycleId, bool $write = false): AcademyCycle
     {
+        $this->authorize($context, null, $cohortId);
         $cohort = $this->academy->cohort($context->organizationId, $cohortId, $write);
         $cycle = $this->academy->cycle($context->organizationId, $cohort->id, $cycleId, $write);
         if ($write && ($cohort->status !== 'active' || $cycle->status !== 'active')) {
@@ -38,10 +43,10 @@ final readonly class AcademySessionAccess
         return $cycle;
     }
 
-    public function activity(TenantContext $context, string $id, string $version): AcademyActivity
+    public function activity(TenantContext $context, string $id, string $version, ?string $cohortId = null): AcademyActivity
     {
         $this->authorization->authorize($context, 'calendar.read');
-        $activity = $this->schedule->available($context, [strtolower($id)], true)[strtolower($id)] ?? null;
+        $activity = $this->schedule->available($context, [strtolower($id)], true, $cohortId)[strtolower($id)] ?? null;
         if ($activity === null) {
             throw new ModelNotFoundException;
         }
@@ -62,7 +67,7 @@ final readonly class AcademySessionAccess
         $to = $activity->endsAt->subMicrosecond()->setTimezone($cycle->timezone)->toDateString();
         if ($from < $cycle->starts_on || $to > $cycle->ends_on || $enrollment->status !== 'active'
             || $enrollment->starts_on > $from || $enrollment->ends_on < $to || ($mentor && $enrollment->role !== 'mentor')
-            || ! isset($this->people->labels($context, [$enrollment->person_id])[$enrollment->person_id])) {
+            || ! isset($this->people->labels($context, [$enrollment->person_id], $cycle->cohort_id)[$enrollment->person_id])) {
             throw new DomainConflictException(__('academy_sessions.enrollment_unavailable'), 'ACADEMY_ENROLLMENT_UNAVAILABLE');
         }
 

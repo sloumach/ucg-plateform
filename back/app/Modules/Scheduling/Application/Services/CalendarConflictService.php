@@ -22,8 +22,12 @@ final readonly class CalendarConflictService
      */
     public function inspect(TenantContext $context, ?CalendarActivity $record, array $attributes, array $people, array $resources): CalendarConflictReport
     {
-        $this->authorization->authorize($context, 'calendar.read');
-        $this->authorization->authorize($context, 'calendar.write');
+        if (! $this->authorization->allows($context, 'calendar.read')) {
+            $this->authorization->authorize($context, 'calendar.read', 'event', $record?->id);
+        }
+        if (! $this->authorization->allows($context, 'calendar.write')) {
+            $this->authorization->authorize($context, 'calendar.write', 'event', $record?->id);
+        }
         sort($people);
         sort($resources);
         $from = $attributes['starts_at'] ?? $record?->starts_at;
@@ -31,6 +35,9 @@ final readonly class CalendarConflictService
         $team = array_key_exists('team_id', $attributes) ? $attributes['team_id'] : $record?->team_id;
         $available = $this->authorization->allows($context, 'availability.read');
         $rows = $this->records->detect($context->organizationId, $record?->id, $from, $to, $team, $people, $resources, $available, self::MAX_CONFLICTS + 1);
+        if ($rows !== [] && ! $this->authorization->allows($context, 'calendar.write')) {
+            throw new DomainConflictException(__('calendar.conflicts_review_required'), 'CALENDAR_CONFLICT_REVIEW_REQUIRED');
+        }
         $report = new CalendarConflictReport(array_slice($rows, 0, self::MAX_CONFLICTS), count($rows) > self::MAX_CONFLICTS, $available, [
             'organization_id' => $context->organizationId, 'actor_id' => $context->actorUserId, 'activity_id' => $record?->id, 'version' => $record?->version,
             'starts_at' => $from->utc()->toIso8601String(), 'ends_at' => $to->utc()->toIso8601String(), 'team_id' => $team, 'people' => $people, 'resources' => $resources]);

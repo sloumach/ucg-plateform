@@ -179,9 +179,17 @@ droit. Les droits sportifs, administratifs et financiers ne sont jamais implicit
 pour un propriétaire ou administrateur ; l’auto-attribution et l’extension de ses
 propres droits sont refusées. Les permissions privilégiées alimentent le MFA global.
 
-**Périmètre disponible aujourd’hui : organisation entière.** Les types équipe,
-jeu, cohorte et événement sont préparés et refusés jusqu’à validation de leurs
-ressources réelles par leurs modules, via `AuthorizationScopeDirectory`.
+**Périmètres disponibles : organisation, équipe, jeu, cohorte et événement.**
+Les annuaires propriétaires valident les ressources réelles. Le catalogue publie
+les permissions compatibles : jeu = consultation/configuration de ce jeu ;
+cohorte = opérations Academy sur cette cohorte et ses enfants ; événement =
+lecture/modification de cette activité. Aucun droit métier global n’est déduit.
+Sélecteurs paginés pour les gestionnaires et espace « Mes accès limités » pour
+les membres. Les listes sont filtrées avant comptes/pages ; les écritures
+revérifient le parent exact sous verrou. Dates, MFA, suspension, révocation et
+fin d’adhésion restent applicables. L’archivage/annulation ferme le périmètre.
+Les référentiels généraux, le partage, les invitations, exports et notifications
+conservent leurs contrôles propres d’organisation. Aucune nouvelle migration.
 IAM-004 fournit la projection par champ décrite ci-dessous ; IAM-005 sépare
 les rôles plateforme/support et les permissions tenant.
 

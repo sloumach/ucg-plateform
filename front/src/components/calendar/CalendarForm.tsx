@@ -15,8 +15,8 @@ import { useCalendarConflictReview } from './useCalendarConflictReview'
 import { bookingText } from '../../api/calendarConflicts'
 import { Alert } from '../feedback/Alert'
 type Props = { active: ActiveOrganization; root: string; item: CalendarActivity | null; disabled: boolean; onInvalid: () => void; errors: Record<string, string[]>;
-  onSubmit: (event: FormEvent<HTMLFormElement>, values: Record<string, unknown>) => void; onCancel: () => void; defaultTimezone: string }
-export function CalendarForm({ active, root, item, disabled, onInvalid, errors, onSubmit, onCancel, defaultTimezone }: Props) {
+  onSubmit: (event: FormEvent<HTMLFormElement>, values: Record<string, unknown>) => void; onCancel: () => void; defaultTimezone: string; limited?: boolean }
+export function CalendarForm({ active, root, item, disabled, onInvalid, errors, onSubmit, onCancel, defaultTimezone, limited = false }: Props) {
   const [timezone, setTimezone] = useState(item?.origin_timezone ?? defaultTimezone), [start, setStart] = useState(item?.starts_at_origin.slice(0, 19) ?? '')
   const [end, setEnd] = useState(item?.ends_at_origin.slice(0, 19) ?? ''), [startChoice, setStartChoice] = useState(item?.starts_at_origin ?? ''), [endChoice, setEndChoice] = useState(item?.ends_at_origin ?? '')
   const [team, setTeam] = useState(item?.team_id ?? ''), [participants, setParticipants] = useState(item?.participants ?? [])
@@ -77,9 +77,9 @@ export function CalendarForm({ active, root, item, disabled, onInvalid, errors, 
       <FormField name="change_reason" label={changeText('reasonLabel')} required minLength={10} maxLength={1000} disabled={disabled} error={fieldErrors.change_reason?.[0]} />
       <p className="text-sm text-slate-400">{changeText('reasonHint')}</p>
     </>}
-    <CalendarTeamSelect {...{ active, root, disabled, onInvalid }} value={team} onChange={(next) => { setTeam(next); invalidate() }} currentLabel={item?.team_label ?? null} error={fieldErrors.team_id?.[0]} />
-    <CalendarParticipantPicker {...{ active, root, disabled, onInvalid }} selected={participants} onChange={(next) => { setParticipants(next); invalidate() }} error={fieldErrors.participant_ids?.[0] ?? Object.entries(fieldErrors).find(([key]) => key.startsWith('participant_ids.'))?.[1][0]} />
-    <CalendarResourcePicker {...{ active, root, disabled, onInvalid }} selected={resources} onChange={(next) => { setResources(next); invalidate() }} error={fieldErrors.resource_ids?.[0] ?? Object.entries(fieldErrors).find(([key]) => key.startsWith('resource_ids.'))?.[1][0]} />
+    {!limited && <CalendarTeamSelect {...{ active, root, disabled, onInvalid }} value={team} onChange={(next) => { setTeam(next); invalidate() }} currentLabel={item?.team_label ?? null} error={fieldErrors.team_id?.[0]} />}
+    {!limited && <CalendarParticipantPicker {...{ active, root, disabled, onInvalid }} selected={participants} onChange={(next) => { setParticipants(next); invalidate() }} error={fieldErrors.participant_ids?.[0] ?? Object.entries(fieldErrors).find(([key]) => key.startsWith('participant_ids.'))?.[1][0]} />}
+    {!limited && <CalendarResourcePicker {...{ active, root, disabled, onInvalid }} selected={resources} onChange={(next) => { setResources(next); invalidate() }} error={fieldErrors.resource_ids?.[0] ?? Object.entries(fieldErrors).find(([key]) => key.startsWith('resource_ids.'))?.[1][0]} />}
     <FormField name="location" label={text('location')} defaultValue={item?.location ?? ''} maxLength={200} disabled={disabled} error={fieldErrors.location?.[0]} />
     <FormField name="url" label={text('url')} type="url" defaultValue={item?.url ?? ''} maxLength={2000} disabled={disabled} error={fieldErrors.url?.[0]} />
     <SelectField name="visibility" title={text('visibility')} value={visibility} onChange={(next) => setVisibility(next as CalendarActivity['visibility'])} disabled={disabled} error={fieldErrors.visibility?.[0]}>

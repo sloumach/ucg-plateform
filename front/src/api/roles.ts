@@ -1,4 +1,5 @@
 export type PermissionKey = 'organization.view' | 'organization.update' | 'memberships.manage' | 'invitations.manage' | 'roles.assign'
+  | 'calendar.read' | 'calendar.write'
   | 'academy.read' | 'academy.manage' | 'academy.attendance.manage' | 'academy.feedback.manage' | 'academy.notes.manage' | 'academy.self.read' | 'sports.statistics.read' | 'sports.statistics.write' | 'sports.statistics.import' | 'sports.statistics.correct' | 'teams.manage' | 'games.manage' | 'sports.read' | 'sports.write' | 'sports.validate' | 'sports.registrations.read' | 'sports.registrations.write' | 'sports.competitions.read' | 'sports.competitions.write' | 'sports.correct' | 'sports.publish' | 'sports.notes.read' | 'sports.notes.write' | 'sports.strategies.read' | 'sports.strategies.write' | 'administrative.read' | 'administrative.write'
   | 'administrative.validate' | 'financial.read' | 'financial.write' | 'financial.validate' | 'audit.view'
 export type OrganizationRole = {
@@ -12,6 +13,6 @@ export type RoleAssignment = {
 }
 export type ScopeType = 'organization' | 'team' | 'game' | 'cohort' | 'event'
 export type PermissionCatalogue = {
-  permissions: { key: PermissionKey; privileged: boolean; organization_only: boolean }[]
+  permissions: { key: PermissionKey; privileged: boolean; organization_only: boolean; scope_types?: ScopeType[] }[]
   scope_types: ScopeType[]; can_manage: boolean
 }

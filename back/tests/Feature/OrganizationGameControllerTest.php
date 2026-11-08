@@ -193,7 +193,7 @@ class OrganizationGameControllerTest extends TestCase
         $this->assertDatabaseCount('organization_games', 0);
     }
 
-    public function test_game_scoped_management_grant_does_not_authorize_organization_settings(): void
+    public function test_game_scoped_management_grant_authorizes_only_the_selected_game_settings(): void
     {
         $org = Organization::factory()->create();
         $user = User::factory()->withMfa()->create();
@@ -203,8 +203,11 @@ class OrganizationGameControllerTest extends TestCase
         OrganizationRoleAssignment::factory()->create(['organization_id' => $org->id, 'user_id' => $user->id,
             'role_id' => $role->id, 'membership_id' => $reader->membership_id, 'scope_type' => 'game', 'scope_id' => $game->id]);
         $this->actingAsWithMfa($user);
-        $this->patchJson($this->path($org, $game), $this->payload())->assertForbidden();
-        $this->assertDatabaseCount('organization_games', 0);
+        $this->patchJson($this->path($org, $game), $this->payload())->assertOk();
+        $other = GameCatalogueEntry::query()->where('kind', 'game')->where('id', '!=', $game->id)->firstOrFail();
+        $this->patchJson($this->path($org, $other), $this->payload())->assertForbidden();
+        $this->assertDatabaseCount('organization_games', 1);
+        $this->assertDatabaseHas('organization_games', ['organization_id' => $org->id, 'game_id' => $game->id]);
     }
 
     /** @param list<string> $permissions */

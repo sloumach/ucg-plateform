@@ -84,6 +84,19 @@ enum Permission: string
             || str_starts_with($this->value, 'invitations.') || str_starts_with($this->value, 'roles.') || $this === self::AuditView;
     }
 
+    /** Only permissions whose owning module enforces these object boundaries are assignable. */
+    public function supportsScope(string $type): bool
+    {
+        return match ($type) {
+            'organization' => true,
+            'team' => ! $this->organizationOnly(),
+            'game' => in_array($this, [self::SportsRead, self::GamesManage], true),
+            'cohort' => in_array($this, [self::AcademyRead, self::AcademyManage, self::AcademyAttendanceManage, self::AcademyFeedbackManage, self::AcademyNotesManage], true),
+            'event' => in_array($this, [self::CalendarRead, self::CalendarWrite], true),
+            default => false,
+        };
+    }
+
     /** Role definitions remain under the owner's governance. */
     public function configurable(): bool
     {

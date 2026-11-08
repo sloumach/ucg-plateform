@@ -30,10 +30,14 @@ final readonly class AcademyPeopleService implements AcademyPeopleDirectory
         return $this->people->viewer($context->organizationId, $context->actorUserId)['person_id'];
     }
 
-    public function account(TenantContext $context, string $personId, bool $lock = false): ?int
+    public function account(TenantContext $context, string $personId, bool $lock = false, ?string $cohortId = null): ?int
     {
-        $this->authorization->authorize($context, 'academy.read');
-        $this->authorization->authorize($context, 'academy.manage');
+        if (! $this->authorization->allows($context, 'academy.read')) {
+            $this->authorization->authorize($context, 'academy.read', $cohortId === null ? 'organization' : 'cohort', $cohortId);
+        }
+        if (! $this->authorization->allows($context, 'academy.manage')) {
+            $this->authorization->authorize($context, 'academy.manage', $cohortId === null ? 'organization' : 'cohort', $cohortId);
+        }
         if ($lock) {
             if ($this->database->transactionLevel() < 1) {
                 throw new LogicException('Academy person locks require a business transaction.');
@@ -46,9 +50,11 @@ final readonly class AcademyPeopleService implements AcademyPeopleDirectory
         return $this->people->accounts($context->organizationId, [$personId])[$personId] ?? null;
     }
 
-    public function labels(TenantContext $context, array $personIds): array
+    public function labels(TenantContext $context, array $personIds, ?string $cohortId = null): array
     {
-        $this->authorization->authorize($context, 'academy.read');
+        if (! $this->authorization->allows($context, 'academy.read')) {
+            $this->authorization->authorize($context, 'academy.read', $cohortId === null ? 'organization' : 'cohort', $cohortId);
+        }
         if (count($personIds) > 100) {
             throw new LogicException('Academy labels require a bounded page.');
         }

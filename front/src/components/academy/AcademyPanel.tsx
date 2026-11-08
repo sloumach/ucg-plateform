@@ -10,7 +10,7 @@ import { usePeopleMutation } from '../people/usePeopleMutation'
 import { useAcademyPage } from './useAcademyPage'
 import { AcademyCohortDetail } from './AcademyCohortDetail'
 
-type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
+type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void; limited?: boolean }
 export function AcademyPanel(props: Props) {
   const { active, disabled, onInvalid } = props
   const org = active.context?.organization_id
@@ -34,7 +34,7 @@ export function AcademyPanel(props: Props) {
       {read.loading && <p role="status">{t('academy.loading')}</p>}
       {read.error && <><Alert tone="error" title={read.error.message} requestId={read.error.requestId} /><Button onClick={() => setRefresh((value) => value + 1)}>{t('academy.retry')}</Button></>}
       {mutation.feedback}
-      {manage && <Button disabled={blocked} onClick={() => { setEditor('new'); setSelected(null) }}>{t('academy.createCohort')}</Button>}
+      {manage && !props.limited && <Button disabled={blocked} onClick={() => { setEditor('new'); setSelected(null) }}>{t('academy.createCohort')}</Button>}
       {read.result?.data.length === 0 && <p>{t('academy.empty')}</p>}
       <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{read.result?.data.map((cohort) => <li key={cohort.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3 [overflow-wrap:anywhere]">
         <h3 className="font-bold">{cohort.name}</h3><p>{t(cohort.status === 'active' ? 'academy.active' : 'academy.archived')}</p>

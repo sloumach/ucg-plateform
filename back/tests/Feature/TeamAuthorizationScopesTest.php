@@ -44,7 +44,7 @@ class TeamAuthorizationScopesTest extends TestCase
     {
         [$org,$owner,$team] = $this->setupTeam();
         $scopes = app(AuthorizationScopeDirectory::class);
-        $this->assertSame(['organization', 'team'], $scopes->availableTypes());
+        $this->assertSame(['organization', 'team', 'game', 'cohort', 'event'], $scopes->availableTypes());
         $this->assertTrue($scopes->exists($org->id, 'team', $team->id));
         $foreign = Team::factory()->create();
         $this->assertFalse($scopes->exists($org->id, 'team', $foreign->id));

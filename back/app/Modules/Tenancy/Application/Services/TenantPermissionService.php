@@ -26,7 +26,7 @@ final readonly class TenantPermissionService implements TenantAuthorization
     {
         $action = Permission::tryFrom($permission);
         $scopeId ??= $context->organizationId;
-        if ($action === null || ($action->organizationOnly() && $scopeType !== 'organization') || ! $this->scopes->exists($context->organizationId, $scopeType, $scopeId)) {
+        if ($action === null || ! $action->supportsScope($scopeType) || ! $this->scopes->exists($context->organizationId, $scopeType, $scopeId)) {
             return false;
         }
         if ((! $action->organizationOnly() || $action === Permission::AuditView) && $this->platform->isTechnical($context->actorUserId)) {

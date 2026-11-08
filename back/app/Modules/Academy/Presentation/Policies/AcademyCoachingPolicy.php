@@ -2,13 +2,14 @@
 
 namespace App\Modules\Academy\Presentation\Policies;
 
+use App\Modules\Tenancy\Application\Contracts\ContextualAuthorization;
 use App\Modules\Tenancy\Application\Contracts\TenantAuthorization;
 use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use Illuminate\Contracts\Auth\Authenticatable;
 
 final readonly class AcademyCoachingPolicy
 {
-    public function __construct(private TenantAuthorization $authorization) {}
+    public function __construct(private TenantAuthorization $authorization, private ContextualAuthorization $scoped) {}
 
     public function access(Authenticatable $user, TenantContext $context, string $kind, bool $write): bool
     {
@@ -18,7 +19,7 @@ final readonly class AcademyCoachingPolicy
         if (str_starts_with($kind, 'self')) {
             return ! $write && $this->authorization->allows($context, 'academy.self.read');
         }
-        if (! $this->authorization->allows($context, 'academy.read')) {
+        if (! $this->scoped->any($context, 'cohort', 'academy.read')) {
             return false;
         }
         $permission = match ($kind) {
@@ -27,6 +28,6 @@ final readonly class AcademyCoachingPolicy
             default => $write ? 'academy.manage' : null,
         };
 
-        return $permission === null || $this->authorization->allows($context, $permission);
+        return $permission === null || $this->scoped->any($context, 'cohort', $permission);
     }
 }

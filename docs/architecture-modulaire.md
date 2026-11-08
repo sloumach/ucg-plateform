@@ -438,7 +438,7 @@ avec type/UUID de ressource, sans importer les modèles internes de Tenancy.
 $runner->user($transport, fn () => $reportService->build(), 'sports.read', 'team', $teamId);
 ```
 
-Cet exemple reste refusé tant que Teams ne fournit pas son annuaire. Les tâches
+Teams fournit son annuaire réel, lié aux périodes sportives. Les tâches
 planifiées système gardent leur contrat distinct. `PrivilegedAccountDirectory`
 inclut les droits configurables privilégiés effectifs dans la politique MFA globale.
 
@@ -449,6 +449,16 @@ et l’appartenance de ses ressources au tenant et enregistrer sa classe dans
 La configuration ne provient jamais d’un payload utilisateur. Sans adaptateur
 ou pour un UUID inconnu, le droit est refusé. Les tests utilisent un annuaire
 factice avec deux équipes valides pour prouver les limites de délégation.
+
+Le complément du 08/11 raccorde aussi les sources game/cohort/event par Teams,
+Academy et Scheduling. AuthorizationScopeSource expose les objets valides sous
+forme de sous-requête et leurs choix paginés, projetés par le propriétaire.
+ContextualAuthorization renvoie null pour un droit d’organisation, sinon une
+sous-requête des grants effectifs validés avec adhésion/MFA/compte et source.
+Les repositories filtrent avant comptes/pages. Les Policies contrôlent l’entrée ;
+les services revérifient le parent exact sous verrou. Permission::supportsScope
+ferme les compatibilités. Le snapshot global n’est pas élargi ; Tenancy n’importe
+aucun modèle métier. Aucun changement de schéma ou d’inventaire de conservation.
 
 Les droits nécessitent une adhésion actuellement effective, sauf propriétaire.
 Suspension, expiration et rôle inactif priment. Départ/révocation d’adhésion

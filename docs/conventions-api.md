@@ -425,8 +425,46 @@ réactivation ou extension de ses propres droits sont refusées. Le propriétair
 ne peut élargir ou réactiver une définition qui lui est encore affectée ; un
 délégué autorisé peut lui attribuer des permissions métier.
 
-Aujourd’hui `scope_types` vaut `["organization"]` et `scope_id` égale le tenant.
-Équipe/jeu/cohorte/événement restent fermés jusqu’au raccordement de leurs modules.
+Aujourd’hui `scope_types` vaut `["organization","team","game","cohort","event"]`.
+`scope_id` est l’UUID de l’objet réel ; il égale le tenant seulement pour
+`organization`. Chaque permission publie ses `scope_types` compatibles. Un rôle
+contenant une permission incompatible est refusé avec `ROLE_SCOPE_INCOMPATIBLE`.
+
+- `GET authorization-scopes/{game|cohort|event}?per_page=10&page=1` :
+  `roles.assign` et lecture effective du module source. Réponse paginée
+  `{id,label}` seulement ; titres chiffrés projetés par le propriétaire.
+  La visibilité privée du calendrier est conservée dans ce sélecteur.
+- `GET contextual-permissions` : accès au tenant ; permissions limitées
+  supplémentaires pour l’affichage. Ce résultat ne remplace ni le snapshot
+  d’organisation ni l’autorisation fraîche des requêtes métier.
+- Jeu : `sports.read`, `games.manage` sur sa configuration. Cohorte :
+  `academy.read`, `academy.manage`, `academy.attendance.manage`,
+  `academy.feedback.manage`, `academy.notes.manage` sur son arborescence.
+  Événement : `calendar.read`, `calendar.write` sur son activité.
+- Listes et comptes filtrés avant pagination ; écritures vérifiées dans la
+  transaction. Les personnes, le partage, les invitations/export/notifications
+  gardent leurs permissions propres d’organisation. Un conflit avec une autre
+  activité privée bloque l’édition limitée par un message générique, sans
+  identité ni titre de cette activité. Aucune nouvelle migration.
+- Le mode gestion intersecte les droits de lecture et d’écriture, y compris
+  lorsqu’un droit est global et l’autre limité. Un délégué non propriétaire ne
+  peut déléguer une lecture d’événement privé au-delà de son grant exact, sauf
+  s’il dispose de la gestion globale lecture/écriture sur toute la période.
+
+Exemple d’affectation, après connexion/MFA et sélection confirmée :
+
+```ts
+const choices = await tenancyRequest('tenants/' + organizationId
+  + '/authorization-scopes/cohort?per_page=10&page=1', { revision })
+await tenancyRequest('tenants/' + organizationId + '/role-assignments', {
+  method: 'POST', revision,
+  body: { role_id: roleId, user_id: memberId, scope_type: 'cohort',
+    scope_id: cohortId, status: 'active', starts_at: startsAt, ends_at: endsAt },
+})
+```
+
+Le choix vient du référentiel autorisé ; sa période doit être couverte par
+l’adhésion. Délégation bornée et anti-auto-escalade restent applicables.
 IAM-004 fournit le contrat de projection ci-dessous ; définir une permission
 n’implémente pas un module métier absent.
 

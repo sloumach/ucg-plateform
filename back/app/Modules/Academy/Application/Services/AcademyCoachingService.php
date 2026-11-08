@@ -32,7 +32,7 @@ final readonly class AcademyCoachingService
         private AcademySessionAccess $access, private AcademyPeopleDirectory $people, private TenantAuthorization $authorization,
         private TenantBusinessGuard $guard, private TenantAuditJournal $audit, private Factory $validator, private ConnectionInterface $database) {}
 
-    public function authorize(TenantContext $context, string $kind, bool $write): void
+    public function authorize(TenantContext $context, string $kind, bool $write, ?string $cohort = null): void
     {
         if (str_starts_with($kind, 'self')) {
             if ($write) {
@@ -42,13 +42,17 @@ final readonly class AcademyCoachingService
 
             return;
         }
-        $this->authorization->authorize($context, 'academy.read');
+        if (! $this->authorization->allows($context, 'academy.read')) {
+            $this->authorization->authorize($context, 'academy.read', $cohort === null ? 'organization' : 'cohort', $cohort);
+        }
         $permission = match ($kind) {
             'internal' => 'academy.notes.manage', 'shared' => $write ? 'academy.feedback.manage' : null,
             default => $write ? 'academy.manage' : null,
         };
         if ($permission !== null) {
-            $this->authorization->authorize($context, $permission);
+            if (! $this->authorization->allows($context, $permission)) {
+                $this->authorization->authorize($context, $permission, $cohort === null ? 'organization' : 'cohort', $cohort);
+            }
         }
     }
 
@@ -56,7 +60,7 @@ final readonly class AcademyCoachingService
      * @return LengthAwarePaginator<int, AcademyObjective>|LengthAwarePaginator<int, AcademyFeedback>|LengthAwarePaginator<int, AcademyCoachingRevision> */
     public function paginate(TenantContext $context, string $kind, array $filters, ?string $cohort, ?string $cycle, ?string $objective): LengthAwarePaginator
     {
-        $this->authorize($context, $kind, false);
+        $this->authorize($context, $kind, false, $cohort);
         $filters = AcademyCoachingInput::validate($this->validator, $filters, $kind, false, false);
         $self = str_starts_with($kind, 'self');
         $person = $self ? $this->people->viewer($context) : null;
@@ -66,14 +70,15 @@ final readonly class AcademyCoachingService
         if ($objective === null) {
             $page = $this->records->objectives($context->organizationId, $cycle, $filters, $person, $self);
             if (! $self) {
-                $this->labels($context, array_values($page->items()));
+                $this->labels($context, array_values($page->items()), $cohort);
             }
 
             return $page;
         }
         $record = $this->records->objective($context->organizationId, $objective, $cycle, false, $person, $self);
         if ($kind === 'history') {
-            return $this->records->history($context->organizationId, $record->id, $filters, $this->authorization->allows($context, 'academy.notes.manage'));
+            return $this->records->history($context->organizationId, $record->id, $filters, $this->authorization->allows($context, 'academy.notes.manage')
+                || $this->authorization->allows($context, 'academy.notes.manage', 'cohort', (string) $cohort));
         }
 
         return $this->records->feedback($context->organizationId, $record->id, $kind === 'internal' ? 'internal' : 'shared', $filters, $self);
@@ -82,7 +87,7 @@ final readonly class AcademyCoachingService
     /** @param array<string, mixed> $input */
     public function save(TenantContext $context, string $kind, string $cohort, string $cycleId, ?string $objectiveId, ?string $feedbackId, array $input, ?string $ip): AcademyObjective|AcademyFeedback
     {
-        $this->authorize($context, $kind, true);
+        $this->authorize($context, $kind, true, $cohort);
         $id = $kind === 'objective' ? $objectiveId : $feedbackId;
         $values = AcademyCoachingInput::validate($this->validator, $input, $kind, true, $id === null);
         $closing = $kind === 'objective' && in_array($values['status'] ?? null, ['completed', 'cancelled'], true);
@@ -95,14 +100,14 @@ final readonly class AcademyCoachingService
         if ($mentor !== null && $mentor->cycle_id !== $cycleId) {
             throw new ModelNotFoundException;
         }
-        $account = $mentor === null ? null : $this->people->account($context, $mentor->person_id);
+        $account = $mentor === null ? null : $this->people->account($context, $mentor->person_id, false, $cohort);
         if ($mentor !== null && $account === null) {
             throw new DomainConflictException(__('academy.person_unavailable'), 'ACADEMY_PERSON_UNAVAILABLE');
         }
 
         return $this->database->transaction(function () use ($context, $kind, $cohort, $cycleId, $objectiveId, $feedbackId, $values, $id, $ip, $mentorId, $account, $closing): AcademyObjective|AcademyFeedback {
             $this->guard->lock($context, $account);
-            $this->authorize($context, $kind, true);
+            $this->authorize($context, $kind, true, $cohort);
             $cycle = $this->access->cycle($context, $cohort, $cycleId, true);
             $objective = $objectiveId === null ? new AcademyObjective : $this->records->objective($context->organizationId, $objectiveId, $cycle->id, true);
             $record = $kind === 'objective' ? $objective : ($feedbackId === null ? new AcademyFeedback : $this->records->feedbackRecord($context->organizationId, $objective->id, $feedbackId, $kind));
@@ -123,7 +128,7 @@ final readonly class AcademyCoachingService
                 $due = $values['due_on'] ?? $objective->due_on;
                 $this->enrollment($context, $cycle, (string) $mentorId, $due, true);
                 $mentor = $this->academy->enrollment($context->organizationId, $cohort, (string) $mentorId, true);
-                if ($this->people->account($context, $mentor->person_id, true) !== $account) {
+                if ($this->people->account($context, $mentor->person_id, true, $cohort) !== $account) {
                     throw new DomainConflictException(__('academy.person_unavailable'), 'ACADEMY_PERSON_UNAVAILABLE');
                 }
                 $target = $objective->exists ? $objective->target_enrollment_id : ($values['target_enrollment_id'] === null ? null : strtolower($values['target_enrollment_id']));
@@ -145,7 +150,7 @@ final readonly class AcademyCoachingService
                 $context->organizationId, AuditReason::Domain, $context->requestId, $ip, [], ['academy_resource_id' => $saved->id, 'academy_kind' => 'coaching', 'version' => $saved->version]));
             if ($saved instanceof AcademyObjective) {
                 $saved->load(['responsible', 'target']);
-                $this->labels($context, [$saved]);
+                $this->labels($context, [$saved], $cohort);
             }
 
             return $saved;
@@ -160,13 +165,13 @@ final readonly class AcademyCoachingService
         }
         if ($due < $cycle->starts_on || $due > $cycle->ends_on || $record->status !== 'active'
             || $record->role !== ($mentor ? 'mentor' : 'student') || $record->starts_on > $due || $record->ends_on < $due
-            || ! isset($this->people->labels($context, [$record->person_id])[$record->person_id])) {
+            || ! isset($this->people->labels($context, [$record->person_id], $cycle->cohort_id)[$record->person_id])) {
             throw new DomainConflictException(__('coaching.enrollment'), 'ACADEMY_OBJECTIVE_ENROLLMENT_UNAVAILABLE');
         }
     }
 
     /** @param list<AcademyObjective> $items */
-    private function labels(TenantContext $context, array $items): void
+    private function labels(TenantContext $context, array $items, ?string $cohort): void
     {
         $ids = [];
         foreach ($items as $item) {
@@ -178,7 +183,7 @@ final readonly class AcademyCoachingService
         // Two distinct people per objective; resolve each bounded batch once.
         $labels = [];
         foreach (array_chunk(array_values(array_unique($ids)), 100) as $batch) {
-            $labels += $this->people->labels($context, $batch);
+            $labels += $this->people->labels($context, $batch, $cohort);
         }
         foreach ($items as $item) {
             $item->setAttribute('responsible_label', $labels[$item->responsible->person_id] ?? null);

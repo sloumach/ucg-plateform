@@ -14,12 +14,16 @@ final readonly class EloquentCalendarVisibility
     public function query(string $org, CalendarAudience $audience, bool $management = false, bool $includeCancelled = false): Builder
     {
         $query = CalendarActivity::query()->where('organization_id', $org);
+        if ($audience->activityIds !== null) {
+            return $query->whereIn('id', $audience->activityIds)->whereNull('archived_at')->whereNull('cancelled_at');
+        }
         if ($management) {
             return $query;
         }
         $query->where(fn (Builder $q) => $q->whereNull('archived_at')->when($includeCancelled, fn (Builder $c) => $c->orWhereNotNull('cancelled_at')));
 
         return $query->where(fn (Builder $q) => $q->where('created_by', $audience->userId)->orWhere('visibility', 'organization')
+            ->when($audience->explicitActivityIds !== null, fn (Builder $granted) => $granted->orWhereIn('id', $audience->explicitActivityIds))
             ->orWhere(fn (Builder $team) => $team->where('visibility', 'team')->whereIn('team_id', $audience->teamIds))
             ->orWhereExists(fn (Query $participant) => $participant->selectRaw('1')->from('calendar_participants as participant')
                 ->where('participant.organization_id', $org)->where('participant.person_id', $audience->personId)

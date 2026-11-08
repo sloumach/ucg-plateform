@@ -16,6 +16,7 @@ use App\Modules\Scheduling\Domain\Contracts\CalendarResourceRepository;
 use App\Modules\Scheduling\Domain\Models\CalendarActivity;
 use App\Modules\Scheduling\Domain\Models\CalendarConflictOverride;
 use App\Modules\Teams\Application\Contracts\CalendarTeamsDirectory;
+use App\Modules\Tenancy\Application\Contracts\ContextualAuthorization;
 use App\Modules\Tenancy\Application\Contracts\TenantAuditJournal;
 use App\Modules\Tenancy\Application\Contracts\TenantAuthorization;
 use App\Modules\Tenancy\Application\Contracts\TenantBusinessGuard;
@@ -24,6 +25,7 @@ use App\Support\Audit\AuditAction;
 use App\Support\Audit\AuditReason;
 use App\Support\Audit\AuditTarget;
 use App\Support\Audit\AuditWriteData;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\Validation\Factory;
 use Illuminate\Database\ConnectionInterface;
@@ -36,12 +38,13 @@ final readonly class CalendarService
     public function __construct(private CalendarRepository $records, private CalendarPeopleDirectory $people, private CalendarTeamsDirectory $teams,
         private TenantAuthorization $authorization, private TenantBusinessGuard $guard, private TenantAuditJournal $audit,
         private Factory $validator, private ConnectionInterface $database, private CalendarResourceRepository $resources,
-        private CalendarConflictRepository $conflictRecords, private CalendarConflictService $conflicts, private CalendarChangeService $changes) {}
+        private CalendarConflictRepository $conflictRecords, private CalendarConflictService $conflicts, private CalendarChangeService $changes, private ContextualAuthorization $scoped) {}
 
     /** @param array<string,mixed> $input */
     public function preview(TenantContext $context, array $input): CalendarConflictReport
     {
-        $this->write($context);
+        $id = isset($input['activity_id']) && is_string($input['activity_id']) ? $input['activity_id'] : null;
+        $this->write($context, $id);
         $input = CalendarInput::validate($this->validator, $input, 'conflicts');
         $id = $input['activity_id'] ?? null;
         unset($input['activity_id']);
@@ -49,7 +52,7 @@ final readonly class CalendarService
 
         return $this->database->transaction(function () use ($context, $values, $id): CalendarConflictReport {
             $this->guard->lock($context);
-            $this->write($context);
+            $this->write($context, $id);
             $record = $this->editable($context, $id, $values);
             [$attributes, $personIds, $resourceIds] = $this->booking($context, $values, $record);
             $this->changes->plan($record, $attributes, $values);
@@ -79,14 +82,14 @@ final readonly class CalendarService
         if (($values['archived'] ?? false) && ! $management) {
             throw ValidationException::withMessages(['archived' => __('calendar.management_required')]);
         }
-        $viewer = $this->people->viewer($context);
+        $viewer = $this->authorization->allows($context, 'calendar.read') ? $this->people->viewer($context) : ['person_id' => null, 'timezone' => $context->timezone];
         $timezone = $values['timezone'] ?? $viewer['timezone'];
         try {
             [$from,$to] = CalendarTime::window($values['from_date'], $values['to_date'], $timezone);
         } catch (InvalidArgumentException) {
             throw ValidationException::withMessages(['to_date' => __('calendar.window')]);
         }
-        $page = $this->records->paginate($context->organizationId, $this->audience($context, $viewer['person_id']), $from, $to, $values, $management);
+        $page = $this->records->paginate($context->organizationId, $this->audience($context, $viewer['person_id'], $management), $from, $to, $values, $management);
         $this->label($context, array_values($page->items()));
 
         return new CalendarPage($page, $viewer['timezone'], $timezone, $from->toIso8601String(), $to->toIso8601String());
@@ -96,8 +99,9 @@ final readonly class CalendarService
     public function find(TenantContext $context, string $id, array $input): CalendarActivity
     {
         $values = $this->validated($context, $input, 'show');
-        $viewer = $this->people->viewer($context);
-        $record = $this->records->find($context->organizationId, $id, $this->audience($context, $viewer['person_id']), $this->management($context, $values));
+        $viewer = $this->authorization->allows($context, 'calendar.read') ? $this->people->viewer($context) : ['person_id' => null, 'timezone' => $context->timezone];
+        $management = $this->management($context, $values);
+        $record = $this->records->find($context->organizationId, $id, $this->audience($context, $viewer['person_id'], $management), $management);
         $this->label($context, [$record]);
 
         return $record;
@@ -121,11 +125,11 @@ final readonly class CalendarService
     /** @param array<string,mixed> $input */
     public function save(TenantContext $context, array $input, ?string $id = null, ?string $ip = null): CalendarActivity
     {
-        $this->write($context);
+        $this->write($context, $id);
         $values = $this->validated($context, $input, $id === null ? 'store' : 'update');
         $saved = $this->database->transaction(function () use ($context, $values, $id, $ip): CalendarActivity {
             $this->guard->lock($context);
-            $this->write($context);
+            $this->write($context, $id);
             $record = $this->editable($context, $id, $values);
             $report = null;
             if (isset($values['archive'])) {
@@ -147,11 +151,12 @@ final readonly class CalendarService
                 $resourceIds = isset($values['resource_ids']) || $record === null ? $effectiveResources : null;
             }
             $change = $this->changes->plan($record, $attributes, $values);
+            $accounts = $change === null || $record === null ? null : $this->changes->recipients($context, $record->id, [...$change['people'], ...($personIds ?? [])]);
             $saved = $this->records->save($record, [...$attributes, 'version' => (string) Str::uuid()], $personIds, $resourceIds);
             if ($report !== null) {
                 $this->conflicts->retain($saved, $report, $values, $context->actorUserId);
             }
-            $this->changes->retain($context, $change, $saved, $values);
+            $this->changes->retain($context, $change, $saved, $values, $accounts);
             $this->audit->record($context->organizationId, new AuditWriteData($context->actorUserId, AuditAction::DomainChanged, AuditTarget::Organization,
                 $context->organizationId, AuditReason::Domain, $context->requestId, $ip, [], ['calendar_activity_id' => $saved->id,
                     'calendar_action' => $change['kind'] ?? ($id === null ? 'created' : 'updated'),
@@ -189,7 +194,17 @@ final readonly class CalendarService
         $attributes = $this->attributes($context, $values, $record);
         $people = isset($values['participant_ids']) ? array_values(array_map(strtolower(...), $values['participant_ids'])) : ($record === null ? [] : array_values($record->participants->map(fn ($participant): string => $participant->person_id)->all()));
         $resources = isset($values['resource_ids']) ? array_values(array_map(strtolower(...), $values['resource_ids'])) : ($record === null ? [] : array_values($record->reservations->map(fn ($reservation): string => $reservation->resource_id)->all()));
-        if (isset($values['participant_ids']) || $record === null) {
+        if ($record !== null && ! $this->authorization->allows($context, 'calendar.write')) {
+            $currentPeople = $record->participants->pluck('person_id')->sort()->values()->all();
+            $proposedPeople = $people;
+            sort($proposedPeople);
+            $currentResources = $record->reservations->pluck('resource_id')->sort()->values()->all();
+            $proposedResources = $resources;
+            sort($proposedResources);
+            if ($currentPeople !== $proposedPeople || $currentResources !== $proposedResources) {
+                throw new AuthorizationException;
+            }
+        } elseif (isset($values['participant_ids']) || $record === null) {
             $this->people->assertAssignable($context, $people);
         }
         if (isset($values['resource_ids']) || isset($values['starts_at']) || $record === null) {
@@ -214,7 +229,7 @@ final readonly class CalendarService
             $attributes['team_id'] = strtolower($attributes['team_id']);
         }
         $team = array_key_exists('team_id', $attributes) ? $attributes['team_id'] : $record?->team_id;
-        if ($team !== null) {
+        if ($team !== null && ($record === null || array_key_exists('team_id', $attributes) && $team !== $record->team_id || $this->authorization->allows($context, 'calendar.write'))) {
             $this->teams->assertActive($context, $team);
         }
         $visibility = $attributes['visibility'] ?? ($record === null ? 'private' : $record->visibility);
@@ -262,16 +277,29 @@ final readonly class CalendarService
         return [...($record === null ? ['organization_id' => $context->organizationId, 'created_by' => $context->actorUserId, 'visibility' => $visibility] : []), ...$attributes];
     }
 
-    private function audience(TenantContext $context, ?string $personId): CalendarAudience
+    private function audience(TenantContext $context, ?string $personId, bool $management = false): CalendarAudience
     {
-        return new CalendarAudience($context->actorUserId, $personId, $this->teams->currentIds($context));
+        $ids = $this->scoped->ids($context, 'event', 'calendar.read');
+        if ($management) {
+            $writable = $this->scoped->ids($context, 'event', 'calendar.write');
+            if ($ids === null) {
+                $ids = $writable;
+            } elseif ($writable !== null) {
+                $ids->whereIn('id', $writable);
+            }
+        }
+        $explicit = ! $management && $ids === null ? $this->scoped->ids($context, 'event', 'calendar.read', true) : null;
+
+        return new CalendarAudience($context->actorUserId, $personId, $ids === null ? $this->teams->currentIds($context) : [], $ids, $explicit);
     }
 
     /** @param array<string,mixed> $values */
     private function management(TenantContext $context, array $values): bool
     {
         if ($values['management'] ?? false) {
-            $this->write($context);
+            if (! $this->scoped->any($context, 'event', 'calendar.write')) {
+                throw new AuthorizationException;
+            }
 
             return true;
         }
@@ -279,10 +307,14 @@ final readonly class CalendarService
         return false;
     }
 
-    private function write(TenantContext $context): void
+    private function write(TenantContext $context, ?string $activityId = null): void
     {
-        $this->authorization->authorize($context, 'calendar.read');
-        $this->authorization->authorize($context, 'calendar.write');
+        if (! $this->authorization->allows($context, 'calendar.read')) {
+            $this->authorization->authorize($context, 'calendar.read', $activityId === null ? 'organization' : 'event', $activityId);
+        }
+        if (! $this->authorization->allows($context, 'calendar.write')) {
+            $this->authorization->authorize($context, 'calendar.write', $activityId === null ? 'organization' : 'event', $activityId);
+        }
     }
 
     /** @param array<string,mixed> $input
@@ -290,7 +322,9 @@ final readonly class CalendarService
      */
     private function validated(TenantContext $context, array $input, string $operation): array
     {
-        $this->authorization->authorize($context, 'calendar.read');
+        if (! $this->scoped->any($context, 'event', 'calendar.read')) {
+            throw new AuthorizationException;
+        }
 
         return CalendarInput::validate($this->validator, $input, $operation);
     }
@@ -298,6 +332,14 @@ final readonly class CalendarService
     /** @param list<CalendarActivity> $records */
     private function label(TenantContext $context, array $records): void
     {
+        if (! $this->authorization->allows($context, 'calendar.read')) {
+            foreach ($records as $record) {
+                $record->setAttribute('team_label', null);
+                $record->setAttribute('participant_labels', []);
+            }
+
+            return;
+        }
         $teamIds = [];
         $personIds = [];
         foreach ($records as $record) {

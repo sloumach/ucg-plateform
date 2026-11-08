@@ -244,8 +244,13 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   configurables, affectations versionnées, périodes, suspension, délégation
   limitée, anti-auto-escalade, MFA et audit transactionnel. Interface React,
   exports complets et vérification HTTP/services/jobs. Organisation disponible ;
-  types équipe/jeu/cohorte/événement préparés et refusés jusqu’au raccordement des
-  ressources réelles par leurs modules. IAM-004 fournit le socle de projection
+  périmètre équipe raccordé aux périodes sportives. Complément du 08/11 :
+  jeu/cohorte/événement raccordés aux ressources réelles, droits compatibles
+  fermés, listes/comptes filtrés et écritures sur objet exact. Sélecteurs paginés,
+  espace des accès limités, dates, MFA et révocations ; aucune nouvelle migration.
+  Le jeu limite sa configuration, la cohorte ses enfants Academy et l’événement
+  son activité ; les fonctions générales gardent leurs droits propres.
+  IAM-004 fournit le socle de projection
   par champ ; IAM-005 fournit la séparation plateforme/support ci-dessous. Migration
   appliquée par l’utilisateur à `ucg_platform`, batch 7 confirmé. Commits
   `f78e0cd`, documentation `f9ea660` et correctif mobile `72fb380` poussés ;

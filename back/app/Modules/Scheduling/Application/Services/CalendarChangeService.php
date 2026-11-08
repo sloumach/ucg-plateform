@@ -49,17 +49,20 @@ final readonly class CalendarChangeService
 
     /** @param array{kind:string,previous_version:string,previous_starts_at:CarbonImmutable,previous_ends_at:CarbonImmutable,previous_timezone:string,people:list<string>}|null $plan
      * @param  array<string,mixed>  $values
+     * @param  array<string, int>|null  $preparedAccounts
      */
-    public function retain(TenantContext $context, ?array $plan, CalendarActivity $activity, array $values): void
+    public function retain(TenantContext $context, ?array $plan, CalendarActivity $activity, array $values, ?array $preparedAccounts = null): void
     {
         if ($plan === null) {
             return;
         }
         $people = array_values(array_unique([...$plan['people'], ...$activity->participants->pluck('person_id')->all()]));
         sort($people);
-        $accounts = [];
-        foreach (array_chunk($people, 50) as $chunk) {
-            $accounts += $this->people->accounts($context, $chunk);
+        $accounts = $preparedAccounts ?? [];
+        if ($preparedAccounts === null) {
+            foreach (array_chunk($people, 50) as $chunk) {
+                $accounts += $this->people->accounts($context, $chunk);
+            }
         }
         unset($plan['people']);
         $this->changes->append([...$plan, 'organization_id' => $context->organizationId, 'activity_id' => $activity->id,
@@ -68,13 +71,30 @@ final readonly class CalendarChangeService
             'origin_timezone' => $activity->origin_timezone, 'created_at' => $activity->cancelled_at ?? now()], $people, $accounts);
     }
 
+    /** Resolve recipients before a cancellation closes the event scope.
+     * @param  list<string>  $personIds
+     * @return array<string, int>
+     */
+    public function recipients(TenantContext $context, string $activityId, array $personIds): array
+    {
+        $accounts = [];
+        foreach (array_chunk(array_values(array_unique($personIds)), 50) as $chunk) {
+            $accounts += $this->people->accounts($context, $chunk, $activityId);
+        }
+
+        return $accounts;
+    }
+
     /** @param array<string,mixed> $input
      * @return LengthAwarePaginator<int,CalendarChange>
      */
     public function history(TenantContext $context, string $activityId, array $input): LengthAwarePaginator
     {
-        $this->authorization->authorize($context, 'calendar.read');
-        $this->authorization->authorize($context, 'calendar.write');
+        foreach (['calendar.read', 'calendar.write'] as $permission) {
+            if (! $this->authorization->allows($context, $permission)) {
+                $this->authorization->authorize($context, $permission, 'event', $activityId);
+            }
+        }
         $filters = CalendarChangeInput::validate($this->validator, $input);
         $activity = $this->calendar->find($context->organizationId, $activityId, new CalendarAudience($context->actorUserId, null, []), true);
 

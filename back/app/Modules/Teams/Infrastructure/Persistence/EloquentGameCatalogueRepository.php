@@ -9,6 +9,7 @@ use App\Modules\Teams\Domain\Models\GameCatalogueEntry;
 use App\Modules\Teams\Domain\Models\OrganizationGame;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\ConnectionInterface;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Str;
 
 final readonly class EloquentGameCatalogueRepository implements GameCatalogueRepository
@@ -34,9 +35,9 @@ final readonly class EloquentGameCatalogueRepository implements GameCatalogueRep
         return $version;
     }
 
-    public function paginate(string $kind, ?string $gameId, int $perPage, int $page): LengthAwarePaginator
+    public function paginate(string $kind, ?string $gameId, int $perPage, int $page, ?Builder $visible = null): LengthAwarePaginator
     {
-        return GameCatalogueEntry::query()->where('kind', $kind)->where('scope_key', $gameId ?? 'global')->orderBy('name')->orderBy('id')->paginate($perPage, ['*'], 'page', $page);
+        return GameCatalogueEntry::query()->where('kind', $kind)->where('scope_key', $gameId ?? 'global')->when($visible !== null, fn ($query) => $query->whereIn('id', $visible))->orderBy('name')->orderBy('id')->paginate($perPage, ['*'], 'page', $page);
     }
 
     public function find(string $id): GameCatalogueEntry

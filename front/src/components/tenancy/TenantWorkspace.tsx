@@ -11,6 +11,7 @@ import {
   type TenantRole,
 } from '../../api/tenancy'
 import { t } from '../../i18n/fr'
+import { ContextualModulesPanel } from './ContextualModulesPanel'
 import { RoleManagementPanel } from './RoleManagementPanel'
 import { PeoplePanel } from '../people/PeoplePanel'
 import { OrganizationGamesPanel } from '../teams/OrganizationGamesPanel'
@@ -248,6 +249,7 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
       )}
       {workspace && (
         <>
+          {selected && <ContextualModulesPanel key={'scoped:' + selected.organization_id + ':' + workspace.active.revision} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
           {selected && <RoleManagementPanel key={selected.organization_id} active={workspace.active} disabled={disabled} onChanged={() => void reload(pages)} />}
           {selected?.permissions.some((permission) => ['sports.read', 'administrative.read'].includes(permission)) && <Suspense fallback={<p>{t('search.loading')}</p>}><TenantSearchPanel active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
           {selected?.permissions.some((permission) => permission.startsWith('reporting.')) && <Suspense fallback={<p>{t('dashboards.loading')}</p>}><DashboardPanel active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}

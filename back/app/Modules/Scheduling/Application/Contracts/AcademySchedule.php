@@ -8,10 +8,10 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 interface AcademySchedule
 {
     /** @return LengthAwarePaginator<int, AcademyActivity> */
-    public function choices(TenantContext $context, string $from, string $to, string $timezone, int $page, int $perPage): LengthAwarePaginator;
+    public function choices(TenantContext $context, string $from, string $to, string $timezone, int $page, int $perPage, ?string $cohortId = null): LengthAwarePaginator;
 
     /** Current shared Academy activities only; absent keys never disclose inaccessible records.
      * @param list<string> $ids
      * @return array<string, AcademyActivity> */
-    public function available(TenantContext $context, array $ids, bool $lock = false): array;
+    public function available(TenantContext $context, array $ids, bool $lock = false, ?string $cohortId = null): array;
 }

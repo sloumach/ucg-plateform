@@ -55,6 +55,7 @@ use App\Modules\Teams\Infrastructure\Persistence\EloquentTeamEligibilityReposito
 use App\Modules\Teams\Infrastructure\Persistence\EloquentTeamLineupRepository;
 use App\Modules\Teams\Infrastructure\Persistence\EloquentTeamMembershipRepository;
 use App\Modules\Teams\Infrastructure\Persistence\EloquentTeamRepository;
+use App\Modules\Teams\Infrastructure\Resolution\GameAuthorizationScopes;
 use App\Modules\Teams\Infrastructure\Resolution\TeamAuthorizationScopes;
 use App\Modules\Teams\Presentation\Policies\ExternalOpponentPolicy;
 use App\Modules\Teams\Presentation\Policies\GameCataloguePolicy;
@@ -103,6 +104,7 @@ final class TeamsServiceProvider extends ServiceProvider
         Gate::policy(TeamEligibilityRuleset::class, TeamEligibilityPolicy::class);
         Gate::policy(TeamLineup::class, TeamLineupPolicy::class);
         config(['tenancy.authorization_scope_resolvers.team' => TeamAuthorizationScopes::class]);
+        config(['tenancy.authorization_scope_resolvers.game' => GameAuthorizationScopes::class]);
         Gate::policy(TeamMembership::class, TeamMembershipPolicy::class);
         Gate::policy(Team::class, TeamPolicy::class);
         Gate::policy(GameCatalogueEntry::class, GameCataloguePolicy::class);

@@ -5,6 +5,7 @@ namespace App\Modules\Teams\Domain\Contracts;
 use App\Modules\Teams\Domain\Models\GameCatalogueEntry;
 use App\Modules\Teams\Domain\Models\OrganizationGame;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Query\Builder;
 
 interface GameCatalogueRepository
 {
@@ -13,7 +14,7 @@ interface GameCatalogueRepository
     public function advanceRevision(): string;
 
     /** @return LengthAwarePaginator<int, GameCatalogueEntry> */
-    public function paginate(string $kind, ?string $gameId, int $perPage, int $page): LengthAwarePaginator;
+    public function paginate(string $kind, ?string $gameId, int $perPage, int $page, ?Builder $visible = null): LengthAwarePaginator;
 
     public function find(string $id): GameCatalogueEntry;
 

@@ -7,6 +7,7 @@ use App\Modules\Teams\Application\Validation\GameCatalogueInput;
 use App\Modules\Teams\Domain\Contracts\GameCatalogueRepository;
 use App\Modules\Teams\Domain\Models\GameCatalogueEntry;
 use App\Modules\Teams\Domain\Models\OrganizationGame;
+use App\Modules\Tenancy\Application\Contracts\ContextualAuthorization;
 use App\Modules\Tenancy\Application\Contracts\TenantAuditJournal;
 use App\Modules\Tenancy\Application\Contracts\TenantAuthorization;
 use App\Modules\Tenancy\Application\Contracts\TenantBusinessGuard;
@@ -15,6 +16,7 @@ use App\Support\Audit\AuditAction;
 use App\Support\Audit\AuditReason;
 use App\Support\Audit\AuditTarget;
 use App\Support\Audit\AuditWriteData;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Validation\Factory;
 use Illuminate\Database\ConnectionInterface;
 use Illuminate\Support\Str;
@@ -24,17 +26,19 @@ final readonly class OrganizationGameService
 {
     public function __construct(private GameCatalogueRepository $repository, private GameCatalogueService $global,
         private EffectiveGameCatalogue $effective, private TenantAuthorization $authorization, private TenantBusinessGuard $guard,
-        private TenantAuditJournal $audit, private ConnectionInterface $database, private Factory $validator) {}
+        private TenantAuditJournal $audit, private ConnectionInterface $database, private Factory $validator, private ContextualAuthorization $scoped) {}
 
     /** @param array<string, mixed> $filters
      * @return array{items: list<array<string, mixed>>, total: int, per_page: int, page: int, catalogue_version: string}
      */
     public function entries(TenantContext $context, array $filters): array
     {
-        $this->authorization->authorize($context, 'sports.read');
+        if (! $this->scoped->any($context, 'game', 'sports.read')) {
+            throw new AuthorizationException;
+        }
         $values = GameCatalogueInput::validate($this->validator, $filters, GameCatalogueInput::pageRules(false));
         $revision = $this->global->version();
-        $page = $this->repository->paginate('game', null, (int) ($values['per_page'] ?? 10), (int) ($values['page'] ?? 1));
+        $page = $this->repository->paginate('game', null, (int) ($values['per_page'] ?? 10), (int) ($values['page'] ?? 1), $this->scoped->ids($context, 'game', 'sports.read'));
         $settings = [];
         foreach ($this->repository->settings($context->organizationId) as $setting) {
             $settings[$setting->game_id] = $setting;
@@ -50,7 +54,9 @@ final readonly class OrganizationGameService
     /** @return array<string, mixed> */
     public function find(TenantContext $context, string $gameId): array
     {
-        $this->authorization->authorize($context, 'sports.read');
+        if (! $this->authorization->allows($context, 'sports.read')) {
+            $this->authorization->authorize($context, 'sports.read', 'game', $gameId);
+        }
         $revision = $this->global->version();
         $game = $this->global->game($gameId);
         $setting = $this->repository->setting($context->organizationId, $game->id);
@@ -67,11 +73,11 @@ final readonly class OrganizationGameService
     public function save(TenantContext $context, string $gameId, array $input, ?string $ipAddress = null): OrganizationGame
     {
         $values = GameCatalogueInput::validate($this->validator, $input, GameCatalogueInput::settingRules());
-        $this->authorize($context);
+        $this->authorize($context, $gameId);
 
         return $this->database->transaction(function () use ($context, $gameId, $values, $ipAddress): OrganizationGame {
             $this->guard->lock($context);
-            $this->authorize($context);
+            $this->authorize($context, $gameId);
             $this->global->assertVersion((string) $values['catalogue_version'], true);
             $game = $this->global->game($gameId);
             $setting = $this->repository->setting($context->organizationId, $game->id, true);
@@ -102,10 +108,14 @@ final readonly class OrganizationGameService
         });
     }
 
-    private function authorize(TenantContext $context): void
+    private function authorize(TenantContext $context, string $gameId): void
     {
-        $this->authorization->authorize($context, 'sports.read');
-        $this->authorization->authorize($context, 'games.manage');
+        if (! $this->authorization->allows($context, 'sports.read')) {
+            $this->authorization->authorize($context, 'sports.read', 'game', $gameId);
+        }
+        if (! $this->authorization->allows($context, 'games.manage')) {
+            $this->authorization->authorize($context, 'games.manage', 'game', $gameId);
+        }
     }
 
     /** @return array<string, mixed> */

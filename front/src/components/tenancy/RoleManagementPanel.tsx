@@ -6,6 +6,7 @@ import type { OrganizationRole, PermissionCatalogue, PermissionKey, RoleAssignme
 import { t } from '../../i18n/fr'
 import { Button } from '../Button'
 import { FormField } from '../FormField'
+import { ScopeSourcePicker } from './ScopeSourcePicker'
 import { Pagination } from '../data/Pagination'
 import { Alert } from '../feedback/Alert'
 import { AsyncState } from '../feedback/AsyncState'
@@ -15,6 +16,7 @@ const selectClass = 'min-w-0 w-full rounded-xl border border-white/15 bg-slate-9
 type Data = { roles: Page<OrganizationRole> | null; assignments: Page<RoleAssignment>; catalogue: PermissionCatalogue | null }
 type Pending = { label: string; path: string; method: 'POST' | 'PUT'; body: Record<string, unknown>; form: HTMLFormElement }
 const permissionNames: Record<PermissionKey, Parameters<typeof t>[0]> = {
+  'calendar.read': 'roles.permission.calendar.read', 'calendar.write': 'roles.permission.calendar.write',
   'academy.feedback.manage': 'roles.permission.academy.feedback.manage',
   'academy.notes.manage': 'roles.permission.academy.notes.manage',
   'academy.self.read': 'roles.permission.academy.self.read',
@@ -53,6 +55,7 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
   const [initialStart] = useState(() => localDate(new Date().toISOString()))
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [scopeType, setScopeType] = useState<ScopeType>('organization')
   const [rolePage, setRolePage] = useState(1)
   const [assignmentPage, setAssignmentPage] = useState(1)
   const [editing, setEditing] = useState<OrganizationRole | null | undefined>(undefined)
@@ -169,13 +172,14 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
       }}>
         <h4 className="font-semibold md:col-span-2">{t('roles.assign')}</h4>
         <label className="grid gap-2">{t('roles.role')}<select name="role_id" required className={selectClass} disabled={disabled}>
-          <option value="">{t('roles.choose')}</option>{data.roles.data.filter((role) => role.active).map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}
+          <option value="">{t('roles.choose')}</option>{data.roles.data.filter((role) => role.active && role.permissions.every((key) => { const permission = data.catalogue!.permissions.find((entry) => entry.key === key); return permission?.scope_types ? permission.scope_types.includes(scopeType) : scopeType === 'organization' || !permission?.organization_only })).map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}
         </select></label>
         <FormField name="user_id" type="number" min="1" required label={t('roles.account')} disabled={disabled} error={error?.fieldErrors.user_id?.[0]} />
-        <label className="grid gap-2">{t('roles.scope')}<select name="scope_type" className={selectClass} disabled={disabled}>
+        <label className="grid gap-2">{t('roles.scope')}<select name="scope_type" className={selectClass} disabled={disabled} value={scopeType} onChange={(event) => setScopeType(event.target.value as ScopeType)}>
           {data.catalogue.scope_types.map((type) => <option key={type} value={type}>{scopeName(type)}</option>)}
         </select></label>
-        {data.catalogue.scope_types.length > 1 && <FormField name="scope_id" label={t('roles.scopeId')} disabled={disabled} error={error?.fieldErrors.scope_id?.[0]} />}
+        {scopeType === 'team' && <FormField name="scope_id" label={t('roles.scopeId')} disabled={disabled} error={error?.fieldErrors.scope_id?.[0]} />}
+        {['game', 'cohort', 'event'].includes(scopeType) && <ScopeSourcePicker key={orgId + ':' + scopeType} active={active} type={scopeType} disabled={disabled} error={error?.fieldErrors.scope_id?.[0]} />}
         <FormField name="starts_at" type="datetime-local" step="1" defaultValue={initialStart} label={t('roles.start')} required disabled={disabled} error={error?.fieldErrors.starts_at?.[0]} />
         <FormField name="ends_at" type="datetime-local" step="1" label={t('roles.end')} disabled={disabled} error={error?.fieldErrors.ends_at?.[0]} />
         <p className="text-sm text-slate-400 md:col-span-2">{t('roles.delegationHint')}</p>

@@ -6,9 +6,18 @@ use App\Modules\Tenancy\Domain\Models\OrganizationRole;
 use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Query\Builder;
 
 interface RoleRepository
 {
+    /** Effective assignments only; the caller must validate the actor and source lifecycle. */
+    public function scopeIds(string $org, int $userId, ?string $membershipId, string $type, string $permission): Builder;
+
+    /** Permissions from bounded role definitions, without loading assignments or source collections.
+     * @return list<string>
+     */
+    public function scopedPermissions(string $org, int $userId, ?string $membershipId, string $type, Builder $sources): array;
+
     /** @return LengthAwarePaginator<int, OrganizationRole> */
     public function roles(string $organizationId, int $perPage, int $page): LengthAwarePaginator;
 
@@ -30,7 +39,7 @@ interface RoleRepository
     public function saveAssignment(?OrganizationRoleAssignment $assignment, array $attributes): OrganizationRoleAssignment;
 
     public function hasGrant(string $organizationId, int $userId, ?string $membershipId, string $permission,
-        string $scopeType, string $scopeId, CarbonInterface $start, ?CarbonInterface $end, bool $coverPeriod = false): bool;
+        string $scopeType, string $scopeId, CarbonInterface $start, ?CarbonInterface $end, bool $coverPeriod = false, bool $organizationCovers = true): bool;
 
     /** @return list<string> */
     public function grantedPermissions(string $organizationId, int $userId, ?string $membershipId): array;

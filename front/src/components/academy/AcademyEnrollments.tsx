@@ -10,8 +10,8 @@ import { Alert } from '../feedback/Alert'
 import { usePeopleMutation } from '../people/usePeopleMutation'
 import { useAcademyPage } from './useAcademyPage'
 
-type Props = { active: ActiveOrganization; cohort: Cohort; cycle: AcademyCycle; disabled: boolean; onInvalid: () => void }
-export function AcademyEnrollments({ active, cohort, cycle, disabled, onInvalid }: Props) {
+type Props = { active: ActiveOrganization; cohort: Cohort; cycle: AcademyCycle; disabled: boolean; onInvalid: () => void; limited?: boolean }
+export function AcademyEnrollments({ active, cohort, cycle, disabled, onInvalid, limited = false }: Props) {
   const org = active.context!.organization_id, base = academyPath(org, cohort.id) + '/enrollments'
   const manage = active.context!.permissions.includes('academy.manage') && cohort.status === 'active' && cycle.status === 'active'
   const [page, setPage] = useState(1), [peoplePage, setPeoplePage] = useState(1), [refresh, setRefresh] = useState(0), [adding, setAdding] = useState(false)
@@ -29,7 +29,7 @@ export function AcademyEnrollments({ active, cohort, cycle, disabled, onInvalid 
     {read.loading && <p role="status">{t('academy.loading')}</p>}
     {read.error && <><Alert tone="error" title={read.error.message} /><Button onClick={() => setRefresh((value) => value + 1)}>{t('academy.retry')}</Button></>}
     {mutation.feedback}
-    {manage && <Button disabled={blocked} onClick={() => setAdding((value) => !value)}>{t('academy.addEnrollment')}</Button>}
+    {manage && !limited && <Button disabled={blocked} onClick={() => setAdding((value) => !value)}>{t('academy.addEnrollment')}</Button>}
     {read.result?.data.length === 0 && <p>{t('academy.noEnrollments')}</p>}
     <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => <li key={item.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3 [overflow-wrap:anywhere]">
       <p>{item.person_label ?? t('academy.personUnavailable')} · {t(item.role === 'mentor' ? 'academy.mentor' : 'academy.student')}</p>

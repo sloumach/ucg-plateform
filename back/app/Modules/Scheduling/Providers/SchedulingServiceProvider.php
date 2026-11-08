@@ -32,6 +32,7 @@ use App\Modules\Scheduling\Infrastructure\Persistence\EloquentCalendarFeedReposi
 use App\Modules\Scheduling\Infrastructure\Persistence\EloquentCalendarInvitationRepository;
 use App\Modules\Scheduling\Infrastructure\Persistence\EloquentCalendarRepository;
 use App\Modules\Scheduling\Infrastructure\Persistence\EloquentCalendarResourceRepository;
+use App\Modules\Scheduling\Infrastructure\Resolution\EventAuthorizationScopes;
 use App\Modules\Scheduling\Presentation\Http\Controllers\Api\V1\CalendarFeedController;
 use App\Modules\Scheduling\Presentation\Http\Middleware\ProtectCalendarSubscription;
 use App\Modules\Scheduling\Presentation\Policies\AvailabilityPolicy;
@@ -62,6 +63,7 @@ final class SchedulingServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        config(['tenancy.authorization_scope_resolvers.event' => EventAuthorizationScopes::class]);
         Gate::policy(Availability::class, AvailabilityPolicy::class);
         Gate::policy(CalendarActivity::class, CalendarPolicy::class);
         Route::get('api/v1/calendar-subscriptions/{tenant}/{feed}.ics', [CalendarFeedController::class, 'subscription'])

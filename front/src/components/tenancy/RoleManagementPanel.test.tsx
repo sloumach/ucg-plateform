@@ -129,4 +129,33 @@ describe('Contextual role management', () => {
     expect(request.mock.calls.filter(([path, options]) => path.endsWith('/roles/' + role.id) && options?.method === 'PUT')).toHaveLength(1)
     expect(screen.getAllByText('Ces droits ont changé.').length).toBeGreaterThan(0)
   })
+  it.each([['game', 'sports.read'], ['cohort', 'academy.read'], ['event', 'calendar.read']] as const)('affecte un rôle %s depuis un objet réel et retire les rôles incompatibles du choix', async (type, permission) => {
+    const user = userEvent.setup()
+    const limitedRole = { ...role, name: 'Lecteur limité', permissions: [permission] }
+    const organizationRole = { ...role, id: '55555555-5555-4555-8555-555555555555', name: 'Gouvernance globale', permissions: ['audit.view'] }
+    request.mockImplementation(async (path, options) => {
+      if (options?.method) return { data: assignment, notification: { type: 'success', message: 'Droits enregistrés.' } }
+      if (path.includes('permission-catalogue')) return { data: { permissions: [
+        { key: permission, privileged: type !== 'game', organization_only: false, scope_types: ['organization', type] },
+        { key: 'audit.view', privileged: true, organization_only: true, scope_types: ['organization'] },
+      ], scope_types: ['organization', 'game', 'cohort', 'event'], can_manage: true } }
+      if (path.includes('authorization-scopes/')) return page([{ id: version, label: 'Objet autorisé' }])
+      if (path.includes('role-assignments')) return page([])
+      return page([limitedRole, organizationRole])
+    })
+    show()
+    const form = await screen.findByRole('form', { name: 'Affecter un rôle' })
+    await user.selectOptions(within(form).getByRole('combobox', { name: 'Périmètre' }), type)
+    await within(form).findByRole('option', { name: 'Objet autorisé' })
+    expect(within(form).queryByRole('option', { name: 'Gouvernance globale' })).not.toBeInTheDocument()
+    await user.selectOptions(within(form).getByRole('combobox', { name: 'Rôle à affecter' }), role.id)
+    await user.type(within(form).getByLabelText('Identifiant du compte membre'), '43')
+    await user.selectOptions(within(form).getByRole('combobox', { name: 'Objet du périmètre' }), version)
+    await user.click(within(form).getByRole('button', { name: 'Affecter un rôle' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
+    await waitFor(() => expect(request).toHaveBeenCalledWith('tenants/' + org + '/role-assignments', expect.objectContaining({
+      method: 'POST', body: expect.objectContaining({ user_id: '43', role_id: role.id, scope_type: type, scope_id: version }),
+    })))
+  })
+
 })

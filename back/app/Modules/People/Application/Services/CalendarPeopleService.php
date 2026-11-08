@@ -22,9 +22,9 @@ final readonly class CalendarPeopleService implements CalendarPeopleDirectory
         return ['person_id' => $viewer['person_id'], 'timezone' => $viewer['timezone'] ?? $context->timezone];
     }
 
-    public function accounts(TenantContext $context, array $ids): array
+    public function accounts(TenantContext $context, array $ids, ?string $activityId = null): array
     {
-        $this->authorizeWrite($context);
+        $this->authorizeWrite($context, $activityId);
         if ($this->database->transactionLevel() < 1 || count($ids) > 50) {
             throw new LogicException('Calendar recipient resolution requires a bounded tenant transaction.');
         }
@@ -58,9 +58,12 @@ final readonly class CalendarPeopleService implements CalendarPeopleDirectory
         return $this->records->labels($context->organizationId, $ids);
     }
 
-    private function authorizeWrite(TenantContext $context): void
+    private function authorizeWrite(TenantContext $context, ?string $activityId = null): void
     {
-        $this->authorization->authorize($context, 'calendar.read');
-        $this->authorization->authorize($context, 'calendar.write');
+        foreach (['calendar.read', 'calendar.write'] as $permission) {
+            if (! $this->authorization->allows($context, $permission)) {
+                $this->authorization->authorize($context, $permission, $activityId === null ? 'organization' : 'event', $activityId);
+            }
+        }
     }
 }

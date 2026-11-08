@@ -3,14 +3,40 @@
 namespace App\Modules\Tenancy\Infrastructure\Resolution;
 
 use App\Modules\Tenancy\Application\Contracts\AuthorizationScopeDirectory;
+use App\Modules\Tenancy\Application\Contracts\AuthorizationScopeSource;
 use App\Modules\Tenancy\Application\Contracts\DatedAuthorizationScopeDirectory;
+use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Container\Container;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Query\Builder;
 
-final readonly class RegisteredAuthorizationScopes implements DatedAuthorizationScopeDirectory
+final readonly class RegisteredAuthorizationScopes implements AuthorizationScopeSource, DatedAuthorizationScopeDirectory
 {
     public const TYPES = ['organization', 'team', 'game', 'cohort', 'event'];
+
+    public function choices(TenantContext $context, string $type, int $page, int $perPage, ?Builder $visible = null): LengthAwarePaginator
+    {
+        $this->sources($context->organizationId, $type);
+        $class = $this->config->get('tenancy.authorization_scope_resolvers.'.$type);
+        if (! is_string($class) || ! is_a($class, AuthorizationScopeSource::class, true)) {
+            throw new ModelNotFoundException;
+        }
+
+        return $this->container->make($class)->choices($context, $type, $page, $perPage, $visible);
+    }
+
+    public function sources(string $organizationId, string $type): Builder
+    {
+        $class = $this->config->get('tenancy.authorization_scope_resolvers.'.$type);
+        if (! is_string($class) || ! is_a($class, AuthorizationScopeSource::class, true) || $class === self::class) {
+            throw new ModelNotFoundException;
+        }
+
+        return $this->container->make($class)->sources($organizationId, $type);
+    }
 
     public function __construct(private Repository $config, private Container $container) {}
 

@@ -21,8 +21,8 @@ import { CalendarFeedPanel } from './CalendarFeedPanel'
 import { CalendarChangesPanel } from './CalendarChangesPanel'
 import { CalendarCancellationForm } from './CalendarCancellationForm'
 import { changeText } from '../../api/calendarChanges'
-type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
-export function CalendarPanel({ active, disabled, onInvalid }: Props) {
+type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void; limited?: boolean }
+export function CalendarPanel({ active, disabled, onInvalid, limited = false }: Props) {
   const [open, setOpen] = useState(false), [page, setPage] = useState(1), [refresh, setRefresh] = useState(0)
   const [filters, setFilters] = useState(() => ({ ...defaultCalendarWindow(), timezone: '', kind: '', management: false, archived: false }))
   const [editor, setEditor] = useState<CalendarActivity | 'new' | null>(null)
@@ -42,10 +42,10 @@ export function CalendarPanel({ active, disabled, onInvalid }: Props) {
     <Button disabled={blocked} onClick={() => { setOpen(!open); setEditor(null); setHistory(null); setCancellation(null); setChangeHistory(null) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>
       {mutation.feedback}
-      <CalendarFeedPanel {...{ active, root, onInvalid }} disabled={blocked} />
-      <CalendarChangesPanel {...{ active, root, onInvalid, timezone }} disabled={blocked} />
+      {!limited && <CalendarFeedPanel {...{ active, root, onInvalid }} disabled={blocked} />}
+      {!limited && <CalendarChangesPanel {...{ active, root, onInvalid, timezone }} disabled={blocked} />}
       <CalendarInvitationsPanel {...{ active, root, onInvalid }} disabled={blocked} />
-      {canWrite && <CalendarResourcesPanel {...{ active, root, onInvalid }} disabled={blocked} />}
+      {canWrite && !limited && <CalendarResourcesPanel {...{ active, root, onInvalid }} disabled={blocked} />}
       <form aria-label={text('filter')} className="grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
         event.preventDefault(); const values = new FormData(event.currentTarget)
         setFilters({ from: String(values.get('from_date') ?? ''), to: String(values.get('to_date') ?? ''), timezone: String(values.get('timezone') ?? '').trim(),
@@ -56,14 +56,14 @@ export function CalendarPanel({ active, disabled, onInvalid }: Props) {
         <FormField name="to_date" label={text('toDate')} type="date" defaultValue={filters.to} required disabled={blocked} error={error?.fieldErrors.to_date?.[0]} />
         <FormField name="timezone" label={text('displayTimezone')} defaultValue={filters.timezone} placeholder={list?.calendar.viewer_timezone ?? active.context!.timezone} disabled={blocked} error={error?.fieldErrors.timezone?.[0]} />
         <SelectField name="kind" title={text('kind')} defaultValue="" disabled={blocked}><option value="">{text('allKinds')}</option>{calendarKinds.map((key) => <option key={key} value={key}>{text('kind.' + key)}</option>)}</SelectField>
-        {canWrite && <><SelectField name="management" title={text('mode')} defaultValue="0" disabled={blocked}><option value="0">{text('myCalendar')}</option><option value="1">{text('management')}</option></SelectField>
+        {canWrite && !limited && <><SelectField name="management" title={text('mode')} defaultValue="0" disabled={blocked}><option value="0">{text('myCalendar')}</option><option value="1">{text('management')}</option></SelectField>
           <FormField name="archived" label={text('archivedFilter')} type="checkbox" disabled={blocked} /></>}
         <p className="text-sm text-slate-400 sm:col-span-2">{text('windowHint')}</p>
         <div className="flex flex-wrap gap-3 sm:col-span-2"><Button type="submit" disabled={blocked}>{text('filterAction')}</Button><Button disabled={blocked} onClick={() => setRefresh((n) => n + 1)}>{text('refresh')}</Button></div>
       </form>
       <p className="text-sm text-cyan-200 [overflow-wrap:anywhere]">{text('displayedIn')} : {timezone}</p>
       {filters.management && <p className="text-sm text-amber-200">{text('managementHint')}</p>}
-      {canWrite && <Button disabled={blocked} onClick={() => { setEditor('new'); setCancellation(null) }}>{text('new')}</Button>}
+      {canWrite && !limited && <Button disabled={blocked} onClick={() => { setEditor('new'); setCancellation(null) }}>{text('new')}</Button>}
       {loading && <AsyncState variant="loading" title={text('loading')} />}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
       {list?.data.length === 0 && <p>{text('empty')}</p>}
@@ -90,7 +90,7 @@ export function CalendarPanel({ active, disabled, onInvalid }: Props) {
         {!item.archived_at && !item.cancelled_at && <ContextMedia key={'media:' + item.id + ':' + item.version} {...{ active, onInvalid }} type="event" id={item.id} disabled={blocked} />}
       </li>)}</ol>
       {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(next) => { setPage(next); setEditor(null); setCancellation(null) }} />}
-      {editor && <CalendarForm key={editor === 'new' ? 'new' : editor.id + editor.version} {...{ active, root, onInvalid }} item={editor === 'new' ? null : editor}
+      {editor && <CalendarForm limited={limited} key={editor === 'new' ? 'new' : editor.id + editor.version} {...{ active, root, onInvalid }} item={editor === 'new' ? null : editor}
         defaultTimezone={list?.calendar.viewer_timezone ?? active.context!.timezone} disabled={blocked} errors={mutation.errors(root + '/activities' + (editor === 'new' ? '' : '/' + editor.id))} onCancel={() => setEditor(null)}
         onSubmit={(event, values) => mutation.propose(event, text('save'), root + '/activities' + (editor === 'new' ? '' : '/' + editor.id), { ...values, ...(editor === 'new' ? {} : { version: editor.version }) }, editor !== 'new')} />}
       {history && <CalendarConflictHistory key={history} {...{ active, timezone, onInvalid }} path={root + '/activities/' + history} disabled={blocked} onClose={() => setHistory(null)} />}

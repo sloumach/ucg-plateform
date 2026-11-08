@@ -123,7 +123,7 @@ final readonly class RoleManagementService
                     if (! $this->scopes->exists($organization->id, $data->scopeType, $data->scopeId)) {
                         throw new DomainConflictException(__('authorization.scope_unavailable'), 'AUTHORIZATION_SCOPE_UNAVAILABLE');
                     }
-                    if ($data->scopeType !== 'organization' && collect($role->permissions)->contains(fn (string $permission): bool => Permission::from($permission)->organizationOnly())) {
+                    if (collect($role->permissions)->contains(fn (string $permission): bool => ! Permission::from($permission)->supportsScope($data->scopeType))) {
                         throw new DomainConflictException(__('authorization.scope_governance'), 'ROLE_SCOPE_INCOMPATIBLE');
                     }
                 }
@@ -149,6 +149,14 @@ final readonly class RoleManagementService
                     foreach (array_unique(['roles.assign', ...$role->permissions]) as $permission) {
                         $type = $permission === 'roles.assign' ? 'organization' : $data->scopeType;
                         $scope = $permission === 'roles.assign' ? $organization->id : $data->scopeId;
+                        // Calendar organization readers do not see every private event. Delegation must
+                        // cover the full interval with an exact read grant or organization management.
+                        if (! $onlyRestrict && $type === 'event' && $permission === 'calendar.read'
+                            && ! $this->roles->hasGrant($organization->id, $context->actorUserId, $actorMembership->id, $permission, $type, $scope, $start, $end, true, false)
+                            && ! ($this->roles->hasGrant($organization->id, $context->actorUserId, $actorMembership->id, 'calendar.read', 'organization', $organization->id, $start, $end, true)
+                                && $this->roles->hasGrant($organization->id, $context->actorUserId, $actorMembership->id, 'calendar.write', 'organization', $organization->id, $start, $end, true))) {
+                            throw new DomainConflictException(__('authorization.delegation'), 'ROLE_DELEGATION_DENIED');
+                        }
                         if ($onlyRestrict ? ! $this->authorization->allows($context, $permission, $type, $scope)
                             : ! $this->roles->hasGrant($organization->id, $context->actorUserId, $actorMembership->id, $permission,
                                 $type, $scope, $start, $end, true)) {

@@ -39,7 +39,7 @@ final class RoleController extends Controller
         $this->gate->authorize('viewAny', [OrganizationRole::class, $context]);
 
         return RoleCatalogueResource::make(['permissions' => array_values(array_map(fn (Permission $permission): array => ['key' => $permission->value,
-            'privileged' => $permission->privileged(), 'organization_only' => $permission->organizationOnly()],
+            'privileged' => $permission->privileged(), 'organization_only' => $permission->organizationOnly(), 'scope_types' => array_values(array_filter($this->scopes->availableTypes(), fn (string $type): bool => $permission->supportsScope($type)))],
             array_filter(Permission::cases(), fn (Permission $permission): bool => $permission->configurable()))),
             'scope_types' => $this->scopes->availableTypes(), 'can_manage' => $this->gate->allows('manage', [OrganizationRole::class, $context])]);
     }

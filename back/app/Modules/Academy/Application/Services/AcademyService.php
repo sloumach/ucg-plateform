@@ -10,6 +10,7 @@ use App\Modules\Academy\Domain\Models\AcademyEnrollment;
 use App\Modules\Academy\Domain\Models\AcademyRevision;
 use App\Modules\Academy\Domain\Models\Cohort;
 use App\Modules\People\Application\Contracts\AcademyPeopleDirectory;
+use App\Modules\Tenancy\Application\Contracts\ContextualAuthorization;
 use App\Modules\Tenancy\Application\Contracts\TenantAuditJournal;
 use App\Modules\Tenancy\Application\Contracts\TenantAuthorization;
 use App\Modules\Tenancy\Application\Contracts\TenantBusinessGuard;
@@ -18,6 +19,7 @@ use App\Support\Audit\AuditAction;
 use App\Support\Audit\AuditReason;
 use App\Support\Audit\AuditTarget;
 use App\Support\Audit\AuditWriteData;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\Validation\Factory;
 use Illuminate\Database\ConnectionInterface;
@@ -28,19 +30,25 @@ final readonly class AcademyService
 {
     public function __construct(private AcademyRepository $records, private AcademyPeopleDirectory $people,
         private TenantAuthorization $authorization, private TenantBusinessGuard $guard, private TenantAuditJournal $audit,
-        private Factory $validator, private ConnectionInterface $database) {}
+        private Factory $validator, private ConnectionInterface $database, private ContextualAuthorization $scoped) {}
 
     /** @param array<string, mixed> $filters
      * @return LengthAwarePaginator<int, Cohort>|LengthAwarePaginator<int, AcademyCycle>|LengthAwarePaginator<int, AcademyEnrollment>|LengthAwarePaginator<int, AcademyRevision> */
     public function paginate(TenantContext $context, string $kind, array $filters, ?string $cohortId = null): LengthAwarePaginator
     {
-        $this->authorize($context);
+        if ($cohortId === null) {
+            if (! $this->scoped->any($context, 'cohort', 'academy.read')) {
+                throw new AuthorizationException;
+            }
+        } else {
+            $this->authorize($context, false, $cohortId);
+        }
         $values = AcademyInput::validate($this->validator, $filters, $kind, false);
         if ($cohortId !== null) {
             $this->records->cohort($context->organizationId, $cohortId);
         }
 
-        $page = $this->records->paginate($context->organizationId, $kind, $values, $cohortId);
+        $page = $this->records->paginate($context->organizationId, $kind, $values, $cohortId, $this->scoped->ids($context, 'cohort', 'academy.read'));
         if ($kind === 'enrollment') {
             $ids = [];
             foreach ($page->items() as $item) {
@@ -48,7 +56,7 @@ final readonly class AcademyService
                     $ids[] = $item->person_id;
                 }
             }
-            $labels = $this->people->labels($context, array_values(array_unique($ids)));
+            $labels = $this->people->labels($context, array_values(array_unique($ids)), $cohortId);
             foreach ($page->items() as $item) {
                 if ($item instanceof AcademyEnrollment) {
                     $item->setAttribute('person_label', $labels[$item->person_id] ?? null);
@@ -62,7 +70,7 @@ final readonly class AcademyService
     /** @param array<string, mixed> $input */
     public function save(TenantContext $context, string $kind, array $input, ?string $cohortId = null, ?string $id = null, ?string $ip = null): Cohort|AcademyCycle|AcademyEnrollment
     {
-        $this->authorize($context, true);
+        $this->authorize($context, true, $kind === 'cohort' ? $id : $cohortId);
         $values = AcademyInput::validate($this->validator, $input, $kind, true, $id === null);
         foreach (['cycle_id', 'person_id'] as $field) {
             if (isset($values[$field])) {
@@ -70,11 +78,11 @@ final readonly class AcademyService
             }
         }
         // Resolve before taking tenant/resource locks, then recheck under the person lock.
-        $account = $kind === 'enrollment' && $id === null ? $this->people->account($context, $values['person_id']) : null;
+        $account = $kind === 'enrollment' && $id === null ? $this->people->account($context, $values['person_id'], false, $cohortId) : null;
 
         return $this->database->transaction(function () use ($context, $kind, $values, $cohortId, $id, $ip, $account): Cohort|AcademyCycle|AcademyEnrollment {
             $this->guard->lock($context, $account);
-            $this->authorize($context, true);
+            $this->authorize($context, true, $kind === 'cohort' ? $id : $cohortId);
             $cohort = $cohortId === null ? null : $this->records->cohort($context->organizationId, $cohortId, true);
             $record = match ($kind) {
                 'cohort' => $id === null ? new Cohort : $this->records->cohort($context->organizationId, $id, true),
@@ -110,7 +118,7 @@ final readonly class AcademyService
                 if ($values['starts_on'] < $cycle->starts_on || $values['ends_on'] > $cycle->ends_on) {
                     throw ValidationException::withMessages(['ends_on' => __('academy.outside_cycle')]);
                 }
-                $currentAccount = $this->people->account($context, $values['person_id'], true);
+                $currentAccount = $this->people->account($context, $values['person_id'], true, $cohortId);
                 if ($currentAccount !== $account || ($values['role'] === 'mentor' && $currentAccount === null)) {
                     throw new DomainConflictException(__('academy.person_unavailable'), 'ACADEMY_PERSON_UNAVAILABLE');
                 }
@@ -133,11 +141,15 @@ final readonly class AcademyService
         });
     }
 
-    private function authorize(TenantContext $context, bool $write = false): void
+    private function authorize(TenantContext $context, bool $write = false, ?string $cohortId = null): void
     {
-        $this->authorization->authorize($context, 'academy.read');
+        if (! $this->authorization->allows($context, 'academy.read')) {
+            $this->authorization->authorize($context, 'academy.read', $cohortId === null ? 'organization' : 'cohort', $cohortId);
+        }
         if ($write) {
-            $this->authorization->authorize($context, 'academy.manage');
+            if (! $this->authorization->allows($context, 'academy.manage')) {
+                $this->authorization->authorize($context, 'academy.manage', $cohortId === null ? 'organization' : 'cohort', $cohortId);
+            }
         }
     }
 

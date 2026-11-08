@@ -2,6 +2,7 @@
 
 use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\AccessibleOrganizationController;
 use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\ActiveOrganizationController;
+use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\AuthorizationScopeController;
 use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\InvitationController;
 use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\MembershipController;
 use App\Modules\Tenancy\Presentation\Http\Controllers\Api\V1\MyInvitationController;
@@ -37,6 +38,8 @@ Route::delete('my-memberships/{membership}', [MyMembershipController::class, 'de
 
 Route::prefix('tenants/{tenant}')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
     Route::get('audit-events', [TenantAuditController::class, 'index'])->middleware('throttle:audit')->block(10, 10)->name('tenants.audit.index');
+    Route::get('authorization-scopes/{scopeType}', [AuthorizationScopeController::class, 'choices'])->whereIn('scopeType', ['game', 'cohort', 'event'])->name('scopes.choices');
+    Route::get('contextual-permissions', [AuthorizationScopeController::class, 'capabilities'])->name('scopes.capabilities');
     Route::get('permission-catalogue', [RoleController::class, 'catalogue'])->name('roles.catalogue');
     Route::get('roles', [RoleController::class, 'index'])->name('roles.index');
     Route::post('roles', [RoleController::class, 'store'])->middleware('tenant.confirmed')->block(10, 10)->name('roles.store');
