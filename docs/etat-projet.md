@@ -6,16 +6,23 @@
 ## Point de reprise
 
 - Dernière mise à jour : **8 novembre 2026**.
-- Tâche courante : **A-P0-04, sélection critique d’isolation**, corrigée
-  localement : 310 cas sélectionnés, dont 19 jeu/cohorte/événement et 14 équipe.
-  Aucun des 277 cas précédents retiré. Validation et matrice REC-23–36 détaillées
-  en fin de document ; ce complément reste local, sans commit/push.
+- Tâche courante : **recette P0 visible, lot 1 — accès et organisations**.
+  Parcours exécutés sur données fictives dans deux conteneurs Docker distincts
+  du développement, avec SQLite et stockage de recette isolés. Un contexte
+  d’organisation résiduel après changement de compte a été reproduit et corrigé
+  dans App ; test de régression ajouté. Bilan détaillé ci-dessous.
+- **CI des compléments P0 validées par l’utilisateur dans cette discussion.**
+  A-P0-04 est désormais commité dans `d96a04c`, présent dans l’historique de
+  staging et origin/staging, confirmé par fetch avant publication de ce lot.
+  Aucun nouveau run CI distant n’a été exécuté ici. Ses 310 cas restent documentés.
 - **A-P0-03 poussé sur origin/staging dans `dd0a658`**, sur demande utilisateur.
   A-P0-02 et A-P0-01 sont également poussés dans `218c4ff` et `7055296`.
-  Les CI distantes de ces compléments restent à confirmer par l’utilisateur.
+  Leurs CI sont désormais confirmées par l’utilisateur.
 - **Les quatre écarts identifiés par l’audit sont corrigés dans le code.**
-  La livraison distante d’A-P0-04 et les CI restent à obtenir ; aucune clôture
-  automatique de tous les tickets QA ni autorisation de mise en service déduite.
+  Cette validation ne clôture pas automatiquement tous les tickets QA et ne
+  constitue pas une autorisation de mise en service. Le correctif de recette et
+  les fichiers Docker sont inclus dans le lot courant ; leur propre CI reste
+  à valider après publication.
 - **IAM-003 jeu/cohorte/événement `6e25a61` poussé sur staging et CI validée
   par l’utilisateur** dans cette discussion. Aucun autre module P1 lancé.
 - **SPON-002 `017248d` poussé par l’utilisateur et CI validée par lui** avant ce
@@ -81,6 +88,64 @@
   métier n’est lancé par cette seule révision. Les décisions, données et
   qualifications externes ci-dessous restent identifiées séparément.
 
+### Recette P0 visible — lot 1, accès et organisations, 08/11/2026
+
+**Environnement :** navigateur intégré visible, interface sur 127.0.0.1:5174,
+API Laravel réelle sur 127.0.0.1:8001. Réutilisation des factories et du point
+d’entrée protégé tests/Fixtures/browser-application.php ; base SQLite, sessions,
+fichiers et caches placés dans le volume Docker ucg-recette_state. Le code et
+vendor sont montés en lecture seule côté API. Les dépendances Node sont copiées
+dans un volume distinct. Aucun .env ni base de travail modifié ; aucun e-mail
+externe envoyé (mailer array). Configuration et captures privées ignorées dans
+back/reports/recette-visible. Les conteneurs restent démarrés pour observation.
+
+| Scénario exécuté | Résultat observé |
+| --- | --- |
+| Connexion avec mauvais mot de passe puis mot de passe correct | Refus explicite, puis challenge MFA obligatoire. |
+| Activation MFA avec mauvais mot de passe et mauvais code | Refus et messages de validation près des champs. |
+| Activation MFA correcte | Dix codes de récupération distincts ; espace organisations accessible après confirmation. |
+| Rechargement, déconnexion et reconnexion | Session vérifiée conservée au rechargement ; nouveau challenge après reconnexion. |
+| Code de récupération puis réutilisation | Première utilisation acceptée, réutilisation refusée ; TOTP correct accepté ensuite. |
+| Changement de compte avant MFA | Anomalie reproduite : ancien nom d’organisation affiché dans l’en-tête. Après correction, « Aucune organisation sélectionnée. » ; vérifié à nouveau visuellement. |
+| Invitation Alpha | Confirmation de la cible, e-mail normalisé, invitation en attente ; doublon explicitement refusé. |
+| Passage Alpha vers Beta | Le contexte change et les commandes/invitations propres à Alpha disparaissent. |
+| Acceptation par le destinataire | Confirmation Alpha, invitation acceptée et organisation rendue accessible ; invitation expirée dépourvue de bouton d’acceptation. |
+| Affectation limitée à une équipe | Sélection nommée, confirmation du compte cible, consultation de la seule équipe autorisée par le bénéficiaire. |
+| Révocation de cette affectation | Statut révoqué enregistré ; après reconnexion, « Aucun accès équipe limité actif. ». |
+| API : accès avant MFA | Liste des organisations refusée avec HTTP 403. |
+| API : droits équipe | Fiche autorisée HTTP 200 ; autre équipe et liste générale HTTP 403. |
+| API : isolation entre organisations | Liste Alpha HTTP 200 ; organisation étrangère et fiches Beta/étrangère demandées sous Alpha HTTP 404. |
+
+**Correction :** App efface activeTenant après une déconnexion réussie, au même
+moment que l’identité. Le test App.test.tsx échoue avant correction sur l’ancien
+nom affiché et passe ensuite. Aucun changement d’autorisation serveur, de schéma
+ou de dépendance. La suite frontend a aussi révélé que le conteneur front ne
+voyait pas le catalogue PHP lu par RoleManagementPanel.test.tsx ; compose.yaml
+monte désormais back/app en lecture seule à l’emplacement relatif attendu.
+
+**Validation :** tests App/TenantWorkspace : 14 réussis ; suite frontend complète :
+**541 tests / 72 fichiers réussis**, après correction du montage Docker ; lint
+sans erreur ; TypeScript et build Vite réussis. Commandes exécutées :
+`docker compose exec -T front npm test -- src/App.test.tsx src/components/tenancy/TenantWorkspace.test.tsx`,
+`docker compose exec -T front npm run lint`,
+`docker compose exec -T front npm run build` et
+`docker compose exec -T front npm test -- --reporter=dot` ; configuration Compose
+et `git diff --check` également contrôlés. Aucun nouveau parcours Playwright automatisé ni test PostgreSQL
+relancé dans ce lot ; les parcours ci-dessus ont été pilotés dans le navigateur
+visible et complétés par des requêtes HTTP réelles. Console navigateur finale
+sans avertissement/erreur capturé. Ne pas assimiler ces scénarios à une recette
+exhaustive de IAM/TEN : récupération par e-mail, révocation multi-appareils,
+suspension/fin d’adhésion et autres périmètres restent à compléter si retenus
+dans un sous-lot. La concurrence PostgreSQL, le temps réel Reverb, la délivrabilité
+et la qualification d’hébergement ne sont pas attestés par cette recette SQLite.
+
+**Publication :** commit et push sur staging demandés par l’utilisateur après
+le bilan de recette. Les captures, données et paramètres temporaires restent
+ignorés. La validation CI de ce nouveau lot reste à obtenir.
+
+**Suite :** lot visible personnes et équipes/rosters. Le pilote réel et la
+clôture globale P0 restent distincts de ce bilan.
+
 ### Audit de couverture P0 — 08/11/2026, référence `6e25a61`
 
 **92 tickets P0 rapprochés du code, des tests/procédures et des commits.**
@@ -97,9 +162,10 @@ validée **par l’utilisateur** ; aucun nouveau run distant ou test de charge
 n’est revendiqué pendant cet audit.
 
 **Suivi après audit :** les quatre écarts sont corrigés. A-P0-01, A-P0-02 et
-A-P0-03 sont poussés dans `7055296`, `218c4ff` et `dd0a658` ; A-P0-04 reste
-local. Les bilans figurent en fin de document. Les constats ci-dessous décrivent
-la référence auditée `6e25a61` ; aucune nouvelle CI distante validée n’est revendiquée.
+A-P0-03 sont poussés dans `7055296`, `218c4ff` et `dd0a658` ; A-P0-04 est
+présent dans `d96a04c` et origin/staging. Les CI sont confirmées par l’utilisateur
+dans la discussion de recette. Les bilans figurent en fin de document. Les
+constats ci-dessous décrivent la référence historique auditée `6e25a61`.
 
 #### Écarts confirmés à la référence auditée, par ordre de traitement
 

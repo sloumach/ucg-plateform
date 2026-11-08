@@ -1,0 +1,17 @@
+FROM php:8.5-cli
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        git unzip libpq-dev libicu-dev libzip-dev libsqlite3-dev \
+    && docker-php-ext-install -j"$(nproc)" \
+        pdo_pgsql pdo_sqlite intl bcmath pcntl posix sockets zip \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+
+RUN printf 'memory_limit=512M\nupload_max_filesize=20M\npost_max_size=25M\n' \
+    > /usr/local/etc/php/conf.d/ucg-development.ini
+
+WORKDIR /app
+
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]

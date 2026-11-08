@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
@@ -10,6 +10,9 @@ import {
 } from './api/auth'
 import { ApiClientError } from './api/errors'
 import { getSystemStatus } from './api/systemStatus'
+import { tenancyRequest, type ActiveOrganization } from './api/tenancy'
+
+vi.mock('./api/tenancy', () => ({ tenancyRequest: vi.fn() }))
 
 vi.mock('./api/auth', async (importOriginal) => {
   const original = await importOriginal<typeof import('./api/auth')>()
@@ -39,6 +42,7 @@ const requestPasswordResetMock = vi.mocked(requestPasswordReset)
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(tenancyRequest).mockReset()
     getCurrentUserMock.mockResolvedValue(null)
     getSystemStatusMock.mockResolvedValue({
       apiVersion: 'v1',
@@ -103,6 +107,49 @@ describe('App', () => {
     expect(logoutMock).toHaveBeenCalledOnce()
     expect(await screen.findByRole('heading', { name: 'Connexion' })).toBeVisible()
     expect(screen.getByText('Session fermée.')).toBeVisible()
+  })
+
+  it('efface le contexte du compte précédent avant le MFA du nouveau compte', async () => {
+    const user = userEvent.setup()
+    getCurrentUserMock.mockResolvedValue({
+      id: 42, name: 'Premier compte', email: 'first@example.test', email_verified: false,
+      mfa: { required: true, enabled: true, verified: true },
+    })
+    const active: ActiveOrganization = {
+      context: {
+        organization_id: 'alpha', name: 'Organisation confidentielle Alpha', slug: 'alpha',
+        timezone: 'UTC', language: 'fr', roles: ['member'], permissions: [],
+        is_owner: false, actor_user_id: 42, membership_id: 'membership-alpha',
+      },
+      revision: 'revision-alpha', confirmed: false,
+    }
+    vi.mocked(tenancyRequest).mockImplementation(async (path) => {
+      if (path === 'active-organization') return { data: active }
+      if (path.includes('?')) return {
+        data: [], meta: { request_id: 'test', current_page: 1, last_page: 1, total: 0 },
+      }
+      return { data: [] }
+    })
+    logoutMock.mockResolvedValue(null)
+    loginMock.mockResolvedValue({
+      id: 43, name: 'Second compte', email: 'second@example.test', email_verified: true,
+      mfa: { required: true, enabled: true, verified: false },
+    })
+
+    render(<App />)
+
+    const context = await screen.findByLabelText('Contexte d’organisation')
+    expect(await within(context).findByText('Organisation confidentielle Alpha')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Se déconnecter' }))
+    await screen.findByRole('heading', { name: 'Connexion' })
+    await user.type(screen.getByLabelText('Adresse e-mail'), 'second@example.test')
+    await user.type(screen.getByLabelText('Mot de passe'), 'fixture-password')
+    await user.click(screen.getByRole('button', { name: 'Se connecter' }))
+
+    expect(await screen.findByLabelText('Code de l’application (6 chiffres)')).toBeVisible()
+    expect(screen.getByLabelText('Contexte d’organisation')).toHaveTextContent('Aucune organisation sélectionnée.')
+    expect(screen.queryByText('Organisation confidentielle Alpha')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Mes organisations' })).not.toBeInTheDocument()
   })
 
   it('affiche toutes les erreurs de validation près des champs et cible la première', async () => {

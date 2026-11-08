@@ -1,0 +1,4 @@
+# The development image contains tools only; source code is mounted by Compose.
+**
+!Dockerfile.dev
+!.dockerignore

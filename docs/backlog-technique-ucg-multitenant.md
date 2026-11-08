@@ -59,9 +59,11 @@ des tâches reportées figure au point de reprise de `etat-projet.md`.
 l’utilisateur :** les 92 tickets P0 sont rapprochés du code, des tests/procédures
 et de commits dans la [matrice de l’état du projet](etat-projet.md#matrice-des-92-tickets-et-repères-vérifiés).
 Les quatre écarts de l’audit sont corrigés : A-P0-01, A-P0-02 et A-P0-03 poussés
-respectivement dans `7055296`, `218c4ff` et `dd0a658`, A-P0-04 local.
+respectivement dans `7055296`, `218c4ff` et `dd0a658`, A-P0-04 dans `d96a04c`
+(présent dans la référence locale origin/staging).
 La sélection critique passe de 277 à 310 cas, sans retrait, avec 33 cas IAM
-supplémentaires. Les CI distantes restent à confirmer ; aucun nouveau
+supplémentaires. Les CI sont désormais confirmées par l’utilisateur dans la
+discussion de recette du 08/11 ; aucun nouveau
 module P1 promu ; décisions, données réelles, pilote et hébergement restent
 distincts. Les anciennes mentions d’attente CI ne sont pas des fonctions absentes.
 

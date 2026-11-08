@@ -128,6 +128,7 @@ function Application() {
     try {
       const notification = await logout()
       setUser(null)
+      setActiveTenant(null)
       setSessionError(null)
       notify(
         notification ?? {
