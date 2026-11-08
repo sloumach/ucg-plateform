@@ -7,12 +7,16 @@ use App\Modules\Partnerships\Domain\Models\SponsorshipAgreement;
 use App\Modules\Partnerships\Domain\Models\SponsorshipAgreementEvent;
 use App\Modules\Partnerships\Domain\Models\SponsorshipAgreementTerms;
 use App\Modules\Partnerships\Domain\Models\SponsorshipExposure;
+use App\Modules\Partnerships\Domain\Models\SponsorshipExposureContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Str;
 
 final readonly class EloquentSponsorshipAgreementRepository implements SponsorshipAgreementRepository
 {
+    public function __construct(private SponsorshipContextVisibility $visibility) {}
+
     public function paginate(string $org, string $sponsor, array $filters): LengthAwarePaginator
     {
         $query = SponsorshipAgreement::query()->where('organization_id', $org)->where('sponsor_id', strtolower($sponsor));
@@ -43,22 +47,22 @@ final readonly class EloquentSponsorshipAgreementRepository implements Sponsorsh
         return $record;
     }
 
-    public function exposures(string $org, string $agreement, array $filters): LengthAwarePaginator
+    public function exposures(string $org, string $agreement, array $filters, array $sources = []): LengthAwarePaginator
     {
-        return SponsorshipExposure::query()->where('organization_id', $org)->where('agreement_id', $agreement)
+        return $this->visibility->exposures($org, $sources)->with('context')->where('agreement_id', $agreement)
             ->when(isset($filters['status']), fn (Builder $query) => $query->where('status', $filters['status']))
             ->orderBy('created_at')->orderBy('id')->paginate((int) ($filters['per_page'] ?? 10), ['*'], 'page', (int) ($filters['page'] ?? 1));
     }
 
     public function activeExposures(string $org, string $agreement): array
     {
-        return array_values(SponsorshipExposure::query()->where('organization_id', $org)->where('agreement_id', $agreement)->where('status', 'active')
+        return array_values(SponsorshipExposure::query()->with('context')->where('organization_id', $org)->where('agreement_id', $agreement)->where('status', 'active')
             ->orderBy('id')->limit(101)->get()->all());
     }
 
     public function exposure(string $org, string $agreement, string $id): SponsorshipExposure
     {
-        return SponsorshipExposure::query()->where('organization_id', $org)->where('agreement_id', $agreement)->lockForUpdate()->findOrFail(strtolower($id));
+        return SponsorshipExposure::query()->with('context')->where('organization_id', $org)->where('agreement_id', $agreement)->lockForUpdate()->findOrFail(strtolower($id));
     }
 
     public function saveExposure(?SponsorshipExposure $record, array $attributes): SponsorshipExposure
@@ -66,7 +70,18 @@ final readonly class EloquentSponsorshipAgreementRepository implements Sponsorsh
         $record ??= new SponsorshipExposure;
         $record->forceFill($attributes)->save();
 
-        return $record;
+        return $record->loadMissing('context');
+    }
+
+    public function saveContext(SponsorshipExposure $exposure, string $type, string $id, string $version): void
+    {
+        $record = $exposure->context ?? new SponsorshipExposureContext;
+        if (! $record->exists) {
+            $record->forceFill(['id' => (string) Str::uuid(), 'organization_id' => $exposure->organization_id, 'exposure_id' => $exposure->id,
+                $type === 'event' ? 'activity_id' : 'media_id' => $id, 'created_at' => now()]);
+        }
+        $record->forceFill(['source_version' => $version])->save();
+        $exposure->setRelation('context', $record);
     }
 
     public function exposureCount(string $org, string $agreement): int

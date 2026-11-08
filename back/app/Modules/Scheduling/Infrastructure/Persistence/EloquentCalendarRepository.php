@@ -36,6 +36,12 @@ final readonly class EloquentCalendarRepository implements CalendarRepository
             ->paginate($perPage, ['id', 'title', 'version'], 'page', $page);
     }
 
+    public function partnershipChoices(string $org, \Illuminate\Database\Query\Builder $visible, int $page, int $perPage): LengthAwarePaginator
+    {
+        return CalendarActivity::query()->where('organization_id', $org)->whereIn('id', $visible)->orderBy('starts_at')->orderBy('id')
+            ->paginate($perPage, ['id', 'title', 'version'], 'page', $page);
+    }
+
     public function visibleForChange(string $org, string $id, CalendarAudience $audience): bool
     {
         return $this->visibility->query($org, $audience, includeCancelled: true)->whereKey($id)->exists();

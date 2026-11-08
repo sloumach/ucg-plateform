@@ -6,6 +6,7 @@ use App\Modules\Partnerships\Domain\Models\SponsorshipAgreement;
 use App\Modules\Partnerships\Domain\Models\SponsorshipAgreementEvent;
 use App\Modules\Partnerships\Domain\Models\SponsorshipAgreementTerms;
 use App\Modules\Partnerships\Domain\Models\SponsorshipExposure;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 interface SponsorshipAgreementRepository
@@ -20,8 +21,11 @@ interface SponsorshipAgreementRepository
     public function save(?SponsorshipAgreement $record, array $attributes): SponsorshipAgreement;
 
     /** @param array<string, mixed> $filters
+     * @param array<string, Builder|null> $sources
      * @return LengthAwarePaginator<int, SponsorshipExposure> */
-    public function exposures(string $org, string $agreement, array $filters): LengthAwarePaginator;
+    public function exposures(string $org, string $agreement, array $filters, array $sources = []): LengthAwarePaginator;
+
+    public function saveContext(SponsorshipExposure $exposure, string $type, string $id, string $version): void;
 
     /** Approval is bounded to MAX_EXPOSURES; includes only non-archived rows.
      * @return list<SponsorshipExposure> */

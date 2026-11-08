@@ -5,16 +5,23 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : **7 novembre 2026**.
-- Tâche courante : **correctif CI frontend après MEDIA-001 `004a3ac`**, poussé
+- Dernière mise à jour : **8 novembre 2026**.
+- Tâche courante : **complément SPON-002 — événements et médias**, tous les lots
+  acceptés : références et versions, autorisations/approbation, compatibilité
+  SPON-003, interface, tests et documentation. Développement et validations
+  étendues terminés, bilan ci-dessous ; livraison regroupée en un commit local.
+  Push et nouvelle CI restent à effectuer. Aucune migration sur la base de travail.
+- **CI `6fc2e84` validée par l’utilisateur** avant ce complément SPON-002.
+  Cette validation ne s’étend pas au nouveau lot. Aucun autre module P1 lancé.
+- Livraison précédente : **correctif CI frontend après MEDIA-001 `004a3ac`**, poussé
   sur staging. Le journal fourni montre un échec des convocations pour clé React
   dupliquée et un test des scores intermittent. Clé du bloc médias distinguée
   de celle des convocations ; régression couverte avec et sans accès médias.
   Le test des scores attend les données de la première page avant la saisie.
   Validation locale : **517 tests / 69 fichiers**, lint, TypeScript et build
   réussis ; **53 parcours Playwright réussis sans retry**, plus **10 répétitions
-  du parcours des scores sans retry**, sous Chrome Windows. La nouvelle CI
-  distante reste à confirmer ; aucun seuil, retry ou contrôle de console affaibli.
+  du parcours des scores sans retry**, sous Chrome Windows. CI distante validée
+  par l’utilisateur pour `6fc2e84` ; aucun seuil, retry ou contrôle de console affaibli.
 - **MEDIA-001 — rattachements match/événement `004a3ac` poussé** : API, interface,
   SQL, conservation et tests livrés ; bilan ci-dessous. La base de travail reste
   à migrer avant utilisation. Le correctif CI courant ne modifie pas le backend.
@@ -116,6 +123,66 @@ les autres critères P0 dans le code et les parcours existants avant
 de déclarer le développement terminé. Cette revue n’est pas un audit exhaustif :
 décisions, données réelles et recette métier restent ouvertes. Aucun nouveau
 chantier de charge n’est imposé.
+
+### Complément SPON-002 — événements et médias, 08/11/2026
+
+Tous les lots demandés portent sur les rattachements d’accords aux activités du
+calendrier et aux streams/VOD/clips existants. Pas de nouveau catalogue éditorial,
+de lecteur vidéo, de rapport sponsor P1 ou de publication automatique.
+
+API de références events/contents paginées, droits partenariats et module source,
+partage et disponibilité actuels, version obligatoire avant création/révision.
+Les références exposent seulement UUID/libellé/version. Une nouvelle version
+doit être vérifiée explicitement, puis réattachée au même objet : cela change
+la version du périmètre et de l’accord, retire l’approbation et impose une nouvelle
+approbation indépendante. Les cibles restent immuables.
+
+La lecture est filtrée avant comptes/pages pour périmètres, livrables, historique
+associé et agrégats/tableaux de bord. Les médias héritent aussi des restrictions
+de leurs contextes et délais de partage. Une preuve validée conserve son état
+historique, mais perd sa correspondance effective si sa source change.
+
+Migration additive `2026_11_08_080532_create_sponsorship_exposure_contexts_table` :
+un enfant typé restreint le périmètre d’organisation existant à une activité ou
+un média réel. Aucun ancien périmètre reclassé ni migration déployée modifiée.
+FKs composites, source exclusive, cible immuable, actualisation de version sous
+accord brouillon, gel de conservation et effacement manuel sous permis. Registre
+des gardes et portabilité à 125 tables tenant ; démontages historiques adaptés.
+
+Interface : choix selon les permissions, sélection/version conservées entre
+pages, nettoyage après changement de type, cible fixe et confirmation de la
+version actualisée. Parcours navigateur avec deux comptes et API réelle pour
+rattachements, approbation indépendante, livraison/validation et isolation.
+
+Validation backend complète : **3 328 cas**, **3 265 réussis**, **63 exclusions
+conditionnelles**, **20 529 assertions**, zéro échec/erreur. Sélection PostgreSQL
+17 schémas/sponsors/médias/effacement : **411 tests / 1 966 assertions**, aucune
+exclusion. Après les derniers ajustements de garde et modèle UUID, **19 tests /
+177 assertions SQLite**, puis **28 tests / 328 assertions PostgreSQL** réussis,
+incluant le gel de conservation. Ces sélections se recouvrent. Le premier passage
+complet avait signalé un nom de garde SQLite ne suivant pas la convention ; il
+a été corrigé avant le passage complet réussi.
+
+Frontend : **522 tests / 70 fichiers** réussis, dont **5 nouveaux cas** de formulaire ;
+lint, TypeScript et build Vite valides. **53 parcours Playwright simulés** réussis,
+sans retry. **10 parcours contre l’API Laravel réelle** réussis sans retry sous
+Chrome Windows, dont le nouveau scénario événement/média : création des deux
+périmètres via l’interface, approbation par un autre compte, promesse, livraison,
+validation indépendante et refus inter-tenant après changement effectif du contexte.
+Pint et PHPStan niveau 8 valides. Les rapports restent ignorés dans back/reports
+et front/reports. Les clusters, bases, serveurs et dossiers temporaires créés
+par les lanceurs ont été arrêtés et nettoyés.
+
+Pour le lanceur PostgreSQL isolé des tests PHP, l’origine Sanctum doit inclure
+localhost:5173, utilisée par les fixtures MFA ; aucun contrôle MFA n’a été modifié.
+Les suites Vite sont exécutées séparément pour éviter le partage concurrent de
+leur cache de développement. Le nouveau test attend la fin du changement de
+tenant et vérifie l’UUID actif avant son contrôle d’isolation ; les erreurs console
+sont surveillées après la connexion, hors sonde auth/me initiale attendue en 401.
+
+La base de travail reste à migrer après revue et CI du nouveau lot. Les décisions,
+données réelles, recette métier et revue des autres critères P0 restent ouvertes.
+Les tests de performance dépendant de l’hébergement restent hors périmètre.
 
 ### Livraison MEDIA-001 — rattachements match/événement, 07/11/2026
 

@@ -29,7 +29,7 @@ final readonly class SponsorshipDeliverableService
     public function paginate(TenantContext $context, string $sponsor, string $agreement, string $campaign, array $filters): LengthAwarePaginator
     {
         $parent = $this->campaigns->find($context, $sponsor, $agreement, $campaign);
-        $page = $this->records->deliverables($context->organizationId, $parent->id, PartnershipInput::validate($this->validator, $filters, Input::pageRules('deliverables')));
+        $page = $this->records->deliverables($context->organizationId, $parent->id, PartnershipInput::validate($this->validator, $filters, Input::pageRules('deliverables')), $this->references->constraints($context));
         $record = $this->agreements->find($context, $sponsor, $agreement);
         $page->setCollection(collect($this->projection->deliverables($context, $record, $parent, array_values($page->items()))));
 
@@ -57,6 +57,10 @@ final readonly class SponsorshipDeliverableService
                 $this->campaigns->conflict('responsible');
             }
             $scope = $this->agreementRecords->exposure($context->organizationId, $agreement, $record === null ? $values['exposure_id'] : $record->exposure_id);
+            $this->references->assertVisible($context, [$scope]);
+            if ($scope->context !== null && ! ($this->references->eligibility($context, [$scope])[$scope->id] ?? false)) {
+                $this->campaigns->conflict('scope');
+            }
             if ($scope->status !== 'active') {
                 $this->campaigns->conflict('scope');
             }
@@ -169,6 +173,9 @@ final readonly class SponsorshipDeliverableService
         }
         $record = $id === null ? null : $this->records->deliverable($context->organizationId, $owner->id, $id);
         if ($record !== null) {
+            $this->references->assertVisible($context, [$this->agreementRecords->exposure($context->organizationId, $agreement, $record->exposure_id)]);
+        }
+        if ($record !== null) {
             $this->campaigns->assertVersion($record->version, $values['version']);
         }
 
@@ -196,9 +203,9 @@ final readonly class SponsorshipDeliverableService
         $this->authorization->authorize($context, 'partnerships.read');
         $values = PartnershipInput::validate($this->validator, $filters, Input::pageRules('dashboard'));
         $now = CarbonImmutable::now()->utc()->toDateTimeString();
-        $page = $this->records->overdue($context->organizationId, $now, $values);
+        $page = $this->records->overdue($context->organizationId, $now, $values, $this->references->constraints($context));
         $page->setCollection(collect($this->projection->dashboard($context, array_values($page->items()))));
 
-        return ['page' => $page, 'summary' => $this->records->summary($context->organizationId, $now)];
+        return ['page' => $page, 'summary' => $this->records->summary($context->organizationId, $now, $this->references->constraints($context))];
     }
 }

@@ -24,11 +24,13 @@ final readonly class SponsorshipExposureService
     {
         $agreement = $this->agreements->find($context, $sponsor, $id);
         $values = PartnershipInput::validate($this->validator, $filters, Input::pageRules('exposures'));
-        $page = $this->records->exposures($context->organizationId, $agreement->id, $values);
+        $page = $this->records->exposures($context->organizationId, $agreement->id, $values, $this->references->constraints($context));
         $eligible = $this->references->eligibility($context, array_values($page->items()));
+        $this->references->assertVisible($context, array_values($page->items()));
+        $metadata = $this->references->contextualMetadata($context, array_values($page->items()));
         $approved = $this->agreements->approvedCurrent($context, $agreement);
 
-        return $page->through(fn (SponsorshipExposure $exposure): array => $this->project($exposure, $approved && ($eligible[$exposure->id] ?? false)));
+        return $page->through(fn (SponsorshipExposure $exposure): array => $this->project($exposure, $approved && ($eligible[$exposure->id] ?? false), $metadata[$exposure->id]['version'] ?? null));
     }
 
     /** @param array<string, mixed> $input
@@ -52,9 +54,24 @@ final readonly class SponsorshipExposureService
                 $this->agreements->conflict('limit', 'SPONSORSHIP_EXPOSURE_LIMIT');
             }
             $attributes = $values;
-            unset($attributes['version'], $attributes['agreement_version'], $attributes['target_id']);
+            unset($attributes['version'], $attributes['agreement_version'], $attributes['target_id'], $attributes['target_version']);
+            $source = null;
+            $type = $exposure?->context?->type() ?? ($values['target_type'] ?? $exposure?->target_type);
+            $archiving = ($values['status'] ?? null) === 'archived';
+            if ($exposure !== null) {
+                $this->references->assertVisible($context, [$exposure]);
+            }
+            if (in_array($type, ['event', 'content'], true) && ! $archiving) {
+                $source = $this->references->resolve($context, $type, $exposure?->context?->sourceId() ?? $values['target_id'], $values['target_version'] ?? null);
+                $attributes['target_label'] = $source['label'];
+            } elseif (isset($values['target_version'])) {
+                throw ValidationException::withMessages(['target_version' => __('sponsorships.target_version_unexpected')]);
+            }
             if ($exposure === null) {
-                $label = $this->references->label($context, $values['target_type'], $values['target_id']);
+                $label = $source['label'] ?? $this->references->label($context, $values['target_type'], $values['target_id']);
+                if ($source !== null) {
+                    $attributes['target_type'] = 'organization';
+                }
                 $attributes = ['organization_id' => $context->organizationId, 'agreement_id' => $agreement->id,
                     'team_id' => $values['target_type'] === 'team' ? strtolower($values['target_id']) : null,
                     'person_id' => $values['target_type'] === 'player' ? strtolower($values['target_id']) : null,
@@ -63,17 +80,22 @@ final readonly class SponsorshipExposureService
             $from = $agreement->status;
             $agreement = $this->agreements->invalidate($context, $agreement);
             $saved = $this->records->saveExposure($exposure, [...$attributes, 'version' => (string) Str::uuid()]);
+            if ($source !== null) {
+                $this->records->saveContext($saved, $type, $source['id'], $source['version']);
+            }
             $this->agreements->record($context, $agreement, 'exposure_saved', $from, $ip);
 
-            return [...$this->project($saved, false), 'agreement_version' => $agreement->version];
+            return [...$this->project($saved, false, $source['version'] ?? null), 'agreement_version' => $agreement->version];
         });
     }
 
     /** @return array<string, mixed> */
-    private function project(SponsorshipExposure $record, bool $effective): array
+    private function project(SponsorshipExposure $record, bool $effective, ?string $currentVersion = null): array
     {
-        return ['id' => $record->id, 'agreement_id' => $record->agreement_id, 'target_type' => $record->target_type,
-            'target_id' => $record->team_id ?? $record->person_id ?? $record->organization_id, 'target_label' => $record->target_label,
+        return ['id' => $record->id, 'agreement_id' => $record->agreement_id, 'target_type' => $record->context?->type() ?? $record->target_type,
+            'target_id' => $record->context?->sourceId() ?? $record->team_id ?? $record->person_id ?? $record->organization_id, 'target_label' => $record->target_label,
+            ...($record->context === null ? [] : ['target_version' => $record->context->source_version, 'current_target_version' => $currentVersion,
+                'target_current' => $currentVersion === $record->context->source_version]),
             'channel' => $record->channel, 'description' => $record->description, 'authorization_reference' => $record->authorization_reference,
             'exclusivity_key' => $record->exclusivity_key, 'status' => $record->status, 'version' => $record->version,
             'exposure_authorized' => $effective, 'publication_status' => 'private'];

@@ -13,6 +13,6 @@ final class SponsorshipExposureResource extends ApiResource
         /** @var array<string, mixed> $data */
         $data = $this->resource;
 
-        return array_intersect_key($data, array_fill_keys(['id', 'agreement_id', 'target_type', 'target_id', 'target_label', 'channel', 'description', 'authorization_reference', 'exclusivity_key', 'status', 'version', 'exposure_authorized', 'publication_status', 'agreement_version'], true));
+        return array_intersect_key($data, array_fill_keys(['id', 'agreement_id', 'target_type', 'target_id', 'target_label', 'target_version', 'current_target_version', 'target_current', 'channel', 'description', 'authorization_reference', 'exclusivity_key', 'status', 'version', 'exposure_authorized', 'publication_status', 'agreement_version'], true));
     }
 }

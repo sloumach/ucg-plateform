@@ -32,6 +32,7 @@ final readonly class SponsorshipCampaignProjection
         $labels = $this->labels($context, $records);
         $scopes = $this->records->exposures($context->organizationId, $agreement->id, array_values(array_unique(array_map(fn (SponsorshipDeliverable $r): string => $r->exposure_id, $records))));
         $eligible = $this->references->eligibility($context, $scopes);
+        $this->references->assertVisible($context, $scopes);
         $versions = [];
         foreach ($scopes as $scope) {
             $versions[$scope->id] = $scope->version;

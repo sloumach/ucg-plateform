@@ -88,6 +88,8 @@ class OrganizationSchemaTest extends TestCase
     public function test_migrations_can_be_reversed_and_reapplied_in_the_test_database(): void
     {
         $this->assertTrue(Schema::hasTable('users'));
+        $sponsorshipContexts = require database_path('migrations/2026_11_08_080532_create_sponsorship_exposure_contexts_table.php');
+        $sponsorshipContexts->down();
         $mediaContexts = require database_path('migrations/2026_11_07_171421_create_media_contexts_table.php');
         $mediaContexts->down();
         $workTasks = require database_path('migrations/2026_11_07_145755_create_work_tasks_and_revisions.php');
@@ -291,6 +293,7 @@ class OrganizationSchemaTest extends TestCase
         $communicationContexts->up();
         $workTasks->up();
         $mediaContexts->up();
+        $sponsorshipContexts->up();
         $this->assertTrue(Schema::hasTable('organization_retention_events'));
         $this->assertTrue(Schema::hasTable('dashboard_source_versions'));
         $this->assertTrue(Schema::hasTable('dashboard_indicators'));

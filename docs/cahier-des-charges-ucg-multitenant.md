@@ -665,8 +665,12 @@ Classer par organisation, personne, équipe, compétition, sponsor ou dossier. V
   explicitement associé, avec les autorisations administratives/financières et
   l’analyse antivirus existantes. Organisation, équipes actives et joueurs
   actifs/remplaçants non partis disposent de périmètres avec référence
-  d’autorisation obligatoire. Événements et contenus sont refusés tant que leurs
-  référentiels autorisés ne sont pas disponibles. Une approbation indépendante
+  d’autorisation obligatoire. Le complément du 08/11 raccorde les événements
+  partagés du calendrier et les streams/VOD/clips accessibles du catalogue Media,
+  avec version vérifiée et référence fixe. Une modification de la source exige
+  une actualisation explicite et une nouvelle approbation ; une restriction ou
+  révocation masque les périmètres/livrables et leurs compteurs concernés.
+  Une approbation indépendante
   avec droits partenariats/finances est nécessaire ; toute modification annule
   l’approbation. L’exposition dépend aussi de la période, des habilitations et du
   contrat toujours valides. Les exclusivités par catégorie sont conservatrices,
@@ -690,7 +694,9 @@ Classer par organisation, personne, équipe, compétition, sponsor ou dossier. V
   campagnes actives ; aucune exposition ni publication automatique n’est créée.
   Aucun dépôt de preuve, appel de site externe ou mesure d’audience n’est ajouté.
   Le rapport sponsor avec mesures/méthodes/fournisseurs relève de SPON-004 (P1).
-  SPON-003 reste à pousser, valider en CI et migrer après revue du commit local.
+  Le socle SPON-003 `aba9205` a été poussé, migré et validé en CI par l’utilisateur
+  avant MEDIA-001. Le complément événement/média du 08/11 relève du nouveau lot
+  SPON-002 et demande sa propre validation CI et sa migration additive.
 - SPON-07 : en P1, ouvrir un portail limité à l’accord du sponsor avec validation préalable des informations partagées.
 - SPON-08 : si un même compte sponsor intervient auprès de plusieurs organisations, présenter des espaces et accords séparés sans agrégation ni navigation croisée implicite.
 

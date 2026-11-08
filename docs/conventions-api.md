@@ -2246,8 +2246,9 @@ une version optimiste de l’accord, plus celle de la ressource enfant si néces
 | GET / PATCH | `/{agreement}/financial` | Consultation auditée / préparation d’apports |
 
 Références : `GET /api/v1/tenants/{tenant}/sponsorship-references/{kind}`,
-avec kind = members/teams/players/contracts, `page` et `per_page` (1–100).
-Réponse de référence strictement `id` et `label`. Le catalogue contrats exige
+avec kind = members/teams/players/contracts/events/contents, `page` et `per_page` (1–100).
+Les références historiques retournent strictement `id` et `label` ; events/contents
+ajoutent `version`, sans URL, description ou donnée financière. Le catalogue contrats exige
 `administrative.read` et ne retourne que référence/id de contrats sponsor.
 Les sélecteurs de membres ne montrent pas leurs rôles/e-mails ; les références
 People ne montrent ni identité RH, coordonnées, compte ou biographie interne.
@@ -2267,15 +2268,57 @@ Transition : `version`, `target_status` ; approbation avec
 financiers, préparateurs distincts, apport et périmètres vérifiés. Toute révision
 d’accord, d’apport ou de périmètre remet en draft avec nouvelle version.
 
-Périmètre : `agreement_version`, `target_type` organization/team/player,
+Périmètre : `agreement_version`, `target_type` organization/team/player/event/content,
 `target_id` UUID, `channel` jersey/social/stream/event/website/other,
 `authorization_reference` obligatoire (160), `description` facultative (2000),
 `exclusivity_key` facultative (slug, 80). Modifier exige aussi `version` ; cible
 immuable, `status=archived` disponible. Maximum 100 périmètres conservés par accord.
-Les cibles event/content sont préparées dans la validation mais refusées en 409
-SPONSORSHIP_TARGET_UNAVAILABLE jusqu’à vérification par leurs modules réels.
+Les cibles event/content désignent maintenant une activité du calendrier ou un
+média existant (stream/VOD/clip), jamais un contenu libre ou une page publique.
+Elles exigent `target_version` à la création et à chaque révision hors archivage.
+Leurs sélecteurs nécessitent `partnerships.read` et, respectivement, `calendar.read`
+ou `media.read`. Seules les références partagées actuellement consultables sont
+proposées : événement non annulé/archivé ; média non archivé/indisponible, hors
+partage différé et respectant aussi les droits/confidentialité de son contexte.
+Un UUID hors tenant, privé ou devenu inaccessible renvoie 404. L’absence ou le
+format invalide de version renvoie 422 ; une version périmée renvoie 409
+`SPONSORSHIP_TARGET_VERSION_STALE`. Les champs `target_type` et `target_id`
+restent interdits en PATCH. Une version de cible sur un périmètre historique
+ou une demande d’archivage est refusée en 422.
+
+La réponse contextualisée ajoute `target_version` (version retenue),
+`current_target_version` et `target_current`. Une modification de l’objet retire
+l’autorisation effective sans réécrire l’historique. Pour réviser la référence
+fixe, vérifier sa version actuelle puis PATCH avec cette version : l’accord
+repasse en brouillon et doit être approuvé indépendamment. L’interface exige
+une confirmation explicite avant d’adopter une nouvelle version.
+Une révocation ou restriction masque les périmètres concernés avant comptage
+et pagination, ainsi que leurs livrables, lignes d’historique et compteurs de
+suivi. L’approbateur et le validateur d’un livrable doivent eux aussi pouvoir
+consulter l’objet courant. Les réservations d’exclusivité restent conservatrices
+et ne sont pas libérées par une restriction de visibilité.
 L’autorisation n’est jamais implicite : `exposure_authorized` est recalculé selon
 statut, période, références et droits courants. `publication_status` reste private.
+
+Exemple avec le client tenant existant et un tenant déjà confirmé, après sélection explicite d’un événement :
+
+```typescript
+const references = await tenancyRequest<Page<SponsorshipReference>>(
+  `tenants/${organizationId}/sponsorship-references/events?per_page=10&page=1`,
+  { revision },
+)
+const target = references.data.find((item) => item.id === selectedEventId)
+if (!target?.version) throw new Error('Référence indisponible')
+await tenancyRequest(`tenants/${organizationId}/sponsors/${sponsorId}/agreements/${agreement.id}/exposures`, {
+  method: 'POST', revision,
+  body: { agreement_version: agreement.version, target_type: 'event',
+    target_id: target.id, target_version: target.version, channel: 'event',
+    authorization_reference: 'Autorisation du partenaire vérifiée' },
+})
+```
+
+La confirmation du tenant et la confirmation d’écriture du formulaire conservent
+le fonctionnement habituel du client. Aucun envoi externe ni publication n’est déclenché.
 
 Finances : `agreement_version`, `expected_version` nullable obligatoire,
 `terms` avec cinq clés fermées : kind cash/in_kind/mixed, currency nullable,

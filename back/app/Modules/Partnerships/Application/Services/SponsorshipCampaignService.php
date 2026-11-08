@@ -50,7 +50,7 @@ final readonly class SponsorshipCampaignService
     {
         $record = $this->find($context, $sponsor, $agreement, $id);
 
-        return $this->records->history($context->organizationId, $record->id, PartnershipInput::validate($this->validator, $filters, Input::pageRules('history')));
+        return $this->records->history($context->organizationId, $record->id, PartnershipInput::validate($this->validator, $filters, Input::pageRules('history')), $this->references->constraints($context));
     }
 
     /** @param array<string,mixed> $input */

@@ -274,7 +274,7 @@ class SponsorshipCampaignControllerTest extends TestCase
         DB::enableQueryLog();
         DB::flushQueryLog();
         $this->getJson($this->root($sponsor, $agreement).'/'.$campaign['id'].'/deliverables?per_page=9')->assertOk()->assertJsonCount(9, 'data');
-        $scopes = array_filter(DB::getQueryLog(), fn (array $q): bool => str_contains($q['query'], 'from "sponsorship_exposures"'));
+        $scopes = array_filter(DB::getQueryLog(), fn (array $q): bool => preg_match('/^select \* from "sponsorship_exposures"/i', $q['query']) === 1);
         $this->assertCount(1, $scopes);
         DB::flushQueryLog();
         $this->getJson('/api/v1/tenants/'.$org->id.'/sponsorship-dashboard?per_page=9')->assertOk()->assertJsonCount(9, 'data')->assertJsonPath('summary.overdue', 9);

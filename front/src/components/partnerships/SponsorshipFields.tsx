@@ -7,13 +7,13 @@ import { Alert } from '../feedback/Alert'
 import { usePartnershipList } from './usePartnershipList'
 
 type Choice = SponsorshipReference & { title?: string; target_label?: string }
-export function SponsorshipReferenceSelect({ active, path, name, title, value = '', optional = false, disabled, error, onInvalid, filters }: {
-  active: ActiveOrganization; path: string; name: string; title: string; value?: string; optional?: boolean; disabled: boolean; error?: string; onInvalid: () => void; filters?: Record<string, string>
+export function SponsorshipReferenceSelect({ active, path, name, title, value = '', optional = false, disabled, error, onInvalid, filters, onSelect }: {
+  active: ActiveOrganization; path: string; name: string; title: string; value?: string; optional?: boolean; disabled: boolean; error?: string; onInvalid: () => void; filters?: Record<string, string>; onSelect?: (choice: SponsorshipReference | null) => void
 }) {
   const [page, setPage] = useState(1), [selected, setSelected] = useState(value)
   const { list, loading, error: loadError } = usePartnershipList<Choice>(path + '?' + new URLSearchParams({ per_page: '10', page: String(page), ...filters }), active, true, onInvalid)
   return <div className="grid min-w-0 gap-2">
-    <SelectField name={name} title={title} value={selected} onChange={setSelected} disabled={disabled} error={error}>
+    <SelectField name={name} title={title} value={selected} onChange={(id) => { setSelected(id); onSelect?.(list?.data.find((choice) => choice.id === id) ?? null) }} disabled={disabled || loading || !!loadError} error={error}>
       <option value="">{text(optional ? 'none' : 'choose')}</option>
       {selected && !list?.data.some((choice) => choice.id === selected) && <option value={selected}>{text('current')}</option>}
       {list?.data.map((choice) => <option key={choice.id} value={choice.id}>{choice.label ?? choice.title ?? choice.target_label}</option>)}

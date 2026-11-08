@@ -23,7 +23,7 @@ dépendance signifie que le module de gauche peut consommer l’API publique du 
 | `Competition` | `Tenancy`, `People`, `Teams`, `Scheduling` |
 | `Performance` | `Tenancy`, `People`, `Teams`, `Competition` |
 | `Contracts` | `Tenancy`, `People` |
-| `Partnerships` | `Tenancy`, `People`, `Teams`, `Contracts` |
+| `Partnerships` | `Tenancy`, `People`, `Teams`, `Contracts`, `Scheduling`, `Media` |
 | `Finance` | `Tenancy`, `Contracts`, `Partnerships` |
 | `Media` | `Tenancy`, `People`, `Teams`, `Scheduling`, `Competition`, `Academy` |
 | `Reporting` | tous les modules métier nécessaires à ses projections de lecture |
@@ -1486,13 +1486,46 @@ la consultation financière ajoute une trace synchrone avant remise de réponse,
 avec échec fermé 503 sans contenu. Aucun montant, description ou autorisation
 libre n’est copié au journal. Portabilité et round-trip schéma incluent les quatre
 tables, rollback refusé en présence de données. Pas de migration/backfill de
-l’environnement métier par l’agent. Les futurs modules événement/contenu devront
-fournir un port de référence réel avant activation de leurs périmètres.
+l’environnement métier par l’agent. Le complément ci-dessous raccorde désormais
+les références réelles événement/média par leurs ports publics.
 
 Les noms des responsables et pseudonymes sont chargés en bloc, par page de 100
 maximum ; le fragment React des accords est chargé à l’ouverture de l’onglet.
 Mesurer coût des droits courants, écritures de journal financier et contention
 par tenant avant toute optimisation ou revendication de volume.
+
+## Rattachements événement/média — complément UCG-SPON-002
+
+Partnerships consomme uniquement PartnershipCalendarDirectory et
+PartnershipMediaDirectory, implémentés dans les modules propriétaires. Le graphe
+déclare Scheduling et Media comme nouvelles dépendances de Partnerships, sans
+cycle ni import de modèle étranger. Les ports retournent des sous-requêtes
+d’identifiants visibles et des métadonnées bornées id/libellé/version, jamais
+d’URL ni de description privée. Media réutilise ses contraintes de contexte,
+de scrim et de partage différé ; une permission d’édition ne contourne pas ce filtre.
+
+Migration additive 2026_11_08_080532 : sponsorship_exposure_contexts restreint un
+périmètre d’organisation à exactement une activité ou un média réel, avec FKs
+composites et lien unique. Le parent garde son ancrage d’organisation historique ;
+l’API projette event/content et l’UUID réel depuis cet enfant typé. Aucun ancien
+périmètre n’est reclassé, aucun enum/guard déployé n’est réécrit et aucun backfill
+n’est nécessaire. Identités et cible immuables ; seule la source_version peut
+être actualisée sous accord brouillon et périmètre actif. L’opération change
+aussi la version du parent et retire l’approbation, dans la même transaction.
+
+Les gardes SQL de conservation/effacement sont enregistrées avec empreintes ;
+la portabilité inclut le lien et sa version source dans la famille sponsors.
+Le rollback refuse les liens existants. Les démontages partiels retirent cet
+enfant avant accords, événements ou médias puis le recréent après eux.
+
+SponsorshipContextVisibility filtre avant comptes/pages les périmètres et les
+livrables, les lignes d’historique associées et les agrégats du suivi. Les lectures
+de métadonnées sont groupées et revérifiées avant projection des périmètres et
+preuves. L’approbation et la validation indépendante réutilisent la disponibilité
+et la version actuelle de la source ; une preuve historiquement validée reste
+conservée mais perd sa correspondance effective après changement de source.
+Aucune attribution de permission, publication, mesure d’audience ou nouvelle
+intégration externe n’est ajoutée.
 
 ## Campagnes et livrables — UCG-SPON-003
 
@@ -1578,7 +1611,8 @@ match ou une activité. L’équipe reste le classement principal. FKs composite
 tenant/média/objet, forme à une seule référence, index, gel et effacement sous
 permis sont protégés en SQL et inscrits au registre d’empreintes. La migration
 ajoute la clé unique composite nécessaire au parent sans changer ses colonnes.
-Le catalogue fermé couvre 124 tables tenant, dont media_items et media_contexts.
+Le catalogue fermé couvre désormais 125 tables tenant, dont media_items, media_contexts
+et sponsorship_exposure_contexts.
 Les retours arrière de schémas historiques retirent ce nouvel enfant en premier
 et le recréent après tous ses parents ; aucune ancienne migration réécrite.
 

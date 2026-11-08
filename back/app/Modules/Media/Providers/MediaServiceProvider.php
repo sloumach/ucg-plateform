@@ -2,6 +2,8 @@
 
 namespace App\Modules\Media\Providers;
 
+use App\Modules\Media\Application\Contracts\PartnershipMediaDirectory;
+use App\Modules\Media\Application\Services\PartnershipMediaService;
 use App\Modules\Media\Domain\Contracts\CommunicationRepository;
 use App\Modules\Media\Domain\Contracts\MediaRepository;
 use App\Modules\Media\Domain\Contracts\WorkTaskRepository;
@@ -22,6 +24,7 @@ final class MediaServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->bind(PartnershipMediaDirectory::class, PartnershipMediaService::class);
         $this->app->bind(WorkTaskRepository::class, EloquentWorkTaskRepository::class);
         $this->app->bind(CommunicationRepository::class, EloquentCommunicationRepository::class);
         $this->app->bind(MediaRepository::class, EloquentMediaRepository::class);

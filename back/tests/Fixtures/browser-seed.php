@@ -3,6 +3,10 @@
 use App\Modules\Competition\Domain\Models\MatchRecord;
 use App\Modules\Contracts\Domain\Models\ContractRecord;
 use App\Modules\Identity\Domain\Models\User;
+use App\Modules\Media\Domain\Models\MediaItem;
+use App\Modules\Partnerships\Domain\Models\Sponsor;
+use App\Modules\Partnerships\Domain\Models\SponsorshipAgreement;
+use App\Modules\Partnerships\Domain\Models\SponsorshipAgreementTerms;
 use App\Modules\People\Domain\Models\Person;
 use App\Modules\Reporting\Domain\Models\ReportExport;
 use App\Modules\Scheduling\Domain\Models\Availability;
@@ -67,6 +71,10 @@ $calendarBeta = Organization::factory()->create(['name' => 'Calendar Beta', 'slu
 $communicationUser = User::factory()->withMfa()->create(['name' => 'Browser communication staff', 'email' => 'browser-communication@example.test', 'password' => 'Browser-fixture-only-2026!']);
 $communicationAlpha = Organization::factory()->create(['name' => 'Communication Alpha', 'slug' => 'communication-alpha', 'timezone' => 'UTC']);
 $communicationBeta = Organization::factory()->create(['name' => 'Communication Beta', 'slug' => 'communication-beta', 'timezone' => 'UTC']);
+$sponsorUser = User::factory()->withMfa()->create(['name' => 'Browser sponsor staff', 'email' => 'browser-sponsor@example.test', 'password' => 'Browser-fixture-only-2026!']);
+$sponsorReviewer = User::factory()->withMfa()->create(['name' => 'Browser sponsor reviewer', 'email' => 'browser-sponsor-reviewer@example.test', 'password' => 'Browser-fixture-only-2026!']);
+$sponsorAlpha = Organization::factory()->create(['name' => 'Sponsor Alpha', 'slug' => 'sponsor-alpha', 'timezone' => 'UTC']);
+$sponsorBeta = Organization::factory()->create(['name' => 'Sponsor Beta', 'slug' => 'sponsor-beta', 'timezone' => 'UTC']);
 Team::factory()->create(['organization_id' => $communicationAlpha->id, 'name' => 'Équipe communication']);
 $matchUser = User::factory()->withMfa()->create([
     'name' => 'Browser match staff', 'email' => 'browser-match@example.test', 'password' => 'Browser-fixture-only-2026!',
@@ -99,6 +107,9 @@ $invitationBeta = Organization::factory()->create(['name' => 'Invitation Beta', 
 $mfaOwner = User::factory()->create(['name' => 'Browser MFA owner', 'email' => 'browser-mfa@example.test', 'password' => 'Browser-fixture-only-2026!']);
 $mfaOrganization = Organization::factory()->create(['owner_user_id' => $mfaOwner->id, 'name' => 'MFA Alpha', 'slug' => 'mfa-alpha']);
 foreach ([
+    [$sponsorUser, $sponsorAlpha, ['partnerships.read', 'partnerships.write', 'partnerships.validate', 'financial.read', 'financial.write', 'financial.validate', 'calendar.read', 'media.read']],
+    [$sponsorReviewer, $sponsorAlpha, ['partnerships.read', 'partnerships.write', 'partnerships.validate', 'financial.read', 'financial.validate', 'calendar.read', 'media.read']],
+    [$sponsorUser, $sponsorBeta, ['partnerships.read', 'calendar.read', 'media.read']],
     [$communicationUser, $communicationAlpha, ['communication.read', 'communication.write', 'communication.publish', 'communication.comment', 'calendar.read', 'tasks.read', 'tasks.manage', 'media.read', 'media.write', 'media.publish', 'sports.read']],
     [$communicationUser, $communicationBeta, ['communication.read', 'communication.comment', 'calendar.read', 'tasks.read', 'media.read']],
     [$user, $alpha, ['sports.read', 'sports.write']], [$user, $beta, ['sports.read']],
@@ -183,7 +194,18 @@ $expiredExport->forceFill(['organization_id' => $exportAlpha->id, 'actor_user_id
 $expiredInvitation = OrganizationInvitation::factory()->create(['organization_id' => $invitationAlpha->id,
     'email' => $invitationRecipient->email, 'invited_by' => $invitationManager->id, 'expires_at' => now()->subMinute()]);
 $betaInvitation = OrganizationInvitation::factory()->create(['organization_id' => $invitationBeta->id, 'email' => $invitationRecipient->email]);
+$sponsorRecord = Sponsor::factory()->create(['organization_id' => $sponsorAlpha->id, 'name' => 'Sponsor navigateur']);
+$sponsorAgreement = SponsorshipAgreement::factory()->create(['sponsor_id' => $sponsorRecord->id, 'responsible_user_id' => $sponsorUser->id,
+    'prepared_by' => $sponsorUser->id, 'reference' => 'accord-sponsor', 'starts_on' => today()->subDay(), 'ends_on' => today()->addMonth()]);
+(new SponsorshipAgreementTerms)->forceFill(['organization_id' => $sponsorAlpha->id, 'agreement_id' => $sponsorAgreement->id, 'prepared_by' => $sponsorUser->id,
+    'version' => (string) Str::uuid(), 'terms' => ['kind' => 'cash', 'currency' => 'EUR', 'amount' => '100.00', 'in_kind' => null, 'payment_terms' => null]])->save();
+$sponsorActivity = CalendarActivity::factory()->shared()->create(['organization_id' => $sponsorAlpha->id, 'created_by' => $sponsorUser->id, 'title' => 'Événement sponsor']);
+$sponsorMedia = MediaItem::factory()->create(['team_id' => Team::factory()->create(['organization_id' => $sponsorAlpha->id])->id,
+    'created_by' => $sponsorUser->id, 'title' => '<script>VOD sponsor</script>', 'visibility' => 'organization', 'sharing_authorized_by' => $sponsorUser->id, 'sharing_authorized_at' => now()]);
+
 echo json_encode([
+    'sponsorship' => ['alpha' => $sponsorAlpha->id, 'beta' => $sponsorBeta->id, 'sponsor' => $sponsorRecord->id, 'agreement' => $sponsorAgreement->id,
+        'activity' => $sponsorActivity->id, 'media' => $sponsorMedia->id, 'author' => $sponsorUser->id, 'start' => today()->format('Y-m-d'), 'end' => today()->addWeek()->format('Y-m-d')],
     'alpha' => $alpha->id, 'beta' => $beta->id, 'foreign' => $foreign->id,
     'betaPerson' => $betaPerson->id, 'foreignPerson' => $foreignPerson->id,
     'roster' => ['alpha' => $rosterAlpha->id, 'beta' => $rosterBeta->id, 'betaTeam' => $rosterBetaTeam->id,

@@ -4,6 +4,7 @@ namespace App\Modules\Partnerships\Domain\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * @property string $id
@@ -19,6 +20,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $exclusivity_key
  * @property string $status
  * @property string $version
+ * @property-read SponsorshipExposureContext|null $context
  */
 final class SponsorshipExposure extends Model
 {
@@ -27,6 +29,12 @@ final class SponsorshipExposure extends Model
     protected $guarded = ['*'];
 
     protected $hidden = ['organization_id'];
+
+    /** @return HasOne<SponsorshipExposureContext, $this> */
+    public function context(): HasOne
+    {
+        return $this->hasOne(SponsorshipExposureContext::class, 'exposure_id');
+    }
 
     /** @return array<string, string> */
     protected function casts(): array

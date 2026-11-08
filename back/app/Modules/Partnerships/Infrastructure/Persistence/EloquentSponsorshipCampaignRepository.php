@@ -12,9 +12,11 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 final readonly class EloquentSponsorshipCampaignRepository implements SponsorshipCampaignRepository
 {
-    public function dashboardCount(string $org, string $now): int
+    public function __construct(private SponsorshipContextVisibility $visibility) {}
+
+    public function dashboardCount(string $org, string $now, array $sources = []): int
     {
-        return $this->dashboardQuery($org)->where('sponsorship_deliverables.status', 'promised')->where('due_at', '<', $now)->count();
+        return $this->dashboardQuery($org, $sources)->where('sponsorship_deliverables.status', 'promised')->where('due_at', '<', $now)->count();
     }
 
     public function campaigns(string $org, string $agreement, array $filters): LengthAwarePaginator
@@ -39,9 +41,10 @@ final readonly class EloquentSponsorshipCampaignRepository implements Sponsorshi
         return $record;
     }
 
-    public function deliverables(string $org, string $campaign, array $filters): LengthAwarePaginator
+    public function deliverables(string $org, string $campaign, array $filters, array $sources = []): LengthAwarePaginator
     {
         return SponsorshipDeliverable::query()->where('organization_id', $org)->where('campaign_id', $campaign)
+            ->whereIn('exposure_id', $this->visibility->exposures($org, $sources)->select('id')->toBase())
             ->when(isset($filters['status']), fn (Builder $q) => $q->where('status', $filters['status']))
             ->orderBy('due_at')->orderBy('id')->paginate((int) ($filters['per_page'] ?? 10), ['*'], 'page', (int) ($filters['page'] ?? 1));
     }
@@ -94,7 +97,7 @@ final readonly class EloquentSponsorshipCampaignRepository implements Sponsorshi
             throw new \InvalidArgumentException('Exposure lookup requires a bounded page.');
         }
 
-        return array_values(SponsorshipExposure::query()->where('organization_id', $org)->where('agreement_id', $agreement)->whereIn('id', $ids)->get()->all());
+        return array_values(SponsorshipExposure::query()->with('context')->where('organization_id', $org)->where('agreement_id', $agreement)->whereIn('id', $ids)->get()->all());
     }
 
     public function event(array $attributes): void
@@ -102,36 +105,40 @@ final readonly class EloquentSponsorshipCampaignRepository implements Sponsorshi
         (new SponsorshipCampaignEvent)->forceFill($attributes)->save();
     }
 
-    public function history(string $org, string $campaign, array $filters): LengthAwarePaginator
+    public function history(string $org, string $campaign, array $filters, array $sources = []): LengthAwarePaginator
     {
         return SponsorshipCampaignEvent::query()->where('organization_id', $org)->where('campaign_id', $campaign)->orderByDesc('occurred_at')->orderByDesc('id')
+            ->where(fn (Builder $query) => $query->whereNull('deliverable_id')->orWhereIn('deliverable_id', SponsorshipDeliverable::query()->select('id')
+                ->where('organization_id', $org)->whereIn('exposure_id', $this->visibility->exposures($org, $sources)->select('id')->toBase())->toBase()))
             ->paginate((int) ($filters['per_page'] ?? 10), ['*'], 'page', (int) ($filters['page'] ?? 1));
     }
 
     /**
+     * @param array<string, \Illuminate\Database\Query\Builder|null> $sources
      * @return Builder<SponsorshipDeliverable> */
-    private function dashboardQuery(string $org): Builder
+    private function dashboardQuery(string $org, array $sources): Builder
     {
         return SponsorshipDeliverable::query()->where('sponsorship_deliverables.organization_id', $org)
+            ->whereIn('sponsorship_deliverables.exposure_id', $this->visibility->exposures($org, $sources)->select('id')->toBase())
             ->join('sponsorship_campaigns as c', fn ($join) => $join->on('c.id', '=', 'sponsorship_deliverables.campaign_id')->on('c.organization_id', '=', 'sponsorship_deliverables.organization_id'))
             ->where('c.status', 'active');
     }
 
-    public function summary(string $org, string $now): array
+    public function summary(string $org, string $now, array $sources = []): array
     {
-        $rows = $this->dashboardQuery($org)->selectRaw('sponsorship_deliverables.status, COUNT(*) AS aggregate')->groupBy('sponsorship_deliverables.status')->toBase()->get();
+        $rows = $this->dashboardQuery($org, $sources)->selectRaw('sponsorship_deliverables.status, COUNT(*) AS aggregate')->groupBy('sponsorship_deliverables.status')->toBase()->get();
         $counts = array_fill_keys(['promised', 'delivered', 'validated', 'cancelled'], 0);
         foreach ($rows as $row) {
             $counts[$row->status] = (int) $row->aggregate;
         }
-        $counts['overdue'] = $this->dashboardQuery($org)->where('sponsorship_deliverables.status', 'promised')->where('due_at', '<', $now)->count();
+        $counts['overdue'] = $this->dashboardQuery($org, $sources)->where('sponsorship_deliverables.status', 'promised')->where('due_at', '<', $now)->count();
 
         return $counts;
     }
 
-    public function overdue(string $org, string $now, array $filters): LengthAwarePaginator
+    public function overdue(string $org, string $now, array $filters, array $sources = []): LengthAwarePaginator
     {
-        return $this->dashboardQuery($org)->where('sponsorship_deliverables.status', 'promised')->where('due_at', '<', $now)
+        return $this->dashboardQuery($org, $sources)->where('sponsorship_deliverables.status', 'promised')->where('due_at', '<', $now)
             ->join('sponsorship_agreements as a', fn ($join) => $join->on('a.id', '=', 'sponsorship_deliverables.agreement_id')->on('a.organization_id', '=', 'sponsorship_deliverables.organization_id'))
             ->join('sponsors as s', fn ($join) => $join->on('s.id', '=', 'a.sponsor_id')->on('s.organization_id', '=', 'a.organization_id'))
             ->select(['sponsorship_deliverables.*', 'a.sponsor_id', 'a.reference as agreement_reference', 'c.title as campaign_title', 's.name as sponsor_name'])

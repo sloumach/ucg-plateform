@@ -6,11 +6,13 @@ use App\Modules\Partnerships\Domain\Models\SponsorshipCampaign;
 use App\Modules\Partnerships\Domain\Models\SponsorshipCampaignEvent;
 use App\Modules\Partnerships\Domain\Models\SponsorshipDeliverable;
 use App\Modules\Partnerships\Domain\Models\SponsorshipExposure;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 
 interface SponsorshipCampaignRepository
 {
-    public function dashboardCount(string $org, string $now): int;
+    /** @param array<string, Builder|null> $sources */
+    public function dashboardCount(string $org, string $now, array $sources = []): int;
 
     /** @param array<string,mixed> $filters
      * @return LengthAwarePaginator<int,SponsorshipCampaign> */
@@ -22,8 +24,9 @@ interface SponsorshipCampaignRepository
     public function saveCampaign(?SponsorshipCampaign $record, array $attributes): SponsorshipCampaign;
 
     /** @param array<string,mixed> $filters
+     * @param array<string, Builder|null> $sources
      * @return LengthAwarePaginator<int,SponsorshipDeliverable> */
-    public function deliverables(string $org, string $campaign, array $filters): LengthAwarePaginator;
+    public function deliverables(string $org, string $campaign, array $filters, array $sources = []): LengthAwarePaginator;
 
     public function deliverable(string $org, string $campaign, string $id): SponsorshipDeliverable;
 
@@ -48,14 +51,17 @@ interface SponsorshipCampaignRepository
     public function event(array $attributes): void;
 
     /** @param array<string,mixed> $filters
+     * @param array<string, Builder|null> $sources
      * @return LengthAwarePaginator<int,SponsorshipCampaignEvent> */
-    public function history(string $org, string $campaign, array $filters): LengthAwarePaginator;
+    public function history(string $org, string $campaign, array $filters, array $sources = []): LengthAwarePaginator;
 
     /**
+     * @param array<string, Builder|null> $sources
      * @return array<string,int> */
-    public function summary(string $org, string $now): array;
+    public function summary(string $org, string $now, array $sources = []): array;
 
     /** @param array<string,mixed> $filters
+     * @param array<string, Builder|null> $sources
      * @return LengthAwarePaginator<int,SponsorshipDeliverable> */
-    public function overdue(string $org, string $now, array $filters): LengthAwarePaginator;
+    public function overdue(string $org, string $now, array $filters, array $sources = []): LengthAwarePaginator;
 }

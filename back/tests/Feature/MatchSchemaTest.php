@@ -48,6 +48,8 @@ class MatchSchemaTest extends TestCase
 
     public function test_schema_round_trip_export_inventory_and_retained_history_rollback_guard(): void
     {
+        $sponsorshipContexts = require database_path('migrations/2026_11_08_080532_create_sponsorship_exposure_contexts_table.php');
+        $sponsorshipContexts->down();
         $mediaContexts = require database_path('migrations/2026_11_07_171421_create_media_contexts_table.php');
         $mediaContexts->down();
         $contexts = require database_path('migrations/2026_11_05_123111_create_communication_contexts_table.php');
@@ -87,6 +89,7 @@ class MatchSchemaTest extends TestCase
         $outcomes->up();
         $contexts->up();
         $mediaContexts->up();
+        $sponsorshipContexts->up();
         [$org, , , $person, $other, $game] = $this->matchScenario();
         $this->postJson($this->matchRoot($org), $this->matchPayload($game, $person, $other))->assertCreated();
         $repository = app(PortabilityRepository::class);

@@ -41,7 +41,7 @@ Route::prefix('tenants/{tenant}/sponsors/{sponsor}/agreements')->whereUuid(['ten
     Route::patch('{agreement}/financial', [$financial, 'update'])->whereUuid('agreement')->middleware('tenant.confirmed')->block(10, 10)->name('sponsorship-financial.update');
 });
 Route::get('tenants/{tenant}/sponsorship-references/{kind}', [SponsorshipReferenceController::class, 'index'])
-    ->whereUuid('tenant')->where('kind', 'members|teams|players|contracts')->middleware('tenant')->name('sponsorship-references.index');
+    ->whereUuid('tenant')->where('kind', 'members|teams|players|contracts|events|contents')->middleware('tenant')->name('sponsorship-references.index');
 
 Route::prefix('tenants/{tenant}/sponsors/{sponsor}/agreements/{agreement}/campaigns')->whereUuid(['tenant', 'sponsor', 'agreement'])->middleware('tenant')->group(function (): void {
     $controller = SponsorshipCampaignController::class;

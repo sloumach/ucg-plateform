@@ -13,6 +13,6 @@ final class SponsorshipReferenceResource extends ApiResource
         /** @var array<string, mixed> $data */
         $data = $this->resource;
 
-        return array_intersect_key($data, array_fill_keys(['id', 'label'], true));
+        return array_intersect_key($data, array_fill_keys(['id', 'label', 'version'], true));
     }
 }

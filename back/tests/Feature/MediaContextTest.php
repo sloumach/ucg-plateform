@@ -182,11 +182,14 @@ class MediaContextTest extends TestCase
 
     public function test_context_migration_round_trip_restores_tenant_foreign_keys_and_immutable_history(): void
     {
+        $sponsorshipContexts = require database_path('migrations/2026_11_08_080532_create_sponsorship_exposure_contexts_table.php');
+        $sponsorshipContexts->down();
         $this->assertDatabaseCount('media_contexts', 0);
         $migration = require database_path('migrations/2026_11_07_171421_create_media_contexts_table.php');
         $migration->down();
         $this->assertFalse(Schema::hasTable('media_contexts'));
         $migration->up();
+        $sponsorshipContexts->up();
         app(PortabilityRepository::class)->assertCatalog();
         [$org, $user] = $this->editor();
         $source = $this->source($org, $user, 'event');

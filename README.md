@@ -57,7 +57,7 @@ contextes ne sont pas proposés en visibilité publique.
 Appliquer aussi `2026_11_07_171421_create_media_contexts_table` avant utilisation,
 via `php artisan migrate` depuis back. Aucune migration appliquée ici sur la base
 de travail ; seuls les environnements de test ont été migrés. Catalogue fermé :
-124 tables tenant. Contrat détaillé dans [les conventions API](docs/conventions-api.md).
+125 tables tenant avec le complément SPON-002. Contrat détaillé dans [les conventions API](docs/conventions-api.md).
 
 ## Structure
 
@@ -1949,6 +1949,12 @@ Aucun résultat de charge à plusieurs millions d’utilisateurs n’est revendi
 
 ### Accords et périmètres d’exposition — UCG-SPON-002
 
+Le complément événement/média utilise la migration additive
+`2026_11_08_080532_create_sponsorship_exposure_contexts_table`. Elle est préparée
+et testée sur bases temporaires ; appliquer `php artisan migrate` depuis `back`
+sur la base de travail après revue et validation de la nouvelle CI.
+Le contrat de sélection et de version est décrit dans [les conventions API](docs/conventions-api.md#accords-partenaires--ucg-spon-002).
+
 L’onglet « Accords » d’un dossier partenaire fournit période, responsable,
 opportunité d’origine facultative, rattachement à un contrat sponsor, conditions
 financières ou apport en nature et périmètres d’exposition. Les listes, sélecteurs
@@ -1973,9 +1979,14 @@ brouillon et retire son approbation. Un statut commercial SPON-001 ne vaut jamai
 approbation d’exposition.
 
 Organisation, équipe active et personne active/remplaçante non partie sont les
-cibles vérifiables actuelles. Les références d’événement et de contenu sont
-refusées jusqu’à l’existence de leur référentiel ; le support « présence
-événementielle » n’invente pas d’événement. Les sélecteurs People ne donnent que
+cibles historiques. Le complément SPON-002 ajoute les événements partagés du
+calendrier et les streams/VOD/clips existants, partagés et accessibles. Les droits
+`calendar.read` / `media.read` restent nécessaires, y compris ceux du contexte
+d’un média ; aucune URL ni donnée privée de la source n’est copiée au sélecteur.
+La référence reste fixe, sa version est vérifiée à l’écriture et à l’approbation.
+Après modification de la source, vérifier puis actualiser explicitement sa
+version et faire approuver l’accord de nouveau. Les périmètres/livrables devenus
+inaccessibles et leurs compteurs sont filtrés côté serveur. Les sélecteurs People ne donnent que
 les pseudonymes utiles, sans identité administrative, coordonnées ou biographie
 interne. Les membres sont affichés par nom de compte, sans e-mail ni rôle ; leur
 habilitation actuelle est vérifiée à l’affectation et avant exposition.
@@ -2090,8 +2101,8 @@ Les preuves sont des **références textuelles manuelles**, chiffrées au repos,
 jamais téléchargées ni consultées automatiquement. Aucun dépôt de fichier,
 publication sociale, mesure d’audience ou vérification externe n’est ajouté.
 Les pièces contractuelles conservent le parcours privé/antivirus Contrats.
-Le type présence événementielle ne crée pas de référentiel d’événements ; les
-cibles event/content SPON-002 restent indisponibles. Rapports sponsor SPON-004
+Le type présence événementielle ne crée pas de référentiel d’événements ; il peut
+désormais utiliser un périmètre lié à une activité existante via SPON-002. Rapports sponsor SPON-004
 et portail SPON-005 restent ultérieurs.
 
 Après revue, push et CI vertes, sauvegarder puis appliquer depuis back/ :

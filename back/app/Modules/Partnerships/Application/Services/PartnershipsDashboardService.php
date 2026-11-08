@@ -14,7 +14,7 @@ final readonly class PartnershipsDashboardService implements PartnershipsDashboa
 {
     public function __construct(private SponsorshipDeliverableService $deliverables,
         private SponsorshipCampaignRepository $records,
-        private TenantAuthorization $authorization) {}
+        private TenantAuthorization $authorization, private SponsorshipReferenceService $references) {}
 
     /** @return array<string,int> */
     public function summarize(TenantContext $context, string $card, DashboardWindow $window): array
@@ -24,7 +24,7 @@ final readonly class PartnershipsDashboardService implements PartnershipsDashboa
             throw new InvalidArgumentException('Unknown Partnerships indicator.');
         }
 
-        return ['promised' => $this->records->dashboardCount($context->organizationId, now()->utc()->toDateTimeString())];
+        return ['promised' => $this->records->dashboardCount($context->organizationId, now()->utc()->toDateTimeString(), $this->references->constraints($context))];
     }
 
     public function read(TenantContext $context, string $card, DashboardWindow $window): DashboardFeed

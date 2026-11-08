@@ -53,6 +53,22 @@ les champs modifiés avec la version courante. Les discussions sur tâches réut
 ContextDiscussion ; notifications sur opt-in de l’auteur et des participants.
 Contrat détaillé et migrations nécessaires dans le README racine.
 
+### Périmètres sponsors liés aux événements et médias — complément SPON-002
+
+Dans un accord partenaire, les types Événement du calendrier et Média existant
+apparaissent avec calendar.read et media.read, respectivement. Les choix sont
+paginés et limités aux références partagées actuellement accessibles ; le
+formulaire envoie leur version après confirmation de l’écriture. Une référence
+déjà liée reste fixe. Lorsqu’elle change, l’interface demande une vérification
+explicite de sa nouvelle version avant actualisation et nouvelle approbation.
+Les références retirées ou devenues inaccessibles sont filtrées par l’API,
+y compris pour les livrables et compteurs correspondants. Aucun lecteur vidéo,
+envoi externe ni attribution de droit n’est ajouté.
+
+Tests : AgreementExposuresPanel.test.tsx couvre sélection, version conservée
+entre pages, droits, changement de type et actualisation explicite ;
+sponsorship-contexts.spec.ts exerce le parcours sur l’API Laravel réelle.
+
 ### Médias liés aux matchs et événements — MEDIA-001
 
 Le complément MEDIA-001 du 07/11/2026 ajoute un sélecteur paginé de contexte

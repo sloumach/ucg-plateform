@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'target_version_required' => 'Sélectionnez la version courante de l’événement ou du média.',
+    'target_version_unexpected' => 'Cette opération ne permet pas de sélectionner une version de référence.',
+    'target_stale' => 'La référence a changé. Rechargez les périmètres et vérifiez la nouvelle version avant de confirmer.',
     'saved' => 'L’accord partenaire a été enregistré. Une nouvelle approbation est nécessaire.',
     'exposure_saved' => 'Le périmètre a été enregistré. L’accord doit être approuvé avant toute exposition.',
     'financial_saved' => 'Les conditions financières ont été enregistrées. Une nouvelle approbation est nécessaire.',

@@ -23,7 +23,7 @@ final class ModuleDependencyMap
                 ModuleName::Competition,
             ],
             ModuleName::Contracts => [ModuleName::Tenancy, ModuleName::People],
-            ModuleName::Partnerships => [ModuleName::Tenancy, ModuleName::People, ModuleName::Teams, ModuleName::Contracts],
+            ModuleName::Partnerships => [ModuleName::Tenancy, ModuleName::People, ModuleName::Teams, ModuleName::Contracts, ModuleName::Scheduling, ModuleName::Media],
             ModuleName::Finance => [
                 ModuleName::Tenancy,
                 ModuleName::Contracts,

@@ -10,6 +10,8 @@ abstract class TestCase extends BaseTestCase
     /** Reverse the newest dependent guards before exercising a historical partial schema rollback. */
     protected function withoutRetentionGuards(\Closure $roundTrip): void
     {
+        $sponsorshipContexts = require database_path('migrations/2026_11_08_080532_create_sponsorship_exposure_contexts_table.php');
+        $sponsorshipContexts->down();
         $mediaContexts = require database_path('migrations/2026_11_07_171421_create_media_contexts_table.php');
         $mediaContexts->down();
         $tasks = require database_path('migrations/2026_11_07_145755_create_work_tasks_and_revisions.php');
@@ -20,15 +22,19 @@ abstract class TestCase extends BaseTestCase
         $contexts->down();
         $wrappers->down();
         try {
-            $roundTrip(static function () use ($contexts, $wrappers, $tasks, $mediaContexts): void {
+            $roundTrip(static function () use ($contexts, $wrappers, $tasks, $mediaContexts, $sponsorshipContexts): void {
                 if (! Schema::hasTable('communication_contexts')) {
                     $wrappers->up();
                     $contexts->up();
                     $tasks->up();
                     $mediaContexts->up();
+                    $sponsorshipContexts->up();
                 }
             });
         } finally {
+            if (Schema::hasTable('sponsorship_exposure_contexts')) {
+                $sponsorshipContexts->down();
+            }
             if (Schema::hasTable('media_contexts')) {
                 $mediaContexts->down();
             }
@@ -47,6 +53,7 @@ abstract class TestCase extends BaseTestCase
             $contexts->up();
             $tasks->up();
             $mediaContexts->up();
+            $sponsorshipContexts->up();
         }
     }
 }

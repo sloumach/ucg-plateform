@@ -39,6 +39,7 @@ final class SponsorshipAgreementInput
         return ['agreement_version' => ['required', 'uuid'], ...($creating ? [
             'target_type' => ['required', Rule::in(['organization', 'team', 'player', 'event', 'content'])],
             'target_id' => ['required', 'uuid']] : ['version' => ['required', 'uuid']]),
+            'target_version' => ['sometimes', 'required', 'uuid'],
             'channel' => [$creating ? 'required' : 'sometimes', 'required', Rule::in(self::CHANNELS)],
             'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'authorization_reference' => [$creating ? 'required' : 'sometimes', 'required', 'string', 'max:160', 'regex:/\S/u'],

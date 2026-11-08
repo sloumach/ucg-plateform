@@ -12,6 +12,9 @@ use App\Modules\Media\Domain\Models\Announcement;
 use App\Modules\Media\Domain\Models\AnnouncementComment;
 use App\Modules\Media\Domain\Models\MediaItem;
 use App\Modules\Media\Domain\Models\WorkTask;
+use App\Modules\Partnerships\Domain\Contracts\SponsorshipAgreementRepository;
+use App\Modules\Partnerships\Domain\Models\Sponsor;
+use App\Modules\Partnerships\Domain\Models\SponsorshipAgreement;
 use App\Modules\People\Domain\Models\Person;
 use App\Modules\People\Domain\Models\PersonDeparture;
 use App\Modules\Scheduling\Domain\Models\CalendarActivity;
@@ -217,6 +220,33 @@ class ManualErasureTest extends TestCase
         $this->assertDatabaseMissing('media_items', ['organization_id' => $org->id]);
         $this->assertDatabaseCount('media_contexts', 1);
         $this->assertDatabaseHas('media_contexts', ['organization_id' => $other->id]);
+    }
+
+    #[Group('tenant-isolation')]
+    public function test_sponsorship_contexts_are_exported_and_erased_only_for_the_selected_organization(): void
+    {
+        [$org] = $this->scenario('archived');
+        $other = Organization::factory()->create();
+        $records = app(SponsorshipAgreementRepository::class);
+        foreach ([$org, $other] as $tenant) {
+            $agreement = SponsorshipAgreement::factory()->create(['organization_id' => $tenant->id, 'sponsor_id' => Sponsor::factory()->create(['organization_id' => $tenant->id])->id]);
+            $source = CalendarActivity::factory()->create(['organization_id' => $tenant->id]);
+            $item = MediaItem::factory()->create(['team_id' => Team::factory()->create(['organization_id' => $tenant->id])->id]);
+            foreach (['event' => $source, 'content' => $item] as $type => $target) {
+                $scope = $records->saveExposure(null, ['organization_id' => $tenant->id, 'agreement_id' => $agreement->id, 'target_type' => 'organization',
+                    'target_label' => 'Référence conservée', 'channel' => 'event', 'authorization_reference' => 'Fixture', 'status' => 'active', 'version' => (string) Str::uuid()]);
+                $records->saveContext($scope, $type, $target->id, $target->version);
+            }
+        }
+        $rows = iterator_to_array(app(PortabilityRepository::class)->rows($org->id, 1000));
+        $this->assertCount(2, array_filter($rows, fn (array $row): bool => $row['table'] === 'sponsorship_exposure_contexts'));
+        $operation = $this->begin($org, $org->id, null, 'organization');
+        $operation = $this->drain($org, $operation['id']);
+        $this->assertSame('awaiting_copies', $operation['status']);
+        $this->assertDatabaseMissing('sponsorship_exposure_contexts', ['organization_id' => $org->id]);
+        $this->assertDatabaseMissing('sponsorship_exposures', ['organization_id' => $org->id]);
+        $this->assertDatabaseCount('sponsorship_exposure_contexts', 2);
+        $this->assertDatabaseHas('sponsorship_exposure_contexts', ['organization_id' => $other->id]);
     }
 
     public function test_ordinary_sql_guards_remain_active_and_damaged_guards_block_erasure(): void

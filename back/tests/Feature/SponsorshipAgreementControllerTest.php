@@ -159,7 +159,7 @@ class SponsorshipAgreementControllerTest extends TestCase
         $this->getJson($this->root($sponsor, $localOther->id))->assertNotFound();
     }
 
-    public function test_foreign_players_teams_opportunities_and_unimplemented_targets_are_refused(): void
+    public function test_foreign_players_teams_opportunities_and_missing_targets_are_refused(): void
     {
         [$org, $user, $sponsor] = $this->scenario();
         $record = $this->postJson($this->root($sponsor), $this->payload($user))->assertCreated()->json('data');
@@ -168,7 +168,7 @@ class SponsorshipAgreementControllerTest extends TestCase
             $this->postJson($root.'/exposures', [...$this->scope($org, $record['version']), 'target_type' => $type, 'target_id' => $id])->assertNotFound();
         }
         foreach (['event', 'content'] as $type) {
-            $this->postJson($root.'/exposures', [...$this->scope($org, $record['version']), 'target_type' => $type])->assertConflict()->assertJsonPath('code', 'SPONSORSHIP_TARGET_UNAVAILABLE');
+            $this->postJson($root.'/exposures', [...$this->scope($org, $record['version']), 'target_type' => $type])->assertNotFound();
         }
         $foreignOpportunity = SponsorshipOpportunity::query()->forceCreate(['organization_id' => $org->id,
             'sponsor_id' => Sponsor::factory()->create(['organization_id' => $org->id])->id, 'title' => 'Autre dossier', 'status' => 'open', 'version' => (string) Str::uuid()]);

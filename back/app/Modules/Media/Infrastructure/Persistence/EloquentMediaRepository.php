@@ -12,6 +12,25 @@ use Illuminate\Support\Str;
 /** @phpstan-import-type MediaScopes from MediaRepository */
 final readonly class EloquentMediaRepository implements MediaRepository
 {
+    public function partnershipIds(string $org, array $contexts): \Illuminate\Database\Query\Builder
+    {
+        return $this->visible($org, false, $contexts)->where('status', '!=', 'unavailable')->select('media_items.id')->toBase();
+    }
+
+    public function partnershipChoices(string $org, \Illuminate\Database\Query\Builder $visible, int $page, int $perPage): LengthAwarePaginator
+    {
+        $rows = MediaItem::query()->where('organization_id', $org)->whereIn('id', $visible)->orderBy('created_at')->orderBy('id')
+            ->paginate($perPage, ['id', 'title', 'version'], 'page', $page);
+
+        return new \Illuminate\Pagination\LengthAwarePaginator(array_map(fn (MediaItem $row): array => ['id' => $row->id, 'label' => $row->title, 'version' => $row->version], $rows->items()), $rows->total(), $rows->perPage(), $rows->currentPage());
+    }
+
+    public function partnershipMetadata(string $org, array $ids, \Illuminate\Database\Query\Builder $visible): array
+    {
+        return MediaItem::query()->where('organization_id', $org)->whereIn('id', $ids)->whereIn('id', $visible)->get(['id', 'title', 'version'])
+            ->mapWithKeys(fn (MediaItem $row): array => [$row->id => ['id' => $row->id, 'label' => $row->title, 'version' => $row->version]])->all();
+    }
+
     public function paginate(string $organizationId, array $filters, bool $editor, array $contexts = []): LengthAwarePaginator
     {
         $query = $this->visible($organizationId, $editor, $contexts);

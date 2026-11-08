@@ -10,6 +10,9 @@ use Illuminate\Database\Query\Builder;
 
 interface CalendarRepository
 {
+    /** @return LengthAwarePaginator<int, CalendarActivity> */
+    public function partnershipChoices(string $org, Builder $visible, int $page, int $perPage): LengthAwarePaginator;
+
     /** @param list<string> $ids
      * @return array<string, array{id: string, label: string, version: string, is_scrim: bool, visibility: string}> */
     public function mediaMetadata(string $org, array $ids, Builder $visible): array;
