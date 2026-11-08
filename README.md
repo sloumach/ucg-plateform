@@ -190,9 +190,18 @@ revérifient le parent exact sous verrou. Dates, MFA, suspension, révocation et
 fin d’adhésion restent applicables. L’archivage/annulation ferme le périmètre.
 Les référentiels généraux, le partage, les invitations, exports et notifications
 conservent leurs contrôles propres d’organisation. Aucune nouvelle migration.
-**Audit du 08/11 :** la lecture limitée à une équipe existe dans l’API, mais son
-parcours React et son sélecteur nommé restent à compléter (A-P0-01). Les écarts
-de libellés et de recette figurent dans l’[audit P0](docs/etat-projet.md#audit-de-couverture-p0--08112026-référence-6e25a61).
+**Complément A-P0-01 du 08/11 :** le sélecteur nommé accepte aussi les équipes.
+« Mes équipes autorisées » permet à un bénéficiaire limité de découvrir ses
+équipes et de consulter leur fiche publique. Les droits restent liés à leur
+période sportive d’origine : une réadhésion ne restaure aucun ancien grant.
+Les listes générales, effectifs et commandes de roster conservent leurs droits
+propres. Les deux lectures paginées utilisent la révision du contexte tenant :
+`GET /api/v1/tenants/{organization}/authorization-scopes/team` pour l’affectation
+(roles.assign et lecture sportive), et
+`GET /api/v1/tenants/{organization}/my-team-scopes?per_page=10&page=1` pour les
+seuls grants équipe effectifs du bénéficiaire. Le détail reste
+`GET /api/v1/tenants/{organization}/teams/{team}`. Aucune migration ajoutée.
+Les écarts de libellés et de recette figurent dans l’[audit P0](docs/etat-projet.md#audit-de-couverture-p0--08112026-référence-6e25a61).
 IAM-004 fournit la projection par champ décrite ci-dessous ; IAM-005 sépare
 les rôles plateforme/support et les permissions tenant.
 

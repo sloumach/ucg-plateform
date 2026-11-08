@@ -11,7 +11,7 @@ use Illuminate\Database\Query\Builder;
 interface RoleRepository
 {
     /** Effective assignments only; the caller must validate the actor and source lifecycle. */
-    public function scopeIds(string $org, int $userId, ?string $membershipId, string $type, string $permission): Builder;
+    public function scopeIds(string $org, int $userId, ?string $membershipId, string $type, string $permission, ?Builder $eligible = null): Builder;
 
     /** Permissions from bounded role definitions, without loading assignments or source collections.
      * @return list<string>

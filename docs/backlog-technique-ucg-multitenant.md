@@ -58,9 +58,10 @@ des tâches reportées figure au point de reprise de `etat-projet.md`.
 **Audit de couverture du 08/11/2026, sur `6e25a61` dont la CI est validée par
 l’utilisateur :** les 92 tickets P0 sont rapprochés du code, des tests/procédures
 et de commits dans la [matrice de l’état du projet](etat-projet.md#matrice-des-92-tickets-et-repères-vérifiés).
-Prochain complément recommandé : parcours utilisateur pour les droits limités
-à une équipe (A-P0-01), puis libellés de permissions (A-P0-02), aide sponsor
-obsolète (A-P0-03) et sélection critique d’isolation (A-P0-04). Aucun nouveau
+A-P0-01 est corrigé localement dans le complément du 08/11 : parcours utilisateur
+équipe limité et sélection nommée. CI distante à obtenir après livraison.
+Prochain complément recommandé : libellés de permissions (A-P0-02), puis aide
+sponsor obsolète (A-P0-03) et sélection critique d’isolation (A-P0-04). Aucun nouveau
 module P1 promu ; décisions, données réelles, pilote et hébergement restent
 distincts. Les anciennes mentions d’attente CI ne sont pas des fonctions absentes.
 
@@ -251,9 +252,10 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 ### UCG-IAM-003 — Construire les rôles et permissions contextuels
 
 - **Audit 08/11** : complément jeu/cohorte/événement `6e25a61` poussé et CI
-  validée par l’utilisateur. **A-P0-01 reste à traiter** : droit équipe effectif
-  dans l’API, mais sans parcours React pour son seul bénéficiaire ; affectation
-  équipe encore par UUID libre. A-P0-02 concerne aussi les libellés des droits.
+  validée par l’utilisateur. **A-P0-01 corrigé localement le 08/11** : parcours
+  React pour le bénéficiaire limité à une équipe et affectation par sélection
+  nommée. Liaison durable à la période sportive conservée. CI distante du
+  complément à obtenir ; A-P0-02 reste ouvert pour les libellés des droits.
 
 - **Priorité / taille** : P0 / XL
 - **Périmètre** : rôles configurables par tenant, périmètres équipe/jeu/cohorte/événement, périodes d’effet et suspension prioritaire.
@@ -518,11 +520,12 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 
 ### UCG-TEAM-002 — Gérer les équipes d’une organisation
 
-- **Audit 08/11, A-P0-01** : le panneau React exige sports.read d’organisation.
-  Un bénéficiaire du seul droit de lecture équipe peut consulter son détail
-  par API, mais ne dispose pas de parcours dans l’interface. Compléter la
-  découverte et la lecture limitées, en conservant les périodes sportives et
-  les contrôles de roster organisationnels ; aucun élargissement implicite.
+- **Complément 08/11, A-P0-01** : « Mes équipes autorisées » expose les seules
+  équipes couvertes par un grant explicite effectif, puis leur fiche publique.
+  Le sélecteur d’affectation utilise les noms et la pagination. Expiration,
+  clôture/retour, révocation, dissociation du compte et suspension restent
+  opposables ; aucun droit de roster ou de catalogue général ajouté. Implémenté
+  et vérifié localement ; CI distante du complément à obtenir.
 
 - **Priorité / taille** : P0 / M
 - **Périmètre** : équipe première, académie, réserve, événementielle ou catégorie spécifique ; jeu, saison, statut et identité publique.

@@ -19,7 +19,7 @@ const page = (data: { id: string; label: string }[], current = 1) => ({ data, me
 
 describe('Sélection des périmètres IAM', () => {
   beforeEach(() => { request.mockReset() })
-  it.each(['game', 'cohort', 'event'] as const)('charge le référentiel %s avec la révision du tenant et conserve le choix entre pages', async (type) => {
+  it.each(['team', 'game', 'cohort', 'event'] as const)('charge le référentiel %s avec la révision du tenant et conserve le choix entre pages', async (type) => {
     const user = userEvent.setup()
     request.mockImplementation(async (path) => page(path.endsWith('page=1') ? [{ id: 'one', label: 'Objet A' }] : [{ id: 'two', label: 'Objet B' }], path.endsWith('page=1') ? 1 : 2))
     render(<ScopeSourcePicker active={active} type={type} disabled={false} />)

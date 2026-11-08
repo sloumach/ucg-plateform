@@ -13,6 +13,11 @@ final readonly class CohortAuthorizationScopes implements AuthorizationScopeSour
 {
     public function __construct(private ConnectionInterface $database) {}
 
+    public function eligibleAssignmentIds(string $org, string $type, int $userId): ?Builder
+    {
+        return null;
+    }
+
     public function exists(string $organizationId, string $type, string $id): bool
     {
         return $type === 'cohort' && $this->sources($organizationId, $type)->where('id', $id)->exists();

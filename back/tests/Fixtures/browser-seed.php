@@ -213,10 +213,14 @@ $scopeManagerRole = OrganizationRole::factory()->create(['organization_id' => $s
 OrganizationRoleAssignment::factory()->create(['organization_id' => $scopeOrg->id, 'role_id' => $scopeManagerRole->id, 'user_id' => $scopeOwner->id,
     'membership_id' => null, 'scope_type' => 'organization', 'scope_id' => $scopeOrg->id]);
 $scopeRoles = [];
-foreach (['game' => ['sports.read', 'games.manage'], 'cohort' => ['academy.read', 'academy.manage'], 'event' => ['calendar.read', 'calendar.write']] as $scopeType => $scopePermissions) {
+foreach (['team' => ['sports.read'], 'game' => ['sports.read', 'games.manage'], 'cohort' => ['academy.read', 'academy.manage'], 'event' => ['calendar.read', 'calendar.write']] as $scopeType => $scopePermissions) {
     $scopeRoles[$scopeType] = OrganizationRole::factory()->create(['organization_id' => $scopeOrg->id,
         'name' => 'Responsable limité '.$scopeType, 'permissions' => $scopePermissions, 'privileged' => true])->id;
 }
+$scopeTeam = Team::factory()->create(['organization_id' => $scopeOrg->id, 'name' => 'Équipe limitée']);
+$scopeHiddenTeam = Team::factory()->create(['organization_id' => $scopeOrg->id, 'name' => 'Équipe cachée']);
+$scopePerson = Person::factory()->create(['organization_id' => $scopeOrg->id, 'user_id' => $scopeSubject->id, 'status' => 'active']);
+TeamMembership::factory()->create(['team_id' => $scopeTeam->id, 'person_id' => $scopePerson->id, 'starts_at' => now()->subDay()]);
 $scopeCohort = Cohort::factory()->create(['organization_id' => $scopeOrg->id, 'name' => 'Cohorte limitée']);
 $scopeHiddenCohort = Cohort::factory()->create(['organization_id' => $scopeOrg->id, 'name' => 'Cohorte cachée']);
 $scopeActivity = CalendarActivity::factory()->create(['organization_id' => $scopeOrg->id, 'created_by' => $scopeOwner->id, 'title' => 'Événement limité']);
@@ -224,7 +228,7 @@ $scopeHiddenActivity = CalendarActivity::factory()->create(['organization_id' =>
 $scopeGame = GameCatalogueEntry::query()->where('kind', 'game')->where('key', 'valorant')->firstOrFail();
 
 echo json_encode([
-    'contextualScopes' => ['org' => $scopeOrg->id, 'subject' => $scopeSubject->id, 'roles' => $scopeRoles, 'game' => $scopeGame->id, 'cohort' => $scopeCohort->id, 'event' => $scopeActivity->id, 'hiddenCohort' => $scopeHiddenCohort->id, 'hiddenEvent' => $scopeHiddenActivity->id],
+    'contextualScopes' => ['org' => $scopeOrg->id, 'subject' => $scopeSubject->id, 'roles' => $scopeRoles, 'team' => $scopeTeam->id, 'hiddenTeam' => $scopeHiddenTeam->id, 'game' => $scopeGame->id, 'cohort' => $scopeCohort->id, 'event' => $scopeActivity->id, 'hiddenCohort' => $scopeHiddenCohort->id, 'hiddenEvent' => $scopeHiddenActivity->id],
     'sponsorship' => ['alpha' => $sponsorAlpha->id, 'beta' => $sponsorBeta->id, 'sponsor' => $sponsorRecord->id, 'agreement' => $sponsorAgreement->id,
         'activity' => $sponsorActivity->id, 'media' => $sponsorMedia->id, 'author' => $sponsorUser->id, 'start' => today()->format('Y-m-d'), 'end' => today()->addWeek()->format('Y-m-d')],
     'alpha' => $alpha->id, 'beta' => $beta->id, 'foreign' => $foreign->id,

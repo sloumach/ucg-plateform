@@ -13,6 +13,11 @@ final readonly class GameAuthorizationScopes implements AuthorizationScopeSource
 {
     public function __construct(private ConnectionInterface $database) {}
 
+    public function eligibleAssignmentIds(string $org, string $type, int $userId): ?Builder
+    {
+        return null;
+    }
+
     public function exists(string $organizationId, string $type, string $id): bool
     {
         return $type === 'game' && $this->sources($organizationId, $type)->where('source.id', $id)->exists();

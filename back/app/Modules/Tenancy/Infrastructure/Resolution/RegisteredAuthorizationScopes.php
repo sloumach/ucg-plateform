@@ -17,6 +17,17 @@ final readonly class RegisteredAuthorizationScopes implements AuthorizationScope
 {
     public const TYPES = ['organization', 'team', 'game', 'cohort', 'event'];
 
+    public function eligibleAssignmentIds(string $org, string $type, int $userId): ?Builder
+    {
+        $this->sources($org, $type);
+        $class = $this->config->get('tenancy.authorization_scope_resolvers.'.$type);
+        if (! is_string($class) || ! is_a($class, AuthorizationScopeSource::class, true)) {
+            throw new ModelNotFoundException;
+        }
+
+        return $this->container->make($class)->eligibleAssignmentIds($org, $type, $userId);
+    }
+
     public function choices(TenantContext $context, string $type, int $page, int $perPage, ?Builder $visible = null): LengthAwarePaginator
     {
         $this->sources($context->organizationId, $type);

@@ -6,11 +6,12 @@
 ## Point de reprise
 
 - Dernière mise à jour : **8 novembre 2026**.
-- Tâche courante : **audit de couverture P0**, terminé sur `6e25a61`.
-  Matrice des 92 tickets et écarts documentés ci-dessous. Prochain complément
-  recommandé : **A-P0-01, accès React limité à une équipe**, puis libellés des
-  permissions, aide sponsor et sélection critique d’isolation A-P0-02–04.
-  Ces corrections ne sont pas implémentées par le présent audit.
+- Tâche courante : **A-P0-01, accès React limité à une équipe**, implémentée
+  localement après l’audit `f95c7b7`. Sélecteur nommé d’affectation et espace
+  « Mes équipes autorisées », liés aux périodes sportives d’origine.
+  Validation locale détaillée en fin de document ; CI distante à obtenir après
+  livraison. Les trois écarts A-P0-02–04 restent ouverts ; prochain complément
+  recommandé : **A-P0-02, libellés français des permissions**.
 - **IAM-003 jeu/cohorte/événement `6e25a61` poussé sur staging et CI validée
   par l’utilisateur** dans cette discussion. Aucun autre module P1 lancé.
 - **SPON-002 `017248d` poussé par l’utilisateur et CI validée par lui** avant ce
@@ -91,7 +92,12 @@ d’entrée de preuve, pas toutes les couches de chaque fonction. La CI IAM-003 
 validée **par l’utilisateur** ; aucun nouveau run distant ou test de charge
 n’est revendiqué pendant cet audit.
 
-#### Écarts confirmés, par ordre de traitement
+**Suivi après audit :** A-P0-01 est corrigé localement dans le complément décrit
+[en fin de document](#a-p0-01--accès-react-limité-à-une-équipe-8-novembre-2026).
+Les constats ci-dessous décrivent la référence auditée `6e25a61` ; A-P0-02–04
+restent à traiter. La CI distante de ce complément n’est pas encore validée.
+
+#### Écarts confirmés à la référence auditée, par ordre de traitement
 
 | Référence | Constat vérifié | Correction à préparer |
 | --- | --- | --- |
@@ -10891,3 +10897,53 @@ Pint, PHPStan niveau 8, parsing du workflow YAML et git diff --check réussis.
 Les rapports JUnit restent ignorés dans back/reports. La suite PostgreSQL entière
 de la CI n’a pas été réexécutée localement ; son résultat distant reste à confirmer
 sur le prochain commit. Aucune base de travail ou d’hébergement modifiée.
+
+
+## A-P0-01 — Accès React limité à une équipe (8 novembre 2026)
+
+Objectif : terminer le parcours du bénéficiaire d’un droit sports.read à portée
+team et remplacer la saisie libre d’UUID dans l’affectation des rôles.
+Ce complément corrige le premier des quatre écarts de l’audit `f95c7b7`.
+
+- Le sélecteur nommé existant prend maintenant en charge les équipes. Lecture
+  paginée via GET authorization-scopes/team, après roles.assign et autorisation
+  sportive sur la source ; équipes archivées et tenants voisins exclus.
+- Le nouvel espace « Mes équipes autorisées » est disponible sans sports.read
+  d’organisation. Son ouverture lit GET my-team-scopes avec page/per_page bornés
+  et révision tenant ; seuls id/label des grants explicites effectifs sont listés.
+  La sélection charge le détail existant GET teams/{id}. Les listes générales,
+  catalogues de jeux et commandes d’effectif ne reçoivent aucun droit implicite.
+- La découverte vérifie le compte/personne actif, l’adhésion d’organisation,
+  le rôle actif, les dates du grant et la liaison durable à sa période sportive
+  d’origine. Fin exacte, clôture puis retour, révocation, archivage, dissociation
+  et suspension sont opposables dès la prochaine lecture, sans ordonnanceur.
+- Les permissions limitées à une équipe n’entrent ni dans le snapshot global ni
+  dans les capacités agrégées des modules jeu/cohorte/événement. La restriction
+  datée est injectée dans la requête d’affectations avant comptes et pagination,
+  sans charger toutes les équipes ou une collection de grants en mémoire.
+- L’interface annule les requêtes obsolètes et réinitialise la sélection au
+  changement de page, de tenant ou de révision. Une réouverture relit les droits ;
+  les erreurs d’accès déclenchent le rechargement du contexte selon la convention
+  existante. Aucun endpoint d’écriture supplémentaire, dépendance ou migration.
+
+Validation locale :
+
+- PostgreSQL 17 temporaire : **143 tests / 1 297 assertions**, tous réussis,
+  dont périmètres équipe et autres sources, rôles, visibilité et révocations.
+  Cluster isolé arrêté et supprimé. Rapport ignoré :
+  back/reports/phpunit-team-discovery-postgresql.xml.
+- SQLite, architecture, Tenancy, rôles, équipes, périmètres et révocations :
+  **593 tests, 585 réussis, 8 ignorés / 3 536 assertions**, aucun échec.
+  Rapport ignoré : back/reports/phpunit-team-regressions.xml.
+- React ciblé : **40 tests** réussis, dont 24 sur la lecture seule équipe,
+  pagination, réponses obsolètes, révocation, erreurs et choix nommé des quatre
+  périmètres, puis 16 sur les écrans d’organisation et d’équipes existants.
+- Navigateur Chrome avec API réelle et SQLite isolée : **11 scénarios réussis**,
+  dont affectation nommée des quatre périmètres, consultation de l’équipe limitée,
+  refus de l’équipe voisine et révocation des accès. Aucun appel externe inattendu
+  ni erreur JavaScript dans ce scénario. Ressources temporaires arrêtées/supprimées.
+- TypeScript, lint, build de production, Pint et PHPStan niveau 8 réussis.
+
+La CI distante de ce complément reste à obtenir après livraison. Aucun test de
+charge ou qualification dépendant de l’hébergement exécuté, aucune migration
+appliquée à la base de travail. A-P0-02, A-P0-03 et A-P0-04 restent ouverts.

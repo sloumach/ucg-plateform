@@ -194,6 +194,80 @@ class TeamAuthorizationScopesTest extends TestCase
         $this->assertDatabaseCount('organization_access_events', 1);
     }
 
+    public function test_scoped_team_discovery_is_paginated_and_does_not_restore_a_closed_membership_grant(): void
+    {
+        $this->freezeSecond();
+        [$org,$owner,$team,$subject,$person] = $this->setupTeam();
+        $period = TeamMembership::factory()->create(['team_id' => $team->id, 'person_id' => $person->id]);
+        $this->assign($org, $owner, $team, $subject, now()->toIso8601String(), null);
+        Team::factory()->create(['organization_id' => $org->id, 'name' => 'Other private team']);
+        $this->actingAsWithMfa($subject);
+        $path = '/api/v1/tenants/'.$org->id.'/my-team-scopes';
+        $this->getJson($path.'?per_page=1')->assertOk()->assertJsonPath('meta.total', 1)->assertJsonPath('data.0.id', $team->id)->assertDontSee('Other private team');
+        $this->getJson('/api/v1/tenants/'.$org->id.'/teams')->assertForbidden();
+        $this->getJson($path.'?per_page=101')->assertUnprocessable();
+        $period->forceFill(['status' => 'closed', 'ends_at' => now()])->save();
+        TeamMembership::factory()->create(['team_id' => $team->id, 'person_id' => $person->id, 'starts_at' => now()]);
+        $this->getJson($path)->assertOk()->assertJsonPath('meta.total', 0);
+    }
+
+    public function test_team_discovery_stops_on_unlink_revocation_and_archiving(): void
+    {
+        $this->freezeSecond();
+        [$org,$owner,$team,$subject,$person] = $this->setupTeam();
+        TeamMembership::factory()->create(['team_id' => $team->id, 'person_id' => $person->id]);
+        $grant = $this->assign($org, $owner, $team, $subject, now()->toIso8601String(), null);
+        $this->actingAsWithMfa($subject);
+        $path = '/api/v1/tenants/'.$org->id.'/my-team-scopes';
+        $this->getJson($path)->assertOk()->assertJsonPath('meta.total', 1);
+        $person->forceFill(['user_id' => null])->save();
+        $this->getJson($path)->assertOk()->assertJsonPath('meta.total', 0);
+        $person->forceFill(['user_id' => $subject->id])->save();
+        $grant->forceFill(['status' => 'revoked'])->save();
+        $this->getJson($path)->assertOk()->assertJsonPath('meta.total', 0);
+        $grant->forceFill(['status' => 'active'])->save();
+        $team->forceFill(['status' => 'archived'])->save();
+        $this->getJson($path)->assertOk()->assertJsonPath('meta.total', 0);
+        OrganizationMembership::query()->where('organization_id', $org->id)->where('user_id', $subject->id)->update(['status' => 'suspended']);
+        $this->getJson($path)->assertNotFound();
+    }
+
+    public function test_team_discovery_honors_exact_dates_and_never_adds_global_capabilities(): void
+    {
+        $this->freezeSecond();
+        [$org,$owner,$team,$subject,$person] = $this->setupTeam();
+        $start = now()->addHour();
+        $end = now()->addHours(2);
+        TeamMembership::factory()->create(['team_id' => $team->id, 'person_id' => $person->id, 'starts_at' => $start, 'ends_at' => $end]);
+        $this->assign($org, $owner, $team, $subject, $start->toIso8601String(), $end->toIso8601String());
+        $this->actingAsWithMfa($subject);
+        $path = '/api/v1/tenants/'.$org->id;
+        $this->getJson($path.'/my-team-scopes')->assertOk()->assertJsonPath('meta.total', 0);
+        $this->travelTo($start);
+        $this->getJson($path.'/my-team-scopes')->assertOk()->assertJsonPath('meta.total', 1);
+        $this->getJson($path.'/contextual-permissions')->assertOk()->assertJsonPath('data.permissions', []);
+        $this->travelTo($end);
+        $this->getJson($path.'/my-team-scopes')->assertOk()->assertJsonPath('meta.total', 0);
+    }
+
+    public function test_named_team_choices_are_bounded_authorized_and_tenant_isolated(): void
+    {
+        [$org,$owner,$team,$subject] = $this->setupTeam();
+        Team::factory()->create(['organization_id' => $org->id, 'status' => 'archived', 'name' => 'Archived secret']);
+        $foreign = Team::factory()->create(['name' => 'Foreign secret']);
+        $path = '/api/v1/tenants/'.$org->id;
+        $role = OrganizationRole::factory()->create(['organization_id' => $org->id, 'permissions' => ['sports.read'], 'privileged' => false]);
+        OrganizationRoleAssignment::factory()->create(['organization_id' => $org->id, 'user_id' => $owner->id, 'membership_id' => null, 'role_id' => $role->id, 'scope_id' => $org->id]);
+        $this->actingAsWithMfa($owner);
+        $this->getJson($path.'/authorization-scopes/team?per_page=1')->assertOk()->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $team->id)->assertJsonPath('data.0.label', $team->name)->assertDontSee('secret');
+        $this->getJson($path.'/authorization-scopes/team?per_page=101')->assertUnprocessable();
+        $this->getJson($path.'/my-team-scopes')->assertOk()->assertJsonPath('meta.total', 0);
+        $this->actingAsWithMfa($subject);
+        $this->getJson($path.'/authorization-scopes/team')->assertForbidden();
+        $this->getJson('/api/v1/tenants/'.$foreign->organization_id.'/my-team-scopes')->assertNotFound();
+    }
+
     /** @return array{Organization,User,Team,User,Person} */
     private function setupTeam(): array
     {

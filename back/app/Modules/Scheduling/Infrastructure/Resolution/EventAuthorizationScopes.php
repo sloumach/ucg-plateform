@@ -20,6 +20,11 @@ final readonly class EventAuthorizationScopes implements AuthorizationScopeSourc
 {
     public function __construct(private ConnectionInterface $database, private CalendarPeopleDirectory $people, private CalendarTeamsDirectory $teams, private TenantAuthorization $authorization, private EloquentCalendarVisibility $visibility, private ContextualAuthorization $scoped) {}
 
+    public function eligibleAssignmentIds(string $org, string $type, int $userId): ?Builder
+    {
+        return null;
+    }
+
     public function exists(string $organizationId, string $type, string $id): bool
     {
         return $type === 'event' && $this->sources($organizationId, $type)->where('id', $id)->exists();

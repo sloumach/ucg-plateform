@@ -19,9 +19,10 @@ final class EloquentRoleRepository implements RoleRepository
         return array_values(array_unique($roles->flatMap(fn (OrganizationRole $role): array => $role->permissions)->all()));
     }
 
-    public function scopeIds(string $org, int $userId, ?string $membershipId, string $type, string $permission): \Illuminate\Database\Query\Builder
+    public function scopeIds(string $org, int $userId, ?string $membershipId, string $type, string $permission, ?\Illuminate\Database\Query\Builder $eligible = null): \Illuminate\Database\Query\Builder
     {
         return $this->grants($org, $userId, $membershipId, now())->where('scope_type', $type)
+            ->when($eligible !== null, fn (Builder $query) => $query->whereIn('id', $eligible))
             ->whereHas('role', fn (Builder $role) => $role->where('active', true)->whereJsonContains('permissions', $permission))
             ->select('scope_id')->toBase();
     }

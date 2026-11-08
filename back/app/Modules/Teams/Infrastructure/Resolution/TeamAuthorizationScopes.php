@@ -8,13 +8,48 @@ use App\Modules\Teams\Application\Validation\TeamMembershipInput;
 use App\Modules\Teams\Domain\Contracts\TeamMembershipRepository;
 use App\Modules\Teams\Domain\Models\Team;
 use App\Modules\Teams\Domain\Models\TeamMembership;
+use App\Modules\Tenancy\Application\Contracts\AuthorizationScopeSource;
 use App\Modules\Tenancy\Application\Contracts\DatedAuthorizationScopeDirectory;
+use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\ConnectionInterface;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Str;
 
-final readonly class TeamAuthorizationScopes implements DatedAuthorizationScopeDirectory
+final readonly class TeamAuthorizationScopes implements AuthorizationScopeSource, DatedAuthorizationScopeDirectory
 {
+    public function sources(string $organizationId, string $type): Builder
+    {
+        if ($type !== 'team') {
+            throw new ModelNotFoundException;
+        }
+
+        return $this->database->table('teams')->where('organization_id', $organizationId)->where('status', '!=', 'archived')->select(['id', 'name as label']);
+    }
+
+    /** Discovery must follow the original period binding, never a later membership in the same team. */
+    public function eligibleAssignmentIds(string $org, string $type, int $userId): Builder
+    {
+        $person = $this->people->personForAccount($org, $userId);
+
+        return $this->database->table('team_scope_grants as binding')
+            ->join('team_memberships as period', fn ($join) => $join->on('period.id', '=', 'binding.team_membership_id')->on('period.organization_id', '=', 'binding.organization_id'))
+            ->join('organization_role_assignments as assignment', fn ($join) => $join->on('assignment.id', '=', 'binding.role_assignment_id')->on('assignment.organization_id', '=', 'binding.organization_id')->on('assignment.scope_id', '=', 'period.team_id'))
+            ->where('assignment.scope_type', 'team')
+            ->where('binding.organization_id', $org)->where('period.person_id', $person)
+            ->where('period.status', '!=', 'cancelled')->where('period.starts_at', '<=', now())
+            ->where(fn ($query) => $query->whereNull('period.ends_at')->orWhere('period.ends_at', '>', now()))
+            ->select('binding.role_assignment_id');
+    }
+
+    public function choices(TenantContext $context, string $type, int $page, int $perPage, ?Builder $visible = null): LengthAwarePaginator
+    {
+        return $this->sources($context->organizationId, $type)->when($visible !== null, fn ($query) => $query->whereIn('id', $visible))
+            ->orderBy('name')->orderBy('id')->paginate($perPage, ['*'], 'page', $page);
+    }
+
     public function __construct(private TeamMembershipRepository $records, private SportingPeopleDirectory $people, private ConnectionInterface $database) {}
 
     public function exists(string $organizationId, string $type, string $id): bool

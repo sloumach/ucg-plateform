@@ -178,8 +178,8 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
         <label className="grid gap-2">{t('roles.scope')}<select name="scope_type" className={selectClass} disabled={disabled} value={scopeType} onChange={(event) => setScopeType(event.target.value as ScopeType)}>
           {data.catalogue.scope_types.map((type) => <option key={type} value={type}>{scopeName(type)}</option>)}
         </select></label>
-        {scopeType === 'team' && <FormField name="scope_id" label={t('roles.scopeId')} disabled={disabled} error={error?.fieldErrors.scope_id?.[0]} />}
-        {['game', 'cohort', 'event'].includes(scopeType) && <ScopeSourcePicker key={orgId + ':' + scopeType} active={active} type={scopeType} disabled={disabled} error={error?.fieldErrors.scope_id?.[0]} />}
+
+        {['team', 'game', 'cohort', 'event'].includes(scopeType) && <ScopeSourcePicker key={orgId + ':' + scopeType} active={active} type={scopeType} disabled={disabled} error={error?.fieldErrors.scope_id?.[0]} />}
         <FormField name="starts_at" type="datetime-local" step="1" defaultValue={initialStart} label={t('roles.start')} required disabled={disabled} error={error?.fieldErrors.starts_at?.[0]} />
         <FormField name="ends_at" type="datetime-local" step="1" label={t('roles.end')} disabled={disabled} error={error?.fieldErrors.ends_at?.[0]} />
         <p className="text-sm text-slate-400 md:col-span-2">{t('roles.delegationHint')}</p>

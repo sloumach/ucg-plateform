@@ -129,7 +129,7 @@ describe('Contextual role management', () => {
     expect(request.mock.calls.filter(([path, options]) => path.endsWith('/roles/' + role.id) && options?.method === 'PUT')).toHaveLength(1)
     expect(screen.getAllByText('Ces droits ont changé.').length).toBeGreaterThan(0)
   })
-  it.each([['game', 'sports.read'], ['cohort', 'academy.read'], ['event', 'calendar.read']] as const)('affecte un rôle %s depuis un objet réel et retire les rôles incompatibles du choix', async (type, permission) => {
+  it.each([['team', 'sports.read'], ['game', 'sports.read'], ['cohort', 'academy.read'], ['event', 'calendar.read']] as const)('affecte un rôle %s depuis un objet réel et retire les rôles incompatibles du choix', async (type, permission) => {
     const user = userEvent.setup()
     const limitedRole = { ...role, name: 'Lecteur limité', permissions: [permission] }
     const organizationRole = { ...role, id: '55555555-5555-4555-8555-555555555555', name: 'Gouvernance globale', permissions: ['audit.view'] }
@@ -138,7 +138,7 @@ describe('Contextual role management', () => {
       if (path.includes('permission-catalogue')) return { data: { permissions: [
         { key: permission, privileged: type !== 'game', organization_only: false, scope_types: ['organization', type] },
         { key: 'audit.view', privileged: true, organization_only: true, scope_types: ['organization'] },
-      ], scope_types: ['organization', 'game', 'cohort', 'event'], can_manage: true } }
+      ], scope_types: ['organization', 'team', 'game', 'cohort', 'event'], can_manage: true } }
       if (path.includes('authorization-scopes/')) return page([{ id: version, label: 'Objet autorisé' }])
       if (path.includes('role-assignments')) return page([])
       return page([limitedRole, organizationRole])

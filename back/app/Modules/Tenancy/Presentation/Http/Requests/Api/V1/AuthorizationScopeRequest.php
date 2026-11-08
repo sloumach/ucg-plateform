@@ -14,7 +14,7 @@ final class AuthorizationScopeRequest extends FormRequest
      */
     public function authorize(TenantContext $context, TenantAuthorization $authorization): bool
     {
-        return $authorization->allows($context, $this->routeIs('api.v1.scopes.capabilities') ? 'organization.view' : 'roles.assign');
+        return $authorization->allows($context, $this->routeIs('api.v1.scopes.capabilities', 'api.v1.scopes.teams') ? 'organization.view' : 'roles.assign');
     }
 
     /**

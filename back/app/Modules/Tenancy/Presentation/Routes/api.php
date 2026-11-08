@@ -38,7 +38,8 @@ Route::delete('my-memberships/{membership}', [MyMembershipController::class, 'de
 
 Route::prefix('tenants/{tenant}')->whereUuid('tenant')->middleware('tenant')->group(function (): void {
     Route::get('audit-events', [TenantAuditController::class, 'index'])->middleware('throttle:audit')->block(10, 10)->name('tenants.audit.index');
-    Route::get('authorization-scopes/{scopeType}', [AuthorizationScopeController::class, 'choices'])->whereIn('scopeType', ['game', 'cohort', 'event'])->name('scopes.choices');
+    Route::get('authorization-scopes/{scopeType}', [AuthorizationScopeController::class, 'choices'])->whereIn('scopeType', ['team', 'game', 'cohort', 'event'])->name('scopes.choices');
+    Route::get('my-team-scopes', [AuthorizationScopeController::class, 'myTeams'])->name('scopes.teams');
     Route::get('contextual-permissions', [AuthorizationScopeController::class, 'capabilities'])->name('scopes.capabilities');
     Route::get('permission-catalogue', [RoleController::class, 'catalogue'])->name('roles.catalogue');
     Route::get('roles', [RoleController::class, 'index'])->name('roles.index');

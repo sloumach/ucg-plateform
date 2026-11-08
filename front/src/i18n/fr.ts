@@ -987,6 +987,8 @@ export const frenchMessages = {
   'roles.choose': 'Choisir un rôle sur cette page',
   'roles.account': 'Identifiant du compte membre',
   'roles.scope': 'Périmètre',
+  'roles.myTeams': 'Mes équipes autorisées',
+  'roles.noTeams': 'Aucun accès équipe limité actif.',
   'roles.source': 'Objet du périmètre',
   'roles.sourcesFailed': 'Impossible de charger les périmètres autorisés.',
   'roles.noSources': 'Aucun objet disponible. Les droits de lecture du module sont nécessaires.',

@@ -7,6 +7,9 @@ use Illuminate\Database\Query\Builder;
 
 interface AuthorizationScopeSource extends AuthorizationScopeDirectory
 {
+    /** Additional dated binding restriction; null means no extra binding is required. */
+    public function eligibleAssignmentIds(string $org, string $type, int $userId): ?Builder;
+
     /** Tenant-owned, currently usable objects; columns id and label only. */
     public function sources(string $organizationId, string $type): Builder;
 

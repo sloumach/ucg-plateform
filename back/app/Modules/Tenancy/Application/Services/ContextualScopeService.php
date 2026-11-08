@@ -19,7 +19,7 @@ use Illuminate\Validation\ValidationException;
 
 final readonly class ContextualScopeService implements ContextualAuthorization
 {
-    public const READ = ['game' => 'sports.read', 'cohort' => 'academy.read', 'event' => 'calendar.read'];
+    public const READ = ['team' => 'sports.read', 'game' => 'sports.read', 'cohort' => 'academy.read', 'event' => 'calendar.read'];
 
     public function __construct(private AuthorizationScopeSource $sources, private TenantAuthorization $authorization,
         private RoleRepository $roles, private OrganizationRepository $organizations, private MembershipRepository $memberships,
@@ -44,7 +44,7 @@ final readonly class ContextualScopeService implements ContextualAuthorization
         $organization = $this->organizations->findAccessible($context->organizationId, $context->actorUserId);
         $membership = $organization->owner_user_id === $context->actorUserId ? null : $this->memberships->forAccount($organization->id, $context->actorUserId);
 
-        return $source->whereIn($column, $this->roles->scopeIds($organization->id, $context->actorUserId, $membership?->id, $type, $permission));
+        return $source->whereIn($column, $this->roles->scopeIds($organization->id, $context->actorUserId, $membership?->id, $type, $permission, $this->sources->eligibleAssignmentIds($organization->id, $type, $context->actorUserId)));
     }
 
     public function any(TenantContext $context, string $type, string $permission): bool
@@ -68,11 +68,15 @@ final readonly class ContextualScopeService implements ContextualAuthorization
         return $this->sources->choices($context, $type, $page, $perPage, $this->ids($context, $type, self::READ[$type]));
     }
 
-    /**
-     * Display hints only. The organization snapshot remains organization-wide.
-     *
-     * @return list<string>
-     */
+    /** @return LengthAwarePaginator<int, \stdClass> */
+    public function myTeams(TenantContext $context, int $page, int $perPage): LengthAwarePaginator
+    {
+        $this->authorization->authorize($context, 'organization.view');
+
+        return $this->sources->choices($context, 'team', $page, $perPage, $this->ids($context, 'team', 'sports.read', true));
+    }
+
+    /** @return list<string> Display hints only, without changing the organization snapshot. */
     public function capabilities(TenantContext $context): array
     {
         $this->authorization->authorize($context, 'organization.view');
@@ -85,6 +89,9 @@ final readonly class ContextualScopeService implements ContextualAuthorization
         $mfa = $this->accounts->hasConfirmedMfa($context->actorUserId);
         $result = [];
         foreach (self::READ as $type => $read) {
+            if ($type === 'team') {
+                continue;
+            }
             $sources = $this->sources->sources($organization->id, $type)->select($type === 'game' ? 'source.id' : 'id');
             $permissions = $this->roles->scopedPermissions($organization->id, $context->actorUserId, $membership?->id, $type, $sources);
             if (! in_array($read, [...$global, ...$permissions], true)) {

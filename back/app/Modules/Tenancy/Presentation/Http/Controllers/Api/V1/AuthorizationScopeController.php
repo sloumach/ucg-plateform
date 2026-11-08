@@ -17,6 +17,11 @@ final class AuthorizationScopeController extends Controller
         return AuthorizationScopeResource::collection($scopes->choices($context, (string) $request->route('scopeType'), $request->integer('page', 1), $request->integer('per_page', 10)));
     }
 
+    public function myTeams(AuthorizationScopeRequest $request, TenantContext $context, ContextualScopeService $scopes): AnonymousResourceCollection
+    {
+        return AuthorizationScopeResource::collection($scopes->myTeams($context, $request->integer('page', 1), $request->integer('per_page', 10)));
+    }
+
     public function capabilities(AuthorizationScopeRequest $request, TenantContext $context, ContextualScopeService $scopes): JsonResource
     {
         return JsonResource::make(['permissions' => $scopes->capabilities($context)]);
