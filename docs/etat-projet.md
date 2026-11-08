@@ -6,7 +6,14 @@
 ## Point de reprise
 
 - Dernière mise à jour : **8 novembre 2026**.
-- Tâche courante : **recette P0 visible, lot 1 — accès et organisations**.
+- Tâche courante : **réduction de la durée des CI backend et frontend**,
+  demandée avant de reprendre la recette au lot personnes et équipes/rosters.
+  Contrôles répartis sur des runners indépendants, caches de téléchargements
+  Composer et de résultats Larastan ; aucun test, audit ou seuil retiré. Bilan
+  et limites de validation ci-dessous. Modifications CI locales, non publiées.
+- Dernière livraison : **recette P0 visible, lot 1 — accès et organisations**,
+  poussée dans `3ec83db`. Sa CI backend reste attendue par l’utilisateur ; ne pas
+  confondre cette attente avec la validation antérieure des compléments A-P0.
   Parcours exécutés sur données fictives dans deux conteneurs Docker distincts
   du développement, avec SQLite et stockage de recette isolés. Un contexte
   d’organisation résiduel après changement de compte a été reproduit et corrigé
@@ -21,7 +28,7 @@
 - **Les quatre écarts identifiés par l’audit sont corrigés dans le code.**
   Cette validation ne clôture pas automatiquement tous les tickets QA et ne
   constitue pas une autorisation de mise en service. Le correctif de recette et
-  les fichiers Docker sont inclus dans le lot courant ; leur propre CI reste
+  les fichiers Docker sont inclus dans `3ec83db` ; leur propre CI reste
   à valider après publication.
 - **IAM-003 jeu/cohorte/événement `6e25a61` poussé sur staging et CI validée
   par l’utilisateur** dans cette discussion. Aucun autre module P1 lancé.
@@ -87,6 +94,68 @@
   Aucun ticket P1/P2 n’est automatiquement promu au P0 et aucun nouveau module
   métier n’est lancé par cette seule révision. Les décisions, données et
   qualifications externes ci-dessous restent identifiées séparément.
+
+### Optimisation des CI — 08/11/2026
+
+**Demande :** réduire l’attente backend et rechercher les mêmes gains côté
+frontend, puis reprendre la recette. Seuls les deux workflows de qualité sont
+modifiés ; aucun changement métier, de dépendance ou de base de travail.
+
+| Workflow | Nouvelle organisation |
+| --- | --- |
+| Backend | Six jobs indépendants : formatage/analyse/audit, suite SQLite complète, pilote/reprise fictive, sélection PostgreSQL et concurrence, transports Reverb/Redis, antivirus réel. Les services PostgreSQL et Redis démarrent seulement dans leurs jobs respectifs. |
+| Frontend | Lint/tests/build et effacement/restauration restent séparés. Matrice Playwright SQLite/PostgreSQL conservée. Les restaurations sont retirées du chemin critique des navigateurs et réparties sur trois runners : sauvegarde/PITR, récupération tenant/graphe, qualification avancée. |
+| Admission finale | Les jobs quality conservent les noms de checks historiques, attendent tous les autres jobs avec always(), et refusent tout résultat autre que success. Échec, annulation et job ignoré ne peuvent produire un check final vert. |
+
+**Caches :** seuls les téléchargements Composer sont conservés, sous une clé
+OS/PHP 8.5/lock ; composer install est toujours exécuté. Le cache de résultats
+Larastan utilise une clé OS/PHP/lock/configuration/commit et une restauration
+compatible ; l’analyse complète des chemins configurés reste demandée. Aucun
+vendor, .env, session, fichier tenant ou stockage applicatif général n’est mis
+en cache. Le cache npm existant reste actif pour les jobs qui installent des
+paquets ; npm ci évite son audit implicite, l’audit explicite bloquant à low et
+le workflow de suivi de sécurité étant conservés. Les laboratoires de
+restauration n’installent ni paquets npm ni navigateur : ils utilisent Node
+natif et Composer. L’installation PostgreSQL 17 est évitée lorsque initdb est
+déjà présent à l’emplacement attendu ; les gardes de version/propriété restent
+actives dans les scénarios.
+
+**Sécurité et compatibilité :** la grande sélection PostgreSQL est conservée
+à l’identique dans un seul processus, avec les deux étapes de concurrence
+séquentielles sur son service propre ; aucune parallélisation sur une base
+partagée. Tous les rapports précédents restent publiés, répartis en artefacts
+par job. Les workflows et déclencheurs push/pull_request restent identiques,
+sans filtre de chemins : release-ci.mjs exige une validation complète des
+trois workflows sur le SHA exact. Aucun continue-on-error ajouté. Les deux
+annotations ShellCheck du script ClamAV documentent les variables PHP passées
+littéralement et le compteur bornant les tentatives, sans changer la sonde.
+
+**Vérifications exécutées :**
+
+- actionlint avec ShellCheck : les deux workflows sont valides, sans diagnostic.
+- Comparaison YAML avant/après : mêmes commandes de contrôle développées par
+  matrice, mêmes répétitions, environnements et répertoires de travail :
+  **13 occurrences backend et 21 frontend** ; tous les chemins de rapports
+  existants conservés. La préparation des runners et les caches sont distincts
+  des commandes de tests ainsi comparées.
+- **44 cas de garde finale** exécutés sous Bash : succès, résultat vide et,
+  à chaque position de dépendance, failure/cancelled/skipped/valeur inconnue.
+- **30 tests Node réussis** : release.test.mjs, recovery-protocol.test.mjs et
+  pitr-protocol.test.mjs, avec Git disponible sur Windows.
+- **6 tests de garde du banc navigateur réussis** sous PHP 8.5/Node Docker,
+  vendor monté en lecture seule et erreurs PHP dirigées vers stderr.
+- Les premiers essais ont révélé les limites des environnements locaux : Git
+  absent du conteneur Node slim, vendor absent du poste Windows et initdb
+  absent du PATH Windows. Les tests applicables ont été rejoués dans le bon
+  environnement ; le test réel postgresql.test.mjs et les laboratoires complets
+  restent à exécuter par la CI. Aucun de ces essais ne valide leur exécution.
+
+Preuves privées ignorées : back/reports/ci-optimization. Aucun gain chronométré
+sur GitHub n’est encore revendiqué ; il faut comparer les étapes et durées des
+prochains runs, en distinguant cache froid/chaud et disponibilité des runners.
+Le parallélisme réduit la somme séquentielle mais peut accroître le temps cumulé
+facturé à cause des préparations de runners. Le futur lot visible reste
+personnes et équipes/rosters ; aucune nouvelle recette métier dans ce lot CI.
 
 ### Recette P0 visible — lot 1, accès et organisations, 08/11/2026
 

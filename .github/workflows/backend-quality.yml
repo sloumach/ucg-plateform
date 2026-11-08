@@ -11,38 +11,19 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  COMPOSER_CACHE_DIR: '${{ github.workspace }}/.composer-cache'
+
 jobs:
-  quality:
-    name: Pint, Larastan and PHPUnit
+
+  static-analysis:
+    name: Pint, Larastan and dependency audit
     runs-on: ubuntu-latest
-    services:
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_DB: ucg_platform_test
-          POSTGRES_USER: ucg_test
-          POSTGRES_PASSWORD: test-only-password
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U ucg_test -d ucg_platform_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     defaults:
       run:
         working-directory: back
-
     steps:
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -50,8 +31,15 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
-          extensions: mbstring, pcntl, posix, pdo_sqlite, sqlite3, pdo_pgsql
+          extensions: 'mbstring, pcntl, posix, pdo_sqlite, sqlite3, pdo_pgsql'
           coverage: none
+
+      - name: Cache Composer package downloads
+        uses: actions/cache@v4
+        with:
+          path: '${{ env.COMPOSER_CACHE_DIR }}/files'
+          key: "${{ runner.os }}-php85-composer-${{ hashFiles('back/composer.lock') }}"
+          restore-keys: '${{ runner.os }}-php85-composer-'
 
       - name: Validate Composer files
         run: composer validate --strict
@@ -67,9 +55,6 @@ jobs:
           cat reports/composer-audit.json
           exit "$audit_status"
 
-      - name: Rehearse fictitious REL-001 pilot week with isolated regression
-        run: php vendor/bin/phpunit --configuration phpunit-pilot.xml --no-progress --colors=never --log-junit reports/phpunit-pilot.xml
-
       - name: Prepare Laravel environment
         run: |
           cp .env.example .env
@@ -78,11 +63,112 @@ jobs:
       - name: Check PHP formatting
         run: composer format:check
 
+      - name: Cache Larastan incremental results
+        uses: actions/cache@v4
+        with:
+          path: back/storage/framework/cache/phpstan
+          key: "${{ runner.os }}-php85-larastan-${{ hashFiles('back/composer.lock', 'back/phpstan.neon.dist') }}-${{ github.sha }}"
+          restore-keys: "${{ runner.os }}-php85-larastan-${{ hashFiles('back/composer.lock', 'back/phpstan.neon.dist') }}-"
+
       - name: Run static analysis
         run: composer analyse -- --error-format=github
 
+      - name: Upload backend test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-static-report
+          path: |
+            back/reports/phpunit*.xml
+            back/reports/composer-audit.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  sqlite:
+    name: PHPUnit full SQLite suite
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: back
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: 'mbstring, pcntl, posix, pdo_sqlite, sqlite3, pdo_pgsql'
+          coverage: none
+
+      - name: Cache Composer package downloads
+        uses: actions/cache@v4
+        with:
+          path: '${{ env.COMPOSER_CACHE_DIR }}/files'
+          key: "${{ runner.os }}-php85-composer-${{ hashFiles('back/composer.lock') }}"
+          restore-keys: '${{ runner.os }}-php85-composer-'
+
+      - name: Install backend dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare Laravel environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --no-interaction
+
       - name: Run backend tests
         run: composer test:ci
+
+      - name: Upload backend test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-report
+          path: |
+            back/reports/phpunit*.xml
+            back/reports/phpunit.xml
+          if-no-files-found: ignore
+          retention-days: 14
+
+  pilot:
+    name: Fictitious pilot and data rehearsal
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: back
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: 'mbstring, pcntl, posix, pdo_sqlite, sqlite3, pdo_pgsql'
+          coverage: none
+
+      - name: Cache Composer package downloads
+        uses: actions/cache@v4
+        with:
+          path: '${{ env.COMPOSER_CACHE_DIR }}/files'
+          key: "${{ runner.os }}-php85-composer-${{ hashFiles('back/composer.lock') }}"
+          restore-keys: '${{ runner.os }}-php85-composer-'
+
+      - name: Install backend dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare pilot report directory
+        run: mkdir -p reports
+
+      - name: Rehearse fictitious REL-001 pilot week with isolated regression
+        run: php vendor/bin/phpunit --configuration phpunit-pilot.xml --no-progress --colors=never --log-junit reports/phpunit-pilot.xml
+
+      - name: Prepare Laravel environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --no-interaction
 
       - name: Rehearse fictitious data migration in an isolated memory database
         run: php artisan data:rehearse --no-interaction > reports/data002-rehearsal.json
@@ -93,7 +179,67 @@ jobs:
           DB_URL: ''
           CACHE_STORE: array
 
-      # Keep RefreshDatabase suites in one process: PostgreSQL table wipes retain trigger functions.
+      - name: Upload backend test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-pilot-report
+          path: |
+            back/reports/phpunit*.xml
+            back/reports/phpunit-pilot.xml
+            back/reports/data002-rehearsal.json
+            back/storage/framework/testing/data-rehearsal/*/junit.xml
+            back/storage/framework/testing/data-rehearsal/*/results.jsonl
+          if-no-files-found: ignore
+          retention-days: 14
+
+  postgresql:
+    name: PostgreSQL constraints, retention and concurrency
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: 'postgres:17'
+        env:
+          POSTGRES_DB: ucg_platform_test
+          POSTGRES_USER: ucg_test
+          POSTGRES_PASSWORD: test-only-password
+        ports:
+          - '5432:5432'
+        options: '--health-cmd "pg_isready -U ucg_test -d ucg_platform_test" --health-interval 10s --health-timeout 5s --health-retries 5'
+    defaults:
+      run:
+        working-directory: back
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: 'mbstring, pcntl, posix, pdo_sqlite, sqlite3, pdo_pgsql'
+          coverage: none
+
+      - name: Cache Composer package downloads
+        uses: actions/cache@v4
+        with:
+          path: '${{ env.COMPOSER_CACHE_DIR }}/files'
+          key: "${{ runner.os }}-php85-composer-${{ hashFiles('back/composer.lock') }}"
+          restore-keys: '${{ runner.os }}-php85-composer-'
+
+      - name: Install backend dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare Laravel environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --no-interaction
+
+      - name: Prepare PostgreSQL report directory
+        run: mkdir -p reports
+      # Keep RefreshDatabase suites in one process: PostgreSQL wipes retain trigger functions.
+
       - name: Verify organization constraints and retention on PostgreSQL
         run: php artisan test --compact tests/Unit/RetentionReviewPolicyTest.php tests/Feature/PersonArchiveTest.php tests/Feature/Modules/Tenancy tests/Feature/Architecture/Database tests/Feature/MfaAuthenticationTest.php tests/Feature/IdentityAuthenticationLifecycleTest.php tests/Feature/ContextualRolesTest.php tests/Feature/ContextualSourceScopesTest.php tests/Feature/TenantDataVisibilityTest.php tests/Feature/TenantBusinessRevocationTest.php tests/Feature/EffectiveGameCatalogueCacheTest.php tests/Feature/PlatformRoleManagementTest.php tests/Feature/PlatformSupportAccessTest.php tests/Feature/AuditJournalTest.php tests/Feature/PersonControllerTest.php tests/Feature/PersonSchemaTest.php tests/Feature/PersonServiceTest.php tests/Feature/PersonPolicyTest.php tests/Feature/PersonListTest.php tests/Feature/GameProfileControllerTest.php tests/Feature/GameProfileSchemaTest.php tests/Feature/GameProfileServiceTest.php tests/Feature/PersonLifecycleControllerTest.php tests/Feature/PersonDepartureServiceTest.php tests/Feature/PersonLifecycleSchemaTest.php tests/Feature/PersonLifecyclePolicyTest.php tests/Feature/PersonCsvParserTest.php tests/Feature/PersonImportControllerTest.php tests/Feature/PersonImportProcessorTest.php tests/Feature/PersonImportPolicyTest.php tests/Feature/PersonImportSchemaTest.php tests/Feature/GameCatalogueControllerTest.php tests/Feature/GameCataloguePolicyTest.php tests/Feature/GameCatalogueSchemaTest.php tests/Feature/OrganizationGameControllerTest.php tests/Feature/TeamControllerTest.php tests/Feature/TeamServiceTest.php tests/Feature/TeamSchemaTest.php tests/Feature/TeamMembershipControllerTest.php tests/Feature/TeamMembershipServiceTest.php tests/Feature/TeamMembershipSchemaTest.php tests/Feature/TeamAuthorizationScopesTest.php tests/Feature/TeamLineupControllerTest.php tests/Feature/TeamLineupServiceTest.php tests/Feature/TeamLineupSchemaTest.php tests/Feature/TeamLineupPolicyTest.php tests/Feature/TeamEligibilityControllerTest.php tests/Feature/TeamEligibilityServiceTest.php tests/Feature/TeamEligibilitySchemaTest.php tests/Feature/TeamEligibilityPolicyTest.php tests/Feature/PersonBirthDateTest.php tests/Feature/ExternalOpponentControllerTest.php tests/Feature/ExternalOpponentServiceTest.php tests/Feature/ExternalOpponentSchemaTest.php tests/Feature/ContractControllerTest.php tests/Feature/ContractServiceTest.php tests/Feature/ContractSchemaTest.php tests/Feature/ContractAccessAuditTest.php tests/Feature/ContractFinancialGovernanceTest.php tests/Feature/ContractReminderTest.php tests/Feature/ContractReminderMailTest.php tests/Feature/ContractDocumentControllerTest.php tests/Feature/ContractDocumentServiceTest.php tests/Feature/ContractDocumentSchemaTest.php tests/Feature/ContractDocumentScanTest.php tests/Feature/ContractDocumentScanSchemaTest.php tests/Feature/ContractDocumentSecurityControllerTest.php tests/Feature/PartnershipControllerTest.php tests/Feature/PartnershipPolicyTest.php tests/Feature/PartnershipSchemaTest.php tests/Feature/SponsorshipAgreementControllerTest.php tests/Feature/SponsorshipContextTest.php tests/Feature/SponsorshipAgreementPolicyTest.php tests/Feature/SponsorshipAgreementSchemaTest.php tests/Feature/SponsorshipCampaignControllerTest.php tests/Feature/SponsorshipCampaignSchemaTest.php tests/Feature/MediaControllerTest.php tests/Feature/MediaContextTest.php tests/Feature/MediaSchemaTest.php tests/Feature/MediaPolicyTest.php tests/Feature/MediaLinkTest.php tests/Feature/CommunicationControllerTest.php tests/Feature/CommunicationSchemaTest.php tests/Feature/CommunicationContextTest.php tests/Feature/WorkTaskTest.php tests/Feature/WorkTaskPolicyTest.php tests/Feature/WorkTaskSchemaTest.php tests/Feature/CommunicationAudienceTest.php tests/Feature/CommunicationPolicyTest.php tests/Feature/CalendarControllerTest.php tests/Feature/CalendarPolicyTest.php tests/Feature/CalendarSchemaTest.php tests/Feature/CalendarTimeTest.php tests/Feature/AvailabilityControllerTest.php tests/Feature/AvailabilityPolicyTest.php tests/Feature/AvailabilitySchemaTest.php tests/Feature/AvailabilityInputTest.php tests/Feature/CalendarConflictControllerTest.php tests/Feature/CalendarResourceControllerTest.php tests/Feature/CalendarConflictSchemaTest.php tests/Feature/CalendarConflictConcurrencyTest.php tests/Feature/CalendarInvitationControllerTest.php tests/Feature/CalendarInvitationWorkerTest.php tests/Feature/CalendarInvitationSchemaTest.php tests/Feature/CalendarInvitationPolicyTest.php tests/Feature/CalendarInvitationConcurrencyTest.php tests/Feature/CalendarFeedControllerTest.php tests/Feature/CalendarSubscriptionTest.php tests/Feature/CalendarFeedSchemaTest.php tests/Feature/CalendarFeedPolicyTest.php tests/Feature/CalendarChangeControllerTest.php tests/Feature/CalendarChangeWorkerTest.php tests/Feature/CalendarChangeSchemaTest.php tests/Feature/CalendarChangeConcurrencyTest.php tests/Feature/MatchControllerTest.php tests/Feature/MatchPolicyTest.php tests/Feature/MatchSchemaTest.php tests/Feature/MatchConcurrencyTest.php tests/Feature/MatchLineupControllerTest.php tests/Feature/MatchLineupSchemaTest.php tests/Feature/MatchScoreControllerTest.php tests/Feature/MatchScoreSchemaTest.php tests/Feature/MatchScoreConcurrencyTest.php tests/Feature/MatchResultControllerTest.php tests/Feature/MatchResultSchemaTest.php tests/Feature/MatchResultPolicyTest.php tests/Feature/MatchResultConcurrencyTest.php tests/Feature/MatchNotebookControllerTest.php tests/Feature/MatchNotebookSchemaTest.php tests/Feature/MatchNotebookPolicyTest.php tests/Feature/MatchNotebookConcurrencyTest.php tests/Feature/MatchCorrectionControllerTest.php tests/Feature/MatchCorrectionWorkerTest.php tests/Feature/MatchCorrectionSchemaTest.php tests/Feature/MatchCorrectionPolicyTest.php tests/Feature/MatchCorrectionConcurrencyTest.php tests/Feature/MatchRealtimeTest.php tests/Feature/ExternalCompetitionControllerTest.php tests/Feature/ExternalCompetitionDocumentTest.php tests/Feature/ExternalCompetitionPolicyTest.php tests/Feature/ExternalCompetitionSchemaTest.php tests/Feature/ExternalCompetitionConcurrencyTest.php tests/Feature/CompetitionRegistrationControllerTest.php tests/Feature/CompetitionRegistrationPolicyTest.php tests/Feature/CompetitionRegistrationSchemaTest.php tests/Feature/CompetitionRegistrationReminderTest.php tests/Feature/CompetitionRegistrationConcurrencyTest.php tests/Feature/CompetitionOutcomeTest.php tests/Feature/CompetitionOutcomeResultTest.php tests/Feature/CompetitionOutcomeConcurrencyTest.php tests/Feature/MetricCatalogueTest.php tests/Feature/MetricCatalogueConcurrencyTest.php tests/Feature/AcademyCoachingTest.php tests/Feature/AcademyCoachingVisibilityTest.php tests/Feature/AcademyCoachingSchemaTest.php tests/Feature/AcademySessionTest.php tests/Feature/AcademyScheduleTest.php tests/Feature/AcademyTest.php tests/Feature/AcademyConcurrencyTest.php tests/Feature/ReportExportTest.php tests/Feature/TenantSearchTest.php tests/Feature/DashboardIndicatorTest.php tests/Feature/RoleDashboardTest.php tests/Feature/StatisticalProfileTest.php tests/Feature/StatisticalCalculationTest.php tests/Feature/StatisticalCalculationConcurrencyTest.php tests/Feature/StatisticalImportTest.php tests/Feature/StatisticalImportProcessingTest.php tests/Feature/StatisticalImportConcurrencyTest.php tests/Feature/ObservationTest.php tests/Feature/ObservationConcurrencyTest.php --log-junit=reports/phpunit-postgresql.xml
         env:
@@ -127,6 +273,61 @@ jobs:
           DB_PASSWORD: test-only-password
           DB_URL: ''
 
+      - name: Upload backend test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-postgresql-report
+          path: |
+            back/reports/phpunit*.xml
+            back/reports/phpunit-postgresql.xml
+            back/reports/phpunit-contract-reminder-concurrency.xml
+            back/reports/phpunit-rate-concurrency.xml
+          if-no-files-found: ignore
+          retention-days: 14
+
+  transports:
+    name: Real Reverb and Redis isolation
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: 'redis:7-alpine'
+        ports:
+          - '6379:6379'
+        options: '--health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5'
+    defaults:
+      run:
+        working-directory: back
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: 'mbstring, pcntl, posix, pdo_sqlite, sqlite3, pdo_pgsql'
+          coverage: none
+
+      - name: Cache Composer package downloads
+        uses: actions/cache@v4
+        with:
+          path: '${{ env.COMPOSER_CACHE_DIR }}/files'
+          key: "${{ runner.os }}-php85-composer-${{ hashFiles('back/composer.lock') }}"
+          restore-keys: '${{ runner.os }}-php85-composer-'
+
+      - name: Install backend dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare Laravel environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --no-interaction
+
+      - name: Prepare transport report directory
+        run: mkdir -p reports
+
       - name: Set up Node for real Reverb transport
         uses: actions/setup-node@v4
         with:
@@ -155,13 +356,11 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: backend-test-report
+          name: backend-transport-report
           path: |
             back/reports/phpunit*.xml
-            back/reports/composer-audit.json
-            back/reports/data002-rehearsal.json
-            back/storage/framework/testing/data-rehearsal/*/junit.xml
-            back/storage/framework/testing/data-rehearsal/*/results.jsonl
+            back/reports/phpunit-reverb.xml
+            back/reports/phpunit-redis.xml
           if-no-files-found: ignore
           retention-days: 14
 
@@ -173,6 +372,7 @@ jobs:
       run:
         working-directory: back
     steps:
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -180,8 +380,15 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
-          extensions: mbstring, pdo_sqlite, sqlite3
+          extensions: 'mbstring, pdo_sqlite, sqlite3'
           coverage: none
+
+      - name: Cache Composer package downloads
+        uses: actions/cache@v4
+        with:
+          path: '${{ env.COMPOSER_CACHE_DIR }}/files'
+          key: "${{ runner.os }}-php85-composer-${{ hashFiles('back/composer.lock') }}"
+          restore-keys: '${{ runner.os }}-php85-composer-'
 
       - name: Install backend dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
@@ -239,7 +446,10 @@ jobs:
           sudo chmod 0644 /etc/clamav/clamd.conf
           clamd --config-file=/etc/clamav/clamd.conf > "$scan_root/stdout.log" 2>&1 &
           echo $! > "$scan_root/runner.pid"
+          # The loop counter only bounds retries; PHP variables must remain literal.
+          # shellcheck disable=SC2034
           for attempt in $(seq 1 60); do
+            # shellcheck disable=SC2016
             if php -r '$s=@stream_socket_client("tcp://127.0.0.1:3310",$n,$m,1); if(!$s){exit(1);} stream_set_timeout($s,1); fwrite($s,"zPING\0"); $r=fread($s,16); fclose($s); exit($r==="PONG\0"?0:1);'; then
               exit 0
             fi
@@ -286,3 +496,29 @@ jobs:
             /var/log/clamav/ucg-ci-*.log
           if-no-files-found: ignore
           retention-days: 14
+
+  quality:
+    name: Pint, Larastan and PHPUnit
+    runs-on: ubuntu-latest
+    needs:
+      - static-analysis
+      - sqlite
+      - pilot
+      - postgresql
+      - transports
+      - antivirus
+    if: '${{ always() }}'
+    steps:
+
+      - name: Require every quality job to succeed
+        env:
+          JOB_RESULTS: "${{ join(needs.*.result, ' ') }}"
+        shell: bash
+        run: |
+          test -n "$JOB_RESULTS"
+          for result in $JOB_RESULTS; do
+            if [ "$result" != success ]; then
+              echo "A required quality job did not succeed: $result" >&2
+              exit 1
+            fi
+          done

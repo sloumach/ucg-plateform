@@ -11,15 +11,19 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  COMPOSER_CACHE_DIR: '${{ github.workspace }}/.composer-cache'
+
 jobs:
-  quality:
-    name: Lint, unit tests and build
+
+  checks:
+    name: Frontend lint, unit tests and build
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: front
-
     steps:
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -31,7 +35,7 @@ jobs:
           cache-dependency-path: front/package-lock.json
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
 
       - name: Audit locked frontend dependencies including development packages
         run: |
@@ -72,6 +76,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -84,16 +89,25 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
-          extensions: mbstring, pdo_sqlite, sqlite3, pdo_pgsql
+          extensions: 'mbstring, pdo_sqlite, sqlite3, pdo_pgsql'
           coverage: none
 
       - name: Install PostgreSQL 17 binaries for owned disposable clusters
         run: |
-          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
-          sudo apt-get update
-          echo 'create_main_cluster = false' | sudo tee -a /etc/postgresql-common/createcluster.conf
-          sudo apt-get install --yes postgresql-17
+          if [ ! -x /usr/lib/postgresql/17/bin/initdb ]; then
+            sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+            sudo apt-get update
+            echo 'create_main_cluster = false' | sudo tee -a /etc/postgresql-common/createcluster.conf
+            sudo apt-get install --yes postgresql-17
+          fi
           echo 'UCG_BROWSER_PG_BIN=/usr/lib/postgresql/17/bin' >> "$GITHUB_ENV"
+
+      - name: Cache Composer package downloads
+        uses: actions/cache@v4
+        with:
+          path: '${{ env.COMPOSER_CACHE_DIR }}/files'
+          key: "${{ runner.os }}-php85-composer-${{ hashFiles('back/composer.lock') }}"
+          restore-keys: '${{ runner.os }}-php85-composer-'
 
       - name: Install backend dependencies
         working-directory: back
@@ -121,12 +135,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        database: [sqlite, postgresql]
+        database:
+          - sqlite
+          - postgresql
     defaults:
       run:
         working-directory: front
-
     steps:
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -141,20 +157,29 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
-          extensions: mbstring, pcntl, posix, pdo_sqlite, sqlite3, pdo_pgsql
+          extensions: 'mbstring, pcntl, posix, pdo_sqlite, sqlite3, pdo_pgsql'
           coverage: none
 
       - name: Install PostgreSQL 17 binaries for the disposable browser cluster
-        if: matrix.database == 'postgresql'
+        if: "matrix.database == 'postgresql'"
         run: |
-          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
-          sudo apt-get update
-          echo 'create_main_cluster = false' | sudo tee -a /etc/postgresql-common/createcluster.conf
-          sudo apt-get install --yes postgresql-17
+          if [ ! -x /usr/lib/postgresql/17/bin/initdb ]; then
+            sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+            sudo apt-get update
+            echo 'create_main_cluster = false' | sudo tee -a /etc/postgresql-common/createcluster.conf
+            sudo apt-get install --yes postgresql-17
+          fi
           echo 'UCG_BROWSER_PG_BIN=/usr/lib/postgresql/17/bin' >> "$GITHUB_ENV"
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
+
+      - name: Cache Composer package downloads
+        uses: actions/cache@v4
+        with:
+          path: '${{ env.COMPOSER_CACHE_DIR }}/files'
+          key: "${{ runner.os }}-php85-composer-${{ hashFiles('back/composer.lock') }}"
+          restore-keys: '${{ runner.os }}-php85-composer-'
 
       - name: Install backend dependencies
         working-directory: back
@@ -170,33 +195,22 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run Playwright tests
-        if: matrix.database == 'sqlite'
+        if: "matrix.database == 'sqlite'"
         run: npm run test:e2e
 
       - name: Run isolated browser journey against real Laravel API
-        if: matrix.database == 'sqlite'
+        if: "matrix.database == 'sqlite'"
         run: |
           npm run test:e2e:harness
           npm run test:load:harness
           npm run test:e2e:real
 
       - name: Run isolated PostgreSQL ownership and browser journeys
-        if: matrix.database == 'postgresql'
+        if: "matrix.database == 'postgresql'"
         run: |
           npm run test:e2e:harness
           npm run test:e2e:postgresql:harness
           npm run test:e2e:postgresql
-
-      - name: Test encrypted backup and isolated PostgreSQL recovery
-        if: matrix.database == 'postgresql'
-        run: |
-          npm run test:recovery:harness
-          npm run test:recovery
-          npm run test:recovery:tenant
-          npm run test:recovery:graph
-          npm run test:recovery:qualification
-          npm run test:recovery:pitr:harness
-          npm run test:recovery:pitr
 
       - name: Upload Playwright reports
         if: always()
@@ -215,6 +229,91 @@ jobs:
             front/reports/playwright-real-postgresql-html
             front/reports/playwright-real-postgresql-results
             front/reports/playwright-real-postgresql-application.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+  recovery:
+    name: PostgreSQL recovery (${{ matrix.suite }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        suite:
+          - backup-pitr
+          - tenant
+          - qualification
+    defaults:
+      run:
+        working-directory: front
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: 'mbstring, pcntl, posix, pdo_sqlite, sqlite3, pdo_pgsql'
+          coverage: none
+
+      - name: Install PostgreSQL 17 binaries for the disposable browser cluster
+        run: |
+          if [ ! -x /usr/lib/postgresql/17/bin/initdb ]; then
+            sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+            sudo apt-get update
+            echo 'create_main_cluster = false' | sudo tee -a /etc/postgresql-common/createcluster.conf
+            sudo apt-get install --yes postgresql-17
+          fi
+          echo 'UCG_BROWSER_PG_BIN=/usr/lib/postgresql/17/bin' >> "$GITHUB_ENV"
+
+      - name: Cache Composer package downloads
+        uses: actions/cache@v4
+        with:
+          path: '${{ env.COMPOSER_CACHE_DIR }}/files'
+          key: "${{ runner.os }}-php85-composer-${{ hashFiles('back/composer.lock') }}"
+          restore-keys: '${{ runner.os }}-php85-composer-'
+
+      - name: Install backend dependencies
+        working-directory: back
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare Laravel environment
+        working-directory: back
+        run: |
+          cp .env.example .env
+          php artisan key:generate --no-interaction
+
+      - name: Verify encrypted backup and PITR
+        if: "matrix.suite == 'backup-pitr'"
+        run: |
+          npm run test:recovery:harness
+          npm run test:recovery
+          npm run test:recovery:pitr:harness
+          npm run test:recovery:pitr
+
+      - name: Verify tenant recovery and dependency graph
+        if: "matrix.suite == 'tenant'"
+        run: |
+          npm run test:recovery:tenant
+          npm run test:recovery:graph
+
+      - name: Verify advanced tenant recovery qualification
+        if: "matrix.suite == 'qualification'"
+        run: npm run test:recovery:qualification
+
+      - name: Upload Playwright reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recovery-reports-${{ matrix.suite }}
+          path: |
             front/reports/recovery-local.json
             front/reports/tenant-recovery-local.json
             front/reports/tenant-graph-local.json
@@ -222,3 +321,27 @@ jobs:
             front/reports/pitr-local.json
           if-no-files-found: ignore
           retention-days: 14
+
+  quality:
+    name: Lint, unit tests and build
+    runs-on: ubuntu-latest
+    needs:
+      - checks
+      - retention-erasure
+      - end-to-end
+      - recovery
+    if: '${{ always() }}'
+    steps:
+
+      - name: Require every quality job to succeed
+        env:
+          JOB_RESULTS: "${{ join(needs.*.result, ' ') }}"
+        shell: bash
+        run: |
+          test -n "$JOB_RESULTS"
+          for result in $JOB_RESULTS; do
+            if [ "$result" != success ]; then
+              echo "A required quality job did not succeed: $result" >&2
+              exit 1
+            fi
+          done
