@@ -27,6 +27,7 @@ beforeEach(() => {
 
 it.each(['event', 'content'])('sélectionne une référence %s et envoie sa version après confirmation', async (type) => {
   const user = userEvent.setup(), view = show()
+  expect(screen.getByText('Une catégorie d’exclusivité réserve toute l’organisation sur la période, quel que soit le périmètre. Les périmètres événement et média sont proposés selon vos droits d’accès au calendrier et aux médias.')).toBeVisible()
   await user.click(await screen.findByRole('button', { name: 'Ajouter un périmètre' }))
   const form = within(screen.getByRole('form', { name: 'Enregistrer le périmètre' }))
   await user.selectOptions(form.getByLabelText('Périmètre concerné'), type)

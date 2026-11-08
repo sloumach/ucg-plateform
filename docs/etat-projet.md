@@ -6,14 +6,15 @@
 ## Point de reprise
 
 - Dernière mise à jour : **8 novembre 2026**.
-- Tâche courante : **A-P0-02, libellés français des permissions**, corrigée
-  localement : les 66 permissions configurables sont typées et traduites dans le
-  panneau de rôles, en réutilisant les traductions existantes. Contrôle du
-  catalogue complet, des cases précochées et des clés enregistrées.
-  Les deux écarts A-P0-03–04 restent ouverts ; prochain complément recommandé :
-  **A-P0-03, aide sponsor obsolète**.
-- **A-P0-01 poussé sur origin/staging dans `7055296`**, sur demande utilisateur.
-  CI distante de ce commit à confirmer ; A-P0-02 reste local, sans push.
+- Tâche courante : **A-P0-03, aide sponsor obsolète**, corrigée localement.
+  L’aide confirme les périmètres événement/média selon les droits source et
+  conserve la règle d’exclusivité sur toute l’organisation. Tests et contrôles
+  frontend réussis ; bilan en fin de document. Ce complément reste sans push.
+- **A-P0-02 poussé sur origin/staging dans `218c4ff`**, sur demande utilisateur.
+  A-P0-01 est également poussé dans `7055296`. Les CI distantes de ces deux
+  commits restent à confirmer par l’utilisateur.
+- **Un écart reste ouvert : A-P0-04**, compléter la sélection critique des tests
+  d’isolation avec les cas IAM pertinents et actualiser sa matrice.
 - **IAM-003 jeu/cohorte/événement `6e25a61` poussé sur staging et CI validée
   par l’utilisateur** dans cette discussion. Aucun autre module P1 lancé.
 - **SPON-002 `017248d` poussé par l’utilisateur et CI validée par lui** avant ce
@@ -94,10 +95,11 @@ d’entrée de preuve, pas toutes les couches de chaque fonction. La CI IAM-003 
 validée **par l’utilisateur** ; aucun nouveau run distant ou test de charge
 n’est revendiqué pendant cet audit.
 
-**Suivi après audit :** A-P0-01 est corrigé et poussé dans `7055296` ; A-P0-02
-est corrigé localement. Les bilans de ces deux compléments figurent en fin de
-document. Les constats ci-dessous décrivent la référence auditée `6e25a61` ;
-A-P0-03–04 restent à traiter. Aucune nouvelle CI distante validée n’est revendiquée.
+**Suivi après audit :** A-P0-01 et A-P0-02 sont corrigés et poussés dans
+`7055296` et `218c4ff` ; A-P0-03 est corrigé localement. Les bilans figurent
+en fin de document. Les constats ci-dessous décrivent la référence auditée
+`6e25a61` ; A-P0-04 reste à traiter. Aucune nouvelle CI distante validée
+n’est revendiquée.
 
 #### Écarts confirmés à la référence auditée, par ordre de traitement
 
@@ -10975,3 +10977,24 @@ Validation locale : **12 tests React réussis**, TypeScript, lint et build de
 production réussis. Pas de modification PHP, dépendance, migration ou campagne
 de charge. Livraison locale sans commit/push à cette étape ; la CI distante
 reste à obtenir après livraison. A-P0-03 et A-P0-04 restent ouverts.
+
+
+## A-P0-03 — Aide des périmètres sponsor (8 novembre 2026)
+
+Le texte sponsorships.exclusiveHint annonçait encore l’indisponibilité des
+périmètres événement/contenu, déjà livrés dans `017248d`. Il confirme maintenant
+que les choix événement et média sont proposés selon les droits d’accès au
+calendrier et aux médias. La première phrase conserve la règle d’exclusivité
+sur toute l’organisation pendant la période, quel que soit le périmètre.
+
+Correction limitée à la traduction. Les tests existants d’AgreementExposuresPanel
+vérifient son affichage dans les deux parcours événement et contenu, tout en
+conservant les contrôles de sélection/version, confirmation, absence des options
+sans droits source et actualisation d’une référence périmée. Aucun nouveau
+rattachement métier, droit, endpoint ou migration.
+
+Validation locale : **5 tests React réussis**, TypeScript, lint et build de
+production réussis ; diff sans erreur d’espacement. Aucun test de performance
+dépendant de l’hébergement exécuté. A-P0-02 a été poussé dans `218c4ff` avant
+ce complément, dont la livraison reste locale sans commit/push ; les nouvelles
+CI distantes ne sont pas présentées comme validées. **A-P0-04 reste ouvert.**

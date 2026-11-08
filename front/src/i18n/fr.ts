@@ -1513,7 +1513,7 @@ export const frenchMessages = {
   "sponsorships.description": "Description du périmètre",
   "sponsorships.authorization_reference": "Référence de l’autorisation vérifiée",
   "sponsorships.exclusivity_key": "Catégorie d’exclusivité (facultative)",
-  "sponsorships.exclusiveHint": "Une catégorie d’exclusivité réserve toute l’organisation sur la période, quel que soit le périmètre. Les périmètres par événement ou contenu ne sont pas encore disponibles.",
+  "sponsorships.exclusiveHint": "Une catégorie d’exclusivité réserve toute l’organisation sur la période, quel que soit le périmètre. Les périmètres événement et média sont proposés selon vos droits d’accès au calendrier et aux médias.",
   "sponsorships.authorized": "Exposition autorisée pour la période courante",
   "sponsorships.notAuthorized": "Exposition non autorisée actuellement",
   "sponsorships.archivedExposure": "Périmètre archivé",

@@ -58,10 +58,11 @@ des tâches reportées figure au point de reprise de `etat-projet.md`.
 **Audit de couverture du 08/11/2026, sur `6e25a61` dont la CI est validée par
 l’utilisateur :** les 92 tickets P0 sont rapprochés du code, des tests/procédures
 et de commits dans la [matrice de l’état du projet](etat-projet.md#matrice-des-92-tickets-et-repères-vérifiés).
-A-P0-01 est corrigé et poussé dans `7055296` ; sa CI distante reste à confirmer.
-A-P0-02 est corrigé localement : les 66 permissions sont typées et affichées en
-français dans le panneau de rôles. Prochain complément recommandé : aide sponsor
-obsolète (A-P0-03), puis sélection critique d’isolation (A-P0-04). Aucun nouveau
+A-P0-01 et A-P0-02 sont corrigés et poussés dans `7055296` et `218c4ff` ;
+leurs CI distantes restent à confirmer. A-P0-03 est corrigé localement : l’aide
+sponsor confirme les périmètres événement/média selon les droits source et
+conserve l’exclusivité sur toute l’organisation. Prochain complément recommandé :
+sélection critique d’isolation (A-P0-04). Aucun nouveau
 module P1 promu ; décisions, données réelles, pilote et hébergement restent
 distincts. Les anciennes mentions d’attente CI ne sont pas des fonctions absentes.
 
@@ -116,10 +117,12 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 
 ### UCG-ARC-006 — Centraliser l’interface et les traductions
 
-- **Audit 08/11, A-P0-02/03** : 27 des 66 permissions configurables restent
-  affichées sous clé technique dans le panneau de rôles ; typage et mapping
-  français à aligner. Une aide sponsor annonce encore l’indisponibilité des
-  périmètres événement/contenu déjà livrés. Corrections de présentation à préparer.
+- **Compléments 08/11, A-P0-02/03** : les 66 permissions configurables ont
+  leurs types et libellés français, livrés dans `218c4ff` (CI à confirmer).
+  L’aide sponsor est corrigée localement : les périmètres événement/média sont
+  proposés selon les droits source ; la règle d’exclusivité est conservée.
+  Les constats de l’audit initial sont conservés dans l’état du projet.
+
 
 - **Priorité / taille** : P0 / M
 - **Périmètre** : composants accessibles, formulaires, tableaux, pagination, états vide/chargement/erreur, Flasher et catalogue de traductions français.
@@ -1155,7 +1158,7 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 
 - **État** : livré (`a899bf2`, correctif `8fa6376` poussé), CI et migration validées par l’utilisateur avant SPON-003. Migration vérifiée Ran, batch 27 ; branche synchronisée au démarrage.
 - **Livraison** : accords privés, période/responsable, conditions numéraire/nature/mixte chiffrées, lecture financière auditée et droits distincts, approbation indépendante et invalidation après modification. Périmètres organisation/équipe/joueur avec référence d’autorisation ; exclusivités par catégorie sur les périodes approuvées qui se chevauchent. Pièces via contrat sponsor associé et protections Contrats existantes. API/React, pagination, versions optimistes, contraintes SQLite/PostgreSQL et export opérateur.
-- **Complément événement/contenu du 08/11** : références réelles du calendrier et du catalogue Media, sélecteurs paginés et versions obligatoires, cible fixe et nouvelle approbation après actualisation. Lecture/validation soumises aux droits et au partage actuels, y compris au contexte d’un média. Lien SQL dédié sans reprise des périmètres existants ; conservation et portabilité étendues à 125 tables tenant. Livré dans `017248d`, poussé et CI validée par l’utilisateur avant IAM-003 ; migration de la base de travail toujours non confirmée. Audit A-P0-03 : aide d’exclusivité obsolète à corriger, sans réimplémenter ces rattachements.
+- **Complément événement/contenu du 08/11** : références réelles du calendrier et du catalogue Media, sélecteurs paginés et versions obligatoires, cible fixe et nouvelle approbation après actualisation. Lecture/validation soumises aux droits et au partage actuels, y compris au contexte d’un média. Lien SQL dédié sans reprise des périmètres existants ; conservation et portabilité étendues à 125 tables tenant. Livré dans `017248d`, poussé et CI validée par l’utilisateur avant IAM-003 ; migration de la base de travail toujours non confirmée. A-P0-03 corrigé localement : aide actualisée pour les périmètres événement/média selon les droits source, avec règle d’exclusivité conservée et affichage vérifié dans les deux parcours. Aucun rattachement réimplémenté.
 - **Limites explicites** : aucune publication automatique ni preuve de réalisation inventée. Le contenu désigne uniquement un stream/VOD/clip déjà enregistré ; aucun nouveau référentiel éditorial ni droit attribué automatiquement. Campagnes et livrables restent SPON-003. Aucune migration principale par l’agent.
 
 - **Priorité / taille** : P0 / L
