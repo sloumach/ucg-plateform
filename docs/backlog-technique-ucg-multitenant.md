@@ -55,6 +55,15 @@ est engagé. Cette décision prévaut sur les anciennes recommandations de repri
 QA-005 ci-dessous ; les bilans datés restent historiques. Le registre courant
 des tâches reportées figure au point de reprise de `etat-projet.md`.
 
+**Audit de couverture du 08/11/2026, sur `6e25a61` dont la CI est validée par
+l’utilisateur :** les 92 tickets P0 sont rapprochés du code, des tests/procédures
+et de commits dans la [matrice de l’état du projet](etat-projet.md#matrice-des-92-tickets-et-repères-vérifiés).
+Prochain complément recommandé : parcours utilisateur pour les droits limités
+à une équipe (A-P0-01), puis libellés de permissions (A-P0-02), aide sponsor
+obsolète (A-P0-03) et sélection critique d’isolation (A-P0-04). Aucun nouveau
+module P1 promu ; décisions, données réelles, pilote et hébergement restent
+distincts. Les anciennes mentions d’attente CI ne sont pas des fonctions absentes.
+
 1. Cadrage technique, architecture et environnements.
 2. Tenancy, identité, sécurité et audit.
 3. Personnes, jeux, équipes et affectations.
@@ -105,6 +114,11 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
 - **Dépendances** : UCG-ARC-001.
 
 ### UCG-ARC-006 — Centraliser l’interface et les traductions
+
+- **Audit 08/11, A-P0-02/03** : 27 des 66 permissions configurables restent
+  affichées sous clé technique dans le panneau de rôles ; typage et mapping
+  français à aligner. Une aide sponsor annonce encore l’indisponibilité des
+  périmètres événement/contenu déjà livrés. Corrections de présentation à préparer.
 
 - **Priorité / taille** : P0 / M
 - **Périmètre** : composants accessibles, formulaires, tableaux, pagination, états vide/chargement/erreur, Flasher et catalogue de traductions français.
@@ -235,6 +249,11 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   appliquées ensuite par l’utilisateur à la base principale, batch 7 confirmé.
 
 ### UCG-IAM-003 — Construire les rôles et permissions contextuels
+
+- **Audit 08/11** : complément jeu/cohorte/événement `6e25a61` poussé et CI
+  validée par l’utilisateur. **A-P0-01 reste à traiter** : droit équipe effectif
+  dans l’API, mais sans parcours React pour son seul bénéficiaire ; affectation
+  équipe encore par UUID libre. A-P0-02 concerne aussi les libellés des droits.
 
 - **Priorité / taille** : P0 / XL
 - **Périmètre** : rôles configurables par tenant, périmètres équipe/jeu/cohorte/événement, périodes d’effet et suspension prioritaire.
@@ -498,6 +517,12 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   l’utilisateur ; contrôle en lecture seule Ran, batch 14.
 
 ### UCG-TEAM-002 — Gérer les équipes d’une organisation
+
+- **Audit 08/11, A-P0-01** : le panneau React exige sports.read d’organisation.
+  Un bénéficiaire du seul droit de lecture équipe peut consulter son détail
+  par API, mais ne dispose pas de parcours dans l’interface. Compléter la
+  découverte et la lecture limitées, en conservant les périodes sportives et
+  les contrôles de roster organisationnels ; aucun élargissement implicite.
 
 - **Priorité / taille** : P0 / M
 - **Périmètre** : équipe première, académie, réserve, événementielle ou catégorie spécifique ; jeu, saison, statut et identité publique.
@@ -1126,7 +1151,7 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 
 - **État** : livré (`a899bf2`, correctif `8fa6376` poussé), CI et migration validées par l’utilisateur avant SPON-003. Migration vérifiée Ran, batch 27 ; branche synchronisée au démarrage.
 - **Livraison** : accords privés, période/responsable, conditions numéraire/nature/mixte chiffrées, lecture financière auditée et droits distincts, approbation indépendante et invalidation après modification. Périmètres organisation/équipe/joueur avec référence d’autorisation ; exclusivités par catégorie sur les périodes approuvées qui se chevauchent. Pièces via contrat sponsor associé et protections Contrats existantes. API/React, pagination, versions optimistes, contraintes SQLite/PostgreSQL et export opérateur.
-- **Complément événement/contenu du 08/11** : références réelles du calendrier et du catalogue Media, sélecteurs paginés et versions obligatoires, cible fixe et nouvelle approbation après actualisation. Lecture/validation soumises aux droits et au partage actuels, y compris au contexte d’un média. Lien SQL dédié sans reprise des périmètres existants ; conservation et portabilité étendues à 125 tables tenant. API, interface et tests du complément détaillés dans etat-projet.md ; migration de la base de travail et nouvelle CI restent à effectuer.
+- **Complément événement/contenu du 08/11** : références réelles du calendrier et du catalogue Media, sélecteurs paginés et versions obligatoires, cible fixe et nouvelle approbation après actualisation. Lecture/validation soumises aux droits et au partage actuels, y compris au contexte d’un média. Lien SQL dédié sans reprise des périmètres existants ; conservation et portabilité étendues à 125 tables tenant. Livré dans `017248d`, poussé et CI validée par l’utilisateur avant IAM-003 ; migration de la base de travail toujours non confirmée. Audit A-P0-03 : aide d’exclusivité obsolète à corriger, sans réimplémenter ces rattachements.
 - **Limites explicites** : aucune publication automatique ni preuve de réalisation inventée. Le contenu désigne uniquement un stream/VOD/clip déjà enregistré ; aucun nouveau référentiel éditorial ni droit attribué automatiquement. Campagnes et livrables restent SPON-003. Aucune migration principale par l’agent.
 
 - **Priorité / taille** : P0 / L
@@ -1671,6 +1696,12 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 - **Acceptation** : scénarios positifs et attaques inter-tenant reproductibles en local et CI.
 
 ### UCG-QA-002 — Automatiser la matrice d’isolation
+
+- **Audit 08/11, A-P0-04** : la sélection tenant-isolation contient 277 cas,
+  dont 12 des derniers contextes COM/MEDIA/SPON/tâches. Les 19 cas
+  ContextualSourceScopesTest sont bien exécutés dans les suites générales et
+  PostgreSQL de CI, mais pas dans ce groupe critique. Rattacher les cas pertinents
+  et actualiser la matrice ; aucun échec d’isolation déduit de cette maintenance.
 
 - **Priorité / taille** : P0 / XL
 - **Consolidation courante (31/10/2026)** : cinq frontières ajoutées, avec un acteur

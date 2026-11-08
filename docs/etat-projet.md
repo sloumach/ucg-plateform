@@ -6,13 +6,15 @@
 ## Point de reprise
 
 - Dernière mise à jour : **8 novembre 2026**.
-- Tâche courante : **complément IAM-003 — jeu, cohorte et événement**, tous les
-  lots demandés : annuaires réels, lecture/écriture limitées, dates et
-  révocations, interface, tests et documentation. Commit unique et push autorisés.
-  Développement et validations terminés ; bilan de livraison ci-dessous.
-  Aucun autre module P1 lancé. CI du nouveau commit à confirmer après livraison.
+- Tâche courante : **audit de couverture P0**, terminé sur `6e25a61`.
+  Matrice des 92 tickets et écarts documentés ci-dessous. Prochain complément
+  recommandé : **A-P0-01, accès React limité à une équipe**, puis libellés des
+  permissions, aide sponsor et sélection critique d’isolation A-P0-02–04.
+  Ces corrections ne sont pas implémentées par le présent audit.
+- **IAM-003 jeu/cohorte/événement `6e25a61` poussé sur staging et CI validée
+  par l’utilisateur** dans cette discussion. Aucun autre module P1 lancé.
 - **SPON-002 `017248d` poussé par l’utilisateur et CI validée par lui** avant ce
-  complément IAM-003. Cette validation ne s’étend pas au nouveau commit.
+  complément IAM-003, dont la CI est également validée depuis.
   Aucune migration récente sur la base de travail confirmée.
 - Livraison précédente : **correctif CI frontend après MEDIA-001 `004a3ac`**, poussé
   sur staging. Le journal fourni montre un échec des convocations pour clé React
@@ -73,6 +75,186 @@
   Aucun ticket P1/P2 n’est automatiquement promu au P0 et aucun nouveau module
   métier n’est lancé par cette seule révision. Les décisions, données et
   qualifications externes ci-dessous restent identifiées séparément.
+
+### Audit de couverture P0 — 08/11/2026, référence `6e25a61`
+
+**92 tickets P0 rapprochés du code, des tests/procédures et des commits.**
+Les 69 tickets applicatifs ont des mécanismes livrés. Aucun bloc métier entier
+absent n’a été identifié dans ce rapprochement ; un parcours équipe reste
+incomplet et trois autres corrections de qualité/recette sont à préparer.
+Cette revue de couverture ne clôture pas automatiquement la mise en service.
+
+**Méthode :** lecture des exigences du backlog/CDC et des implémentations
+concernées, contrôle des 92 identifiants et des chemins de la matrice, vérification
+des commits dans l’historique jusqu’à `6e25a61`. Les fichiers cités sont des points
+d’entrée de preuve, pas toutes les couches de chaque fonction. La CI IAM-003 est
+validée **par l’utilisateur** ; aucun nouveau run distant ou test de charge
+n’est revendiqué pendant cet audit.
+
+#### Écarts confirmés, par ordre de traitement
+
+| Référence | Constat vérifié | Correction à préparer |
+| --- | --- | --- |
+| A-P0-01 — parcours équipe limité, priorité haute de finalisation | [TeamAuthorizationScopesTest](../back/tests/Feature/TeamAuthorizationScopesTest.php) autorise le détail d’une équipe et refuse la liste générale à son bénéficiaire limité. [TeamsPanel](../front/src/components/teams/TeamsPanel.tsx) exige pourtant sports.read dans le snapshot d’organisation et retourne null sinon. [ContextualScopeService](../back/app/Modules/Tenancy/Application/Services/ContextualScopeService.php) et [ContextualModulesPanel](../front/src/components/tenancy/ContextualModulesPanel.tsx) ne proposent que jeu/cohorte/événement. [RoleManagementPanel](../front/src/components/tenancy/RoleManagementPanel.tsx) demande encore un UUID libre pour une affectation équipe. | Compléter la découverte et la consultation React des seules équipes autorisées, puis le sélecteur nommé d’affectation. Conserver les périodes sportives et la liaison durable du grant, sans ouvrir le catalogue global ou les commandes de roster. Tester expiration, clôture/retour, révocation, tenant voisin et parcours réel. IAM-003/TEAM-002/ARC-006. |
+| A-P0-02 — libellés des permissions, priorité moyenne | Sur **66 permissions configurables** du backend, permissionNames du [panneau de rôles](../front/src/components/tenancy/RoleManagementPanel.tsx) en mappe **39** ; les **27 autres** retombent sur leur clé technique. Le type [PermissionKey](../front/src/api/roles.ts) est lui aussi partiel. | Aligner types et libellés français sur le catalogue fermé, réutiliser les traductions existantes et couvrir l’affichage des 66 permissions. Aucun changement des autorisations serveur. ARC-006/IAM-003. |
+| A-P0-03 — aide sponsor obsolète, priorité basse | Dans [fr.ts](../front/src/i18n/fr.ts), sponsorships.exclusiveHint annonce encore que les périmètres événement/contenu ne sont pas disponibles. [AgreementExposuresPanel](../front/src/components/partnerships/AgreementExposuresPanel.tsx) affiche ce texte, malgré leur livraison dans 017248d. | Corriger le texte et couvrir sa présentation. Les rattachements métier sont déjà implémentés et testés. SPON-002/ARC-006. |
+| A-P0-04 — sélection critique d’isolation, priorité moyenne | La découverte PHPUnit du groupe tenant-isolation sélectionne **277 cas**, dont **12** sur les derniers contextes COM/MEDIA/SPON/tâches. Aucun des **19 cas de ContextualSourceScopesTest** n’y figure. Ces cas sont bien présents dans les suites ordinaires et la sélection PostgreSQL de CI. | Rattacher les cas IAM critiques pertinents au groupe dédié et actualiser la matrice REC-23–36, puis vérifier sélection et résultats. Il ne s’agit pas d’une absence de tests de sécurité ni d’un échec de CI. QA-002. |
+
+**A-P0-01, scénario vérifié dans le code :** un membre ayant pour seul droit
+métier sports.read à portée team, lié à une période sportive effective, lit
+GET teams/{id} mais pas GET teams. Ce grant n’entre pas dans les permissions
+d’organisation ; TeamsPanel reste masqué et l’espace limité n’ajoute aucune
+entrée équipe. C’est un accès légitime sans parcours React, pas un contournement.
+
+**Les 27 clés non mappées de A-P0-02 :** reporting.direction/export/manager/coach/
+player/administration ; partnerships.read/write/validate ; media.read/write/publish ;
+communication.read/write/publish/comment ; tasks.read/manage ;
+calendar.export/publish/resources.manage/conflicts.override/invitations.manage/
+invitations.respond ; availability.self/read/manage. Les préfixes communs sont
+abrégés ici ; chaque suffixe correspond à une permission distincte.
+
+#### Faux restes écartés après lecture du code et des tests
+
+- Les annonces par équipe/jeu/rôle existent dans CommunicationInput,
+  CommunicationAudience et [CommunicationAudienceTest](../back/tests/Feature/CommunicationAudienceTest.php).
+  Les contextes événement/match/séance et les tâches viennent de f04044a/938be34.
+- Les pièces sponsors passent par le contrat lié et
+  [AgreementDocumentsPanel](../front/src/components/partnerships/AgreementDocumentsPanel.tsx).
+  Les événements/médias sponsors sont livrés dans 017248d.
+- Les rattachements MEDIA-001 sont livrés dans 004a3ac.
+  [ManualErasureTest](../back/tests/Feature/Modules/Tenancy/ManualErasureTest.php)
+  couvre aussi export/effacement des nouveaux liens et tâches, en préservant le voisin.
+- L’exclusivité d’adhésion extensible existe dans
+  [MembershipAdmissionService](../back/app/Modules/Tenancy/Application/Services/MembershipAdmissionService.php)
+  et ses tests ; le mode multi-organisations reste le défaut.
+- Les actions de suivi des matchs existent dans MatchNotebookInput/Service.
+  Les laboratoires de récupération des états avancés ont été complétés dans
+  0fb13f7 : l’acceptation OPS-005 est explicitement une simulation sans écrasement
+  des autres tenants, pas l’outil opérateur général sur hébergement.
+- Les cartes budget/progression indisponibles sont des limites déclarées dans
+  DashboardCatalogue et REP-001/002 : Finance reste P1 ; une définition métier de
+  progression reste à cadrer. Ne pas inventer de métrique pour masquer cet état.
+
+#### Attentes distinctes des corrections applicatives
+
+| Ensemble | Situation actuelle |
+| --- | --- |
+| OPS-001/002/003/004/008 | Préparation, diagnostics, candidat de release, sauvegarde/restauration et procédures présents. Hébergement, ressources, alertes, titulaires/suppléants et essais sur cible restent à qualifier. |
+| OPS-005/006/007 | Simulations et mécanismes applicatifs présents. Outil opérateur réel, antivirus sur cible, conservation et copies externes restent à valider selon leurs dossiers. |
+| DATA-001/002 | Outils et répétition fictive présents ; sources UCG réelles, validation métier et rapprochement signé attendus. |
+| REL-001/002 | Préparation et pilote fictif présents ; équipe/dates/modules, semaine réelle, formation/transfert et accord de mise en service non attestés. |
+| CAD-001–006 | Décisions commerciales, propriété, résolution tenant, pays/conservation, jeux/connecteurs et périmètre pilote ouverts. Le choix de travail de la Tunisie ne clôture pas CAD-004. |
+| QA-005/REC-34 | Qualification de performance dépendant de l’hébergement suspendue par l’utilisateur ; aucune campagne supplémentaire requise ici. |
+| P1/P2 | Priorités conservées pour branding/domaines, lecteurs vidéo, Discord, signature, finances/équipements, intégrations et vitrine publique, notamment. |
+
+Les anciennes mentions de CI/migration en attente ne prouvent pas une fonction
+absente. La CI 6e25a61 est désormais confirmée par l’utilisateur. Les migrations
+récentes COM/tâches/MEDIA/SPON sur sa base de travail restent non confirmées dans
+cette discussion ; IAM-003 6e25a61 ne nécessitait aucune nouvelle migration.
+
+#### Matrice des 92 tickets et repères vérifiés
+
+**P** : mécanisme et preuve retrouvés ; aucune clôture externe déduite.
+**C** : complément de parcours/présentation ci-dessus.
+Les commits repèrent des livraisons ou dossiers : un commit de cadrage ne vaut
+jamais approbation d’une décision métier. Tous les chemins et commits cités ont
+été contrôlés en lecture seule. Les workflows et dossiers sont des preuves de
+préparation lorsqu’aucun test d’application ne peut clôturer le critère.
+
+| Ticket | Constat | Code ou procédure | Test ou preuve de contrôle | Commit(s) repère |
+| --- | --- | --- | --- | --- |
+| ARC-001 | P | [composer.json](../back/composer.json) | [SystemStatusControllerTest.php](../back/tests/Feature/SystemStatusControllerTest.php) | `2ed00f8` |
+| ARC-002 | P | [ModuleDependencyMap.php](../back/app/Architecture/Modules/ModuleDependencyMap.php) | [ModularArchitectureTest.php](../back/tests/Architecture/ModularArchitectureTest.php) | `75d6462` |
+| ARC-003 | P | [ApiExceptionRenderer.php](../back/app/Http/Api/ApiExceptionRenderer.php) | [ApiErrorResponseTest.php](../back/tests/Feature/ApiErrorResponseTest.php) | `bd176d7` |
+| ARC-004 | P | [backend-quality.yml](../.github/workflows/backend-quality.yml) | [frontend-quality.yml](../.github/workflows/frontend-quality.yml) | `8309cb9` |
+| ARC-005 | P | [queue.php](../back/config/queue.php) | [TenantQueueRedisTest.php](../back/tests/Feature/Modules/Tenancy/TenantQueueRedisTest.php) | `0580629` |
+| ARC-006 | C — A-P0-02/03 | [fr.ts](../front/src/i18n/fr.ts) | [RoleManagementPanel.test.tsx](../front/src/components/tenancy/RoleManagementPanel.test.tsx) | `c7710d7` |
+| TEN-001 | P | [OrganizationService.php](../back/app/Modules/Tenancy/Application/Services/OrganizationService.php) | [OrganizationServiceTest.php](../back/tests/Feature/Modules/Tenancy/OrganizationServiceTest.php) | `5421f4b` |
+| TEN-002 | P | [TenantResolver.php](../back/app/Modules/Tenancy/Application/Services/TenantResolver.php) | [TenantContextTest.php](../back/tests/Feature/Modules/Tenancy/TenantContextTest.php) | `643f82f` |
+| TEN-003 | P | [MembershipAdmissionService.php](../back/app/Modules/Tenancy/Application/Services/MembershipAdmissionService.php) | [MembershipAdmissionTest.php](../back/tests/Feature/Modules/Tenancy/MembershipAdmissionTest.php) | `3e8db8f` |
+| TEN-004 | P | [TenantSchemaInspector.php](../back/app/Architecture/Database/TenantSchemaInspector.php) | [TenantSchemaInspectorTest.php](../back/tests/Feature/Architecture/Database/TenantSchemaInspectorTest.php) | `4f7854b` |
+| TEN-005 | P | [TenantArtifactService.php](../back/app/Modules/Tenancy/Application/Services/TenantArtifactService.php) | [TenantArtifactServiceTest.php](../back/tests/Feature/Modules/Tenancy/TenantArtifactServiceTest.php) | `86569b1` |
+| TEN-006 | P | [TenantJobRunner.php](../back/app/Modules/Tenancy/Application/Services/TenantJobRunner.php) | [TenantJobRunnerTest.php](../back/tests/Feature/Modules/Tenancy/TenantJobRunnerTest.php) | `4269a6a` |
+| TEN-007 | P | [OrganizationPortabilityService.php](../back/app/Modules/Tenancy/Application/Services/OrganizationPortabilityService.php) | [OrganizationPortabilityTest.php](../back/tests/Feature/Modules/Tenancy/OrganizationPortabilityTest.php) | `e4634c2` |
+| IAM-001 | P | [AuthenticationService.php](../back/app/Modules/Identity/Application/Services/AuthenticationService.php) | [IdentityAuthenticationLifecycleTest.php](../back/tests/Feature/IdentityAuthenticationLifecycleTest.php) | `98f2ed3` |
+| IAM-002 | P | [MfaService.php](../back/app/Modules/Identity/Application/Services/MfaService.php) | [MfaAuthenticationTest.php](../back/tests/Feature/MfaAuthenticationTest.php) | `d61c131` |
+| IAM-003 | C — A-P0-01 et A-P0-02 | [ContextualScopeService.php](../back/app/Modules/Tenancy/Application/Services/ContextualScopeService.php) | [ContextualSourceScopesTest.php](../back/tests/Feature/ContextualSourceScopesTest.php) | `6e25a61` |
+| IAM-004 | P | [TenantDataProjectionService.php](../back/app/Modules/Tenancy/Application/Services/TenantDataProjectionService.php) | [TenantDataVisibilityTest.php](../back/tests/Feature/TenantDataVisibilityTest.php) | `7bfd765` |
+| IAM-005 | P | [SupportAccessService.php](../back/app/Modules/Tenancy/Application/Services/SupportAccessService.php) | [PlatformSupportAccessTest.php](../back/tests/Feature/PlatformSupportAccessTest.php) | `70440a6` |
+| IAM-006 | P | [TenantAuditService.php](../back/app/Modules/Tenancy/Application/Services/TenantAuditService.php) | [AuditJournalTest.php](../back/tests/Feature/AuditJournalTest.php) | `2c24782` |
+| HUM-001 | P | [PersonService.php](../back/app/Modules/People/Application/Services/PersonService.php) | [PersonSchemaTest.php](../back/tests/Feature/PersonSchemaTest.php) | `d9a4066` |
+| HUM-002 | P | [GameProfileService.php](../back/app/Modules/People/Application/Services/GameProfileService.php) | [GameProfileControllerTest.php](../back/tests/Feature/GameProfileControllerTest.php) | `3c799ff` |
+| HUM-003 | P | [PersonService.php](../back/app/Modules/People/Application/Services/PersonService.php) | [PersonListTest.php](../back/tests/Feature/PersonListTest.php) | `2382db8` |
+| HUM-004 | P | [PersonDepartureService.php](../back/app/Modules/People/Application/Services/PersonDepartureService.php) | [PersonDepartureServiceTest.php](../back/tests/Feature/PersonDepartureServiceTest.php) | `510d9c0` |
+| HUM-005 | P | [PersonImportProcessor.php](../back/app/Modules/People/Application/Services/PersonImportProcessor.php) | [PersonImportProcessorTest.php](../back/tests/Feature/PersonImportProcessorTest.php) | `f960be8` |
+| TEAM-001 | P | [GameCatalogueService.php](../back/app/Modules/Teams/Application/Services/GameCatalogueService.php) | [GameCatalogueControllerTest.php](../back/tests/Feature/GameCatalogueControllerTest.php) | `427dae1` |
+| TEAM-002 | C — A-P0-01 | [TeamService.php](../back/app/Modules/Teams/Application/Services/TeamService.php) | [TeamControllerTest.php](../back/tests/Feature/TeamControllerTest.php) | `11872a3` |
+| TEAM-003 | P | [TeamMembershipService.php](../back/app/Modules/Teams/Application/Services/TeamMembershipService.php) | [TeamAuthorizationScopesTest.php](../back/tests/Feature/TeamAuthorizationScopesTest.php) | `f0681e7` |
+| TEAM-004 | P | [TeamLineupService.php](../back/app/Modules/Teams/Application/Services/TeamLineupService.php) | [TeamLineupServiceTest.php](../back/tests/Feature/TeamLineupServiceTest.php) | `59023ce` |
+| TEAM-005 | P | [LineupEligibilityService.php](../back/app/Modules/Teams/Application/Services/LineupEligibilityService.php) | [TeamEligibilityServiceTest.php](../back/tests/Feature/TeamEligibilityServiceTest.php) | `0d46afe` |
+| TEAM-006 | P | [ExternalOpponentService.php](../back/app/Modules/Teams/Application/Services/ExternalOpponentService.php) | [ExternalOpponentControllerTest.php](../back/tests/Feature/ExternalOpponentControllerTest.php) | `564dd59` |
+| ACA-001 | P | [AcademyService.php](../back/app/Modules/Academy/Application/Services/AcademyService.php) | [AcademyTest.php](../back/tests/Feature/AcademyTest.php) | `b30b205` |
+| ACA-002 | P | [AcademyAttendanceService.php](../back/app/Modules/Academy/Application/Services/AcademyAttendanceService.php) | [AcademySessionTest.php](../back/tests/Feature/AcademySessionTest.php) | `50e96c8` |
+| ACA-003 | P | [AcademyCoachingService.php](../back/app/Modules/Academy/Application/Services/AcademyCoachingService.php) | [AcademyCoachingVisibilityTest.php](../back/tests/Feature/AcademyCoachingVisibilityTest.php) | `651e254` |
+| CAL-001 | P | [CalendarService.php](../back/app/Modules/Scheduling/Application/Services/CalendarService.php) | [CalendarControllerTest.php](../back/tests/Feature/CalendarControllerTest.php) | `3051aa8` |
+| CAL-002 | P | [AvailabilityService.php](../back/app/Modules/Scheduling/Application/Services/AvailabilityService.php) | [AvailabilityControllerTest.php](../back/tests/Feature/AvailabilityControllerTest.php) | `2c786d2` |
+| CAL-003 | P | [CalendarConflictService.php](../back/app/Modules/Scheduling/Application/Services/CalendarConflictService.php) | [CalendarConflictConcurrencyTest.php](../back/tests/Feature/CalendarConflictConcurrencyTest.php) | `dea7936` |
+| CAL-004 | P | [ProcessCalendarInvitations.php](../back/app/Modules/Scheduling/Application/Services/ProcessCalendarInvitations.php) | [CalendarInvitationWorkerTest.php](../back/tests/Feature/CalendarInvitationWorkerTest.php) | `661b438` |
+| CAL-005 | P | [CalendarFeedService.php](../back/app/Modules/Scheduling/Application/Services/CalendarFeedService.php) | [CalendarFeedPolicyTest.php](../back/tests/Feature/CalendarFeedPolicyTest.php) | `fea7094` |
+| CAL-006 | P | [CalendarChangeService.php](../back/app/Modules/Scheduling/Application/Services/CalendarChangeService.php) | [CalendarChangeWorkerTest.php](../back/tests/Feature/CalendarChangeWorkerTest.php) | `064df63` |
+| MATCH-001 | P | [MatchService.php](../back/app/Modules/Competition/Application/Services/MatchService.php) | [MatchControllerTest.php](../back/tests/Feature/MatchControllerTest.php) | `6589368` |
+| MATCH-002 | P | [MatchLineupService.php](../back/app/Modules/Competition/Application/Services/MatchLineupService.php) | [MatchLineupControllerTest.php](../back/tests/Feature/MatchLineupControllerTest.php) | `9a1c6e4` |
+| MATCH-003 | P | [MatchScoreService.php](../back/app/Modules/Competition/Application/Services/MatchScoreService.php) | [MatchScoreTest.php](../back/tests/Unit/MatchScoreTest.php) | `085e3cc` |
+| MATCH-004 | P | [MatchResultService.php](../back/app/Modules/Competition/Application/Services/MatchResultService.php) | [MatchResultPolicyTest.php](../back/tests/Feature/MatchResultPolicyTest.php) | `f25f966` |
+| MATCH-005 | P | [MatchNotebookService.php](../back/app/Modules/Competition/Application/Services/MatchNotebookService.php) | [MatchNotebookPolicyTest.php](../back/tests/Feature/MatchNotebookPolicyTest.php) | `f40d2a6` |
+| MATCH-006 | P | [MatchCorrectionService.php](../back/app/Modules/Competition/Application/Services/MatchCorrectionService.php) | [MatchCorrectionWorkerTest.php](../back/tests/Feature/MatchCorrectionWorkerTest.php) | `22f46fc` |
+| MATCH-007 | P | [MatchRealtimeService.php](../back/app/Modules/Competition/Application/Services/MatchRealtimeService.php) | [MatchRealtimeTest.php](../back/tests/Feature/MatchRealtimeTest.php) | `2c5d622` |
+| COMP-001 | P | [ExternalCompetitionService.php](../back/app/Modules/Competition/Application/Services/ExternalCompetitionService.php) | [ExternalCompetitionDocumentTest.php](../back/tests/Feature/ExternalCompetitionDocumentTest.php) | `abdb569` |
+| COMP-002 | P | [CompetitionRegistrationService.php](../back/app/Modules/Competition/Application/Services/CompetitionRegistrationService.php) | [CompetitionRegistrationReminderTest.php](../back/tests/Feature/CompetitionRegistrationReminderTest.php) | `67ddc29` |
+| COMP-003 | P | [CompetitionOutcomeService.php](../back/app/Modules/Competition/Application/Services/CompetitionOutcomeService.php) | [CompetitionOutcomeResultTest.php](../back/tests/Feature/CompetitionOutcomeResultTest.php) | `045887d` |
+| STAT-001 | P | [MetricCatalogueService.php](../back/app/Modules/Performance/Application/Services/MetricCatalogueService.php) | [MetricCatalogueTest.php](../back/tests/Feature/MetricCatalogueTest.php) | `cbeba13` |
+| STAT-002 | P | [ObservationService.php](../back/app/Modules/Performance/Application/Services/ObservationService.php) | [ObservationTest.php](../back/tests/Feature/ObservationTest.php) | `aa6e52e` |
+| STAT-003 | P | [StatisticalImportProcessor.php](../back/app/Modules/Performance/Application/Services/StatisticalImportProcessor.php) | [StatisticalImportProcessingTest.php](../back/tests/Feature/StatisticalImportProcessingTest.php) | `5f24f3f` |
+| STAT-004 | P | [StatisticalCalculationProcessor.php](../back/app/Modules/Performance/Application/Services/StatisticalCalculationProcessor.php) | [StatisticalCalculatorTest.php](../back/tests/Unit/StatisticalCalculatorTest.php) | `4c1b8fe` |
+| STAT-005 | P | [StatisticalProfileService.php](../back/app/Modules/Performance/Application/Services/StatisticalProfileService.php) | [StatisticalProfileTest.php](../back/tests/Feature/StatisticalProfileTest.php) | `d656e0c` |
+| CTR-001 | P | [ContractService.php](../back/app/Modules/Contracts/Application/Services/ContractService.php) | [ContractServiceTest.php](../back/tests/Feature/ContractServiceTest.php) | `87953e0` |
+| CTR-002 | P | [ContractDocumentService.php](../back/app/Modules/Contracts/Application/Services/ContractDocumentService.php) | [ContractDocumentControllerTest.php](../back/tests/Feature/ContractDocumentControllerTest.php) | `ce268f6` |
+| CTR-003 | P | [ContractDocumentScanProcessor.php](../back/app/Modules/Contracts/Application/Services/ContractDocumentScanProcessor.php) | [ContractDocumentScanTest.php](../back/tests/Feature/ContractDocumentScanTest.php) | `32100e5` |
+| CTR-004 | P | [ContractGovernance.php](../back/app/Modules/Contracts/Application/Services/ContractGovernance.php) | [ContractFinancialGovernanceTest.php](../back/tests/Feature/ContractFinancialGovernanceTest.php) | `5205b77` |
+| CTR-005 | P | [ProcessContractReminders.php](../back/app/Modules/Contracts/Application/Services/ProcessContractReminders.php) | [ContractReminderMailTest.php](../back/tests/Feature/ContractReminderMailTest.php) | `cadd683` |
+| CTR-006 | P | [EloquentSensitiveAccessJournal.php](../back/app/Modules/Tenancy/Infrastructure/Persistence/EloquentSensitiveAccessJournal.php) | [ContractAccessAuditTest.php](../back/tests/Feature/ContractAccessAuditTest.php) | `8dd344d` |
+| SPON-001 | P | [SponsorService.php](../back/app/Modules/Partnerships/Application/Services/SponsorService.php) | [PartnershipControllerTest.php](../back/tests/Feature/PartnershipControllerTest.php) | `68ec32e` |
+| SPON-002 | P — texte A-P0-03 | [SponsorshipExposureService.php](../back/app/Modules/Partnerships/Application/Services/SponsorshipExposureService.php) | [SponsorshipContextTest.php](../back/tests/Feature/SponsorshipContextTest.php) | `017248d` |
+| SPON-003 | P | [SponsorshipDeliverableService.php](../back/app/Modules/Partnerships/Application/Services/SponsorshipDeliverableService.php) | [SponsorshipCampaignControllerTest.php](../back/tests/Feature/SponsorshipCampaignControllerTest.php) | `aba9205` |
+| MEDIA-001 | P | [MediaContexts.php](../back/app/Modules/Media/Application/Services/MediaContexts.php) | [MediaContextTest.php](../back/tests/Feature/MediaContextTest.php) | `004a3ac` |
+| COM-001 | P | [CommunicationService.php](../back/app/Modules/Media/Application/Services/CommunicationService.php) | [CommunicationAudienceTest.php](../back/tests/Feature/CommunicationAudienceTest.php) | `8d48651`, `f04044a`, `938be34` |
+| REP-001 | P | [DashboardService.php](../back/app/Modules/Reporting/Application/Services/DashboardService.php) | [RoleDashboardTest.php](../back/tests/Feature/RoleDashboardTest.php) | `0cfd94b` |
+| REP-002 | P | [DashboardIndicatorProcessor.php](../back/app/Modules/Reporting/Application/Services/DashboardIndicatorProcessor.php) | [DashboardIndicatorTest.php](../back/tests/Feature/DashboardIndicatorTest.php) | `fae8c06` |
+| REP-003 | P | [TenantSearchService.php](../back/app/Modules/Reporting/Application/Services/TenantSearchService.php) | [TenantSearchTest.php](../back/tests/Feature/TenantSearchTest.php) | `355f42b` |
+| REP-004 | P | [ReportExportProcessor.php](../back/app/Modules/Reporting/Application/Services/ReportExportProcessor.php) | [ReportExportTest.php](../back/tests/Feature/ReportExportTest.php) | `d00c257` |
+| OPS-001 | P — qualification externe ouverte | [EnvironmentReadiness.php](../back/app/Support/EnvironmentReadiness.php) | [EnvironmentReadinessTest.php](../back/tests/Feature/EnvironmentReadinessTest.php) | `c9ef3f3` |
+| OPS-002 | P — qualification externe ouverte | [release-candidate.yml](../.github/workflows/release-candidate.yml) | [release.test.mjs](../front/tests/real-api/release.test.mjs) | `3f70a0c` |
+| OPS-003 | P — qualification externe ouverte | [SupervisionDiagnostics.php](../back/app/Support/Operations/SupervisionDiagnostics.php) | [SupervisionDiagnosticsTest.php](../back/tests/Feature/SupervisionDiagnosticsTest.php) | `0d0eb97` |
+| OPS-004 | P — qualification externe ouverte | [recovery.mjs](../front/tests/real-api/recovery.mjs) | [recovery.test.mjs](../front/tests/real-api/recovery.test.mjs) | `6afde2c` |
+| OPS-005 | P — simulation acceptée au périmètre | [tenant-recovery.php](../back/tests/Fixtures/tenant-recovery.php) | [tenant-qualification.test.mjs](../front/tests/real-api/tenant-qualification.test.mjs) | `0fb13f7` |
+| OPS-006 | P — qualification externe ouverte | [ContractDocumentScanProcessor.php](../back/app/Modules/Contracts/Application/Services/ContractDocumentScanProcessor.php) | [ContractDocumentScanTest.php](../back/tests/Feature/ContractDocumentScanTest.php) | `49a641d`, `387e72f` |
+| OPS-007 | P — qualification externe ouverte | [ErasureReconciliationService.php](../back/app/Modules/Tenancy/Application/Services/ErasureReconciliationService.php) | [ErasureReconciliationTest.php](../back/tests/Feature/Modules/Tenancy/ErasureReconciliationTest.php) | `537eeff` |
+| OPS-008 | P — qualification externe ouverte | [procedures-incident-support.md](procedures-incident-support.md) | [README.md](../README.md) | `870c376` |
+| QA-001 | P | [browser-seed.php](../back/tests/Fixtures/browser-seed.php) | [PilotIsolationTest.php](../back/tests/Feature/PilotIsolationTest.php) | `5ad1d91`, `6e25a61` |
+| QA-002 | P — sélection A-P0-04 | [composer.json](../back/composer.json) | [TenantBusinessRevocationTest.php](../back/tests/Feature/TenantBusinessRevocationTest.php) | `9b4c3ac` |
+| QA-003 | P | [run.mjs](../front/tests/real-api/run.mjs) | [contextual-scopes.spec.ts](../front/tests/real-api/contextual-scopes.spec.ts) | `9dcbb4a`, `6e25a61` |
+| QA-004 | P | [tenant-qualification.test.mjs](../front/tests/real-api/tenant-qualification.test.mjs) | [MatchCorrectionConcurrencyTest.php](../back/tests/Feature/MatchCorrectionConcurrencyTest.php) | `434d3a6` |
+| QA-005 | Suspendu, hébergement | [load-run.mjs](../front/tests/real-api/load-run.mjs) | [etat-projet.md](etat-projet.md) | `15d36d8` |
+| DATA-001 | Préparation ; sources réelles attendues | [DataPreparationService.php](../back/app/Modules/Reporting/Application/Services/DataPreparationService.php) | [DataPreparationTest.php](../back/tests/Feature/DataPreparationTest.php) | `aec6bd4` |
+| DATA-002 | Préparation ; sources réelles attendues | [DataRehearsalService.php](../back/app/Modules/Reporting/Application/Services/DataRehearsalService.php) | [DataRehearsalCommandTest.php](../back/tests/Feature/DataRehearsalCommandTest.php) | `3bb43eb` |
+| REL-001 | Préparation ; recette réelle ouverte | [pilot-bootstrap.php](../back/tests/Fixtures/pilot-bootstrap.php) | [PilotIsolationTest.php](../back/tests/Feature/PilotIsolationTest.php) | `70d07cc` |
+| REL-002 | Préparation ; recette réelle ouverte | [README.md](../README.md) | [EnvironmentReadinessTest.php](../back/tests/Feature/EnvironmentReadinessTest.php) | `5a1629b` |
+| CAD-001 | Décision ouverte | [cahier-des-charges-ucg-multitenant.md](cahier-des-charges-ucg-multitenant.md) | [README.md](../README.md) | `60ab7f3` |
+| CAD-002 | Décision ouverte | [cahier-des-charges-ucg-multitenant.md](cahier-des-charges-ucg-multitenant.md) | [README.md](../README.md) | `60ab7f3` |
+| CAD-003 | Décision ouverte | [TenantResolver.php](../back/app/Modules/Tenancy/Application/Services/TenantResolver.php) | [TenantContextTest.php](../back/tests/Feature/Modules/Tenancy/TenantContextTest.php) | `643f82f` |
+| CAD-004 | Décision ouverte | [README.md](../README.md) | [cahier-des-charges-ucg-multitenant.md](cahier-des-charges-ucg-multitenant.md) | `60ab7f3` |
+| CAD-005 | Décision ouverte | [cahier-des-charges-ucg-multitenant.md](cahier-des-charges-ucg-multitenant.md) | [README.md](../README.md) | `60ab7f3` |
+| CAD-006 | Décision ouverte | [README.md](../README.md) | [PilotIsolationTest.php](../back/tests/Feature/PilotIsolationTest.php) | `70d07cc` |
 
 ### Complément IAM-003 — jeu, cohorte et événement, 08/11/2026
 
@@ -138,8 +320,8 @@ Pint et PHPStan niveau 8 valides. Les rapports restent ignorés dans back/report
 et front/reports. Les clusters PostgreSQL, serveurs et dossiers temporaires des
 lanceurs ont été arrêtés et nettoyés. Aucune base de travail ou hébergée modifiée.
 
-La CI distante du nouveau commit reste à valider ; après celle-ci, reprendre
-l’audit des critères P0 restants. Aucune clôture globale P0 ou qualification de
+La CI de `6e25a61` est depuis validée par l’utilisateur. L’audit de couverture P0
+ci-dessus identifie les compléments suivants. Aucune clôture globale P0 ou qualification de
 l’hébergement déduite ; tests de charge dépendant de l’hébergement toujours exclus.
 
 ### Audit des tâches reportées et des commits — 05/11/2026

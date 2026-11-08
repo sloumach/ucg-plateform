@@ -190,6 +190,9 @@ revérifient le parent exact sous verrou. Dates, MFA, suspension, révocation et
 fin d’adhésion restent applicables. L’archivage/annulation ferme le périmètre.
 Les référentiels généraux, le partage, les invitations, exports et notifications
 conservent leurs contrôles propres d’organisation. Aucune nouvelle migration.
+**Audit du 08/11 :** la lecture limitée à une équipe existe dans l’API, mais son
+parcours React et son sélecteur nommé restent à compléter (A-P0-01). Les écarts
+de libellés et de recette figurent dans l’[audit P0](docs/etat-projet.md#audit-de-couverture-p0--08112026-référence-6e25a61).
 IAM-004 fournit la projection par champ décrite ci-dessous ; IAM-005 sépare
 les rôles plateforme/support et les permissions tenant.
 
