@@ -4439,7 +4439,7 @@ le test d'intégration PostgreSQL, les 493 tests frontend, le typage, le lint,
 Pint et PHPStan sont verts. Ces résultats ne ferment pas les autres tickets QA
 ni les validations de services externes ou d'exploitation.
 
-### QA-002 — Matrice courante après OPS-004 à OPS-008 (31 octobre 2026)
+### QA-002 — Matrice courante après les compléments P0 (8 novembre 2026)
 
 Les sections qui suivent conservent l’historique des lots. La matrice courante
 reprend les preuves de récupération et d’effacement finalisées depuis, ainsi que
@@ -4463,18 +4463,33 @@ CI (`PersonArchiveTest` et répertoire `Modules/Tenancy`) ; aucune deuxième ex�
 complète n’est ajoutée au workflow. Reverb, Redis et les laboratoires de sauvegarde
 disposent de leurs étapes dédiées, avec leurs conditions explicites.
 
-Validation de cette livraison : **261 tests/3 913 assertions sur SQLite et les
+Validation historique du lot du 31 octobre : **261 tests/3 913 assertions sur SQLite et les
 mêmes résultats sur PostgreSQL 17 jetable**, sans échec ni exclusion ; nettoyage
 du cluster confirmé. Reverb réel local : un test/26 assertions réussi. Pint,
 PHPStan niveau 8 et Composer strict valides. Les rapports privés ignorés sont
 `back/reports/phpunit-qa002-sqlite.xml`, `phpunit-qa002-postgresql.xml` et
 `phpunit-qa002-reverb.xml`. Aucun changement métier ou de migration.
 
+**Complément A-P0-04 du 08/11 :** la sélection critique passe de **277 à 310
+cas**, sans retrait. Elle inclut désormais les **19 cas de
+ContextualSourceScopesTest** (jeu/cohorte/événement) et les **14 cas de
+TeamAuthorizationScopesTest**, dont les quatre cas de découverte ajoutés par
+A-P0-01. Les classes sont rattachées au groupe tenant-isolation ; les nouveaux
+cas de ces deux classes seront donc sélectionnés automatiquement. Les suites
+ordinaires et PostgreSQL de CI incluent déjà ces fichiers : aucun nouveau run
+complet n’est ajouté au workflow. La commande reste `composer test:isolation`.
+Validation locale du complément : **310 tests / 4 329 assertions sur chacun des
+deux moteurs SQLite et PostgreSQL 17 isolé**, sans échec ni exclusion. Le
+paramétrage de lancement PostgreSQL a été aligné sur le diffuseur reverb attendu
+par PHPUnit après un premier essai incorrect hérité du banc navigateur ; aucun
+contrôle applicatif assoupli. Cluster arrêté/supprimé, Pint et PHPStan verts.
+Les rapports et ce diagnostic sont détaillés dans l’état du projet.
+
 | Critère | Preuve automatisée actuelle | Portée et limite |
 | --- | --- | --- |
-| REC-23 — URL et mutation étrangères | Groupe critique, TenantBusinessRevocationTest, nouveaux cas PersonArchiveTest et ManualErasureTest | Mauvais tenant/parent refusé même avec droits des deux côtés ; preuve et données conservées. Chaque nouveau parcours doit ajouter ses cas négatifs. |
-| REC-24 — recherche/références | TenantSearchTest, choix de références, EffectiveGameCatalogueCacheTest | Contexte et droits revérifiés ; aucun moteur externe absent n’est supposé qualifié. |
-| REC-25 — changement d’organisation | ActiveOrganizationControllerTest, ContextualRolesTest, imports/jobs sérialisés et nouveaux cas d’archivage | Droits Beta conservés sans ressusciter Alpha ; parcours navigateur suivis par QA-003. |
+| REC-23 — URL et mutation étrangères | Groupe critique, TenantBusinessRevocationTest, PersonArchiveTest, ManualErasureTest, ContextualSourceScopesTest et TeamAuthorizationScopesTest | Mauvais tenant/parent refusé même avec droits des deux côtés ; preuve et données conservées. Chaque nouveau parcours doit ajouter ses cas négatifs. |
+| REC-24 — recherche/références | TenantSearchTest, EffectiveGameCatalogueCacheTest, choix IAM et découverte limitée des équipes | Visibilité source, droits, périodes et références étrangères vérifiés avant comptes/pages ; aucun moteur externe absent n’est supposé qualifié. |
+| REC-25 — changement d’organisation | ActiveOrganizationControllerTest, ContextualRolesTest, ContextualSourceScopesTest, TeamAuthorizationScopesTest, imports/jobs sérialisés et cas d’archivage | Droits Beta conservés sans ressusciter Alpha ; grants locaux, dates, suspension/révocation et clôture/retour vérifiés sans droits globaux implicites. Parcours navigateur suivis par QA-003. |
 | REC-26 — clés locales et FK | OrganizationSchemaTest, schémas composites et inspecteur de propriété des tables | Nouvelles migrations à intégrer à l’inventaire de schéma. |
 | REC-27 — cache/export/fichiers | TenantCacheTest, TenantArtifactServiceTest, ReportExportTest, CalendarSubscriptionTest, export opérateur ; Redis en CI | Refus après révocation et namespaces distincts ; Redis n’est pas présenté comme relancé localement ici. |
 | REC-28 — jobs et destinataires | Imports personnes/statistiques, scans, rappels, convocations/changements et exports sérialisés | Tenant persisté et droits courants ; aucun SMTP ou worker hébergé certifié. |
@@ -4486,11 +4501,13 @@ PHPStan niveau 8 et Composer strict valides. Les rapports privés ignorés sont
 | REC-35 — export/effacement | OrganizationPortabilityTest, ManualErasureTest, ErasureReconciliationTest et `test:retention:erasure` | Export, effacement, crashes et vrai pg_restore sur fixtures, Beta/globales préservés ; politiques CAD-004 et copies externes distinctes des attestations fictives. |
 | REC-36 — récupération logique | `test:recovery:tenant`, `test:recovery:graph`, `test:recovery:qualification` | États avancés, conflits/reprises et modifications récentes de Beta vérifiés ; REC-36 simulé couvert, sans importeur de production ni qualification hébergée implicite. |
 
-Cette matrice n’est pas une certification de production. La couverture automatisée
-locale est consolidée ; **la clôture globale QA-002 reste conditionnée à REC-34 /
-QA-005 et aux preuves externes applicables**. Aucun seuil de performance ni critère
-d’acceptation n’est abaissé pour déclarer la matrice verte. Les résultats courants
-et les exclusions d’environnement explicites sont consignés dans l’état du projet.
+Cette matrice décrit les contrôles applicatifs et les laboratoires livrés ;
+elle ne constitue pas une certification de production. A-P0-04 traite la
+sélection des tests IAM, sans clôturer automatiquement tout QA-002.
+Conformément à la décision du 05/11/2026, la qualification de performance liée à
+l’hébergement QA-005/REC-34 est hors du périmètre courant de développement et
+ne bloque plus sa validation applicative. Les conditions de mise en service et
+les preuves externes applicables restent suivies séparément dans l’état du projet.
 
 ### Matrice d'isolation — premier lot UCG-QA-002
 

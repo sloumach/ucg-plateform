@@ -6,15 +6,16 @@
 ## Point de reprise
 
 - Dernière mise à jour : **8 novembre 2026**.
-- Tâche courante : **A-P0-03, aide sponsor obsolète**, corrigée localement.
-  L’aide confirme les périmètres événement/média selon les droits source et
-  conserve la règle d’exclusivité sur toute l’organisation. Tests et contrôles
-  frontend réussis ; bilan en fin de document. Ce complément reste sans push.
-- **A-P0-02 poussé sur origin/staging dans `218c4ff`**, sur demande utilisateur.
-  A-P0-01 est également poussé dans `7055296`. Les CI distantes de ces deux
-  commits restent à confirmer par l’utilisateur.
-- **Un écart reste ouvert : A-P0-04**, compléter la sélection critique des tests
-  d’isolation avec les cas IAM pertinents et actualiser sa matrice.
+- Tâche courante : **A-P0-04, sélection critique d’isolation**, corrigée
+  localement : 310 cas sélectionnés, dont 19 jeu/cohorte/événement et 14 équipe.
+  Aucun des 277 cas précédents retiré. Validation et matrice REC-23–36 détaillées
+  en fin de document ; ce complément reste local, sans commit/push.
+- **A-P0-03 poussé sur origin/staging dans `dd0a658`**, sur demande utilisateur.
+  A-P0-02 et A-P0-01 sont également poussés dans `218c4ff` et `7055296`.
+  Les CI distantes de ces compléments restent à confirmer par l’utilisateur.
+- **Les quatre écarts identifiés par l’audit sont corrigés dans le code.**
+  La livraison distante d’A-P0-04 et les CI restent à obtenir ; aucune clôture
+  automatique de tous les tickets QA ni autorisation de mise en service déduite.
 - **IAM-003 jeu/cohorte/événement `6e25a61` poussé sur staging et CI validée
   par l’utilisateur** dans cette discussion. Aucun autre module P1 lancé.
 - **SPON-002 `017248d` poussé par l’utilisateur et CI validée par lui** avant ce
@@ -95,11 +96,10 @@ d’entrée de preuve, pas toutes les couches de chaque fonction. La CI IAM-003 
 validée **par l’utilisateur** ; aucun nouveau run distant ou test de charge
 n’est revendiqué pendant cet audit.
 
-**Suivi après audit :** A-P0-01 et A-P0-02 sont corrigés et poussés dans
-`7055296` et `218c4ff` ; A-P0-03 est corrigé localement. Les bilans figurent
-en fin de document. Les constats ci-dessous décrivent la référence auditée
-`6e25a61` ; A-P0-04 reste à traiter. Aucune nouvelle CI distante validée
-n’est revendiquée.
+**Suivi après audit :** les quatre écarts sont corrigés. A-P0-01, A-P0-02 et
+A-P0-03 sont poussés dans `7055296`, `218c4ff` et `dd0a658` ; A-P0-04 reste
+local. Les bilans figurent en fin de document. Les constats ci-dessous décrivent
+la référence auditée `6e25a61` ; aucune nouvelle CI distante validée n’est revendiquée.
 
 #### Écarts confirmés à la référence auditée, par ordre de traitement
 
@@ -10998,3 +10998,55 @@ production réussis ; diff sans erreur d’espacement. Aucun test de performance
 dépendant de l’hébergement exécuté. A-P0-02 a été poussé dans `218c4ff` avant
 ce complément, dont la livraison reste locale sans commit/push ; les nouvelles
 CI distantes ne sont pas présentées comme validées. **A-P0-04 reste ouvert.**
+
+
+## A-P0-04 — Sélection critique des périmètres IAM (8 novembre 2026)
+
+Objectif : corriger l’absence des périmètres IAM récents dans le groupe critique
+tenant-isolation. Les tests existaient déjà dans les suites ordinaires et dans
+la sélection PostgreSQL de la CI ; aucun échec fonctionnel ni test absent n’est
+inventé pour ce complément.
+
+- ContextualSourceScopesTest est rattaché au groupe au niveau de la classe :
+  **19 cas** couvrant jeu/cohorte/événement, dont les jeux de données. Droits et
+  dates, audit d’affectation, suspension/révocation/fin d’adhésion, références
+  étrangères, visibilité privée avant pagination et agrégation, sous-ressources
+  Academy, conflits/annulation d’événement et délégation bornée sont sélectionnés.
+- TeamAuthorizationScopesTest est également rattaché au groupe : **14 cas**,
+  dont les quatre de découverte limitée livrés avec A-P0-01. Lecture sans droit
+  global, dates exactes, liaison durable à la période sportive d’origine,
+  clôture/retour, annulation, dissociation, suspension, révocation, archivage,
+  quota transactionnel et références d’affectation sont ainsi sélectionnés.
+- Les attributs de classe incluent automatiquement les futurs tests de ces
+  frontières. Aucune assertion, fixture ou sélection antérieure supprimée ;
+  aucun comportement applicatif, dépendance, migration ou workflow modifié.
+  La commande dédiée reste composer test:isolation. Elle est distincte des
+  suites ordinaires et PostgreSQL de CI, qui incluaient déjà ces deux fichiers.
+
+Contrôle de découverte PHPUnit avant/après : **277 → 310 cas**, soit **33 ajouts,
+0 retrait**. Les listes XML ignorées sont tenant-isolation-before.xml et
+tenant-isolation-after.xml dans back/reports. Elles confirment 19 cas sources
+et 14 cas équipes. La matrice courante REC-23–36 du README référence désormais
+ces frontières IAM pour les URL/mutations, références et droits locaux. Le CDC
+ne comporte pas de REC-31 ; aucune exigence n’est créée.
+
+Validation locale : **310 tests SQLite / 4 329 assertions**, tous réussis,
+sans exclusion ; rapport privé ignoré back/reports/phpunit-ap0-04-isolation-sqlite.xml.
+Pint et PHPStan niveau 8 réussis. Le premier lancement PostgreSQL avait hérité
+du diffuseur log du banc navigateur, en désaccord avec le défaut reverb de
+phpunit.xml : cinq refus d’authentification de canal en ont résulté dans
+MatchRealtimeTest, les autres cas passant. Après correction du seul environnement
+de lancement, les **6 cas temps réel du groupe / 51 assertions** passent sur
+PostgreSQL isolé. Aucun test ou contrôle d’accès n’est assoupli. La relance du
+groupe complet avec ce paramétrage réussit : **310 tests PostgreSQL 17 /
+4 329 assertions**, sans échec ni exclusion (395,10 s). Rapport privé ignoré :
+back/reports/phpunit-ap0-04-isolation-postgresql.xml. Les clusters temporaires
+utilisés sont arrêtés et supprimés ; aucune base de travail modifiée.
+
+La qualification de performance liée à l’hébergement reste hors périmètre de
+développement conformément à la décision du 05/11 ; l’ancienne phrase du README
+qui en faisait encore un préalable à la validation applicative est alignée sur
+cette décision. Les preuves externes et la mise en service restent séparées.
+A-P0-03 a été poussé dans `dd0a658` avant ce complément ; A-P0-04 reste local
+sans commit/push. Les quatre écarts de l’audit sont corrigés ; la validation
+CI distante et la clôture globale de QA-002 ne sont pas déduites de ce constat.

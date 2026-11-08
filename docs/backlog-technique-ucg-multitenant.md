@@ -58,11 +58,10 @@ des tâches reportées figure au point de reprise de `etat-projet.md`.
 **Audit de couverture du 08/11/2026, sur `6e25a61` dont la CI est validée par
 l’utilisateur :** les 92 tickets P0 sont rapprochés du code, des tests/procédures
 et de commits dans la [matrice de l’état du projet](etat-projet.md#matrice-des-92-tickets-et-repères-vérifiés).
-A-P0-01 et A-P0-02 sont corrigés et poussés dans `7055296` et `218c4ff` ;
-leurs CI distantes restent à confirmer. A-P0-03 est corrigé localement : l’aide
-sponsor confirme les périmètres événement/média selon les droits source et
-conserve l’exclusivité sur toute l’organisation. Prochain complément recommandé :
-sélection critique d’isolation (A-P0-04). Aucun nouveau
+Les quatre écarts de l’audit sont corrigés : A-P0-01, A-P0-02 et A-P0-03 poussés
+respectivement dans `7055296`, `218c4ff` et `dd0a658`, A-P0-04 local.
+La sélection critique passe de 277 à 310 cas, sans retrait, avec 33 cas IAM
+supplémentaires. Les CI distantes restent à confirmer ; aucun nouveau
 module P1 promu ; décisions, données réelles, pilote et hébergement restent
 distincts. Les anciennes mentions d’attente CI ne sont pas des fonctions absentes.
 
@@ -1704,11 +1703,15 @@ Ce module suit les participations de l’organisation à des compétitions gér�
 
 ### UCG-QA-002 — Automatiser la matrice d’isolation
 
-- **Audit 08/11, A-P0-04** : la sélection tenant-isolation contient 277 cas,
-  dont 12 des derniers contextes COM/MEDIA/SPON/tâches. Les 19 cas
-  ContextualSourceScopesTest sont bien exécutés dans les suites générales et
-  PostgreSQL de CI, mais pas dans ce groupe critique. Rattacher les cas pertinents
-  et actualiser la matrice ; aucun échec d’isolation déduit de cette maintenance.
+- **Complément 08/11, A-P0-04** : sélection critique élargie de 277 à 310 cas,
+  sans retrait : 19 cas ContextualSourceScopesTest et 14 cas
+  TeamAuthorizationScopesTest. Attribut de groupe au niveau des deux classes,
+  sans modifier leurs assertions ou la CI. **310 tests / 4 329 assertions réussis
+  sur chaque moteur SQLite et PostgreSQL 17 isolé**, sans échec ni exclusion.
+  Matrice REC-23–36 actualisée dans le README ; résultats, diagnostic du
+  lancement PostgreSQL et rapports privés dans l’état du projet. Livraison
+  locale sans push à cette étape, CI distante à obtenir après livraison.
+
 
 - **Priorité / taille** : P0 / XL
 - **Consolidation courante (31/10/2026)** : cinq frontières ajoutées, avec un acteur

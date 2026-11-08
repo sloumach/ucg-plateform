@@ -24,10 +24,12 @@ use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\AuthenticatesWithMfa;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
 
+#[Group('tenant-isolation')]
 class ContextualSourceScopesTest extends TestCase
 {
     use AuthenticatesWithMfa, LazilyRefreshDatabase, ProvidesPeopleAccess;

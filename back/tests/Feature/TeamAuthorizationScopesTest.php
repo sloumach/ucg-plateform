@@ -18,9 +18,11 @@ use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\Fixtures\ProvidesPeopleAccess;
 use Tests\TestCase;
 
+#[Group('tenant-isolation')]
 class TeamAuthorizationScopesTest extends TestCase
 {
     use LazilyRefreshDatabase,ProvidesPeopleAccess,\Tests\Fixtures\AuthenticatesWithMfa;
