@@ -6,12 +6,14 @@
 ## Point de reprise
 
 - Dernière mise à jour : **8 novembre 2026**.
-- Tâche courante : **A-P0-01, accès React limité à une équipe**, implémentée
-  localement après l’audit `f95c7b7`. Sélecteur nommé d’affectation et espace
-  « Mes équipes autorisées », liés aux périodes sportives d’origine.
-  Validation locale détaillée en fin de document ; CI distante à obtenir après
-  livraison. Les trois écarts A-P0-02–04 restent ouverts ; prochain complément
-  recommandé : **A-P0-02, libellés français des permissions**.
+- Tâche courante : **A-P0-02, libellés français des permissions**, corrigée
+  localement : les 66 permissions configurables sont typées et traduites dans le
+  panneau de rôles, en réutilisant les traductions existantes. Contrôle du
+  catalogue complet, des cases précochées et des clés enregistrées.
+  Les deux écarts A-P0-03–04 restent ouverts ; prochain complément recommandé :
+  **A-P0-03, aide sponsor obsolète**.
+- **A-P0-01 poussé sur origin/staging dans `7055296`**, sur demande utilisateur.
+  CI distante de ce commit à confirmer ; A-P0-02 reste local, sans push.
 - **IAM-003 jeu/cohorte/événement `6e25a61` poussé sur staging et CI validée
   par l’utilisateur** dans cette discussion. Aucun autre module P1 lancé.
 - **SPON-002 `017248d` poussé par l’utilisateur et CI validée par lui** avant ce
@@ -92,10 +94,10 @@ d’entrée de preuve, pas toutes les couches de chaque fonction. La CI IAM-003 
 validée **par l’utilisateur** ; aucun nouveau run distant ou test de charge
 n’est revendiqué pendant cet audit.
 
-**Suivi après audit :** A-P0-01 est corrigé localement dans le complément décrit
-[en fin de document](#a-p0-01--accès-react-limité-à-une-équipe-8-novembre-2026).
-Les constats ci-dessous décrivent la référence auditée `6e25a61` ; A-P0-02–04
-restent à traiter. La CI distante de ce complément n’est pas encore validée.
+**Suivi après audit :** A-P0-01 est corrigé et poussé dans `7055296` ; A-P0-02
+est corrigé localement. Les bilans de ces deux compléments figurent en fin de
+document. Les constats ci-dessous décrivent la référence auditée `6e25a61` ;
+A-P0-03–04 restent à traiter. Aucune nouvelle CI distante validée n’est revendiquée.
 
 #### Écarts confirmés à la référence auditée, par ordre de traitement
 
@@ -10947,3 +10949,29 @@ Validation locale :
 La CI distante de ce complément reste à obtenir après livraison. Aucun test de
 charge ou qualification dépendant de l’hébergement exécuté, aucune migration
 appliquée à la base de travail. A-P0-02, A-P0-03 et A-P0-04 restent ouverts.
+
+
+## A-P0-02 — Libellés français des permissions (8 novembre 2026)
+
+Le panneau de rôles et le type PermissionKey couvraient 39 des 66 permissions
+configurables. Les 27 clés restantes sont ajoutées au type fermé et raccordées
+aux traductions françaises déjà présentes : reporting, partenaires, médias,
+communication, tâches, calendrier avancé et disponibilités. Les noms sont
+maintenant français dans le catalogue des rôles et dans leur éditeur.
+
+La table de correspondance reste exhaustive via Record<PermissionKey,
+TranslationKey> : le compilateur exige un libellé pour chaque clé déclarée.
+Aucun changement du catalogue serveur, des droits effectifs, des périmètres,
+du MFA ou des contrôles de délégation. roles.manage reste un droit de gouvernance
+non configurable et n’est pas ajouté aux cases de l’éditeur.
+
+Le test du panneau lit le catalogue du domaine backend pour exercer les
+**66 permissions configurables**. Il vérifie leurs libellés accessibles et
+leur présence dans l’affichage des rôles, les cases précochées à l’édition,
+puis la conservation des clés techniques et de la version dans la requête PUT
+confirmée. Les 11 scénarios précédents du panneau sont conservés.
+
+Validation locale : **12 tests React réussis**, TypeScript, lint et build de
+production réussis. Pas de modification PHP, dépendance, migration ou campagne
+de charge. Livraison locale sans commit/push à cette étape ; la CI distante
+reste à obtenir après livraison. A-P0-03 et A-P0-04 restent ouverts.

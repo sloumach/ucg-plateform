@@ -58,10 +58,10 @@ des tâches reportées figure au point de reprise de `etat-projet.md`.
 **Audit de couverture du 08/11/2026, sur `6e25a61` dont la CI est validée par
 l’utilisateur :** les 92 tickets P0 sont rapprochés du code, des tests/procédures
 et de commits dans la [matrice de l’état du projet](etat-projet.md#matrice-des-92-tickets-et-repères-vérifiés).
-A-P0-01 est corrigé localement dans le complément du 08/11 : parcours utilisateur
-équipe limité et sélection nommée. CI distante à obtenir après livraison.
-Prochain complément recommandé : libellés de permissions (A-P0-02), puis aide
-sponsor obsolète (A-P0-03) et sélection critique d’isolation (A-P0-04). Aucun nouveau
+A-P0-01 est corrigé et poussé dans `7055296` ; sa CI distante reste à confirmer.
+A-P0-02 est corrigé localement : les 66 permissions sont typées et affichées en
+français dans le panneau de rôles. Prochain complément recommandé : aide sponsor
+obsolète (A-P0-03), puis sélection critique d’isolation (A-P0-04). Aucun nouveau
 module P1 promu ; décisions, données réelles, pilote et hébergement restent
 distincts. Les anciennes mentions d’attente CI ne sont pas des fonctions absentes.
 
@@ -255,7 +255,8 @@ Les modules métier peuvent avancer en parallèle seulement après stabilisation
   validée par l’utilisateur. **A-P0-01 corrigé localement le 08/11** : parcours
   React pour le bénéficiaire limité à une équipe et affectation par sélection
   nommée. Liaison durable à la période sportive conservée. CI distante du
-  complément à obtenir ; A-P0-02 reste ouvert pour les libellés des droits.
+  complément à obtenir ; A-P0-02 est également corrigé localement : les 66
+  permissions configurables ont leurs types et libellés français.
 
 - **Priorité / taille** : P0 / XL
 - **Périmètre** : rôles configurables par tenant, périmètres équipe/jeu/cohorte/événement, périodes d’effet et suspension prioritaire.

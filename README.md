@@ -201,7 +201,10 @@ propres. Les deux lectures paginées utilisent la révision du contexte tenant :
 `GET /api/v1/tenants/{organization}/my-team-scopes?per_page=10&page=1` pour les
 seuls grants équipe effectifs du bénéficiaire. Le détail reste
 `GET /api/v1/tenants/{organization}/teams/{team}`. Aucune migration ajoutée.
-Les écarts de libellés et de recette figurent dans l’[audit P0](docs/etat-projet.md#audit-de-couverture-p0--08112026-référence-6e25a61).
+**Complément A-P0-02 :** les 66 permissions configurables sont typées et
+affichées en français dans le catalogue et l’éditeur des rôles ; les 27
+traductions auparavant non raccordées sont réutilisées. Validation locale ;
+aucune modification des droits serveur. Les constats de l’audit et leur suivi figurent dans l’[audit P0](docs/etat-projet.md#audit-de-couverture-p0--08112026-référence-6e25a61).
 IAM-004 fournit la projection par champ décrite ci-dessous ; IAM-005 sépare
 les rôles plateforme/support et les permissions tenant.
 

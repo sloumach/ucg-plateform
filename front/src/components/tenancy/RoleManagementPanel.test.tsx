@@ -1,10 +1,13 @@
+/// <reference types="node" />
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { readFileSync } from 'node:fs'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { tenancyRequest, type ActiveOrganization } from '../../api/tenancy'
 import { ApiClientError } from '../../api/errors'
 import { NotificationProvider } from '../feedback/NotificationProvider'
 import { RoleManagementPanel } from './RoleManagementPanel'
+import { t, type TranslationKey } from '../../i18n/fr'
 
 vi.mock('../../api/tenancy', () => ({ tenancyRequest: vi.fn() }))
 const request = vi.mocked(tenancyRequest)
@@ -68,6 +71,39 @@ describe('Contextual role management', () => {
     await waitFor(() => expect(request).toHaveBeenCalledWith('tenants/' + org + '/roles', expect.objectContaining({
       method: 'POST', body: expect.objectContaining({ permissions: ['audit.view'] }),
     })))
+  })
+  it('présente toutes les permissions configurables du serveur en français et conserve leurs clés lors de la modification', async () => {
+    // Read the domain catalogue so a new server permission cannot silently fall back to a technical label.
+    const source = readFileSync('../back/app/Modules/Tenancy/Domain/Permission.php', 'utf8')
+    const keys = [...source.matchAll(/case \w+ = '([^']+)';/g)].map((match) => match[1]).filter((key) => key !== 'roles.manage')
+    expect(keys).toHaveLength(66)
+    const completeRole = { ...role, permissions: keys }
+    request.mockImplementation(async (path, options) => {
+      if (options?.method) return { data: completeRole }
+      if (path.includes('permission-catalogue')) return { data: { permissions: keys.map((key) => ({ key, privileged: !['organization.view', 'sports.read'].includes(key), organization_only: false })), scope_types: ['organization'], can_manage: true } }
+      if (path.includes('role-assignments')) return page([])
+      return page([completeRole])
+    })
+    const user = userEvent.setup()
+    show()
+    await user.click(await screen.findByRole('button', { name: 'Modifier le rôle Coach' }))
+    const editor = screen.getByRole('form', { name: 'Enregistrer le rôle' })
+    const permissions = within(editor).getByRole('group', { name: 'Permissions explicites' })
+    const checkboxes = within(permissions).getAllByRole('checkbox')
+    expect(checkboxes).toHaveLength(keys.length)
+    for (const key of keys) {
+      const label = t(('roles.permission.' + key) as TranslationKey)
+      expect(label).toBeTruthy()
+      expect(label).not.toBe(key)
+      const checkbox = checkboxes.find((input) => (input as HTMLInputElement).value === key)!
+      expect(checkbox).toBeChecked()
+      expect(checkbox).toHaveAccessibleName(label + (['organization.view', 'sports.read'].includes(key) ? '' : t('roles.mfaBadge')))
+    }
+    expect(screen.getByText(keys.map((key) => t(('roles.permission.' + key) as TranslationKey)).join(', '))).toBeVisible()
+    expect(within(permissions).queryByRole('checkbox', { name: 'roles.manage' })).not.toBeInTheDocument()
+    await user.click(within(editor).getByRole('button', { name: 'Enregistrer le rôle' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
+    await waitFor(() => expect(request).toHaveBeenCalledWith('tenants/' + org + '/roles/' + role.id, expect.objectContaining({ method: 'PUT', body: expect.objectContaining({ permissions: keys, version }) })))
   })
   it('conserve la version et la clé lors de la modification du rôle', async () => {
     const user = userEvent.setup()
