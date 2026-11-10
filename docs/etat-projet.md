@@ -5,14 +5,30 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : **8 novembre 2026**.
-- Tâche courante : **réduction de la durée des CI backend et frontend**,
-  demandée avant de reprendre la recette au lot personnes et équipes/rosters.
-  Contrôles répartis sur des runners indépendants, caches de téléchargements
-  Composer et de résultats Larastan ; aucun test, audit ou seuil retiré. Bilan
-  et limites de validation ci-dessous. Modifications CI locales, non publiées.
-- Dernière livraison : **recette P0 visible, lot 1 — accès et organisations**,
-  poussée dans `3ec83db`. Sa CI backend reste attendue par l’utilisateur ; ne pas
+- Dernière mise à jour : **10 novembre 2026**.
+- Le commit de bilan regroupe les cinq lots de recette navigateur, le
+  correctif de saisie sur conflit de slug et la mise à jour de l’aide du
+  calendrier. La CI distante reste à vérifier sur le commit publié.
+- Dernier lot de recette exécuté — **lot 5, parcours match**. Deux compositions
+  affectées, BO1 saisi et validé par un second compte, score corrigé puis
+  validé à nouveau après recalcul. Les cinq lots du plan navigateur ont été
+  exécutés sur la recette isolée.
+- Lot précédent — **lot 4, parcours joueur**. Disponibilité
+  personnelle, réponse à une convocation, notifications de planning et flux ICS
+  privé vérifiés.
+- Lot précédent — **lot 3, planning et disponibilités**. Le
+  navigateur a confirmé le blocage sur indisponibilité, puis la création, le
+  report, l’annulation avec historique et l’isolation de Calendar Beta.
+- Lot précédent — **lot 2, personnes, équipes et rosters**. Les
+  scénarios ont été exécutés dans la recette Docker isolée. Un conflit de
+  slug supprimant la saisie a été reproduit, corrigé et rejoué dans le navigateur.
+  Validation frontend : 546 tests / 72 fichiers, lint et build réussis.
+  Le correctif de saisie est inclus dans le commit de bilan.
+- Les optimisations CI sont présentes dans le commit `4a5a9bc` du checkout
+  repris au début de ce lot. Aucun état de leurs runs distants n’a été vérifié ici.
+  Leurs commandes et limites de validation restent consignées ci-dessous.
+- **Lot 1 — accès et organisations**, poussé dans `3ec83db`. Sa CI backend
+  restait attendue lors de la reprise de la recette ; ne pas
   confondre cette attente avec la validation antérieure des compléments A-P0.
   Parcours exécutés sur données fictives dans deux conteneurs Docker distincts
   du développement, avec SQLite et stockage de recette isolés. Un contexte
@@ -94,6 +110,155 @@
   Aucun ticket P1/P2 n’est automatiquement promu au P0 et aucun nouveau module
   métier n’est lancé par cette seule révision. Les décisions, données et
   qualifications externes ci-dessous restent identifiées séparément.
+
+### Recette P0 visible — lot 2, personnes et équipes/rosters, 08/11/2026
+
+**Environnement :** même navigateur intégré visible et même recette Docker
+isolée que le lot 1 : API Laravel réelle, base SQLite temporaire, sessions et
+fichiers de test séparés du développement. Compte fictif browser-roster, droits
+d’écriture explicites sur Roster Alpha et lecture seule sur Roster Beta.
+La recette n’a modifié ni .env, ni base de travail, ni migrations.
+
+| Scénario exécuté | Résultat observé |
+| --- | --- |
+| Création de personne sans pseudonyme | Refus serveur, message de champ obligatoire et focus sur le pseudonyme. |
+| Création puis modification de la fiche active | Confirmation de Roster Alpha ; pseudonyme et fuseau Europe/Paris conservés après rechargement. |
+| Présentation sportive contenant des balises | Balises affichées littéralement, sans rendu HTML. |
+| Filtre sans résultat et réinitialisation | État vide explicite, puis fiche retrouvée. |
+| Pagination réelle | Onze fiches fictives supplémentaires préparées par API ; dix lignes sur la première page et deux sur la seconde, page suivante désactivée. Un filtre appliqué depuis la page 2 revient au résultat de la première page. |
+| Deux équipes actives VALORANT | Source et destination créées avec jeu activé, saison et slugs stables, après confirmation du tenant. |
+| Slug déjà réservé | Refus métier correct, mais perte de l’éditeur initialement constatée. Après correction : formulaire, jeu, nom, saison et statut conservés ; modification du seul slug puis création réussie. |
+| Appartenance sportive source | Joueur affecté comme titulaire à une date passée ; période effective et mouvement initial historisé. Les choix du formulaire ne contiennent pas les personnes Beta/étrangères. |
+| Composition datée | Joueur sélectionné comme titulaire, brouillon enregistré puis figé ; commandes de modification retirées. Le statut « sans règlement, éligibilité non évaluée » reste explicite. |
+| Transfert vers la destination | Période source clôturée, période destination effective comme remplaçant, mouvement de transfert visible des deux côtés. |
+| Clôture de la période destination | Période clôturée, retrait des commandes de clôture/transfert, mouvement de fin de période historisé. |
+| Persistance et instantané | Après rechargement, équipes et fiche conservées ; composition figée toujours lisible avec le titulaire initial malgré transfert et clôture. |
+| Passage à Roster Beta | Données Alpha absentes ; personne et équipe Beta lisibles, effectif consultable uniquement, aucune commande d’ajout/gestion. |
+
+**Contrôles API réels complémentaires :** chevauchement initial refusé (409),
+personne étrangère et appartenance Beta adressées sous Alpha refusées (404),
+version périmée de fiche refusée (409), nouvelle clôture d’une période terminale
+refusée (409). Relecture des deux périodes : une seule par équipe, clôturées et
+non effectives ; fin source exactement égale au début destination. Historique
+source = created/transfer, destination = transfer/close. Composition finalized
+contenant toujours le participant initial et sa place starter.
+
+Le contrôle sans CSRF a été rejoué avec un client HTTP neuf partageant seulement
+les cookies, pour éliminer les en-têtes mémorisés par le premier client de test :
+refus 419. Dans Beta, créations de personne, équipe et appartenance refusées
+(403) ; fiche Alpha demandée sous Beta refusée (404) et requête utilisant
+l’ancienne révision Alpha après changement de contexte refusée (409). Beta
+reste inchangé : une personne et aucun mouvement de roster.
+
+**Correction ciblée :** usePeopleMutation transmet l’ApiClientError au callback
+d’invalidation. TeamsPanel conserve l’éditeur uniquement pour HTTP 409 avec
+code TEAM_SLUG_ALREADY_EXISTS. Tous les autres refus 401/403/404/409 continuent
+à provoquer la relecture existante, notamment TEAM_VERSION_STALE. Le refus de
+slug reste affiché ; aucune mutation n’est rejouée automatiquement. Aucun
+changement d’autorisation, de règle métier serveur ou de contrat API.
+
+**Validation exécutée :** le nouveau test échoue avant correction sur l’appel
+d’invalidation ; après correction, conservation des champs et nouvelle soumission
+explicite couvertes. Quatre cas supplémentaires couvrent la relecture sur refus.
+Tests ciblés TeamsPanel/TeamMembershipPanel/PeoplePanel : **42 réussis**. Suite
+frontend complète : **546 tests / 72 fichiers réussis** ; lint sans avertissement
+ni erreur ; TypeScript et build Vite réussis. Commandes :
+`docker compose exec -T front npm test -- src/components/teams/TeamsPanel.test.tsx src/components/teams/TeamMembershipPanel.test.tsx src/components/people/PeoplePanel.test.tsx`,
+`docker compose exec -T front npm test -- --reporter=dot`,
+`docker compose exec -T front npm run lint` et
+`docker compose exec -T front npm run build`. Diff vérifié.
+
+**Preuves :** captures lot2-conflit-slug-corrige.png,
+lot2-instantane-apres-transfert.png et lot2-beta-lecture-seule.png, identifiants
+fictifs et relevé API privés dans back/reports/recette-visible (ignoré par Git).
+Console navigateur finale sans avertissement/erreur capturé ; navigateur et
+conteneurs conservés pour observation.
+
+**Limites :** ce lot ne clôture pas exhaustivement People/Teams : imports CSV,
+départ formel, archivage des équipes, promotions académie, règlements et contrôle
+d’éligibilité, concurrence PostgreSQL et variantes mobiles ne sont pas attestés
+par ces scénarios. Aucune suite Playwright ou PostgreSQL complète relancée ici.
+Le prochain lot visible est planning/disponibilités ; aucune clôture globale P0
+ni nouvelle validation CI distante n’est déduite de ce bilan.
+
+### Recette P0 visible — lot 3, planning et disponibilités — 10/11/2026
+
+- Connexion et MFA avec le compte calendrier fictif dans la recette Docker
+  isolée sur SQLite. Le planning collectif de Calendar Alpha affiche
+  l’indisponibilité préparée de Calendar player A de 10 h à 11 h UTC.
+- La vérification d’un entraînement sur ce créneau signale un conflit et
+  désactive l’enregistrement pour le rôle utilisé. Sur le créneau libre de
+  12 h à 13 h UTC, l’activité privée est créée après confirmation de Calendar
+  Alpha avec l’équipe et le joueur sélectionnés.
+- Report sur le créneau de 14 h à 15 h UTC avec ajout du second joueur et motif.
+  Le créneau et les deux participants persistent après rechargement. L’annulation motivée
+  retire l’activité du calendrier courant. Les archives de gestion conservent
+  l’activité, les anciens horaires et les motifs des deux changements.
+- Calendar Beta affiche son activité fictive et permet la consultation. Le
+  titre Alpha et le bouton de création sont absents. Onglet laissé sur Beta.
+- Tests ciblés dans Docker. Vitest sur `src/components/calendar` et
+  `src/api/calendarTime.test.ts` réussit avec 47 tests. PHPUnit réussit avec
+  62 tests et 546 assertions sur les contrôleurs de calendrier, de conflits,
+  de changements et de disponibilités, ainsi que la politique de disponibilité.
+  Le lancement final utilise SQLite en mémoire, la session de test `array`
+  et l’origine Sanctum `localhost:5173` attendue par les fixtures MFA.
+- Captures `lot3-*.png` dans `back/reports/recette-visible`, ignorées par Git.
+- Le navigateur a couvert la consultation des disponibilités et le conflit à
+  partir d’une indisponibilité préparée. La déclaration d’un créneau personnel,
+  les convocations, les flux ICS et les livraisons de notifications restent
+  hors du scénario visible. La concurrence PostgreSQL reste hors de ce lot.
+
+### Recette P0 visible — lot 4, parcours joueur — 10/11/2026
+
+- Scénario dans une organisation fictive dédiée sur la recette Docker SQLite,
+  avec un compte staff et un compte joueur lié à une fiche. Les remises ont
+  été activées dans le seul conteneur de recette, avec le mailer `array`.
+- Le joueur déclare une indisponibilité sans commentaire, modifie son horaire
+  et l’annule. Le créneau disparaît de la liste courante et se retrouve via le
+  filtre des créneaux annulés.
+- Le staff prépare une convocation. Après traitement asynchrone, le joueur
+  la voit, répond « Présent » et le staff relit la réponse. Une seule remise
+  de convocation est visible. Aucun rappel futur n’a été attendu en direct.
+- Le joueur crée son flux ICS. Requête sans session avec jeton autorisé en
+  `200 text/calendar` et une seule activité, celle du joueur. L’activité
+  privée du staff est exclue. Réponse 404 sans jeton puis avec le jeton révoqué.
+- Le staff reporte puis annule l’activité. Les traitements de remise ont été
+  lancés pour la seule organisation fictive. Le joueur voit les deux avis avec
+  leurs horaires et motifs. Onglet laissé sur ses notifications.
+- Le texte d’aide du calendrier a été actualisé pour refléter les panneaux
+  de convocations et de notifications déjà disponibles. Captures `lot4-*.png`
+  dans `back/reports/recette-visible`, ignorées par Git.
+- Tests ciblés dans Docker. PHPUnit sur les disponibilités, convocations,
+  changements de planning et flux ICS réussit avec 95 tests et 652 assertions.
+  Vitest sur `src/components/calendar` et `src/api/calendarTime.test.ts`
+  réussit avec 47 tests. Remises internes vérifiées dans la recette. Transport
+  externe, rappel à échéance en temps réel et PostgreSQL hors scénario visible.
+
+### Recette P0 visible — lot 5, parcours match — 10/11/2026
+
+- Dans Match Alpha, création d’un scrim privé VALORANT en BO1 avec Match team
+  A et Match team B. Affectation et relecture des deux compositions déjà
+  finalisées. Passage de Proposé à Confirmé, puis En cours.
+- Le staff fixe la règle d’une partie, enregistre Ascent à 13–7 et soumet le
+  résultat avec une référence de preuve fictive. La commande d’approbation
+  est absente pour le soumissionnaire, pourtant titulaire du droit de
+  validation. Le second compte lit la preuve, approuve et voit l’équipe A en tête.
+- Correction à 7–13. Le résultat devient Contesté pendant l’attente, puis le
+  worker `RecalculateMatchScore` de la recette traite le recalcul. L’historique
+  garde les scores avant et après. Nouvelle soumission et nouvelle approbation
+  indépendante. Après rechargement, le statut Validé et l’équipe B en tête
+  persistent. Les deux approbations restent dans l’historique.
+- Match Beta affiche son match fictif, sans le dossier Alpha ni commande de
+  création. Onglet laissé sur le résultat corrigé de Match Alpha.
+- Tests ciblés dans Docker. Vitest sur `src/components/matches` et
+  `src/realtime/useMatchRealtime.test.tsx` réussit avec 54 tests. PHPUnit sur
+  match, compositions, scores, résultat et correction réussit avec 116 tests
+  et 1137 assertions sur SQLite en mémoire. Captures `lot5-*.png` dans
+  `back/reports/recette-visible`, ignorées par Git.
+- Le scénario visible couvre le BO1 sur SQLite et un recalcul via la file
+  locale. Les autres formats, les variantes mobiles, les mises à jour via
+  Reverb et la concurrence PostgreSQL restent hors de ce scénario. Le plan
+  navigateur actuel est terminé, sans validation de CI distante sur ce lot.
 
 ### Optimisation des CI — 08/11/2026
 

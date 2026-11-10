@@ -1862,7 +1862,7 @@ export const frenchMessages = {
   "calendar.visibility.organization": "Lecteurs calendrier de l’organisation",
   "calendar.visibilityHint": "Privé par défaut, y compris pour les scrims. Les gestionnaires habilités peuvent consulter toutes les activités. Un partage interne exige une permission et votre confirmation.",
   "calendar.confirmSharing": "Je confirme que le partage interne de cette activité est autorisé",
-  "calendar.limits": "Activités ponctuelles uniquement. Les disponibilités disposent de leur panneau dédié. Les réservations sont contrôlées avant enregistrement. Les convocations, récurrences, notifications de report et scores seront pris en charge séparément. Archiver conserve les données et n’envoie aucune notification.",
+  "calendar.limits": "Activités ponctuelles uniquement. Les réservations sont contrôlées avant enregistrement. Les disponibilités, les convocations et les notifications de planning se consultent dans leurs panneaux dédiés, selon vos accès.",
   "availability.title": "Disponibilités et absences",
   "availability.hint": "Déclarez vos créneaux disponibles, indisponibles ou incertains. La consultation collective exige une habilitation distincte.",
   "availability.open": "Ouvrir les disponibilités",

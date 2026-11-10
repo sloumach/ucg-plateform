@@ -26,7 +26,10 @@ export function TeamsPanel({ active, disabled, onInvalid }: { active: ActiveOrga
   const [roster, setRoster] = useState<Team | null>(null)
   const [lineups, setLineups] = useState<Team | null>(null)
   const [loading, setLoading] = useState(false), [error, setError] = useState<ReturnType<typeof apiError> | null>(null)
-  const mutation = usePeopleMutation<Team>(active, () => { setEditor(null); setRefresh((value) => value + 1) }, onInvalid)
+  const mutation = usePeopleMutation<Team>(active, () => { setEditor(null); setRefresh((value) => value + 1) }, (failure) => {
+    if (failure.status === 409 && failure.code === 'TEAM_SLUG_ALREADY_EXISTS') return
+    onInvalid()
+  })
   useEffect(() => {
     if (!org || !allowed || !open) return
     const controller = new AbortController()

@@ -66,6 +66,50 @@ describe('équipes tenant', () => {
     })))
     expect(request).toHaveBeenCalledWith('active-organization/confirmation', expect.objectContaining({ body: { organization_id: org, revision, confirm: true } }))
   })
+  it('conserve la création après un slug réservé et permet une correction explicite', async () => {
+    const user = userEvent.setup(); show({ ...active, confirmed: true })
+    const form = await openEditor(user)
+    await user.selectOptions(within(form).getByLabelText('Jeu activé'), id)
+    await user.type(within(form).getByLabelText('Slug stable'), 'deja-reserve')
+    await user.type(within(form).getByLabelText('Saison'), '2026')
+    await user.type(within(form).getByLabelText('Nom de l’équipe'), 'Nouvelle équipe')
+    await user.selectOptions(within(form).getByLabelText('Statut'), 'active')
+    request.mockImplementationOnce(async () => { throw new ApiClientError('Slug réservé.', { status: 409, code: 'TEAM_SLUG_ALREADY_EXISTS' }) })
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer l’équipe' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
+
+    await screen.findAllByText('Slug réservé.')
+    expect(invalid).not.toHaveBeenCalled()
+    expect(within(form).getByLabelText('Slug stable')).toHaveValue('deja-reserve')
+    expect(within(form).getByLabelText('Nom de l’équipe')).toHaveValue('Nouvelle équipe')
+    expect(within(form).getByLabelText('Saison')).toHaveValue('2026')
+    expect(within(form).getByLabelText('Statut')).toHaveValue('active')
+    expect(request.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(1)
+
+    await user.clear(within(form).getByLabelText('Slug stable'))
+    await user.type(within(form).getByLabelText('Slug stable'), 'slug-disponible')
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer l’équipe' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
+    await waitFor(() => expect(request).toHaveBeenCalledWith('tenants/' + org + '/teams', expect.objectContaining({
+      method: 'POST', body: expect.objectContaining({ slug: 'slug-disponible', name: 'Nouvelle équipe', season: '2026', status: 'active' }),
+    })))
+    await waitFor(() => expect(screen.queryByRole('form', { name: 'Enregistrer l’équipe' })).not.toBeInTheDocument())
+    expect(request.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(2)
+  })
+
+  it.each([401, 403, 404, 409])('recharge le contexte après un refus HTTP %s autre que le conflit de slug', async (status) => {
+    const user = userEvent.setup(); show({ ...active, confirmed: true })
+    const form = await openEditor(user)
+    await user.selectOptions(within(form).getByLabelText('Jeu activé'), id)
+    await user.type(within(form).getByLabelText('Slug stable'), 'nouvelle-equipe')
+    await user.type(within(form).getByLabelText('Saison'), '2026')
+    await user.type(within(form).getByLabelText('Nom de l’équipe'), 'Nouvelle équipe')
+    request.mockImplementationOnce(async () => { throw new ApiClientError('Contexte invalide.', { status, code: 'TENANT_CONTEXT_CHANGED' }) })
+    await user.click(within(form).getByRole('button', { name: 'Enregistrer l’équipe' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
+    await waitFor(() => expect(invalid).toHaveBeenCalledTimes(1))
+  })
+
   it('envoie un patch partiel sans jeu slug ou saison', async () => {
     rows = [team]
     const user = userEvent.setup(); show({ ...active, confirmed: true })

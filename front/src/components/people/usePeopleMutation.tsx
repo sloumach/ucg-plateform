@@ -9,7 +9,7 @@ import { apiError } from './peopleFormValues'
 import type { ApiClientError } from '../../api/errors'
 
 type Pending = { label: string; path: string; method: 'POST' | 'PATCH'; body: Record<string, unknown> | FormData; form: HTMLFormElement }
-export function usePeopleMutation<T = unknown>(active: ActiveOrganization, onSaved: (data: T) => void, onInvalid: () => void) {
+export function usePeopleMutation<T = unknown>(active: ActiveOrganization, onSaved: (data: T) => void, onInvalid: (error: ApiClientError) => void) {
   const [pending, setPending] = useState<Pending | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<ApiClientError | null>(null)
@@ -51,7 +51,7 @@ export function usePeopleMutation<T = unknown>(active: ActiveOrganization, onSav
       if (element instanceof HTMLElement) returnFocus.current = element
       if ([401, 403, 404, 409].includes(next.status ?? 0)) {
         notify({ type: 'warning', message: next.message, requestId: next.requestId })
-        onInvalid()
+        onInvalid(next)
       }
     } finally { if (alive.current) setBusy(false) }
   }
