@@ -6,9 +6,12 @@
 ## Point de reprise
 
 - Dernière mise à jour : **10 novembre 2026**.
-- Le commit de bilan regroupe les cinq lots de recette navigateur, le
+- **CI de `42846d4` sur `staging` validée par l’utilisateur.** Ce commit de
+  bilan regroupe les cinq lots de recette navigateur, le
   correctif de saisie sur conflit de slug et la mise à jour de l’aide du
-  calendrier. La CI distante reste à vérifier sur le commit publié.
+  calendrier. Les durées des runs n’ont pas été relevées.
+- **Prochaine décision P0 — CAD-006, périmètre du pilote UCG.** Proposition
+  d’une semaine sportive sur une équipe, détaillée dans le bilan ci-dessous.
 - Dernier lot de recette exécuté — **lot 5, parcours match**. Deux compositions
   affectées, BO1 saisi et validé par un second compte, score corrigé puis
   validé à nouveau après recalcul. Les cinq lots du plan navigateur ont été
@@ -110,6 +113,30 @@
   Aucun ticket P1/P2 n’est automatiquement promu au P0 et aucun nouveau module
   métier n’est lancé par cette seule révision. Les décisions, données et
   qualifications externes ci-dessous restent identifiées séparément.
+
+### Bilan de recette et périmètre proposé pour le pilote — 10/11/2026
+
+| Périmètre | État |
+| --- | --- |
+| Développement P0 | L’audit des 92 tickets a rapproché le code, les tests et les décisions. Ses quatre écarts applicatifs sont corrigés et leurs CI confirmées. Les tickets de cadrage et d’exploitation ouverts conservent leur statut. |
+| Recette navigateur | Cinq lots exécutés sur Docker isolé avec des données fictives. Accès et organisations, personnes et rosters, planning, parcours joueur et parcours match couverts. CI du commit de bilan `42846d4` validée par l’utilisateur. |
+| Pilote réel | CAD-006 et REL-001 restent ouverts. Équipe, jeu, rôles, semaine, environnement et données à confirmer. La première population réelle reste limitée aux participants résidant en Tunisie. |
+| Exploitation | Reprise de données réelles, procédures sur l’environnement cible et mise en service à valider séparément. La qualification de performance liée à l’hébergement reste reportée. |
+
+**Proposition CAD-006.** Une équipe UCG et un seul jeu pendant sept jours.
+Retenir la connexion et les accès, l’effectif, le planning, les convocations,
+la composition et un match avec validation du résultat par un autre compte
+habilité. Réserver les contrats, les exports et les autres modules à une
+décision d’élargissement. Le dossier REL-001 existant fournit le déroulé et
+le registre d’anomalies. Pour ce périmètre, proposer un effectif rapproché,
+un parcours match achevé jusqu’à la validation, zéro accès indu et zéro
+anomalie bloquante ouverte au bilan. Les cibles d’usage du dossier REL-001
+restent à approuver avec le périmètre.
+
+**Premier candidat P1 après le pilote — CAL-007.** Si les entraînements
+répétés sont confirmés comme besoin prioritaire, cadrer les séries et la
+modification d’une occurrence ou de la série, avec des cas de changement
+d’heure. Le backlog place l’engagement du P1 après la validation du pilote.
 
 ### Recette P0 visible — lot 2, personnes et équipes/rosters, 08/11/2026
 
