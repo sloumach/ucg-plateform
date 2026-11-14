@@ -30,12 +30,12 @@ export function AvailabilityPanel({ active, disabled, onInvalid }: Props) {
   const blocked = disabled || mutation.blocked, meta = list?.availability, timezone = meta?.display_timezone ?? (filters.timezone || active.context!.timezone)
   const canCreate = meta && (meta.can_manage || (meta.can_self && meta.viewer_person_id !== null))
   if (!canSelf && !canRead) return null
-  return <section aria-label={text('title')} className="grid min-w-0 gap-4 rounded-2xl border border-white/10 p-4">
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4">
     <h2 className="text-xl font-bold">{text('title')}</h2><p className="text-sm text-slate-400">{text('hint')}</p>
-    <Button disabled={blocked} onClick={() => { setOpen(!open); setEditor(null); setHistory(null) }}>{text(open ? 'close' : 'open')}</Button>
+    <Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); setEditor(null); setHistory(null) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>
       {mutation.feedback}
-      <form aria-label={text('filter')} className="grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
+      <form aria-label={text('filter')} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
         event.preventDefault(); const values = new FormData(event.currentTarget)
         setFilters({ from: String(values.get('from_date') ?? ''), to: String(values.get('to_date') ?? ''), timezone: String(values.get('timezone') ?? '').trim(),
           status: String(values.get('status') ?? ''), collective, person: collective ? person : '', cancelled: values.has('cancelled') })
@@ -58,8 +58,8 @@ export function AvailabilityPanel({ active, disabled, onInvalid }: Props) {
       {canCreate && <Button disabled={blocked || loading} onClick={() => { setEditor('new'); setHistory(null) }}>{text('new')}</Button>}
       {loading && <p role="status">{text('loading')}</p>}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-      {list?.data.length === 0 && <p>{text('empty')}</p>}
-      <ol className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
+      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      <ol className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-2 p-3">
         <h3 className="font-bold [overflow-wrap:anywhere]">{item.person_label ?? text('unknownPerson')} · {text('status.' + item.status)}</h3>
         <p className="[overflow-wrap:anywhere]">{date(item.starts_at, timezone)} → {date(item.ends_at, timezone)}</p>
         <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('origin')} : {item.origin_timezone} · {date(item.starts_at, item.origin_timezone)} → {date(item.ends_at, item.origin_timezone)}</p>

@@ -38,7 +38,7 @@ export function SponsorshipDeliverablesPanel({ active, agreement, campaign, path
       const transition = (event: React.FormEvent<HTMLFormElement>, target: string) => mutation.propose(event, text(target === 'promised' ? 'reopen' : target === 'cancelled' ? 'cancelDeliverable' : 'validate'), path + '/' + record.id + '/transitions', {
         ...versions(record), target_status: target, ...(target === 'validated' ? { confirm_evidence: new FormData(event.currentTarget).has('confirm_evidence') } : {}),
       })
-      return <li key={record.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
+      return <li key={record.id} className="ui-card grid min-w-0 gap-2 p-3">
         <p className="font-bold [overflow-wrap:anywhere]">{record.title} · {text('status.' + record.status)}</p>
         <p>{text('kind.' + record.kind)}</p>
         <p className="[overflow-wrap:anywhere]">{text('responsible')} : {record.responsible_label ?? text('unavailable')}</p>

@@ -40,11 +40,11 @@ export function SensitiveAccessPanel({ active, disabled, onInvalid }: { active: 
     setFilters(Object.fromEntries([...new FormData(event.currentTarget)].filter(([, value]) => value !== '').map(([key, value]) => [key, String(value)])))
     setCursors([null]); setPosition(0)
   }
-  return <section aria-label={text('title')} className="grid min-w-0 gap-4 rounded-xl border border-slate-700 p-4">
-    <Button disabled={disabled} onClick={() => setOpen((value) => !value)}>{open ? text('close') : text('title')}</Button>
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4">
+    <Button disabled={disabled} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? text('close') : text('title')}</Button>
     {open && <>
       <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('hint')}</p>
-      <form aria-label={text('filter')} className="grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={filter}>
+      <form aria-label={text('filter')} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={filter}>
         <SelectField name="action" title={text('action')} disabled={blocked}><option value="">{text('all')}</option>
           {sensitiveActions.map((action) => <option key={action} value={action}>{text(action)}</option>)}
         </SelectField>
@@ -53,8 +53,8 @@ export function SensitiveAccessPanel({ active, disabled, onInvalid }: { active: 
       </form>
       {loading && <p role="status">{text('loading')}</p>}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-      {page?.data.length === 0 && <p>{text('empty')}</p>}
-      {page && <ul className="grid min-w-0 gap-3">{page.data.map((entry) => <li key={entry.id} className="grid min-w-0 gap-2 rounded-lg border border-slate-700 p-3 [overflow-wrap:anywhere]">
+      {page?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      {page && <ul className="grid min-w-0 gap-3">{page.data.map((entry) => <li key={entry.id} className="ui-card grid min-w-0 gap-2 p-3 [overflow-wrap:anywhere]">
         <h3 className="font-semibold">{text(entry.action)}</h3>
         <p>{new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'medium', timeZone: active.context?.timezone ?? 'UTC' }).format(new Date(entry.occurred_at))}</p>
         <p>{text('actor')} : {entry.actor_user_id ?? '—'}</p>

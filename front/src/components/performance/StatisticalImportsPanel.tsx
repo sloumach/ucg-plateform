@@ -29,8 +29,8 @@ export function StatisticalImportsPanel({ active, disabled, onInvalid }: Props) 
     if (input instanceof HTMLInputElement && input.files?.[0]) body.set('file', input.files[0])
     mutation.propose(event, text('upload'), root, body)
   }
-  return <section aria-label={text('title')} className="grid min-w-0 gap-4 rounded-xl border border-slate-700 p-4">
-    <Button disabled={blocked} onClick={() => { setOpen(!open); setSelected(null) }}>{text(open ? 'close' : 'title')}</Button>
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4">
+    <Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); setSelected(null) }}>{text(open ? 'close' : 'title')}</Button>
     {open && <><p>{text('hint')}</p><p>{text('private')}</p>{mutation.feedback}
       <form noValidate aria-label={text('upload')} onSubmit={upload} className="grid min-w-0 gap-3">
         <FormField name="file" label={text('file')} type="file" accept=".csv,text/csv" required disabled={blocked} error={mutation.errors(root).file?.[0]} />
@@ -41,8 +41,8 @@ export function StatisticalImportsPanel({ active, disabled, onInvalid }: Props) 
       <ImportReferences {...{ active, onInvalid }} disabled={blocked} />
       <Button disabled={blocked || loading} onClick={() => setRefresh((n) => n + 1)}>{text('refresh')}</Button>
       {loading && <p role="status">{text('loading')}</p>}{error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-      {list?.data.length === 0 && <p>{text('empty')}</p>}
-      <ul className="grid min-w-0 gap-3">{list?.data.map((run) => <li key={run.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
+      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      <ul className="grid min-w-0 gap-3">{list?.data.map((run) => <li key={run.id} className="ui-card grid min-w-0 gap-2 p-3">
         <p>{text(run.status)}</p><p className="[overflow-wrap:anywhere]">{run.created_at} · {text('valid')} : {run.valid_count} · {text('invalid')} : {run.invalid_count}</p>
         <Button disabled={blocked} onClick={() => { setSelected(run.id); setRowPage(1) }}>{text('view')} · {run.id.slice(-8)}</Button>
       </li>)}</ul>
@@ -78,7 +78,7 @@ function ImportPreview({ active, path, disabled, onInvalid, onPageChange, onSave
         <Button type="submit" disabled={blocked || (run.can_confirm && run.invalid_count > 0 && !acknowledge)}>{text(run.can_confirm ? 'confirm' : 'resume')}</Button>
       </form>}
       <p>{text('valid')} : {run.valid_count} · {text('invalid')} : {run.invalid_count}</p>
-      {run.rows.data.map((row) => <article key={row.line} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3 whitespace-pre-wrap [overflow-wrap:anywhere]">
+      {run.rows.data.map((row) => <article key={row.line} className="ui-card grid min-w-0 gap-2 p-3 whitespace-pre-wrap [overflow-wrap:anywhere]">
         {row.outcome && <p>{text(row.outcome.status)}{row.outcome.code ? ' · ' + text(row.outcome.code) : ''}</p>}
         <h4 className="font-bold">{text('line')} {row.line} · {text(row.status)}</h4>
         {row.resolved && <p>{row.resolved.person_label ?? observationText('hiddenPerson')} · {row.resolved.metric.code} · {row.resolved.metric.title} · v{row.resolved.metric.number}</p>}
@@ -93,7 +93,7 @@ function ImportReferences({ active, disabled, onInvalid }: Props) {
   const [open, setOpen] = useState(false), [peoplePage, setPeoplePage] = useState(1), [metricPage, setMetricPage] = useState(1)
   const people = usePartnershipList<{ id: string; label: string }>('tenants/' + active.context?.organization_id + '/observations/choices?kind=people&page=' + peoplePage, active, open, onInvalid)
   const metrics = usePartnershipList<MetricDefinition>('metric-catalogue?status=active&per_page=10&page=' + metricPage, active, open, onInvalid)
-  return <div className="grid min-w-0 gap-3"><Button disabled={disabled} onClick={() => setOpen(!open)}>{text(open ? 'closeReferences' : 'references')}</Button>
+  return <div className="grid min-w-0 gap-3"><Button disabled={disabled} aria-expanded={open} onClick={() => setOpen(!open)}>{text(open ? 'closeReferences' : 'references')}</Button>
     {open && <><p>{text('referencesHint')}</p>{[people.error, metrics.error].map((error, i) => error && <Alert key={i} tone="error" title={error.message} />)}
       {(people.loading || metrics.loading) && <p role="status">{text('loading')}</p>}
       <ul>{people.list?.data.map((person) => <li className="[overflow-wrap:anywhere]" key={person.id}>{person.label} · person_id : {person.id}</li>)}</ul>

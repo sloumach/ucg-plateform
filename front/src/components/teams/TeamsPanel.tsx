@@ -56,14 +56,14 @@ export function TeamsPanel({ active, disabled, onInvalid }: { active: ActiveOrga
     setFilters(Object.fromEntries([...new FormData(event.currentTarget)].filter(([, value]) => value !== '').map(([key, value]) => [key, String(value)])))
     setPage(1)
   }
-  return <section aria-label={text('title')} className="grid min-w-0 gap-4 rounded-xl border border-slate-700 p-4">
-    <Button disabled={disabled || mutation.blocked} onClick={() => setOpen((value) => !value)}>{open ? text('close') : text('title')}</Button>
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4">
+    <Button disabled={disabled || mutation.blocked} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? text('close') : text('title')}</Button>
     {open && <>
       {!canManage && <p>{text('readOnly')}</p>}
       {loading && <p role="status">{text('loading')}</p>}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
       {mutation.feedback}
-      <form aria-label={text('search')} onSubmit={filter} className="grid min-w-0 gap-3 sm:grid-cols-2">
+      <form aria-label={text('search')} onSubmit={filter} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2">
         <FormField name="q" label={text('q')} maxLength={80} disabled={blocked} />
         <FormField name="season" label={text('season')} maxLength={64} disabled={blocked} />
         <SelectField name="kind" title={text('kind')} disabled={blocked}><option value="">{text('all')}</option>{teamKinds.map((kind) => <option key={kind} value={kind}>{text('kind.' + kind)}</option>)}</SelectField>
@@ -72,13 +72,13 @@ export function TeamsPanel({ active, disabled, onInvalid }: { active: ActiveOrga
         <SelectField name="sort" title={text('sort')} disabled={blocked}><option value="name">{text('sort.name')}</option><option value="newest">{text('sort.newest')}</option></SelectField>
         <Button type="submit" disabled={blocked}>{text('search')}</Button>
       </form>
-      {canManage && <Button disabled={blocked || !games.some((game) => game.enabled)} onClick={() => setEditor('new')}>{text('create')}</Button>}
+      {canManage && <Button variant="primary" className="justify-self-start" disabled={blocked || !games.some((game) => game.enabled)} onClick={() => setEditor('new')}>{text('create')}</Button>}
       {canManage && !loading && !games.some((game) => game.enabled) && <p>{text('noGames')}</p>}
       <p className="text-sm text-slate-400">{text('private')}</p>
-      {list?.data.length === 0 && <p>{text('empty')}</p>}
-      {list && <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{list.data.map((team) => <li key={team.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
-        <h3 className="break-words font-bold [overflow-wrap:anywhere]">{team.name}</h3>
-        <p className="break-words [overflow-wrap:anywhere]">{team.game_name} · {team.season} · {text('kind.' + team.kind)} · {text('status.' + team.status)}</p>
+      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      {list && <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{list.data.map((team) => <li key={team.id} className="ui-card grid min-w-0 gap-2 p-3">
+        <h3 className="text-lg font-bold wrap-anywhere">{team.name}</h3>
+        <p className="text-sm text-muted wrap-anywhere">{team.game_name} · {team.season} · {text('kind.' + team.kind)} · {text('status.' + team.status)}</p>
         {team.custom_category && <p>{team.custom_category}</p>}{team.public_description && <p className="break-words [overflow-wrap:anywhere]">{team.public_description}</p>}
         <p className="break-words text-sm text-slate-400 [overflow-wrap:anywhere]">{team.slug}{team.short_name && ' · ' + team.short_name}{team.color && ' · ' + team.color}</p>
         <Button disabled={blocked} onClick={() => { setEditor(null); setLineups(null); setRoster(team) }}>{rosterText('title')}</Button>
@@ -110,7 +110,7 @@ function TeamForm({ team, games, disabled, errors, onSubmit, onCancel }: {
 }) {
   const [kind, setKind] = useState(team?.kind ?? 'first')
   const [category, setCategory] = useState(team?.custom_category ?? '')
-  return <form aria-label={text('save')} onSubmit={onSubmit} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-4 sm:grid-cols-2">
+  return <form aria-label={text('save')} onSubmit={onSubmit} className="ui-editor grid min-w-0 gap-3 p-4 sm:grid-cols-2">
     {team ? <p className="break-words sm:col-span-2 [overflow-wrap:anywhere]">{team.game_name} · {team.slug} · {team.season}. {text('stable')}</p> : <>
       <SelectField name="game_id" title={text('game')} disabled={disabled} defaultValue="" error={errors.game_id?.[0]}><option value="">{text('chooseGame')}</option>{games.map((game) => <option value={game.id} key={game.id}>{game.name}</option>)}</SelectField>
       <FormField name="slug" label={text('slug')} required maxLength={80} disabled={disabled} error={errors.slug?.[0]} />
@@ -128,6 +128,6 @@ function TeamForm({ team, games, disabled, errors, onSubmit, onCancel }: {
     <SelectField name="status" title={text('status')} defaultValue={team?.status ?? 'draft'} disabled={disabled}>
       {teamStatuses.filter((value) => value !== 'archived').map((value) => <option key={value} value={value}>{text('status.' + value)}</option>)}
     </SelectField>
-    <div className="flex flex-wrap gap-3 sm:col-span-2"><Button type="submit" disabled={disabled}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{t('tenant.cancel')}</Button></div>
+    <div className="flex flex-wrap gap-3 sm:col-span-2"><Button variant="primary" type="submit" disabled={disabled}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{t('tenant.cancel')}</Button></div>
   </form>
 }

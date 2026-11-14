@@ -73,7 +73,7 @@ test('contrats : préparation, validation distincte, signature déclarée et ré
     await expect(confirmation).toContainText('Alpha'); await mobile()
     await confirmation.getByRole('button', { name: 'Confirmer et continuer' }).click()
   }
-  await page.goto('/')
+  await page.goto('/?rubrique=administration')
   await page.getByRole('button', { name: 'Contrats de l’organisation' }).click()
   const panel = page.getByRole('region', { name: 'Contrats de l’organisation', exact: true })
   await panel.getByRole('button', { name: 'Créer un dossier de contrat' }).click()

@@ -25,7 +25,7 @@ export function MatchLineups({ active, item, participant, root, management, disa
   const current = page === 1 ? list?.data[0] : undefined
   const entries = current?.snapshot.participants ?? []
   const zone = active.context!.timezone
-  return <section aria-label={text('lineups')} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-3">
+  return <section aria-label={text('lineups')} className="ui-editor grid min-w-0 gap-3 p-3">
     <h3 className="font-bold [overflow-wrap:anywhere]">{text('lineups')} · {participant.label}</h3>
     <p className="text-sm text-slate-400">{text('lineupHint')}</p>
     <Button disabled={blocked} onClick={onClose}>{text('closeLineups')}</Button>
@@ -70,7 +70,7 @@ export function MatchLineups({ active, item, participant, root, management, disa
         <Button type="submit" disabled={blocked}>{text('saveSubstitution')}</Button>
       </form>}
     </>}
-    <ol className="grid min-w-0 gap-3">{list?.data.map((revision) => <li key={revision.id} className="grid min-w-0 gap-2 rounded-lg border border-slate-700 p-3">
+    <ol className="grid min-w-0 gap-3">{list?.data.map((revision) => <li key={revision.id} className="ui-card grid min-w-0 gap-2 p-3">
       <h4 className="font-bold [overflow-wrap:anywhere]">#{revision.number} · {text('lineupAction.' + revision.action)} · {revision.snapshot.label}</h4>
       <p className="text-sm">{text('status.' + revision.phase)} · {calendarDate(revision.occurred_at, zone)} · {text('actor')} #{revision.actor_user_id}</p>
       <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{revision.reason}</p>

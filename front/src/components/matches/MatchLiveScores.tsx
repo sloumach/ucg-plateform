@@ -33,7 +33,7 @@ export function MatchLiveScores({ active, item, root, onInvalid, onClose }: Prop
     return () => controller.abort()
   }, [root, item.id, revision, refresh, changedAt, onInvalid])
   const card = !error && !loading ? snapshot : null
-  return <section aria-label={text('live.title')} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-3">
+  return <section aria-label={text('live.title')} className="ui-editor grid min-w-0 gap-3 p-3">
     <h3 className="font-bold [overflow-wrap:anywhere]">{text('live.title')} · {item.title}</h3>
     <p role="status">{text(error && shouldReloadContext(error) ? 'live.denied' : connected ? 'live.connected' : 'live.fallback')}</p>
     {card && <p>{text('status.' + card.status)}{' · ' + text(card.status === 'validated' ? 'live.validated' : 'live.provisional')}</p>}

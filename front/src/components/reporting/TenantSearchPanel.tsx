@@ -37,9 +37,9 @@ function Search({ active, disabled, onInvalid }: Props) {
   }
   function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); search(term) }
   const error = result.error ?? suggestions.error ?? catalogue.error
-  return <section aria-label={text('title')} className="grid min-w-0 gap-4 rounded-xl border border-slate-700 p-4 [overflow-wrap:anywhere]">
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4 [overflow-wrap:anywhere]">
     <h2 className="text-xl font-bold">{text('title')}</h2><p>{text('hint')}</p>
-    <Button disabled={disabled} onClick={() => { setOpen(!open); setSelection(null); setTerm(''); setDebounced(''); setFocused(false) }}>{text(open ? 'close' : 'open')}</Button>
+    <Button disabled={disabled} aria-expanded={open} onClick={() => { setOpen(!open); setSelection(null); setTerm(''); setDebounced(''); setFocused(false) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>
       {catalogue.loading && <p role="status">{text('loading')}</p>}
       {error && <><Alert tone="error" title={error.message} requestId={error.requestId} />{Object.entries(error.fieldErrors).map(([field, messages]) => <p key={field} role="alert">{messages.join(' ')}</p>)}</>}
@@ -60,7 +60,7 @@ function Search({ active, disabled, onInvalid }: Props) {
       {result.data && selection && <section aria-label={text('results')} className="grid min-w-0 gap-3">
         <h3 className="font-semibold">{text('type.' + result.data.type)} · {selection.term}</h3>
         {result.data.items.length === 0 && <p role="status">{text(result.data.meta.has_more ? 'emptySegment' : selection.page > 0 ? 'end' : 'empty')}</p>}
-        <ul className="grid min-w-0 gap-3">{result.data.items.map((item) => <li key={item.id} className="grid min-w-0 gap-1 rounded-xl border border-slate-700 p-3"><p className="font-medium">{item.label}</p>{item.reference && <p>{text('reference')} : {item.reference}</p>}</li>)}</ul>
+        <ul className="grid min-w-0 gap-3">{result.data.items.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-1 p-3"><p className="font-medium">{item.label}</p>{item.reference && <p>{text('reference')} : {item.reference}</p>}</li>)}</ul>
         {result.data.meta.has_more && <p>{text('more')}</p>}
         <div className="flex flex-wrap gap-3">
           {selection.page > 0 && <Button disabled={disabled || result.loading} onClick={() => setSelection({ ...selection, page: selection.page - 1 })}>{text('previous')}</Button>}

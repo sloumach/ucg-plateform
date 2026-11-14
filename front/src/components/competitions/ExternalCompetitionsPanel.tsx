@@ -34,9 +34,9 @@ export function ExternalCompetitionsPanel({ active, disabled, onInvalid }: Props
   const blocked = disabled || mutation.blocked
   const editPath = root + (editor && editor !== 'new' ? '/' + editor.id : '')
   if (!allowed) return null
-  return <section aria-label={text('title')} className="grid min-w-0 gap-4 rounded-2xl border border-white/10 p-4">
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4">
     <h2 className="text-xl font-bold">{text('title')}</h2><p className="text-sm text-slate-400">{text('hint')}</p>
-    <Button disabled={blocked} onClick={() => { setOpen(!open); clear() }}>{text(open ? 'close' : 'open')}</Button>
+    <Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); clear() }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>
       {mutation.feedback}
       <form aria-label={text('filters')} className="grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
@@ -47,10 +47,10 @@ export function ExternalCompetitionsPanel({ active, disabled, onInvalid }: Props
         <FormField name="season" label={text('season')} maxLength={100} disabled={blocked} /><FormField name="region" label={text('region')} maxLength={80} disabled={blocked} />
         <div className="flex flex-wrap gap-3"><Button type="submit" disabled={blocked}>{text('filter')}</Button><Button disabled={blocked || loading} onClick={() => { clear(); setRefresh((value) => value + 1) }}>{text('refresh')}</Button></div>
       </form>
-      {canWrite && <Button disabled={blocked} onClick={() => { clear(); setEditor('new') }}>{text('create')}</Button>}
+      {canWrite && <Button variant="primary" disabled={blocked} onClick={() => { clear(); setEditor('new') }}>{text('create')}</Button>}
       {loading && <p role="status">{text('loading')}</p>}{error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-      {list?.data.length === 0 && <p>{text('empty')}</p>}
-      <ol className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
+      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      <ol className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-3 p-3">
         <CompetitionMetadata item={item} />
         <div className="flex flex-wrap gap-3"><Button disabled={blocked} onClick={() => { clear(); setOutcome({ item, stream: 'sport' }) }}>{outcomeText('sport')}</Button>{permissions.includes('financial.read') && <Button disabled={blocked} onClick={() => { clear(); setOutcome({ item, stream: 'awards' }) }}>{outcomeText('awards')}</Button>}</div>
         {permissions.includes('sports.registrations.read') && <Button disabled={blocked} onClick={() => { clear(); setRegistration(item) }}>{registrationText('panel')}</Button>}
@@ -84,7 +84,7 @@ export function CompetitionMetadata({ item }: { item: Pick<ExternalCompetition, 
 function CompetitionHistory({ active, path, disabled, onInvalid, onClose }: { active: ActiveOrganization; path: string; disabled: boolean; onInvalid: () => void; onClose: () => void }) {
   const [page, setPage] = useState(1)
   const { list, loading, error } = usePartnershipList<CompetitionRevision, Page<CompetitionRevision>>(path + '?page=' + page + '&per_page=5', active, true, onInvalid)
-  return <section aria-label={text('history')} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3"><h3 className="font-bold">{text('history')}</h3><Button disabled={disabled} onClick={onClose}>{text('closeHistory')}</Button>
+  return <section aria-label={text('history')} className="ui-panel grid min-w-0 gap-3 p-3"><h3 className="font-bold">{text('history')}</h3><Button disabled={disabled} onClick={onClose}>{text('closeHistory')}</Button>
     {loading && <p role="status">{text('loading')}</p>}{error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
     <ol className="grid min-w-0 gap-3">{list?.data.map((revision) => <li key={revision.id} className="grid min-w-0 gap-2 border-b border-slate-700 pb-3"><p>v{revision.number} · {calendarDate(revision.occurred_at, active.context!.timezone)}</p>
       <CompetitionMetadata item={revision.snapshot} /><p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{revision.reason}</p></li>)}</ol>

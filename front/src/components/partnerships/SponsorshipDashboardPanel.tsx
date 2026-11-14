@@ -12,13 +12,13 @@ export function SponsorshipDashboardPanel({ active, disabled, refresh = 0, onInv
   const allowed = active.context?.permissions.includes('partnerships.read') ?? false
   const { list, loading, error } = usePartnershipList<SponsorshipDeliverable, SponsorshipDashboard>('tenants/' + active.context?.organization_id + '/sponsorship-dashboard?per_page=10&page=' + page, active, allowed, onInvalid, refresh + localRefresh)
   if (!allowed) return null
-  return <section aria-label={text('dashboard')} className="grid min-w-0 gap-3 rounded-2xl border border-amber-400/30 p-4">
+  return <section aria-label={text('dashboard')} className="ui-panel grid gap-4 p-4 sm:p-5">
     <h3 className="text-xl font-bold">{text('dashboard')}</h3>
     <p className="text-sm text-slate-400">{text('dashboardHint')}</p>
     <Button disabled={disabled || loading} onClick={() => setLocalRefresh((n) => n + 1)}>{text('refresh')}</Button>
     {loading && <p role="status">{text('loading')}</p>}{error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
     {list && <>
-      <dl className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">{(['promised', 'overdue', 'delivered', 'validated'] as const).map((key) => <div key={key} className="min-w-0 rounded-xl border border-slate-700 p-3">
+      <dl className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">{(['promised', 'overdue', 'delivered', 'validated'] as const).map((key) => <div key={key} className="ui-card p-3">
         <dt className="[overflow-wrap:anywhere]">{text('summary.' + key)}</dt><dd className={'text-2xl font-bold ' + (key === 'overdue' ? 'text-rose-200' : 'text-cyan-200')}>{list.summary?.[key] ?? 0}</dd>
       </div>)}</dl>
       <h4 className="font-semibold">{text('overdueList')}</h4>

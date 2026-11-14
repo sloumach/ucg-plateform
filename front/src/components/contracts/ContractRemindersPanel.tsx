@@ -47,8 +47,8 @@ export function ContractRemindersPanel({ active, path, contractVersion, endDate,
   if (!allowed) return null
   const blocked = disabled || loading || !loaded || mutation.blocked
   const errors = mutation.errors(path)
-  return <section aria-label={text('title')} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
-    <Button disabled={disabled || mutation.blocked} onClick={() => setOpen((value) => !value)}>{open ? text('close') : text('title')}</Button>
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-3 p-3">
+    <Button disabled={disabled || mutation.blocked} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? text('close') : text('title')}</Button>
     {open && <>
       <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('hint')}</p>
       <p>{text('deadline')} : {endDate ?? '—'}</p>
@@ -71,7 +71,7 @@ export function ContractRemindersPanel({ active, path, contractVersion, endDate,
           {(['in_app', 'email'] as const).map((channel) => <label key={channel}><input type="checkbox" name="channels" value={channel} defaultChecked={plan?.channels.includes(channel) ?? true} /> {text(channel)}</label>)}
         </fieldset>
         {Object.entries(errors).filter(([key]) => key.startsWith('offsets.') || key.startsWith('channels')).map(([key, messages]) => <p key={key} role="alert">{messages[0]}</p>)}
-        <Button type="submit" disabled={blocked}>{text('save')}</Button>
+        <Button variant="primary" type="submit" disabled={blocked}>{text('save')}</Button>
       </form>}
       {loaded && !writable && <p>{text('readOnly')}</p>}
       {loaded && !writable && plan && <p>{plan.enabled ? text('enabled') : text('disabled')} · {plan.offsets.join(', ')} {text('days')} · {plan.channels.map(text).join(', ')}
@@ -79,8 +79,8 @@ export function ContractRemindersPanel({ active, path, contractVersion, endDate,
       {loaded && <Button disabled={blocked} onClick={() => setRefresh((value) => value + 1)}>{text('refresh')}</Button>}
       {history && <section aria-label={text('history')} className="grid min-w-0 gap-3">
         <h4 className="font-bold">{text('history')}</h4>
-        {history.data.length === 0 && <p>{text('empty')}</p>}
-        {history.data.map((delivery) => <article key={delivery.id} aria-label={text(delivery.kind) + ' ' + delivery.due_on} className="grid min-w-0 gap-2 rounded-lg border border-slate-700 p-3 [overflow-wrap:anywhere]">
+        {history.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+        {history.data.map((delivery) => <article key={delivery.id} aria-label={text(delivery.kind) + ' ' + delivery.due_on} className="ui-card grid min-w-0 gap-2 p-3 [overflow-wrap:anywhere]">
           <DeliverySummary delivery={delivery} />
           {delivery.email_status === 'uncertain' && <p>{text('uncertainHint')}</p>}
           {writable && delivery.email_status === 'uncertain' && delivery.attempts < 20 && <form noValidate aria-label={text('resolve')} className="grid min-w-0 gap-2" onSubmit={(event) => {
@@ -133,13 +133,13 @@ export function MyContractReminders({ active, disabled, onInvalid, onSelect }: {
   if (!allowed || !org) return null
   const blocked = disabled || loading
   return <section aria-label={text('inbox')} className="grid min-w-0 gap-3">
-    <Button disabled={disabled} onClick={() => setOpen((value) => !value)}>{open ? text('closeInbox') : text('inbox')}</Button>
+    <Button disabled={disabled} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? text('closeInbox') : text('inbox')}</Button>
     {open && <>
       <p className="text-sm text-slate-400">{text('inboxHint')}</p>
       {loading && <p role="status">{text('loading')}</p>}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-      {items?.data.length === 0 && <p>{text('empty')}</p>}
-      {items?.data.map((delivery) => <article key={delivery.id} className="grid min-w-0 gap-2 rounded-lg border border-slate-700 p-3 [overflow-wrap:anywhere]">
+      {items?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      {items?.data.map((delivery) => <article key={delivery.id} className="ui-card grid min-w-0 gap-2 p-3 [overflow-wrap:anywhere]">
         <DeliverySummary delivery={delivery} /><Button disabled={blocked} onClick={() => onSelect(delivery.contract_id)}>{text('viewContract')}</Button>
       </article>)}
       <Button disabled={blocked} onClick={() => setRefresh((value) => value + 1)}>{text('refresh')}</Button>

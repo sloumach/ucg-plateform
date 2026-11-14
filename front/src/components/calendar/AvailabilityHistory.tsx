@@ -12,7 +12,7 @@ export function AvailabilityHistory({ active, path, timezone, disabled, onInvali
 }) {
   const [page, setPage] = useState(1)
   const { list, loading, error } = usePartnershipList<AvailabilityRevision>(path + '/history?page=' + page + '&per_page=10', active, true, onInvalid)
-  return <section aria-label={text('historyTitle')} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
+  return <section aria-label={text('historyTitle')} className="ui-panel grid min-w-0 gap-3 p-3">
     <h3 className="font-bold">{text('historyTitle')}</h3>
     {loading && <p role="status">{text('loading')}</p>}
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}

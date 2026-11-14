@@ -51,7 +51,14 @@ test('sélection tenant, droits rechargés et confirmation explicite dans le nav
 
   await page.goto('/')
   await expect(page.getByText('Organisation active : Alpha')).toBeVisible()
-  await page.getByLabel('E-mail de la personne invitée').fill('member@example.test')
+  await page.getByRole('link', { name: 'Membres et accès' }).click()
+  await page.getByRole('link', { name: 'Invitations', exact: true }).click()
+  const email = page.getByLabel('E-mail de la personne invitée')
+  await email.fill('member@example.test')
+  const accessCheck = page.waitForResponse((response) => response.url().endsWith('/active-organization') && response.request().method() === 'GET')
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+  await accessCheck
+  await expect(email).toHaveValue('member@example.test')
   await page.getByRole('button', { name: 'Envoyer l’invitation' }).click()
   const confirmation = page.getByRole('region', { name: 'Confirmer l’action' })
   await expect(confirmation).toBeFocused()
@@ -59,6 +66,7 @@ test('sélection tenant, droits rechargés et confirmation explicite dans le nav
   expect(invited).toBe(false)
   await confirmation.getByRole('button', { name: 'Confirmer et continuer' }).click()
   await expect(page.getByText('Invitation envoyée.')).toBeVisible()
+  await page.getByRole('link', { name: 'Aperçu' }).click()
   await page.getByRole('button', { name: /Ouvrir Beta/ }).click()
   await expect(page.getByText('Organisation active : Beta')).toBeVisible()
   await expect(page.getByLabel('Contexte d’organisation')).toHaveText('Beta')

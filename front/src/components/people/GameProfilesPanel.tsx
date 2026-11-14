@@ -70,7 +70,7 @@ export function GameProfilesPanel({ active, personId, catalogue, disabled: paren
     {canWrite && (catalogue?.games.length ?? 0) > 0 && <Button disabled={disabled} onClick={() => { setProfileEditor(null); setAccountEditor(undefined) }}>{label('addProfile')}</Button>}
     {profileEditor !== undefined && <ProfileEditor key={profileEditor?.version ?? 'new'} profile={profileEditor} catalogue={catalogue} disabled={disabled} errors={mutation.errors(profilePath)} onCancel={() => setProfileEditor(undefined)} onSubmit={(event, values) => mutation.propose(event, label('saveProfile'), profilePath, { ...values, ...(profileEditor ? { version: profileEditor.version } : {}) }, profileEditor !== null)} />}
     {profiles?.data.length === 0 && <p>{label('profilesEmpty')}</p>}
-    {profiles?.data.map((profile) => <article key={profile.id} className="grid min-w-0 gap-3 rounded-xl border border-white/10 p-4">
+    {profiles?.data.map((profile) => <article key={profile.id} className="ui-card grid min-w-0 gap-3 p-4">
       <p className="break-words font-semibold">{catalogue?.games.find((game) => game.key === profile.game_key)?.name ?? profile.game_key} · {context(profile)?.name ?? profile.platform_key} · {profile.region_key} · {label(profile.status ?? 'active')}</p>
       <p className="whitespace-pre-wrap break-words">{label('rank')}: {profile.rank ?? label('none')} · {label('game_role')}: {profile.game_role ?? label('none')}</p>
       <Observation observedAt={profile.observed_at} freshness={profile.freshness} />
@@ -82,12 +82,12 @@ export function GameProfilesPanel({ active, personId, catalogue, disabled: paren
       </div>
     </article>)}
     {profiles && <Pagination currentPage={profiles.meta.current_page} totalPages={profiles.meta.last_page} disabled={disabled} onPageChange={(page) => { setProfilePage(page); setSelected(null); setAccountEditor(undefined); setProfileEditor(undefined) }} />}
-    {selected && <section aria-label={label('accounts')} className="grid min-w-0 gap-3 rounded-xl border border-white/10 p-4">
+    {selected && <section aria-label={label('accounts')} className="ui-panel grid min-w-0 gap-3 p-4">
       <h5 className="font-semibold">{label('accounts')} · {selected.game_key} / {selected.platform_key} / {selected.region_key}</h5>
       {canWrite && selected.status === 'active' && (context(selected)?.providers.length ?? 0) > 0 && <Button disabled={disabled} onClick={() => setAccountEditor(null)}>{label('addAccount')}</Button>}
       {accountEditor !== undefined && <AccountEditor key={accountEditor?.version ?? 'new'} account={accountEditor} profile={selected} catalogue={catalogue} disabled={disabled} errors={mutation.errors(accountPath)} onCancel={() => setAccountEditor(undefined)} onSubmit={(event, values) => mutation.propose(event, label('saveAccount'), accountPath, { ...values, ...(accountEditor ? { version: accountEditor.version } : {}) }, accountEditor !== null)} />}
       {accounts?.data.length === 0 && <p>{label('accountsEmpty')}</p>}
-      {accounts?.data.map((account) => <article key={account.id} className="grid min-w-0 gap-2 rounded-xl border border-white/10 p-4">
+      {accounts?.data.map((account) => <article key={account.id} className="ui-card grid min-w-0 gap-2 p-4">
         <p className="break-words font-semibold">{account.provider_key} · {account.display_name ?? label('none')} · {label(account.status ?? 'active')}</p>
         <p className="break-all">{label('external_id')}: {account.external_id ?? label('none')}</p>
         <Observation observedAt={account.observed_at} freshness={account.freshness} />

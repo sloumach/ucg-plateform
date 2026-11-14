@@ -32,7 +32,7 @@ export function SponsorshipTextArea({ name, title, value = '', maxLength = 2000,
     <label htmlFor={id}>{title}</label>
     <textarea id={id} name={name} defaultValue={value} maxLength={maxLength} rows={3} required={required} disabled={disabled}
       aria-invalid={error ? true : undefined} aria-describedby={error ? id + '-error' : undefined}
-      className="min-w-0 w-full rounded-xl border border-white/15 bg-slate-900 px-4 py-3 text-slate-100" />
+      className="ui-input" />
     {error && <p id={id + '-error'} className="text-sm text-rose-200">{error}</p>}
   </div>
 }

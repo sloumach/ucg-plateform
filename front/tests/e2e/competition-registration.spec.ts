@@ -40,7 +40,7 @@ test('participation externe : roster, pièce, échéance UTC, historique et lect
     if (target === path + '/reminders') data = writer && current ? [{ id: docVersion, item_id: current.payload.items[0].id, stage: 'week', payload: { title: name, due_at: '2026-10-28T17:30:15+00:00', responsible_person_id: manager }, occurred_at: '2026-10-21T10:00:00Z' }] : []
     await route.fulfill({ headers, contentType: 'application/json', body: JSON.stringify({ data, meta: { request_id: 'registration-e2e', current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 0 } }) })
   })
-  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/?rubrique=matchs&outil=competitions')
   const competitions = page.getByRole('region', { name: 'Compétitions externes', exact: true })
   const open = async () => { await competitions.getByRole('button', { name: 'Ouvrir les compétitions' }).click(); await competitions.getByRole('button', { name: 'Suivi de participation', exact: true }).click() }
   await open(); const panel = page.getByRole('region', { name: 'Suivi de participation', exact: true })

@@ -14,7 +14,7 @@ export function WorkTaskForm({ active, disabled, onInvalid, root, item, errors, 
   const descriptionId = useId()
   const [page, setPage] = useState(1), [assignee, setAssignee] = useState(item?.assignee_id ?? '')
   const { list, loading, error } = usePartnershipList<{ id: string; label: string }>(root + '/people?per_page=10&page=' + page, active, true, onInvalid)
-  return <form aria-label={text(item ? 'edit' : 'create')} noValidate className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-4" onSubmit={(event) => {
+  return <form aria-label={text(item ? 'edit' : 'create')} noValidate className="ui-editor grid min-w-0 gap-3 p-4" onSubmit={(event) => {
     event.preventDefault()
     if (disabled || error) return
     const input = new FormData(event.currentTarget)
@@ -26,7 +26,7 @@ export function WorkTaskForm({ active, disabled, onInvalid, root, item, errors, 
     <FormField name="title" label={text('taskTitle')} defaultValue={item?.title ?? ''} required maxLength={160} disabled={disabled} error={errors.title?.[0]} />
     <label htmlFor={descriptionId}>{text('description')}</label>
     <textarea id={descriptionId} name="description" defaultValue={item?.description ?? ''} rows={4} maxLength={4000} disabled={disabled}
-      aria-invalid={errors.description ? true : undefined} aria-describedby={errors.description ? descriptionId + '-error' : undefined} className="min-w-0 w-full rounded-xl border border-white/15 bg-slate-900 px-4 py-3 text-slate-100" />
+      aria-invalid={errors.description ? true : undefined} aria-describedby={errors.description ? descriptionId + '-error' : undefined} className="ui-input" />
     {errors.description && <p id={descriptionId + '-error'} className="text-sm text-rose-200">{errors.description[0]}</p>}
     <SelectField name="assignee_id" title={text('assignee')} value={assignee} onChange={setAssignee} disabled={disabled} error={errors.assignee_id?.[0]}>
       <option value="">{text('unassigned')}</option>
@@ -40,6 +40,6 @@ export function WorkTaskForm({ active, disabled, onInvalid, root, item, errors, 
     <SelectField name="status" title={text('status')} defaultValue={item?.status ?? 'todo'} disabled={disabled} error={errors.status?.[0]}>
       {['todo', 'in_progress', 'done'].map((value) => <option key={value} value={value}>{text('status.' + value)}</option>)}
     </SelectField>
-    <div className="flex flex-wrap gap-3"><Button type="submit" disabled={disabled || !!error}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{text('cancel')}</Button></div>
+    <div className="flex flex-wrap gap-3"><Button variant="primary" type="submit" disabled={disabled || !!error}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{text('cancel')}</Button></div>
   </form>
 }

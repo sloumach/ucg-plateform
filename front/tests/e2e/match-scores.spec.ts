@@ -54,7 +54,7 @@ test('règles, remake, score BO3 et conflit sans rejeu sur mobile', async ({ pag
     await route.fulfill({ status, headers, contentType: 'application/json', body: JSON.stringify({ data, ...(path.endsWith('/games') && method === 'GET' ? { scorecard } : {}),
       meta: { current_page: Number(url.searchParams.get('page') ?? 1), last_page: path.endsWith('/games') && history.length > 1 ? 2 : 1, total: path.endsWith('/games') ? history.length : Array.isArray(data) ? data.length : 0 } }) })
   })
-  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/?rubrique=matchs')
   const panel = page.getByRole('region', { name: 'Scrims et matchs' })
   await panel.getByRole('button', { name: 'Ouvrir les matchs' }).click(); expect(reads).toBe(0)
   const open = () => panel.getByRole('button', { name: 'Parties et scores', exact: true }).click()

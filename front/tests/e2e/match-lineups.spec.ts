@@ -57,7 +57,7 @@ test('affectation, remplacement pendant le match et historique figé sur mobile'
     await route.fulfill({ status: method === 'POST' && path.includes('/lineups') ? 201 : 200, headers, contentType: 'application/json',
       body: JSON.stringify({ data, meta: { current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 0 } }) })
   })
-  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/?rubrique=matchs')
   const panel = page.getByRole('region', { name: 'Scrims et matchs' })
   await panel.getByRole('button', { name: 'Ouvrir les matchs' }).click(); expect(lineageReads).toBe(0)
   const open = () => panel.getByRole('button', { name: 'Composition et remplaçants · Alpha', exact: true }).click()

@@ -55,7 +55,7 @@ test('correction auditée, recalcul en attente, reprise et nouvelle validation i
     const meta = Array.isArray(data) ? { current_page: 1, last_page: 1, total: data.length } : undefined
     await route.fulfill({ status, headers, json: { data, ...extra, ...(meta ? { meta } : {}) } })
   })
-  await page.setViewportSize({ width: 375, height: 900 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 900 }); await page.goto('/?rubrique=matchs')
   const panel = page.getByRole('region', { name: 'Scrims et matchs', exact: true }), corrections = page.getByRole('region', { name: 'Corrections des scores', exact: true })
   await panel.getByRole('button', { name: 'Ouvrir les matchs' }).click(); await panel.getByRole('button', { name: 'Corrections des scores', exact: true }).click()
   await corrections.getByRole('button', { name: 'Préparer une correction' }).click()

@@ -72,9 +72,9 @@ function Exports({ active, disabled, onInvalid, cards, query }: Props) {
     finally { if (!controller.signal.aborted) setPending(false) }
   }
   const error = failure ?? read.error
-  return <section aria-label={text('title')} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-4 [overflow-wrap:anywhere]">
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-3 p-4 [overflow-wrap:anywhere]">
     <h3 className="font-bold">{text('title')}</h3><p>{text('hint')}</p>
-    <Button disabled={disabled || pending || requestMutation.blocked} onClick={() => { setOpen(!open); setFailure(null) }}>{text(open ? 'close' : 'open')}</Button>
+    <Button disabled={disabled || pending || requestMutation.blocked} aria-expanded={open} onClick={() => { setOpen(!open); setFailure(null) }}>{text(open ? 'close' : 'open')}</Button>
     {requestMutation.feedback}
     {Object.entries(requestMutation.errors(root)).map(([field, messages]) => <p key={field} role="alert">{messages.join(' ')}</p>)}
     {open && <>{read.loading && <p role="status">{text('loading')}</p>}
@@ -91,8 +91,8 @@ function Exports({ active, disabled, onInvalid, cards, query }: Props) {
           <Button type="submit" disabled={blocked}>{text('request')}</Button>
         </form>}
         {!card && <p>{text('noReports')}</p>}
-        {read.data.items.length === 0 && <p>{text('empty')}</p>}
-        <ul className="grid min-w-0 gap-3">{read.data.items.map((row) => <li key={row.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
+        {read.data.items.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+        <ul className="grid min-w-0 gap-3">{read.data.items.map((row) => <li key={row.id} className="ui-card grid min-w-0 gap-2 p-3">
           <p>{row.label} · {row.view_label} · {text(expired.includes(row.id) ? 'state.expired' : 'state.' + row.state)}</p>
           <p>{row.period_kind === 'snapshot' ? text('snapshot') : row.from + ' → ' + row.to + ' · ' + row.timezone}</p>
           {row.row_count !== null && <p>{text('rows')} : {row.row_count}</p>}

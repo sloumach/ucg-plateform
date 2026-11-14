@@ -44,25 +44,25 @@ export function TeamLineupPanel({ active, team, disabled, onInvalid, onClose }: 
   }, [org, allowed, revision, path, page, filters, refresh, onInvalid])
   if (!org || !allowed) return null
   const blocked = disabled || loading || mutation.blocked
-  return <section aria-label={text('title') + ' ' + team.name} className="grid min-w-0 grid-cols-1 gap-4 rounded-xl border border-cyan-400/30 p-4">
+  return <section aria-label={text('title') + ' ' + team.name} className="ui-editor grid min-w-0 grid-cols-1 gap-4 p-4">
     <h3 className="font-bold [overflow-wrap:anywhere]">{text('title')} · {team.name}</h3>
     <p>{text('hint')}</p><p className="text-sm text-slate-400">{text('referenceHint')}</p>
     <Button disabled={mutation.blocked} onClick={onClose}>{text('close')}</Button>
     {loading && <p role="status">{text('loading')}</p>}
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}{mutation.feedback}
-    <form aria-label={text('filter')} className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2" onSubmit={(event) => {
+    <form aria-label={text('filter')} className="ui-filters grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2" onSubmit={(event) => {
       event.preventDefault(); setFilters(Object.fromEntries([...new FormData(event.currentTarget)].filter(([, value]) => value !== '').map(([key, value]) => [key, String(value)]))); setPage(1)
     }}>
       <SelectField name="status" title={text('status')} disabled={blocked}><option value="">{text('all')}</option>{['draft', 'finalized', 'cancelled'].map((status) => <option key={status} value={status}>{text('status.' + status)}</option>)}</SelectField>
       <SelectField name="purpose" title={text('purpose')} disabled={blocked}><option value="">{text('all')}</option>{['match', 'registration'].map((purpose) => <option key={purpose} value={purpose}>{text('purpose.' + purpose)}</option>)}</SelectField>
       <Button type="submit" disabled={blocked}>{text('filter')}</Button>
     </form>
-    {edit && <Button disabled={blocked} onClick={() => setEditor('new')}>{text('create')}</Button>}
+    {edit && <Button variant="primary" disabled={blocked} onClick={() => setEditor('new')}>{text('create')}</Button>}
     <Button disabled={blocked} onClick={() => setRulesOpen((value) => !value)}>{eligibilityText('title')}</Button>
     {rulesOpen && <TeamEligibilityRulesPanel active={active} team={team} disabled={blocked} onInvalid={onInvalid} onClose={() => setRulesOpen(false)} />}
     {!manage && <p>{text('readOnly')}</p>}
-    {list?.data.length === 0 && <p>{text('empty')}</p>}
-    {list && <ul className="grid min-w-0 grid-cols-1 gap-3">{list.data.map((lineup) => <li key={lineup.id} className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-slate-700 p-3">
+    {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+    {list && <ul className="grid min-w-0 grid-cols-1 gap-3">{list.data.map((lineup) => <li key={lineup.id} className="ui-card grid min-w-0 grid-cols-1 gap-3 p-3">
       <h4 className="font-bold [overflow-wrap:anywhere]">{lineup.label}</h4>
       <p>{text('purpose.' + lineup.purpose)} · {text('status.' + lineup.status)} · {new Date(lineup.effective_at).toLocaleString('fr')}</p>
       <p className="[overflow-wrap:anywhere]">{lineup.team_name} · {lineup.game_name} · {lineup.season}</p>
@@ -146,7 +146,7 @@ function LineupForm({ active, team, lineup, disabled, errors, onInvalid, onSubmi
       {!lineup && <SelectField name="purpose" title={text('purpose')} defaultValue="match" disabled={disabled} error={errors.purpose?.[0]}><option value="match">{text('purpose.match')}</option><option value="registration">{text('purpose.registration')}</option></SelectField>}
       <h5 className="font-bold">{text('selected')}</h5>
       {errors.entries && <p role="alert" className="text-sm text-rose-200">{errors.entries[0]}</p>}
-      <ol className="grid min-w-0 grid-cols-1 gap-3">{selected.map((choice, index) => <li key={choice.membership_id} className="grid min-w-0 grid-cols-1 gap-2 rounded-xl border border-slate-700 p-3">
+      <ol className="grid min-w-0 grid-cols-1 gap-3">{selected.map((choice, index) => <li key={choice.membership_id} className="ui-card grid min-w-0 grid-cols-1 gap-2 p-3">
         <p className="[overflow-wrap:anywhere]">{index + 1}. {choice.pseudonym}</p>
         <SelectField name={'slot_' + choice.membership_id} title={text('slot') + ' ' + choice.pseudonym} value={choice.slot_key} disabled={disabled}
           onChange={(slot) => setSelected((current) => current.map((entry) => entry.membership_id === choice.membership_id ? { ...entry, slot_key: slot as 'starter' | 'substitute' } : entry))}>
@@ -154,7 +154,7 @@ function LineupForm({ active, team, lineup, disabled, errors, onInvalid, onSubmi
         </SelectField>
         <Button className="min-w-0 [overflow-wrap:anywhere]" disabled={disabled} onClick={() => setSelected((current) => current.filter((entry) => entry.membership_id !== choice.membership_id))}>{text('remove')} {choice.pseudonym}</Button>
       </li>)}</ol>
-      <div className="flex flex-wrap gap-3"><Button type="submit" disabled={blocked || !validDate || !selected.some((choice) => choice.slot_key === 'starter')}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{text('back')}</Button></div>
+      <div className="flex flex-wrap gap-3"><Button variant="primary" type="submit" disabled={blocked || !validDate || !selected.some((choice) => choice.slot_key === 'starter')}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{text('back')}</Button></div>
     </form>
   </div>
 }

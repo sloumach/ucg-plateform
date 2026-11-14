@@ -45,7 +45,7 @@ test('effectif : création et promotion confirmées, historique privé et mobile
     }
     await route.fulfill({ headers, json: { data, meta: { request_id: 'team003-browser', current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 1 }, ...(method !== 'GET' ? { notification: { type: 'success', message: 'Appartenance enregistrée.' } } : {}) } })
   })
-  await page.goto('/')
+  await page.goto('/?rubrique=equipes')
   await page.getByRole('button', { name: 'Équipes de l’organisation' }).click()
   const card = page.getByRole('heading', { name: 'Académie pilote', exact: true }).locator('..')
   await card.getByRole('button', { name: 'Effectif et historique', exact: true }).click()

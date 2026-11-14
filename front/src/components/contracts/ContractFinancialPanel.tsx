@@ -37,13 +37,13 @@ export function ContractFinancialPanel({ active, path, contractVersion, editable
   const blocked = disabled || loading || !loaded || mutation.blocked
   const errors = mutation.errors(path)
   return <section aria-label={text('title')} className="grid min-w-0 gap-3 rounded-xl border border-amber-400/30 p-3">
-    <Button disabled={disabled || mutation.blocked} onClick={() => setOpen((value) => !value)}>{open ? text('close') : text('title')}</Button>
+    <Button disabled={disabled || mutation.blocked} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? text('close') : text('title')}</Button>
     {open && <>
       <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('hint')}</p>
       {loading && <p role="status">{text('loading')}</p>}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
       {mutation.feedback}
-      {loaded && !terms && <p>{text('empty')}</p>}
+      {loaded && !terms && <p className="ui-state text-sm">{text('empty')}</p>}
       {loaded && terms && <dl className="grid min-w-0 gap-2">{Object.entries(terms.terms).map(([field, value]) => <div key={field} className="min-w-0 [overflow-wrap:anywhere]">
         <dt className="font-semibold">{text(field)}</dt><dd className="whitespace-pre-wrap">{field === 'remuneration_period' && value ? text(value) : value ?? '—'}</dd>
       </div>)}</dl>}
@@ -60,7 +60,7 @@ export function ContractFinancialPanel({ active, path, contractVersion, editable
         </SelectField>
         <FormField name="terms.payment_terms" label={text('payment_terms')} defaultValue={terms?.terms.payment_terms ?? ''} maxLength={2000} disabled={blocked} error={errors['terms.payment_terms']?.[0]} />
         {errors.terms && <p role="alert">{errors.terms[0]}</p>}
-        <Button type="submit" disabled={blocked}>{text('save')}</Button>
+        <Button variant="primary" type="submit" disabled={blocked}>{text('save')}</Button>
       </form>}
       {loaded && !writable && <p>{text('readOnly')}</p>}
     </>}

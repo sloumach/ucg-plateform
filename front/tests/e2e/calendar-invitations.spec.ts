@@ -49,7 +49,7 @@ test('convocations : confirmation, réponse personnelle et historique sur mobile
       meta: { current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 0 }, calendar_invitations: { delivery_enabled: true },
       calendar: { viewer_timezone: 'Europe/Paris', display_timezone: 'Europe/Paris' } }) })
   })
-  await page.setViewportSize({ width: 375, height: 844 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 844 }); await page.goto('/?rubrique=calendrier')
   const calendar = page.getByRole('region', { name: 'Calendrier des activités' })
   await calendar.getByRole('button', { name: 'Ouvrir le calendrier' }).click()
   const management = calendar.getByRole('region', { name: 'Convocations de l’activité' })

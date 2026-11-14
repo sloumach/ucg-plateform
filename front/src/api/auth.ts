@@ -10,6 +10,7 @@ export type AuthenticatedUser = {
   name: string
   email: string
   email_verified: boolean
+  can_provision_clients?: boolean
   mfa: MfaStatus
 }
 

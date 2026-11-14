@@ -46,7 +46,7 @@ test('composition : préparation confirmée, figement définitif et participants
     }
     await route.fulfill({ headers, json: { data, meta: { request_id: 'team004-browser', current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 1 }, ...(method !== 'GET' ? { notification: { type: 'success', message: 'Composition enregistrée.' } } : {}) } })
   })
-  await page.goto('/')
+  await page.goto('/?rubrique=equipes')
   await page.getByRole('button', { name: 'Équipes de l’organisation' }).click()
   await page.getByRole('button', { name: 'Compositions et instantanés', exact: true }).click()
   const panel = page.getByRole('region', { name: 'Compositions et instantanés Équipe pilote' })

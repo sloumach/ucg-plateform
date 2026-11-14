@@ -24,11 +24,11 @@ export function AcademyObjectivesPanel({ active, cohort, cycle, disabled, onInva
   const blocked = disabled || read.loading || mutation.blocked
   if (!org || !allowed) return null
   return <section aria-label={text('panel')} className="grid min-w-0 gap-4 border-t border-slate-700 pt-4">
-    <Button disabled={disabled || mutation.blocked} onClick={() => { setOpen((value) => !value); setDetail(null); setEditor(null) }}>{open ? text('close') : text('panel')}</Button>
+    <Button disabled={disabled || mutation.blocked} aria-expanded={open} onClick={() => { setOpen((value) => !value); setDetail(null); setEditor(null) }}>{open ? text('close') : text('panel')}</Button>
     {open && <><h4 className="font-bold">{cycle.name}</h4><p>{text('hint')}</p>{mutation.feedback}
       {read.loading && <p role="status">{text('loading')}</p>}{read.error && <><Alert tone="error" title={read.error.message} requestId={read.error.requestId} /><Button onClick={() => setRefresh((value) => value + 1)}>{text('retry')}</Button></>}
-      {manage && <Button disabled={blocked} onClick={() => { setEditor('new'); setDetail(null) }}>{text('create')}</Button>}{read.result?.data.length === 0 && <p>{text('empty')}</p>}
-      <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => <li key={item.id} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3 [overflow-wrap:anywhere]">
+      {manage && <Button variant="primary" disabled={blocked} onClick={() => { setEditor('new'); setDetail(null) }}>{text('create')}</Button>}{read.result?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-3 p-3 [overflow-wrap:anywhere]">
         <h5 className="font-bold">{item.title}</h5><p>{text(item.scope)} · {text(item.status)} · {text('deadline')} : {item.due_on}</p>
         <p>{text('responsible')} : {item.responsible_label ?? text('unavailable')}{item.scope === 'individual' && ' · ' + (item.target_label ?? text('unavailable'))}</p>
         {item.description && <p className="whitespace-pre-wrap">{item.description}</p>}

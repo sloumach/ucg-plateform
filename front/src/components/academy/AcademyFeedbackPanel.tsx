@@ -30,7 +30,7 @@ export function AcademyFeedbackPanel({ active, base, title, mode, writable, disa
     {read.loading && <p role="status">{text('loading')}</p>}{read.error && <><Alert tone="error" title={read.error.message} requestId={read.error.requestId} /><Button onClick={() => setRefresh((value) => value + 1)}>{text('retry')}</Button></>}{mutation.feedback}
     {manage && <Button disabled={blocked} onClick={() => setEditor('new')}>{createAction}</Button>}
     {read.result?.data.length === 0 && <p>{text('noFeedback')}</p>}
-    <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => <li key={item.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3 [overflow-wrap:anywhere]">
+    <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-2 p-3 [overflow-wrap:anywhere]">
       <p className="whitespace-pre-wrap">{item.content}</p>{mode === 'internal' && item.justification && <p>{text('justification')} : {item.justification}</p>}<p>{item.created_at}{item.status && ' · ' + text(item.status)}</p>
       {manage && item.status === 'active' && <Button disabled={blocked} onClick={() => setEditor(item)}>{text('editFeedback')}</Button>}
     </li>)}</ul>

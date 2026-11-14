@@ -44,6 +44,7 @@ test('match réel : compositions, scores, approbation indépendante, correction 
   const corrections = panel.getByRole('region', { name: 'Corrections des scores', exact: true })
   await login(page, 'browser-match@example.test')
   await page.getByRole('button', { name: /Ouvrir Match Alpha/ }).click()
+  await page.getByRole('link', { name: 'Matchs et compétitions', exact: true }).click()
   await expect(page.getByText('Organisation active : Match Alpha')).toBeVisible()
   await panel.getByRole('button', { name: 'Ouvrir les matchs', exact: true }).click()
   await panel.getByRole('button', { name: 'Nouveau match', exact: true }).click()
@@ -157,6 +158,7 @@ test('match réel : compositions, scores, approbation indépendante, correction 
     reviewer.on('pageerror', (error) => errors.push(error.message))
     await login(reviewer, 'browser-reviewer@example.test')
     await reviewer.getByRole('button', { name: /Ouvrir Match Alpha/ }).click()
+    await reviewer.getByRole('link', { name: 'Matchs et compétitions', exact: true }).click()
     const reviewerPanel = reviewer.getByRole('region', { name: 'Scrims et matchs', exact: true })
     async function validate(winner: string) {
       await reviewerPanel.getByRole('button', { name: 'Ouvrir les matchs', exact: true }).click()
@@ -234,8 +236,10 @@ test('match réel : compositions, scores, approbation indépendante, correction 
   } finally {
     await reviewerContext.close()
   }
+  await page.getByRole('link', { name: 'Aperçu', exact: true }).click()
   await page.getByRole('button', { name: /Ouvrir Match Beta/ }).click()
   await expect(page.getByText('Organisation active : Match Beta')).toBeVisible()
+  await page.getByRole('link', { name: 'Matchs et compétitions', exact: true }).click()
   await panel.getByRole('button', { name: 'Ouvrir les matchs', exact: true }).click()
   await expect(panel.getByRole('heading', { name: 'Beta match privé', exact: true })).toBeVisible()
   await expect(card).toHaveCount(0)

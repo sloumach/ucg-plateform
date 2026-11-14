@@ -5,9 +5,12 @@ namespace App\Modules\Tenancy\Domain\Contracts;
 use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Query\Builder;
 
 interface MembershipRepository
 {
+    public function activeAccountIdsQuery(string $organizationId): Builder;
+
     /** @param list<int> $ids
      * @return list<int> */
     public function activeAccountIds(string $organizationId, array $ids): array;

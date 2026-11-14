@@ -24,7 +24,7 @@ export function MatchScores({ active, item, root, management, disabled, onInvali
   const editable = writable && !scorecard?.recalculation_pending && !scorecard?.result_locked && page === 1 && !loading && !error && !!scorecard
   const version = scorecard?.match_version
   const scoreErrors = mutation.errors(path), ruleErrors = mutation.errors(rulesPath)
-  return <section aria-label={text('scores.title')} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-3">
+  return <section aria-label={text('scores.title')} className="ui-editor grid min-w-0 gap-3 p-3">
     <h3 className="font-bold [overflow-wrap:anywhere]">{text('scores.title')} · {item.title}</h3>
     <p className="text-sm text-amber-200">{text('scores.hint')}</p>
     <Button disabled={blocked} onClick={onClose}>{text('scores.close')}</Button>
@@ -75,7 +75,7 @@ export function MatchScores({ active, item, root, management, disabled, onInvali
       <Button type="submit" disabled={blocked}>{text('scores.save')}</Button>
     </form>}
     {list?.data.length === 0 && <p>{text('scores.empty')}</p>}
-    <ol className="grid min-w-0 gap-3">{list?.data.map((game) => <li key={game.id} className="grid min-w-0 gap-2 rounded-lg border border-slate-700 p-3">
+    <ol className="grid min-w-0 gap-3">{list?.data.map((game) => <li key={game.id} className="ui-card grid min-w-0 gap-2 p-3">
       {game.correction_id && <p className="text-cyan-200">{text('corrections.corrected')}</p>}
       <h4 className="font-bold">#{game.number} · {text('scores.outcome.' + game.outcome)}</h4>
       <p className="[overflow-wrap:anywhere]">{game.map} · {game.mode} · {game.game_patch}</p>

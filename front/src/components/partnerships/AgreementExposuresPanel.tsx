@@ -19,15 +19,15 @@ export function AgreementExposuresPanel({ active, record, path, disabled, readOn
   const mutation = usePeopleMutation(active, onChanged, onInvalid)
   const writable = !readOnly && active.context!.permissions.includes('partnerships.write') && ['draft', 'approved'].includes(record.status)
   const blocked = disabled || mutation.blocked
-  return <section aria-label={text('exposures')} className="grid min-w-0 gap-3 rounded-xl border border-white/10 p-3">
+  return <section aria-label={text('exposures')} className="ui-panel grid min-w-0 gap-3 p-3">
     <h4 className="font-bold">{text('exposures')}</h4>
     <p className="text-sm text-slate-400">{text('exclusiveHint')}</p>
     {mutation.feedback}
     {loading && <p role="status">{text('loading')}</p>}
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-    {list?.data.length === 0 && <p>{text('empty')}</p>}
+    {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
     {writable && <Button disabled={blocked} onClick={() => setEditor('new')}>{text('newExposure')}</Button>}
-    <ul className="grid min-w-0 gap-3">{list?.data.map((exposure) => <li key={exposure.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
+    <ul className="grid min-w-0 gap-3">{list?.data.map((exposure) => <li key={exposure.id} className="ui-card grid min-w-0 gap-2 p-3">
       <p className="font-bold [overflow-wrap:anywhere]">{exposure.target_label} · {text('channel.' + exposure.channel)}</p>
       {exposure.target_current === false && <Alert tone="warning" title={text('targetChanged')} />}
       {exposure.description && <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{exposure.description}</p>}

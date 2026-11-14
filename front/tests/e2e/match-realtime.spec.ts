@@ -11,13 +11,14 @@ test('direct privé : abonnement, correction, doublons et révocation sur mobile
     participants: [{ id: a, kind: 'person', source_id: a, label: 'Alex', reference_version: revision, slot: 1 }, { id: b, kind: 'person', source_id: b, label: 'Robin', reference_version: revision, slot: 2 }] }
   let pending = false, corrected = false, revoked = false, reads = 0, authorizations = 0, unsubscriptions = 0
   let socket: WebSocketRoute | undefined
-  await page.routeWebSocket('**/app/test-key**', (ws) => {
+  await page.routeWebSocket(/\/app\/[^/?]+\?protocol=/, (ws) => {
+    const key = new URL(ws.url()).pathname.split('/').at(-1)
     socket = ws
     ws.onMessage((raw) => {
       const message = JSON.parse(String(raw))
       if (message.event === 'pusher:subscribe') {
         expect(message.data.channel).toBe(channel)
-        expect(message.data.auth).toBe('test-key:signature')
+        expect(message.data.auth).toBe(key + ':signature')
         ws.send(JSON.stringify({ event: 'pusher_internal:subscription_succeeded', channel, data: '{}' }))
       }
       if (message.event === 'pusher:unsubscribe') unsubscriptions++
@@ -40,7 +41,8 @@ test('direct privé : abonnement, correction, doublons et révocation sur mobile
       authorizations++
       expect(request.headers()['x-tenant-revision']).toBe(revision)
       expect(request.postDataJSON()).toEqual({ socket_id: '123.456', channel_name: channel })
-      await route.fulfill({ headers, contentType: 'application/json', body: JSON.stringify({ auth: 'test-key:signature' }) }); return
+      const key = new URL(socket!.url()).pathname.split('/').at(-1)
+      await route.fulfill({ headers, contentType: 'application/json', body: JSON.stringify({ auth: key + ':signature' }) }); return
     }
     if (path === root + '/' + id + '/live') {
       reads++
@@ -50,7 +52,7 @@ test('direct privé : abonnement, correction, doublons et révocation sur mobile
     }
     await route.fulfill({ headers, contentType: 'application/json', body: JSON.stringify({ data, meta: { current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 0 } }) })
   })
-  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/?rubrique=matchs')
   const panel = page.getByRole('region', { name: 'Scrims et matchs' })
   await panel.getByRole('button', { name: 'Ouvrir les matchs' }).click()
   await panel.getByRole('button', { name: 'Scores en direct', exact: true }).click()

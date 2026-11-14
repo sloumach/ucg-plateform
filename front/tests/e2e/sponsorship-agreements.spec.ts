@@ -57,7 +57,7 @@ test('accord partenaire : apport séparé, second approbateur et invalidation de
   const dossier = agreements.getByRole('region', { name: 'Ouvrir l’accord', exact: true })
   const approve = async () => { await panel.getByRole('button', { name: 'Confirmer et continuer' }).click(); await expect(panel.getByRole('region', { name: 'Confirmer l’action' })).toHaveCount(0) }
   const open = async () => {
-    await page.goto('/'); await panel.getByRole('button', { name: 'Ouvrir les prospects' }).click()
+    await page.goto('/?rubrique=administration&outil=partenariats'); await panel.getByRole('button', { name: 'Ouvrir les prospects' }).click()
     await panel.getByRole('button', { name: 'Ouvrir le dossier' }).click()
     await panel.getByRole('button', { name: 'Accords', exact: true }).click()
     await expect(agreements.getByRole('heading', { name: 'Accords partenaires' })).toBeVisible()

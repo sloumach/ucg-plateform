@@ -8,6 +8,9 @@ const fixture = JSON.parse(readFileSync(process.env.UCG_BROWSER_ROOT + '/fixture
 const data = fixture.communication
 
 async function exerciseTask(page: Page, context: BrowserContext, mediaId: string) {
+  await page.getByRole('link', { name: 'Tâches et communication', exact: true }).click()
+  const tasksLink = page.getByRole('link', { name: 'Tâches', exact: true })
+  if (await tasksLink.count()) await tasksLink.click()
   const tasks = page.getByRole('region', { name: 'Tâches internes', exact: true })
   await tasks.getByRole('button', { name: 'Ouvrir les tâches', exact: true }).click()
   await tasks.getByRole('button', { name: 'Créer une tâche', exact: true }).click()
@@ -38,7 +41,9 @@ async function exerciseTask(page: Page, context: BrowserContext, mediaId: string
   await discussion.getByRole('button', { name: 'Actualiser les communications', exact: true }).click()
   await expect(discussion.getByText('Dossier vérifié et terminé', { exact: true })).toBeVisible()
   expect(await tasks.locator('script,img,iframe').count()).toBe(0)
+  await page.getByRole('link', { name: 'Aperçu', exact: true }).click()
   await page.getByRole('button', { name: /Ouvrir Communication Beta/ }).click()
+  await page.getByRole('link', { name: 'Tâches et communication', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Ouvrir les tâches', exact: true })).toBeVisible()
   const headers = { Accept: 'application/json', Origin: frontend }
   const selected = await context.request.get(api + '/api/v1/active-organization', { headers })
@@ -52,6 +57,7 @@ async function exerciseTask(page: Page, context: BrowserContext, mediaId: string
 }
 
 async function exerciseMedia(page: Page): Promise<string> {
+  await page.getByRole('link', { name: 'Médias', exact: true }).click()
   const media = page.getByRole('region', { name: 'Streams, VOD et clips', exact: true })
   await media.getByRole('button', { name: 'Ouvrir les médias', exact: true }).click()
   await media.getByRole('button', { name: 'Nouveau média', exact: true }).click()
@@ -70,7 +76,9 @@ async function exerciseMedia(page: Page): Promise<string> {
   expect(response.status()).toBe(201)
   const item = (await response.json()).data as { id: string; context_id: string }
   expect(item.context_id).toBe(data.activity)
+  await page.getByRole('link', { name: 'Calendrier', exact: true }).click()
   const calendar = page.getByRole('region', { name: 'Calendrier des activités', exact: true })
+  await calendar.getByRole('button', { name: 'Ouvrir le calendrier', exact: true }).click()
   const card = calendar.getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'Événement de discussion', exact: true }) })
   await card.getByRole('button', { name: 'Voir les médias associés', exact: true }).click()
   const attached = card.getByRole('region', { name: 'Médias associés', exact: true })
@@ -87,6 +95,7 @@ test('discussion réelle : calendrier, confirmation, commentaire persisté, anno
   page.on('pageerror', (error) => errors.push(error.message))
   await login(page, 'browser-communication@example.test')
   await page.getByRole('button', { name: /Ouvrir Communication Alpha/ }).click()
+  await page.getByRole('link', { name: 'Calendrier', exact: true }).click()
   const calendar = page.getByRole('region', { name: 'Calendrier des activités', exact: true })
   await calendar.getByRole('button', { name: 'Ouvrir le calendrier', exact: true }).click()
   const filters = calendar.getByRole('form', { name: 'Filtres du calendrier' })
@@ -115,6 +124,8 @@ test('discussion réelle : calendrier, confirmation, commentaire persisté, anno
   const denied = await context.request.get(api + '/api/v1/tenants/' + data.alpha + '/communication/discussions/event/' + data.betaActivity, { headers: { ...plainHeaders, 'X-Tenant-Revision': revision } })
   expect(denied.status()).toBe(404)
 
+  await page.getByRole('link', { name: 'Tâches et communication', exact: true }).click()
+  await page.getByRole('link', { name: 'Communications', exact: true }).click()
   const communication = page.getByRole('region', { name: 'Annonces et discussions', exact: true })
   await communication.getByRole('button', { name: 'Ouvrir les communications', exact: true }).click()
   await communication.getByRole('button', { name: 'Gérer les annonces', exact: true }).click()

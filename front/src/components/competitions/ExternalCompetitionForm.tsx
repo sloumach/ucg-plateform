@@ -13,7 +13,7 @@ export function ExternalCompetitionForm({ active, root, item, disabled, errors, 
   const [contacts, setContacts] = useState(() => (item?.contacts ?? []).map((contact, key) => ({ ...contact, key })))
   const nextKey = useRef(contacts.length)
   const { list, loading, error } = usePartnershipList<{ id: string; label: string }, Page<{ id: string; label: string }>>(root + '/games?page=' + page + '&per_page=10', active, item === null, onInvalid)
-  return <form aria-label={text('save')} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-3" onSubmit={(event) => {
+  return <form aria-label={text('save')} className="ui-editor grid min-w-0 gap-3 p-3" onSubmit={(event) => {
     const values = new FormData(event.currentTarget), value = (key: string) => String(values.get(key) ?? '').trim()
     onSubmit(event, { ...(item ? { version: item.version } : { reference: value('reference').toUpperCase(), game_id: choice?.id ?? '' }),
       name: value('name'), organizer: value('organizer'), region: value('region'), season: value('season'), website_url: value('website_url') || null,
@@ -32,12 +32,12 @@ export function ExternalCompetitionForm({ active, root, item, disabled, errors, 
     <FormField name="website_url" label={text('url')} type="url" pattern="https://.*" maxLength={2000} defaultValue={item?.website_url ?? ''} disabled={disabled} error={errors.website_url?.[0]} />
     <h4 className="font-bold">{text('contacts')}</h4>
     {errors.contacts?.[0] && <Alert tone="error" title={errors.contacts[0]} />}
-    {contacts.map((contact, index) => <fieldset key={contact.key} className="grid min-w-0 gap-3 rounded-lg border border-slate-700 p-3"><legend>{text('contact')} {index + 1}</legend>
+    {contacts.map((contact, index) => <fieldset key={contact.key} className="ui-editor grid min-w-0 gap-3 p-3"><legend>{text('contact')} {index + 1}</legend>
       {(['name', 'role', 'email', 'phone'] as const).map((field) => <FormField key={field} name={`contacts.${index}.${field}`} label={text('contact.' + field)} defaultValue={contact[field] ?? ''} type={field === 'email' ? 'email' : 'text'} required={field === 'name'} maxLength={field === 'name' ? 160 : field === 'role' ? 120 : field === 'email' ? 254 : 40} disabled={disabled} error={errors[`contacts.${index}.${field}`]?.[0]} />)}
       <Button disabled={disabled} onClick={() => setContacts((current) => current.filter((entry) => entry.key !== contact.key))}>{text('removeContact')} {index + 1}</Button>
     </fieldset>)}
     {contacts.length < 10 && <Button disabled={disabled} onClick={() => { const key = nextKey.current++; setContacts((current) => [...current, { key, name: '', role: null, email: null, phone: null }]) }}>{text('addContact')}</Button>}
     <FormField name="reason" label={text('reason')} minLength={10} maxLength={1000} required disabled={disabled} error={errors.reason?.[0]} />
-    <div className="flex flex-wrap gap-3"><Button type="submit" disabled={disabled || (!item && !choice)}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{text('cancel')}</Button></div>
+    <div className="flex flex-wrap gap-3"><Button variant="primary" type="submit" disabled={disabled || (!item && !choice)}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{text('cancel')}</Button></div>
   </form>
 }

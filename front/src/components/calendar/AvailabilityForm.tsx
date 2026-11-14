@@ -37,7 +37,7 @@ export function AvailabilityForm({ active, root, item, disabled, onInvalid, erro
     }
     onSubmit(event, values)
   }
-  return <form aria-label={text('save')} onSubmit={submit} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-4 sm:grid-cols-2">
+  return <form aria-label={text('save')} onSubmit={submit} className="ui-editor grid min-w-0 gap-3 p-4 sm:grid-cols-2">
     <h3 className="font-bold sm:col-span-2">{text(item ? 'edit' : 'new')}</h3>
     {item && <p className="sm:col-span-2 [overflow-wrap:anywhere]">{text('person')} : {item.person_label ?? text('unknownPerson')}</p>}
     {!item && canSelf && viewerId && canManage && <FormField name="for_me" type="checkbox" label={text('forMe')} checked={forMe} disabled={disabled} onChange={(event) => setForMe(event.target.checked)} />}
@@ -52,6 +52,6 @@ export function AvailabilityForm({ active, root, item, disabled, onInvalid, erro
     {end && <CalendarTimeChoice options={endOptions} value={endInstant} onChange={setEndChoice} disabled={disabled} label={calendar('endOccurrence')} />}
     <p className="text-sm text-slate-400 sm:col-span-2">{calendar('timeHint')}</p>
     <FormField name="comment" label={text('comment')} defaultValue={item?.comment ?? ''} maxLength={1000} disabled={disabled} error={errors.comment?.[0]} hint={text('commentHint')} />
-    <div className="flex flex-wrap gap-3 sm:col-span-2"><Button type="submit" disabled={blocked}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{text('closeForm')}</Button></div>
+    <div className="flex flex-wrap gap-3 sm:col-span-2"><Button variant="primary" type="submit" disabled={blocked}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{text('closeForm')}</Button></div>
   </form>
 }

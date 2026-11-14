@@ -34,18 +34,18 @@ export function PartnershipsPanel({ active, disabled, onInvalid, onCampaignChang
   const mutation = usePeopleMutation<Sponsor>(active, () => { setEditor(null); setSelected(null); setRefresh((value) => value + 1) }, onInvalid)
   const blocked = disabled || mutation.blocked
   if (!canRead) return null
-  return <section aria-label={text('title')} className="grid min-w-0 gap-4 rounded-2xl border border-white/10 p-4">
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4">
     <h2 className="text-xl font-bold">{text('title')}</h2>
     <p className="text-sm text-slate-400">{text('hint')}</p>
-    <Button disabled={blocked} onClick={() => { setOpen(!open); setEditor(null); setSelected(null) }}>{text(open ? 'close' : 'open')}</Button>
+    <Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); setEditor(null); setSelected(null) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>
       {mutation.feedback}
       <SearchForm status={status} statuses={sponsorStatuses} disabled={blocked} onSearch={(next, filter) => { setQuery(next); setStatus(filter); setPage(1); setSelected(null); setEditor(null) }} />
       {canWrite && <Button disabled={blocked} onClick={() => { setSelected(null); setEditor('new') }}>{text('new')}</Button>}
       {loading && <AsyncState variant="loading" title={text('loading')} />}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-      {list?.data.length === 0 && <p>{text('empty')}</p>}
-      <ul className="grid min-w-0 gap-3">{list?.data.map((sponsor) => <li key={sponsor.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
+      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      <ul className="grid min-w-0 gap-3">{list?.data.map((sponsor) => <li key={sponsor.id} className="ui-card grid min-w-0 gap-2 p-3">
         <h3 className="font-bold [overflow-wrap:anywhere]">{sponsor.name}</h3>
         <p className="[overflow-wrap:anywhere]">{text('status.' + sponsor.status)}{sponsor.industry && ' · ' + sponsor.industry}</p>
         <div className="flex flex-wrap gap-3">
@@ -67,7 +67,7 @@ export function PartnershipsPanel({ active, disabled, onInvalid, onCampaignChang
 
 function SponsorDetails({ active, sponsor, disabled, onInvalid, onClose, onCampaignChanged }: Props & { sponsor: Sponsor; onClose: () => void }) {
   const [kind, setKind] = useState<PartnershipKind | 'agreements'>('contacts'), [link, setLink] = useState<ExchangeLink | null>(null)
-  return <section aria-label={sponsor.name} className="grid min-w-0 gap-4 rounded-xl border border-cyan-400/30 p-4">
+  return <section aria-label={sponsor.name} className="ui-editor grid min-w-0 gap-4 p-4">
     <h3 className="font-bold [overflow-wrap:anywhere]">{sponsor.name}</h3>
     <Button disabled={disabled} onClick={onClose}>{text('closeDetails')}</Button>
     <div className="flex flex-wrap gap-3">{(['contacts', 'opportunities', 'interactions', 'agreements'] as const).map((tab) => <Button key={tab} disabled={disabled} aria-pressed={kind === tab} onClick={() => { setLink(null); setKind(tab) }}>{text(tab)}</Button>)}</div>
@@ -92,8 +92,8 @@ function RelatedPanel({ active, sponsor, kind, link, disabled, onInvalid, onLink
     {canWrite && <Button disabled={blocked} onClick={() => setEditor('new')}>{text('new.' + kind)}</Button>}
     {loading && <AsyncState variant="loading" title={text('loading')} />}
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-    {list?.data.length === 0 && <p>{text('empty')}</p>}
-    <ul className="grid min-w-0 gap-3">{list?.data.map((record) => <li key={record.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
+    {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+    <ul className="grid min-w-0 gap-3">{list?.data.map((record) => <li key={record.id} className="ui-card grid min-w-0 gap-2 p-3">
       {'summary' in record ? <>
         <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{record.summary}</p>
         <p className="[overflow-wrap:anywhere]">{text('channel.' + record.channel)} · {new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short', timeZone: active.context!.timezone }).format(new Date(record.occurred_at))}</p>
@@ -119,7 +119,7 @@ function RelatedPanel({ active, sponsor, kind, link, disabled, onInvalid, onLink
 }
 
 function SearchForm({ statuses, status, disabled, onSearch }: { statuses: readonly string[]; status: string; disabled: boolean; onSearch: (query: string, status: string) => void }) {
-  return <form aria-label={text('search')} className="grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
+  return <form aria-label={text('search')} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
     event.preventDefault(); const data = new FormData(event.currentTarget); onSearch(String(data.get('q') ?? '').trim(), String(data.get('status') ?? ''))
   }}>
     <FormField name="q" label={text('search')} maxLength={80} disabled={disabled} />
@@ -133,7 +133,7 @@ function RecordForm({ kind, record, link, disabled, errors, onSubmit, onCancel }
   const label = kind === 'sponsors' ? text('save') : text('save.' + kind)
   const fields = kind === 'sponsors' ? ['name', 'industry'] : kind === 'contacts' ? ['name', 'position', 'email', 'phone'] : kind === 'opportunities' ? ['title', 'description'] : ['summary', 'occurred_at']
   const statuses = kind === 'sponsors' ? sponsorStatuses : kind === 'contacts' ? ['active', 'archived'] : opportunityStatuses
-  return <form noValidate aria-label={label} onSubmit={onSubmit} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-4 sm:grid-cols-2">
+  return <form noValidate aria-label={label} onSubmit={onSubmit} className="ui-editor grid min-w-0 gap-3 p-4 sm:grid-cols-2">
     {fields.map((field) => {
       const title = field === 'name' && kind === 'contacts' ? text('contactName') : field === 'title' ? text('opportunityTitle') : text(field)
       const value = record && field in record ? String(record[field as keyof Editable] ?? '') : ''
@@ -157,7 +157,7 @@ function LongTextField({ name, title, value, disabled, error }: { name: string; 
     <label htmlFor={id}>{title}</label>
     <textarea id={id} name={name} defaultValue={value} disabled={disabled} maxLength={4000} rows={4} required={name === 'summary'}
       aria-invalid={error ? true : undefined} aria-describedby={error ? id + '-error' : undefined}
-      className="min-w-0 w-full rounded-xl border border-white/15 bg-slate-900 px-4 py-3 text-slate-100" />
+      className="ui-input" />
     {error && <p id={id + '-error'} className="text-sm text-rose-200">{error}</p>}
   </div>
 }

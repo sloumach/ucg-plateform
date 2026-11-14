@@ -42,15 +42,15 @@ export function OrganizationGamesPanel({ active, disabled, onInvalid }: { active
   }, [org, revision, allowed, open, page, selected, refresh, onInvalid])
   if (!org || !allowed) return null
   const blocked = disabled || loading || mutation.blocked
-  return <section aria-label={t('games.orgTitle')} className="grid min-w-0 gap-4 rounded-xl border border-slate-700 p-4">
-    <Button disabled={disabled || mutation.blocked} onClick={() => setOpen((value) => !value)}>{open ? t('games.close') : t('games.orgTitle')}</Button>
+  return <section aria-label={t('games.orgTitle')} className="ui-panel grid min-w-0 gap-4 p-4">
+    <Button disabled={disabled || mutation.blocked} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? t('games.close') : t('games.orgTitle')}</Button>
     {open && <>
       <p className="text-sm text-slate-300">{t('games.orgHint')}</p>
       {!canManage && <p>{t('games.readOnly')}</p>}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
       {loading && <p role="status">{t('games.loading')}</p>}
       {mutation.feedback}
-      {list && <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{list.data.map((entry) => <li key={entry.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
+      {list && <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{list.data.map((entry) => <li key={entry.id} className="ui-card grid min-w-0 gap-2 p-3">
         <p className="break-words font-semibold [overflow-wrap:anywhere]">{entry.name}</p>
         <p>{!entry.available ? t('games.retired') : entry.enabled ? t('games.enabledStatus') : t('games.disabled')}</p>
         <Button disabled={blocked} onClick={() => setSelected(entry.id)}>{canManage ? t('games.edit') : t('games.available')}</Button>
@@ -74,7 +74,7 @@ function OrganizationGameForm({ game, disabled, errors, onCancel, onSubmit }: {
     const form = new FormData(event.currentTarget)
     onSubmit(event, { enabled: form.get('enabled') === 'yes', restrictions, version: game.version, catalogue_version: game.catalogue_version })
   }
-  return <form aria-label={t('games.orgSave')} onSubmit={submit} className="grid min-w-0 gap-4 rounded-xl border border-cyan-400/30 p-4">
+  return <form aria-label={t('games.orgSave')} onSubmit={submit} className="ui-editor grid min-w-0 gap-4 p-4">
     <h3 className="break-words text-lg font-bold [overflow-wrap:anywhere]">{game.name}</h3>
     {!game.available && <p className="text-amber-200">{t('games.retired')}</p>}
     {!game.available && <p className="text-sm text-amber-200">{t('games.retiredHint')}</p>}

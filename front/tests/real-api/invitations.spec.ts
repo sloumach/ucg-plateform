@@ -62,6 +62,8 @@ test('invitations réelles : expiration, révocation, acceptation, rôle limité
 
     await login(page, 'browser-inviter@example.test')
     await page.getByRole('button', { name: /Ouvrir Invitation Alpha/ }).click()
+    await page.getByRole('link', { name: 'Membres et accès', exact: true }).click()
+    await page.getByRole('link', { name: 'Invitations', exact: true }).click()
     await expect(page.getByText('Organisation active : Invitation Alpha')).toBeVisible()
     const form = page.getByRole('heading', { name: 'Inviter un membre', exact: true }).locator('..')
     async function invite() {
@@ -158,8 +160,10 @@ test('invitations réelles : expiration, révocation, acceptation, rôle limité
     const invitations = await context.request.get(`${api}/api/v1/${root}`, { headers: await headers(context) })
     expect(invitations.ok()).toBe(true)
     expect((await invitations.json()).data.map((invitation: Invitation) => invitation.status).sort()).toEqual(['expired', 'revoked', 'accepted'].sort())
+    await page.getByRole('link', { name: 'Aperçu', exact: true }).click()
     await page.getByRole('button', { name: /Ouvrir Invitation Beta/ }).click()
     await expect(page.getByText('Organisation active : Invitation Beta')).toBeVisible()
+    await page.getByRole('link', { name: 'Membres et accès', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Inviter un membre', exact: true })).toHaveCount(0)
     await expect(page.getByText(`${email} · Membre · Acceptée`, { exact: true })).toHaveCount(0)
     const betaHeaders = await headers(context)

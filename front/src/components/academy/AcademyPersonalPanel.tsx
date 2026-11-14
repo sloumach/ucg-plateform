@@ -15,11 +15,11 @@ export function AcademyPersonalPanel({ active, disabled, onInvalid }: Props) {
   const read = useAcademyPage<AcademyObjective>(active, open && org && allowed ? base : null, page, refresh, onInvalid)
   const selected = read.result?.data.find((item) => item.id === selectedId)
   if (!org || !allowed) return null
-  return <section aria-label={text('personal')} className="grid min-w-0 gap-4 rounded-xl border border-slate-700 p-4">
-    <Button disabled={disabled} onClick={() => { setOpen((value) => !value); setSelectedId(null) }}>{open ? text('closePersonal') : text('personal')}</Button>
+  return <section aria-label={text('personal')} className="ui-panel grid min-w-0 gap-4 p-4">
+    <Button disabled={disabled} aria-expanded={open} onClick={() => { setOpen((value) => !value); setSelectedId(null) }}>{open ? text('closePersonal') : text('personal')}</Button>
     {open && <><p>{text('personalHint')}</p>{read.loading && <p role="status">{text('loading')}</p>}{read.error && <><Alert tone="error" title={read.error.message} requestId={read.error.requestId} /><Button onClick={() => setRefresh((value) => value + 1)}>{text('retry')}</Button></>}
-      {read.result?.data.length === 0 && <p>{text('empty')}</p>}
-      <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => <li key={item.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3 [overflow-wrap:anywhere]">
+      {read.result?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-2 p-3 [overflow-wrap:anywhere]">
         <h4 className="font-bold">{item.title}</h4><p>{text(item.scope)} · {text(item.status)} · {text('deadline')} : {item.due_on}</p>{item.description && <p className="whitespace-pre-wrap">{item.description}</p>}
         <Button disabled={disabled || read.loading} onClick={() => setSelectedId(item.id)}>{text('feedback')} {item.title}</Button>
       </li>)}</ul>

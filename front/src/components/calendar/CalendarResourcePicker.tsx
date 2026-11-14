@@ -10,7 +10,7 @@ export function CalendarResourcePicker({ active, root, disabled, onInvalid, sele
 }) {
   const [page, setPage] = useState(1)
   const { list, loading, error: failure } = usePartnershipList<CalendarResource>(root + '/resources?page=' + page + '&per_page=10', active, true, onInvalid)
-  return <fieldset className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
+  return <fieldset className="ui-editor grid min-w-0 gap-3 p-3">
     <legend>{text('resources')} ({selected.length}/20)</legend><p className="text-sm text-slate-400">{text('resourcesHint')}</p>
     {selected.map((resource) => <div key={resource.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2">
       <span className="[overflow-wrap:anywhere]">{resource.label ?? text('unknownResource')}{resource.archived ? ' · ' + text('archivedResource') : ''}</span>

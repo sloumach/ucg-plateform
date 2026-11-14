@@ -44,7 +44,7 @@ test('profils privés : filtres, comparaison refusée, fraîcheur et lecture mob
     }
     await route.fulfill({ status: 200, headers, contentType: 'application/json', body: JSON.stringify({ data, meta: { request_id: 'stat005-e2e', current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 0, can_manage: false } }) })
   })
-  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/?rubrique=suivi&outil=statistiques')
   const panel = page.getByRole('region', { name: 'Profils et comparaisons statistiques', exact: true })
   await panel.getByRole('button', { name: 'Ouvrir les profils statistiques' }).click()
   const form = panel.getByRole('form', { name: 'Filtres des profils statistiques' })

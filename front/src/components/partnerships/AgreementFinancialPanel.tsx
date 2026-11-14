@@ -17,7 +17,7 @@ export function AgreementFinancialPanel({ active, record, path, disabled, readOn
   const writable = !readOnly && permissions.includes('partnerships.write') && permissions.includes('financial.write') && ['draft', 'approved'].includes(record.status)
   if (!allowed) return null
   return <section aria-label={text('financial')} className="grid min-w-0 gap-3 rounded-xl border border-amber-400/30 p-3">
-    <Button disabled={disabled} onClick={() => setOpen(!open)}>{text(open ? 'closeFinancial' : 'financial')}</Button>
+    <Button disabled={disabled} aria-expanded={open} onClick={() => setOpen(!open)}>{text(open ? 'closeFinancial' : 'financial')}</Button>
     {open && <>
       {loading && <p role="status">{text('loading')}</p>}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}

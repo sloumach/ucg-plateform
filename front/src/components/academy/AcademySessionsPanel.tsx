@@ -26,14 +26,14 @@ export function AcademySessionsPanel({ active, cohort, cycle, disabled, onInvali
   const selected = read.result?.data.find((item) => item.id === selectedId)
   if (!org || !allowed) return null
   return <section aria-label={text('panel')} className="grid min-w-0 gap-4 border-t border-slate-700 pt-4">
-    <Button disabled={disabled || mutation.blocked} onClick={() => { setOpen((value) => !value); setEditor(null); setSelectedId(null); setCancelling(null) }}>{open ? text('close') : text('panel')}</Button>
+    <Button disabled={disabled || mutation.blocked} aria-expanded={open} onClick={() => { setOpen((value) => !value); setEditor(null); setSelectedId(null); setCancelling(null) }}>{open ? text('close') : text('panel')}</Button>
     {open && <>
       <h4 className="font-bold [overflow-wrap:anywhere]">{cycle.name}</h4><p>{text('hint')}</p>
       {read.loading && <p role="status">{text('loading')}</p>}{read.error && <><Alert tone="error" title={read.error.message} /><Button onClick={() => setRefresh((value) => value + 1)}>{text('retry')}</Button></>}
       {mutation.feedback}
-      {manage && calendar && <Button disabled={blocked} onClick={() => { setEditor('new'); setCancelling(null); setSelectedId(null) }}>{text('create')}</Button>}
-      {read.result?.data.length === 0 && <p>{text('empty')}</p>}
-      <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => <li key={item.id} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3 [overflow-wrap:anywhere]">
+      {manage && calendar && <Button variant="primary" disabled={blocked} onClick={() => { setEditor('new'); setCancelling(null); setSelectedId(null) }}>{text('create')}</Button>}
+      {read.result?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-3 p-3 [overflow-wrap:anywhere]">
         <h5 className="font-bold">{item.title}</h5><p>{text(item.status)} · {item.responsible_label ?? text('personUnavailable')}</p>
         {item.starts_at && <p>{text('retainedPeriod')} : {item.starts_at} – {item.ends_at}</p>}
         {item.activity && <p>{text('activity')} : {item.activity.label} · {item.activity.timezone}</p>}

@@ -44,7 +44,7 @@ test('médias : scrim privé, autorisation différée, référence échappée et
     await route.fulfill({ status: method === 'POST' && path === root ? 201 : 200, headers, contentType: 'application/json', body: JSON.stringify({ data, meta: { current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 0 } }) })
   })
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/')
+  await page.goto('/?rubrique=collaboration&outil=medias')
   const panel = page.getByRole('region', { name: 'Streams, VOD et clips' })
   await panel.getByRole('button', { name: 'Ouvrir les médias' }).click()
   await panel.getByRole('button', { name: 'Nouveau média' }).click()

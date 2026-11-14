@@ -53,7 +53,7 @@ test('report motivé, historique, messages internes et annulation définitive su
       meta: { current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 0 }, calendar_changes: { delivery_enabled: true },
       calendar: { viewer_timezone: 'UTC', display_timezone: 'UTC' } }) })
   })
-  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/?rubrique=calendrier')
   const panel = page.getByRole('region', { name: 'Calendrier des activités' })
   await panel.getByRole('button', { name: 'Ouvrir le calendrier' }).click()
   await expect(panel.getByRole('heading', { name: activity.title, exact: true })).toBeVisible(); expect(inboxReads).toBe(0)

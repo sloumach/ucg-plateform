@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
@@ -9,10 +9,12 @@ import {
   requestPasswordReset,
 } from './api/auth'
 import { ApiClientError } from './api/errors'
+import { mfaRequest } from './api/mfa'
 import { getSystemStatus } from './api/systemStatus'
 import { tenancyRequest, type ActiveOrganization } from './api/tenancy'
 
 vi.mock('./api/tenancy', () => ({ tenancyRequest: vi.fn() }))
+vi.mock('./api/mfa', () => ({ mfaRequest: vi.fn() }))
 
 vi.mock('./api/auth', async (importOriginal) => {
   const original = await importOriginal<typeof import('./api/auth')>()
@@ -42,7 +44,10 @@ const requestPasswordResetMock = vi.mocked(requestPasswordReset)
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(tenancyRequest).mockReset()
+    window.history.replaceState(null, '', '/')
+    vi.mocked(tenancyRequest).mockImplementation(async (path) => path === 'active-organization'
+      ? { data: { context: null, revision: null, confirmed: false } }
+      : { data: [], meta: { current_page: 1, last_page: 1, total: 0 } })
     getCurrentUserMock.mockResolvedValue(null)
     getSystemStatusMock.mockResolvedValue({
       apiVersion: 'v1',
@@ -52,8 +57,9 @@ describe('App', () => {
   })
 
   it('bloque l’espace organisation tant que le MFA privilégié reste en attente', async () => {
+    window.history.replaceState(null, '', '/?espace=clients')
     getCurrentUserMock.mockResolvedValue({
-      id: 42, name: 'Admin', email: 'admin@ucg.test', email_verified: true,
+      id: 42, name: 'Admin', email: 'admin@ucg.test', email_verified: true, can_provision_clients: true,
       mfa: { required: true, enabled: true, verified: false },
     })
 
@@ -61,7 +67,27 @@ describe('App', () => {
 
     expect(await screen.findByLabelText('Code de l’application (6 chiffres)')).toBeVisible()
     expect(screen.queryByRole('heading', { name: 'Mes organisations' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ajouter un client et son organisation' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Déconnecter les autres appareils' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Navigation principale' })).not.toBeInTheDocument()
+    expect(tenancyRequest).not.toHaveBeenCalled()
+  })
+
+  it('ouvre le formulaire client depuis le menu du super admin', async () => {
+    getCurrentUserMock.mockResolvedValue({
+      id: 42, name: 'Super admin', email: 'superadmin@example.test', email_verified: true, can_provision_clients: true,
+      mfa: { required: true, enabled: true, verified: true },
+    })
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(await screen.findByRole('link', { name: 'Clients' }))
+    expect(screen.getByRole('heading', { name: 'Clients', level: 1 })).toHaveFocus()
+    expect(screen.queryByRole('heading', { name: 'Mes organisations' })).not.toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'Ajouter un client et son organisation' }))
+
+    expect(screen.getByLabelText('Adresse e-mail du client')).toBeVisible()
+    expect(screen.getByLabelText('Nom de l’organisation')).toBeVisible()
   })
 
   it('affiche le statut de la plateforme et permet de se connecter', async () => {
@@ -85,6 +111,65 @@ describe('App', () => {
     expect(loginMock).toHaveBeenCalledWith('admin@ucg.test', 'secret-password')
     expect(await screen.findByText('Bienvenue, UCG Admin')).toBeVisible()
     expect(screen.getByText('Connexion réussie.')).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Connexion' })).not.toBeInTheDocument()
+    expect(screen.queryByText('UCG Platform v1 opérationnelle')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Organisations' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.queryByRole('link', { name: 'Clients' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('link', { name: 'Mon compte' }))
+    expect(screen.getByRole('heading', { name: 'Mon compte', level: 1 })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Déconnecter les autres appareils' })).toBeVisible()
+    expect(screen.queryByRole('region', { name: 'Authentification à deux facteurs' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Mes organisations' })).not.toBeInTheDocument()
+    expect(window.location.search).toBe('?espace=compte')
+
+    await user.click(screen.getByRole('link', { name: 'Double authentification' }))
+    expect(screen.getByRole('region', { name: 'Authentification à deux facteurs' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Déconnecter les autres appareils' })).not.toBeInTheDocument()
+
+    window.history.back()
+    expect(await screen.findByRole('button', { name: 'Déconnecter les autres appareils' })).toBeVisible()
+    window.history.back()
+    expect(await screen.findByRole('heading', { name: 'Mes organisations' })).toBeVisible()
+  })
+
+  it('refuse un lien direct vers une rubrique non accessible', async () => {
+    window.history.replaceState(null, '', '/?espace=clients')
+    getCurrentUserMock.mockResolvedValue({
+      id: 42, name: 'Membre', email: 'member@example.test', email_verified: false,
+      mfa: { required: false, enabled: false, verified: false },
+    })
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Mes organisations' })).toBeVisible()
+    expect(screen.queryByRole('link', { name: 'Clients' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Catalogues' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ajouter un client et son organisation' })).not.toBeInTheDocument()
+  })
+
+  it('garde les codes de récupération visibles avant d’ouvrir les organisations', async () => {
+    const operator = userEvent.setup()
+    const account = {
+      id: 42, name: 'Admin', email: 'admin@example.test', email_verified: true,
+      mfa: { required: true, enabled: false, verified: false },
+    }
+    getCurrentUserMock
+      .mockResolvedValueOnce(account)
+      .mockResolvedValue({ ...account, mfa: { ...account.mfa, enabled: true, verified: true } })
+    vi.mocked(mfaRequest)
+      .mockResolvedValueOnce({ data: { secret: 'TEST-SETUP-KEY' }, meta: { request_id: 'setup' } })
+      .mockResolvedValueOnce({ data: { recovery_codes: ['fixture-recovery-code'] }, meta: { request_id: 'confirm' } })
+    render(<App />)
+
+    await operator.type(await screen.findByLabelText('Mot de passe'), 'fixture-password')
+    await operator.click(screen.getByRole('button', { name: 'Configurer le MFA' }))
+    await operator.type(await screen.findByLabelText('Code de l’application (6 chiffres)'), '012345')
+    await operator.click(screen.getByRole('button', { name: 'Confirmer l’activation' }))
+
+    expect(await screen.findByRole('region', { name: 'Codes de récupération' })).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Mes organisations' })).not.toBeInTheDocument()
+    await operator.click(screen.getByRole('button', { name: 'J’ai conservé mes codes' }))
+    expect(await screen.findByRole('heading', { name: 'Mes organisations' })).toBeVisible()
   })
 
   it('termine une session active avec la notification renvoyée par l API', async () => {
@@ -107,6 +192,28 @@ describe('App', () => {
     expect(logoutMock).toHaveBeenCalledOnce()
     expect(await screen.findByRole('heading', { name: 'Connexion' })).toBeVisible()
     expect(screen.getByText('Session fermée.')).toBeVisible()
+  })
+
+  it('retire les données de l’ancien compte si la session a changé dans un autre onglet', async () => {
+    getCurrentUserMock.mockResolvedValue({
+      id: 42, name: 'Premier compte', email: 'first@example.test', email_verified: true,
+      mfa: { required: false, enabled: false, verified: false },
+    })
+    vi.mocked(tenancyRequest).mockImplementation(async (path) => path === 'active-organization'
+      ? { data: { context: { organization_id: 'alpha', name: 'Organisation Alpha', slug: 'alpha', timezone: 'UTC',
+        language: 'fr', roles: ['member'], permissions: [], is_owner: false, actor_user_id: 42, membership_id: 'membership-alpha' },
+      revision: 'revision-alpha', confirmed: false } }
+      : { data: [], meta: { request_id: 'test', current_page: 1, last_page: 1, total: 0 } })
+    render(<App />)
+    expect(await screen.findByLabelText('Contexte d’organisation')).toHaveTextContent('Organisation Alpha')
+    getCurrentUserMock.mockResolvedValue({
+      id: 43, name: 'Second compte', email: 'second@example.test', email_verified: true,
+      mfa: { required: true, enabled: true, verified: false },
+    })
+    await act(async () => window.dispatchEvent(new Event('focus')))
+    expect(await screen.findByText('Second compte')).toBeVisible()
+    expect(screen.getByLabelText('Code de l’application (6 chiffres)')).toBeVisible()
+    expect(screen.queryByLabelText('Contexte d’organisation')).not.toBeInTheDocument()
   })
 
   it('efface le contexte du compte précédent avant le MFA du nouveau compte', async () => {
@@ -147,7 +254,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Se connecter' }))
 
     expect(await screen.findByLabelText('Code de l’application (6 chiffres)')).toBeVisible()
-    expect(screen.getByLabelText('Contexte d’organisation')).toHaveTextContent('Aucune organisation sélectionnée.')
+    expect(screen.queryByLabelText('Contexte d’organisation')).not.toBeInTheDocument()
     expect(screen.queryByText('Organisation confidentielle Alpha')).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Mes organisations' })).not.toBeInTheDocument()
   })

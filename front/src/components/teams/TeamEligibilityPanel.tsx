@@ -43,13 +43,13 @@ export function TeamEligibilityRulesPanel({ active, team, disabled, onInvalid, o
   const manage = active.context!.permissions.includes('teams.manage')
   const mutation = usePeopleMutation<EligibilityRuleset>(active, () => { setCreate(false); setRefresh((value) => value + 1) }, onInvalid)
   const blocked = disabled || rules.loading || mutation.blocked
-  return <section aria-label={text('title')} className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-cyan-400/30 p-4 [overflow-wrap:anywhere]">
+  return <section aria-label={text('title')} className="ui-editor grid min-w-0 grid-cols-1 gap-3 p-4 [overflow-wrap:anywhere]">
     <h4 className="font-bold">{text('title')}</h4><p>{text('hint')}</p>
     <Button disabled={mutation.blocked} onClick={onClose}>{text('close')}</Button>
     {rules.loading && <p role="status">{text('loading')}</p>}
     {rules.error && <Alert tone="error" title={rules.error.message} requestId={rules.error.requestId} />}{mutation.feedback}
-    {rules.list?.data.length === 0 && <p>{text('empty')}</p>}
-    <ul className="grid min-w-0 grid-cols-1 gap-3">{rules.list?.data.map((rule) => <li key={rule.id} className="grid min-w-0 grid-cols-1 gap-2 rounded-xl border border-slate-700 p-3">
+    {rules.list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+    <ul className="grid min-w-0 grid-cols-1 gap-3">{rules.list?.data.map((rule) => <li key={rule.id} className="ui-card grid min-w-0 grid-cols-1 gap-2 p-3">
       <h5 className="font-bold [overflow-wrap:anywhere]">{rule.name} · {text(rule.status)}</h5>
       <p>{text('min_starters')} : {rule.min_starters} · {text('max_starters')} : {rule.max_starters} · {text('max_substitutes')} : {rule.max_substitutes}</p>
       <p className="[overflow-wrap:anywhere]">{text('platform')} : {rule.platform_key ?? text('noPlatform')} · {text('regions')} : {rule.allowed_regions.join(', ') || '—'} · {text('ranks')} : {rule.allowed_ranks.join(', ') || '—'}</p>
@@ -60,7 +60,7 @@ export function TeamEligibilityRulesPanel({ active, team, disabled, onInvalid, o
       </form>}
     </li>)}</ul>
     {rules.list && <Pagination currentPage={rules.list.meta.current_page} totalPages={rules.list.meta.last_page} disabled={blocked} onPageChange={rules.setPage} />}
-    {manage && <Button disabled={blocked} onClick={() => setCreate((value) => !value)}>{text('create')}</Button>}
+    {manage && <Button variant="primary" disabled={blocked} onClick={() => setCreate((value) => !value)}>{text('create')}</Button>}
     {create && <RulesForm active={active} team={team} disabled={blocked} errors={mutation.errors(path)} onInvalid={onInvalid}
       onSubmit={(event, body) => mutation.propose(event, text('create'), path, body)} />}
   </section>
@@ -101,10 +101,10 @@ function RulesForm({ active, team, disabled, errors, onInvalid, onSubmit }: {
     {platform && <><fieldset className="grid min-w-0 grid-cols-1 gap-2"><legend className="[overflow-wrap:anywhere]">{text('regions')}</legend>
       {game?.effective_options.region.map((choice) => <label key={choice.key} className="flex min-w-0 gap-2 [overflow-wrap:anywhere]"><input type="checkbox" name="allowed_regions" value={choice.key} disabled={disabled} /><span>{choice.name}</span></label>)}
       {errors.allowed_regions && <p role="alert">{errors.allowed_regions[0]}</p>}
-    </fieldset><label className="grid min-w-0 grid-cols-1 gap-2">{text('ranks')}<textarea name="allowed_ranks" rows={3} maxLength={2592} disabled={disabled} className="min-w-0 w-full rounded-xl border border-white/15 bg-slate-900 p-3" /></label></>}
+    </fieldset><label className="grid min-w-0 grid-cols-1 gap-2">{text('ranks')}<textarea name="allowed_ranks" rows={3} maxLength={2592} disabled={disabled} className="ui-input" /></label></>}
     <FormField name="lock_at" label={text('lock')} type="datetime-local" step="1" disabled={disabled} error={errors.lock_at?.[0]} />
     {Object.entries(errors).filter(([key]) => key.includes('.')).map(([key, values]) => <p role="alert" key={key}>{values[0]}</p>)}
-    <Button type="submit" disabled={disabled || !game}>{text('create')}</Button>
+    <Button variant="primary" type="submit" disabled={disabled || !game}>{text('create')}</Button>
   </form>
 }
 
@@ -134,7 +134,7 @@ export function LineupEligibilityPanel({ active, team, lineup, disabled, onInval
   }, [path, revision, page, refresh, onInvalid])
   const blocked = disabled || loading || mutation.blocked
   const selected = rules.list?.data.find((rule) => rule.id === choice)
-  return <section aria-label={text('reports') + ' ' + lineup.label} className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-cyan-400/30 p-3 [overflow-wrap:anywhere]">
+  return <section aria-label={text('reports') + ' ' + lineup.label} className="ui-editor grid min-w-0 grid-cols-1 gap-3 p-3 [overflow-wrap:anywhere]">
     <h5 className="font-bold [overflow-wrap:anywhere]">{text('reports')} · {lineup.label}</h5>
     <Button disabled={mutation.blocked} onClick={onClose}>{text('closeReports')}</Button>
     <p>{text('declaredHint')}</p><p>{text('ageHint')}</p>
@@ -157,7 +157,7 @@ export function LineupEligibilityPanel({ active, team, lineup, disabled, onInval
       <p>{text('previewHint')}</p><Button type="submit" disabled={blocked}>{text('evaluate')}</Button>
     </form>}
     {list?.data.length === 0 && <p>{text('noReports')}</p>}
-    <ul className="grid min-w-0 grid-cols-1 gap-3">{list?.data.map((report) => <li key={report.id} className="grid min-w-0 grid-cols-1 gap-2 rounded-xl border border-slate-700 p-3">
+    <ul className="grid min-w-0 grid-cols-1 gap-3">{list?.data.map((report) => <li key={report.id} className="ui-card grid min-w-0 grid-cols-1 gap-2 p-3">
       <h6 className="font-bold">{text(report.stage)} · {text(report.status)}</h6>
       <p>{new Date(report.evaluated_at).toLocaleString('fr')} · {report.actor_user_id}</p>
       <ul className="grid min-w-0 grid-cols-1 gap-2">{report.checks.map((check, index) => <li className="[overflow-wrap:anywhere]" key={index}>

@@ -44,7 +44,7 @@ test('prospects, contacts, négociation et échange conservé sur mobile', async
     } else if (path === details + '/interactions') data = interactions
     await route.fulfill({ headers, json: { data, meta, ...(method !== 'GET' ? { notification: { type: 'success', message: 'Enregistré.' } } : {}) } })
   })
-  await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/')
+  await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/?rubrique=administration&outil=partenariats')
   const panel = page.getByRole('region', { name: 'Prospects et partenariats', exact: true })
   const approve = async () => { await panel.getByRole('button', { name: 'Confirmer et continuer' }).click(); await expect(panel.getByRole('region', { name: 'Confirmer l’action' })).toHaveCount(0) }
   const noOverflow = async () => { expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1) }

@@ -57,7 +57,7 @@ test('rappels : deux canaux, confirmation, incident SMTP et boîte personnelle s
       ...(method === 'POST' || method === 'PATCH' ? { notification: { type: 'success', message: 'Rappels enregistrés.' } } : {}) } })
   })
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/')
+  await page.goto('/?rubrique=administration')
   await page.getByRole('button', { name: 'Contrats de l’organisation', exact: true }).click()
   await page.getByRole('button', { name: 'Consulter le dossier', exact: true }).click()
   await page.getByRole('button', { name: 'Échéances et rappels', exact: true }).click()

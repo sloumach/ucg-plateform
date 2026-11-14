@@ -24,7 +24,7 @@ export function MatchNotebook({ active, item, root, management, disabled, onInva
   const permissions = active.context?.permissions ?? []
   const readable: NotebookAudience[] = ['shared', ...(permissions.includes('sports.notes.read') ? ['internal' as const] : []), ...(permissions.includes('sports.strategies.read') ? ['strategy' as const] : [])]
   const editPath = editor && editor !== 'new' ? path + '/' + editor.entry_id : path
-  return <section aria-label={text('notebook.title')} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-3">
+  return <section aria-label={text('notebook.title')} className="ui-editor grid min-w-0 gap-3 p-3">
     <h3 className="font-bold [overflow-wrap:anywhere]">{text('notebook.title')} · {item.title}</h3>
     <p className="text-sm text-slate-400">{text('notebook.hint')}</p>
     <Button disabled={blocked} onClick={onClose}>{text('notebook.close')}</Button>
@@ -41,7 +41,7 @@ export function MatchNotebook({ active, item, root, management, disabled, onInva
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
     {writable.length > 0 && <Button disabled={blocked} onClick={() => { setEditor('new'); setHistory(null) }}>{text('notebook.create')}</Button>}
     {list?.data.length === 0 && <p>{text('notebook.empty')}</p>}
-    <ol className="grid min-w-0 gap-3">{list?.data.map((entry) => <li key={entry.entry_id} className="grid min-w-0 gap-2 rounded-lg border border-slate-700 p-3">
+    <ol className="grid min-w-0 gap-3">{list?.data.map((entry) => <li key={entry.entry_id} className="ui-card grid min-w-0 gap-2 p-3">
       <NotebookContent entry={entry} zone={active.context!.timezone} />
       <div className="flex flex-wrap gap-3">
         {writable.includes(entry.audience) && <Button disabled={blocked} onClick={() => { setEditor(entry); setHistory(null) }}>{text('notebook.edit')}</Button>}
@@ -88,7 +88,7 @@ function NotebookForm({ item, writable, disabled, errors, onCancel, onSubmit }: 
     </>}
     <FormField name="title" label={text('notebook.titleField')} defaultValue={item?.title ?? ''} maxLength={200} required disabled={disabled} error={errors.title?.[0]} />
     <label htmlFor={id}>{text('notebook.body')}</label><textarea id={id} name="body" defaultValue={item?.body ?? ''} maxLength={10000} required disabled={disabled} rows={5}
-      aria-invalid={!!errors.body} aria-describedby={errors.body ? id + '-error' : undefined} className="min-w-0 w-full rounded-xl border border-white/15 bg-slate-900 p-3" />
+      aria-invalid={!!errors.body} aria-describedby={errors.body ? id + '-error' : undefined} className="ui-input" />
     {errors.body && <p id={id + '-error'} className="text-rose-200">{errors.body[0]}</p>}
     {kind === 'vod' && <><FormField name="vod_url" label={text('notebook.url')} type="url" pattern="https://.*" defaultValue={item?.vod_url ?? ''} maxLength={2000} required disabled={disabled} error={errors.vod_url?.[0]} hint={text('notebook.vodHint')} />
       <FormField name="timestamp_seconds" label={text('notebook.timestamp')} type="number" min={0} max={604800} step={1} defaultValue={item?.timestamp_seconds ?? ''} disabled={disabled} error={errors.timestamp_seconds?.[0]} /></>}
@@ -101,7 +101,7 @@ function NotebookForm({ item, writable, disabled, errors, onCancel, onSubmit }: 
 function NotebookHistory({ active, path, management, disabled, onInvalid, onClose }: { active: ActiveOrganization; path: string; management: boolean; disabled: boolean; onInvalid: () => void; onClose: () => void }) {
   const [page, setPage] = useState(1)
   const { list, loading, error } = usePartnershipList<MatchNotebookEntry, Page<MatchNotebookEntry>>(path + '?page=' + page + '&per_page=10' + (management ? '&management=1' : ''), active, true, onInvalid)
-  return <section aria-label={text('notebook.history')} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
+  return <section aria-label={text('notebook.history')} className="ui-panel grid min-w-0 gap-3 p-3">
     <h4 className="font-bold">{text('notebook.history')}</h4><Button disabled={disabled} onClick={onClose}>{text('notebook.closeHistory')}</Button>
     {loading && <p role="status">{text('loading')}</p>}{error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
     <ol className="grid min-w-0 gap-3">{list?.data.map((entry) => <li key={entry.version} className="grid min-w-0 gap-2"><NotebookContent entry={entry} zone={active.context!.timezone} /></li>)}</ol>

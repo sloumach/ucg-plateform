@@ -14,7 +14,7 @@ export function CommunicationForm({ active, onInvalid, root, item, disabled, err
   root: string; item: Announcement | null; errors: Errors; onSubmit: (event: FormEvent<HTMLFormElement>, values: Record<string, unknown>) => void; onCancel: () => void
 }) {
   const [type, setType] = useState(item?.target_type ?? 'organization')
-  return <form aria-label={text('save')} noValidate className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-3" onSubmit={(event) => {
+  return <form aria-label={text('save')} noValidate className="ui-editor grid min-w-0 gap-3 p-3" onSubmit={(event) => {
     event.preventDefault(); const values = new FormData(event.currentTarget)
     onSubmit(event, { title: String(values.get('title') ?? '').trim(), body: String(values.get('body') ?? '').trim(), target_type: type,
       target_id: type === 'organization' ? null : item && ['event', 'match', 'session'].includes(item.target_type) ? item.target_id : String(values.get('target_id') ?? ''),
@@ -29,7 +29,7 @@ export function CommunicationForm({ active, onInvalid, root, item, disabled, err
     {type !== 'organization' && <TargetSelect key={type} {...{ active, root, type, onInvalid }} disabled={disabled || !!item && ['event', 'match', 'session'].includes(item.target_type)} value={item?.target_type === type ? item.target_id ?? '' : ''} error={errors.target_id?.[0]} />}
     <FormField name="expires_at" label={text('expiresLocal')} type="datetime-local" step="1" defaultValue={localDate(item?.expires_at)} disabled={disabled} error={errors.expires_at?.[0]} />
     <FormField name="comments_enabled" label={text('enableComments')} type="checkbox" defaultChecked={item?.comments_enabled ?? true} disabled={disabled} error={errors.comments_enabled?.[0]} />
-    <div className="flex flex-wrap gap-3"><Button type="submit" disabled={disabled}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{t('tenant.cancel')}</Button></div>
+    <div className="flex flex-wrap gap-3"><Button variant="primary" type="submit" disabled={disabled}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{t('tenant.cancel')}</Button></div>
   </form>
 }
 function TargetSelect({ active, root, type, onInvalid, disabled, value, error }: CommunicationProps & { root: string; type: string; value: string; error?: string }) {
@@ -62,7 +62,7 @@ export function MessageField({ defaultValue = '', disabled, error, maxLength = 4
     <label htmlFor={id}>{text('body')}</label>
     <textarea id={id} name="body" defaultValue={defaultValue} required maxLength={maxLength} rows={5} disabled={disabled}
       aria-invalid={error ? true : undefined} aria-describedby={error ? id + '-error' : undefined}
-      className="min-w-0 w-full rounded-xl border border-white/15 bg-slate-900 px-4 py-3 text-slate-100" />
+      className="ui-input" />
     {error && <p id={id + '-error'} className="text-sm text-rose-200">{error}</p>}
   </div>
 }

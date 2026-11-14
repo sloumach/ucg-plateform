@@ -52,7 +52,7 @@ test('CSV statistique privé : dépôt confirmé, confirmation, interruption, re
     if (['POST', 'PATCH'].includes(method) && target !== root && target !== 'active-organization/confirmation' && target !== root + '/' + id + '/confirm' && target !== root + '/' + id + '/resume') throw new Error('Unexpected mutation: ' + target)
     await route.fulfill({ status: 200, headers, contentType: 'application/json', body: JSON.stringify({ data, meta: { request_id: 'stat003a-e2e', current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 0 } }) })
   })
-  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/?rubrique=suivi&outil=statistiques')
   const panel = page.getByRole('region', { name: 'Préparer un CSV statistique', exact: true })
   await panel.getByRole('button', { name: 'Préparer un CSV statistique', exact: true }).click()
   await panel.getByRole('button', { name: 'Consulter les identifiants des joueurs et métriques' }).click()

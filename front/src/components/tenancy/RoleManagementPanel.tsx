@@ -7,13 +7,14 @@ import { t } from '../../i18n/fr'
 import { Button } from '../Button'
 import { FormField } from '../FormField'
 import { ScopeSourcePicker } from './ScopeSourcePicker'
+import { RoleAssignmentMemberPicker } from './RoleAssignmentMemberPicker'
 import { Pagination } from '../data/Pagination'
 import { Alert } from '../feedback/Alert'
 import { AsyncState } from '../feedback/AsyncState'
 import { useNotifications } from '../feedback/notificationContext'
 
-const selectClass = 'min-w-0 w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-3 text-slate-100'
-type Data = { roles: Page<OrganizationRole> | null; assignments: Page<RoleAssignment>; catalogue: PermissionCatalogue | null }
+const selectClass = 'ui-input'
+type Data = { roles: Page<OrganizationRole> | null; assignments: Page<RoleAssignment> | null; catalogue: PermissionCatalogue | null }
 type Pending = { label: string; path: string; method: 'POST' | 'PUT'; body: Record<string, unknown>; form: HTMLFormElement }
 const permissionNames: Record<PermissionKey, Parameters<typeof t>[0]> = {
   'calendar.read': 'roles.permission.calendar.read', 'calendar.write': 'roles.permission.calendar.write',
@@ -70,12 +71,28 @@ const permissionNames: Record<PermissionKey, Parameters<typeof t>[0]> = {
 function permissionName(permission: PermissionKey) { return permissionNames[permission] ? t(permissionNames[permission]) : permission }
 function scopeName(scope: ScopeType) { return t(('roles.scope.' + scope) as Parameters<typeof t>[0]) }
 
-export function RoleManagementPanel({ active, disabled: parentDisabled, onChanged }: {
-  active: ActiveOrganization; disabled: boolean; onChanged: () => void
+const permissionGroups = [
+  { label: 'roles.group.organization', prefixes: ['organization', 'memberships', 'invitations', 'roles', 'audit'] },
+  { label: 'roles.group.sports', prefixes: ['sports', 'games', 'teams'] },
+  { label: 'roles.group.calendar', prefixes: ['calendar', 'availability'] },
+  { label: 'roles.group.academy', prefixes: ['academy'] },
+  { label: 'roles.group.reporting', prefixes: ['reporting'] },
+  { label: 'roles.group.administration', prefixes: ['administrative', 'financial', 'partnerships'] },
+  { label: 'roles.group.communication', prefixes: ['media', 'communication', 'tasks'] },
+] as const
+
+function normalizeSearch(value: string) {
+  return value.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
+}
+
+export function RoleManagementPanel({ active, disabled: parentDisabled, onChanged, view }: {
+  active: ActiveOrganization; disabled: boolean; onChanged: () => void; view: 'roles' | 'affectations'
 }) {
   const context = active.context
   const orgId = context?.organization_id
   const canAssign = Boolean(context?.permissions.includes('roles.assign'))
+  const showingRoles = view === 'roles'
+  const title = t(showingRoles ? 'roles.title' : canAssign ? 'roles.assignments' : 'roles.myAssignments')
   const [data, setData] = useState<Data | null>(null)
   const [error, setError] = useState<ApiClientError | null>(null)
   const [errorTarget, setErrorTarget] = useState<string | null>(null)
@@ -85,6 +102,7 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
   const [scopeType, setScopeType] = useState<ScopeType>('organization')
   const [rolePage, setRolePage] = useState(1)
   const [assignmentPage, setAssignmentPage] = useState(1)
+  const [memberRequired, setMemberRequired] = useState(false)
   const [editing, setEditing] = useState<OrganizationRole | null | undefined>(undefined)
   const [pending, setPending] = useState<Pending | null>(null)
   const generation = useRef(0)
@@ -105,7 +123,7 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
     const options = { signal: controller.signal, revision }
     try {
       const [assignments, roles, catalogue] = await Promise.all([
-        tenancyRequest<Page<RoleAssignment>>(prefix + (canAssign ? 'role-assignments' : 'my-role-assignments') + '?per_page=10&page=' + assignmentPage, options),
+        showingRoles ? null : tenancyRequest<Page<RoleAssignment>>(prefix + (canAssign ? 'role-assignments' : 'my-role-assignments') + '?per_page=10&page=' + assignmentPage, options),
         canAssign ? tenancyRequest<Page<OrganizationRole>>(prefix + 'roles?per_page=10&page=' + rolePage, options) : null,
         canAssign ? tenancyRequest<ApiSuccessResponse<PermissionCatalogue>>(prefix + 'permission-catalogue', options) : null,
       ])
@@ -115,7 +133,7 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
     } finally {
       if (alive.current && current === generation.current && !controller.signal.aborted) setLoading(false)
     }
-  }, [orgId, revision, canAssign, rolePage, assignmentPage])
+  }, [orgId, revision, canAssign, rolePage, assignmentPage, showingRoles])
 
   const cancelReads = useCallback(() => { generation.current++; readController.current?.abort() }, [])
   useEffect(() => {
@@ -129,9 +147,9 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
   if (!context) return null
   const disabled = parentDisabled || loading || busy || pending !== null
 
-  function propose(event: FormEvent<HTMLFormElement>, label: string, path: string, method: 'POST' | 'PUT', body: Record<string, unknown>) {
+  function propose(event: FormEvent<HTMLFormElement>, label: string, path: string, method: 'POST' | 'PUT', body: Record<string, unknown>, memberLabel?: string) {
     event.preventDefault(); setError(null); setErrorTarget(null)
-    const target = typeof body.name === 'string' ? body.name : body.user_id ? t('tenant.account', { id: body.user_id as number }) : ''
+    const target = memberLabel ?? (typeof body.name === 'string' ? body.name : body.user_id ? t('tenant.account', { id: body.user_id as number }) : '')
     setPending({ label: target ? label + ' — ' + target : label, path, method, body, form: event.currentTarget })
   }
   function cancel() { returnFocus.current = pending?.form.querySelector<HTMLButtonElement>('button[type="submit"]') ?? null; setPending(null) }
@@ -151,7 +169,10 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
       const nextError = apiError(failure)
       setError(nextError); setErrorTarget(action.path); setPending(null)
       const field = Object.keys(nextError.fieldErrors)[0]?.split('.')[0]
-      const element = field ? Array.from(action.form.elements).find((item) => item instanceof HTMLElement && item.getAttribute('name') === field) : null
+      const focusField = field === 'permissions' ? 'permission_search' : field === 'user_id' ? 'member_search' : field
+      const element = focusField
+        ? action.form.elements.namedItem(focusField)
+        : null
       if (element instanceof HTMLElement) returnFocus.current = element
       if (nextError.status === 401 || nextError.status === 403 || nextError.status === 409) {
         notify({ type: 'error', message: nextError.message, requestId: nextError.requestId })
@@ -160,13 +181,14 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
     } finally { if (alive.current) setBusy(false) }
   }
   const fieldError = (name: string, path: string) => path === errorTarget ? error?.fieldErrors[name]?.[0] : undefined
+  const assignmentsPath = 'tenants/' + orgId + '/role-assignments'
 
-  return <section aria-labelledby={'roles-title-' + orgId} className="grid min-w-0 grid-cols-1 gap-4 rounded-2xl border border-white/10 p-5">
+  return <section aria-labelledby={'roles-title-' + orgId} className="ui-panel grid min-w-0 grid-cols-1 gap-4 p-5">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <h3 id={'roles-title-' + orgId} className="text-xl font-bold">{t('roles.title')}</h3>
-      <Button disabled={busy || parentDisabled} onClick={() => void load()}>{t('roles.refresh')}</Button>
+      <h3 id={'roles-title-' + orgId} className="text-xl font-bold">{title}</h3>
+      <Button disabled={disabled} onClick={() => void load()}>{t(showingRoles ? 'roles.refresh' : 'roles.refreshAssignments')}</Button>
     </div>
-    <p className="text-slate-400">{t('roles.description')}</p>
+    {!showingRoles && <p className="text-slate-400">{t('roles.description')}</p>}
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
     {loading && <AsyncState variant="loading" title={t('roles.loading')} />}
     {pending && <div ref={confirmRegion} tabIndex={-1} role="region" aria-label={t('tenant.confirmTitle')} className="grid min-w-0 gap-3 rounded-xl border border-amber-400/40 bg-amber-400/10 p-4">
@@ -174,47 +196,64 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
       <Button isLoading={busy} loadingLabel={t('tenant.busy')} onClick={() => void save()}>{t('tenant.confirm')}</Button>
       <Button disabled={busy} onClick={cancel}>{t('tenant.cancel')}</Button>
     </div>}
-    {data && <>
-      {data.catalogue?.can_manage && <Button disabled={disabled} onClick={() => setEditing(null)}>{t('roles.create')}</Button>}
+    {showingRoles && data && <>
+      {data.catalogue?.can_manage && <Button variant="primary" className="justify-self-start" disabled={disabled} onClick={() => setEditing(null)}>{t('roles.create')}</Button>}
       {editing !== undefined && data.catalogue?.can_manage && <RoleEditor key={editing?.id ?? 'new'} role={editing} catalogue={data.catalogue} disabled={disabled}
         errors={errorTarget?.includes('/roles') ? error?.fieldErrors ?? {} : {}} onCancel={() => setEditing(undefined)} onSubmit={(event, body) => propose(event, t('roles.saveRole'), 'tenants/' + orgId + '/roles' + (editing ? '/' + editing.id : ''), editing ? 'PUT' : 'POST', body)} />}
       {data.roles && <>
         <h4 className="font-semibold">{t('roles.catalogue')}</h4>
         {data.roles.data.length === 0 && <p>{t('roles.noRoles')}</p>}
-        {data.roles.data.map((role) => <div key={role.id} className="grid gap-2 rounded-xl border border-white/10 p-4">
+        {data.roles.data.map((role) => <div key={role.id} className="ui-card grid gap-2 p-4">
           <p className="font-semibold">{role.name} · {t(role.active ? 'roles.active' : 'roles.inactive')}</p>
-          <p>{role.permissions.map(permissionName).join(', ')}</p>
+          <details className="text-sm text-muted">
+            <summary className="w-fit cursor-pointer py-1 font-medium text-cyan-100">{t('roles.permissionDetails', { count: role.permissions.length })}</summary>
+            <p className="mt-1">{role.permissions.map(permissionName).join(', ')}</p>
+          </details>
           {role.privileged && <p className="text-sm text-amber-200">{t('roles.mfaRequired')}</p>}
           {data.catalogue?.can_manage && <Button disabled={disabled} onClick={() => setEditing(role)}>{t('roles.edit', { name: role.name })}</Button>}
         </div>)}
         <Pagination currentPage={data.roles.meta.current_page} totalPages={data.roles.meta.last_page} disabled={disabled} onPageChange={(page) => { setEditing(undefined); setRolePage(page) }} />
       </>}
-      {canAssign && data.roles && data.catalogue && <form noValidate aria-label={t('roles.assign')} className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-white/10 p-4 md:grid-cols-2" onSubmit={(event) => {
+    </>}
+    {data?.assignments && <>
+      {canAssign && data.roles && data.catalogue && <form noValidate aria-label={t('roles.assign')} className="ui-editor grid min-w-0 grid-cols-1 items-start gap-3 p-4 md:grid-cols-2" onSubmit={(event) => {
+        event.preventDefault()
+        if (disabled) return
+        const member = event.currentTarget.querySelector<HTMLInputElement>('input[name="user_id"]:checked, input[name="user_id"][type="hidden"]')
+        if (!member) {
+          setMemberRequired(true)
+          event.currentTarget.querySelector<HTMLInputElement>('input[name="member_search"]')?.focus()
+          return
+        }
         const form = new FormData(event.currentTarget)
-        propose(event, t('roles.assign'), 'tenants/' + orgId + '/role-assignments', 'POST', {
+        propose(event, t('roles.assign'), assignmentsPath, 'POST', {
           role_id: form.get('role_id'), user_id: form.get('user_id'), scope_type: form.get('scope_type'),
           scope_id: form.get('scope_type') === 'organization' ? orgId : form.get('scope_id'), status: 'active',
           starts_at: iso(form.get('starts_at')), ends_at: iso(form.get('ends_at')),
-        })
+        }, member.dataset.memberLabel)
       }}>
         <h4 className="font-semibold md:col-span-2">{t('roles.assign')}</h4>
-        <label className="grid gap-2">{t('roles.role')}<select name="role_id" required className={selectClass} disabled={disabled}>
+        <RoleAssignmentMemberPicker key={orgId + ':' + revision} organizationId={context.organization_id} revision={revision} disabled={disabled}
+          error={memberRequired ? t('roles.memberRequired') : fieldError('user_id', assignmentsPath)} onSelectionChange={() => setMemberRequired(false)} />
+        <label className="grid content-start gap-2 text-sm leading-5 font-semibold">{t('roles.role')}<select name="role_id" required className={`${selectClass} text-base font-normal`} disabled={disabled}>
           <option value="">{t('roles.choose')}</option>{data.roles.data.filter((role) => role.active && role.permissions.every((key) => { const permission = data.catalogue!.permissions.find((entry) => entry.key === key); return permission?.scope_types ? permission.scope_types.includes(scopeType) : scopeType === 'organization' || !permission?.organization_only })).map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}
         </select></label>
-        <FormField name="user_id" type="number" min="1" required label={t('roles.account')} disabled={disabled} error={error?.fieldErrors.user_id?.[0]} />
-        <label className="grid gap-2">{t('roles.scope')}<select name="scope_type" className={selectClass} disabled={disabled} value={scopeType} onChange={(event) => setScopeType(event.target.value as ScopeType)}>
+        <label className="grid content-start gap-2 text-sm leading-5 font-semibold">{t('roles.scope')}<select name="scope_type" className={`${selectClass} text-base font-normal`} disabled={disabled} value={scopeType} onChange={(event) => setScopeType(event.target.value as ScopeType)}>
           {data.catalogue.scope_types.map((type) => <option key={type} value={type}>{scopeName(type)}</option>)}
         </select></label>
+        {data.roles.meta.last_page > 1 && <div className="md:col-span-2">
+          <p className="mb-2 text-sm text-muted">{t('roles.rolePages')}</p>
+          <Pagination currentPage={data.roles.meta.current_page} totalPages={data.roles.meta.last_page} disabled={disabled} onPageChange={setRolePage} />
+        </div>}
 
-        {['team', 'game', 'cohort', 'event'].includes(scopeType) && <ScopeSourcePicker key={orgId + ':' + scopeType} active={active} type={scopeType} disabled={disabled} error={error?.fieldErrors.scope_id?.[0]} />}
+        {scopeType !== 'organization' && <div className="min-w-0 md:col-span-2"><ScopeSourcePicker key={orgId + ':' + scopeType} active={active} type={scopeType} disabled={disabled} error={error?.fieldErrors.scope_id?.[0]} /></div>}
         <FormField name="starts_at" type="datetime-local" step="1" defaultValue={initialStart} label={t('roles.start')} required disabled={disabled} error={error?.fieldErrors.starts_at?.[0]} />
         <FormField name="ends_at" type="datetime-local" step="1" label={t('roles.end')} disabled={disabled} error={error?.fieldErrors.ends_at?.[0]} />
         <p className="text-sm text-slate-400 md:col-span-2">{t('roles.delegationHint')}</p>
         <Button type="submit" disabled={disabled}>{t('roles.assign')}</Button>
       </form>}
-      <h4 className="font-semibold">{t(canAssign ? 'roles.assignments' : 'roles.myAssignments')}</h4>
       {data.assignments.data.length === 0 && <p>{t('roles.noAssignments')}</p>}
-      {data.assignments.data.map((assignment) => <form key={assignment.id} noValidate className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-white/10 p-4 md:grid-cols-2" aria-label={t('roles.assignment', { name: assignment.role_name, id: assignment.user_id })}
+      {data.assignments.data.map((assignment) => <form key={assignment.id} noValidate className="ui-editor grid min-w-0 grid-cols-1 gap-3 p-4 md:grid-cols-2" aria-label={t('roles.assignment', { name: assignment.role_name, id: assignment.user_id })}
         onSubmit={(event) => {
           const form = new FormData(event.currentTarget)
           propose(event, t('roles.saveAssignment'), 'tenants/' + orgId + '/role-assignments/' + assignment.id, 'PUT', {
@@ -242,22 +281,81 @@ function RoleEditor({ role, catalogue, disabled, errors, onCancel, onSubmit }: {
   role: OrganizationRole | null; catalogue: PermissionCatalogue; disabled: boolean; errors: Record<string, string[]>
   onCancel: () => void; onSubmit: (event: FormEvent<HTMLFormElement>, body: Record<string, unknown>) => void
 }) {
-  return <form noValidate aria-label={t('roles.saveRole')} className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-cyan-400/30 p-4" onSubmit={(event) => {
+  const [query, setQuery] = useState('')
+  const [selectedOnly, setSelectedOnly] = useState(false)
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [selected, setSelected] = useState(() => new Set(catalogue.permissions
+    .filter(({ key }) => role?.permissions.includes(key)).map(({ key }) => key)))
+  const words = normalizeSearch(query).trim().split(/\s+/).filter(Boolean)
+  const filtering = words.length > 0 || selectedOnly
+  const permissions = catalogue.permissions.filter((permission) => !selectedOnly || selected.has(permission.key))
+    .filter((permission) => {
+      const text = normalizeSearch(permissionName(permission.key) + ' ' + permission.key)
+      return words.every((word) => text.includes(word))
+    })
+  const groups = permissionGroups.map(({ label, prefixes }) => ({
+    label,
+    permissions: permissions.filter(({ key }) => prefixes.some((prefix) => key.startsWith(prefix + '.'))),
+  }))
+  const otherPermissions = permissions.filter(({ key }) => !permissionGroups.some(({ prefixes }) => prefixes.some((prefix) => key.startsWith(prefix + '.'))))
+  const visibleGroups = [...groups, { label: 'roles.group.other' as const, permissions: otherPermissions }].filter((group) => group.permissions.length > 0)
+  const permissionErrors = Object.entries(errors).filter(([field]) => field === 'permissions' || field.startsWith('permissions.'))
+
+  return <form noValidate aria-label={t('roles.saveRole')} className="ui-editor grid min-w-0 gap-4 p-4" onSubmit={(event) => {
     const form = new FormData(event.currentTarget)
-    onSubmit(event, { key: form.get('key'), name: form.get('name'), permissions: form.getAll('permissions'), active: form.has('active'), ...(role ? { version: role.version } : {}) })
+    const chosen = catalogue.permissions.filter(({ key }) => selected.has(key)).map(({ key }) => key)
+    onSubmit(event, { key: form.get('key'), name: form.get('name'), permissions: chosen, active: form.has('active'), ...(role ? { version: role.version } : {}) })
   }}>
-    <FormField name="key" label={t('roles.key')} defaultValue={role?.key ?? ''} readOnly={role !== null} disabled={disabled} required error={errors.key?.[0]} />
-    <FormField name="name" label={t('roles.name')} defaultValue={role?.name ?? ''} disabled={disabled} required error={errors.name?.[0]} />
-    <fieldset disabled={disabled} className="grid gap-2">
+    <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+      <FormField name="key" label={t('roles.key')} defaultValue={role?.key ?? ''} readOnly={role !== null} disabled={disabled} required error={errors.key?.[0]} />
+      <FormField name="name" label={t('roles.name')} defaultValue={role?.name ?? ''} disabled={disabled} required error={errors.name?.[0]} />
+    </div>
+    <fieldset disabled={disabled} className="grid min-w-0 gap-3">
       <legend className="mb-2 font-semibold">{t('roles.permissions')}</legend>
-      {catalogue.permissions.map((permission) => <label key={permission.key} className="flex items-center gap-3">
-        <input type="checkbox" name="permissions" value={permission.key} defaultChecked={role?.permissions.includes(permission.key)} />
-        {permissionName(permission.key)}{permission.privileged && <span className="text-sm text-amber-200">{t('roles.mfaBadge')}</span>}
-      </label>)}
-      {(errors.permissions || errors['permissions.0']) && <p role="alert" className="text-rose-200">{errors.permissions?.[0] ?? errors['permissions.0']?.[0]}</p>}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="min-w-48 flex-1">
+          <FormField name="permission_search" type="search" label={t('roles.searchPermissions')} value={query} onChange={(event) => setQuery(event.target.value)} />
+        </div>
+        <Button aria-pressed={selectedOnly} className="aria-pressed:border-accent aria-pressed:text-accent" onClick={() => setSelectedOnly(!selectedOnly)}>
+          {t('roles.selectedOnly')}
+        </Button>
+      </div>
+      <p role="status" className="text-sm text-muted">{t('roles.selectionCount', { count: selected.size, total: catalogue.permissions.length })}</p>
+      {permissionErrors.length > 0 && <p role="alert" className="text-sm text-rose-200">{permissionErrors[0][1][0]}</p>}
+      <div className="grid min-w-0 gap-2">
+        {visibleGroups.length === 0 && <p className="ui-state text-sm">{t('roles.noMatchingPermissions')}</p>}
+        {visibleGroups.map((group) => {
+          const open = filtering || expanded === group.label
+          return <div key={group.label} className="ui-card min-w-0">
+            {filtering ? (
+              <h4 className="px-3 pt-3 text-sm font-semibold">{t(group.label)}</h4>
+            ) : (
+              <Button aria-expanded={open} className="w-full justify-start border-transparent bg-transparent" onClick={() => setExpanded(open ? null : group.label)}>
+                <span>{t(group.label)}</span>
+                <span className="ms-auto shrink-0 text-xs text-muted">{group.permissions.filter(({ key }) => selected.has(key)).length}/{group.permissions.length}</span>
+              </Button>
+            )}
+            {open && <div className="grid min-w-0 gap-2 p-3 md:grid-cols-2">
+              {group.permissions.map((permission) => <label key={permission.key} className="flex min-w-0 items-start gap-2 rounded-lg border border-outline bg-field p-2.5 text-sm has-checked:border-cyan-600">
+                <input type="checkbox" name="permissions" value={permission.key} checked={selected.has(permission.key)} className="mt-0.5 size-4 shrink-0"
+                  onChange={(event) => {
+                    const next = new Set(selected)
+                    if (event.target.checked) next.add(permission.key)
+                    else next.delete(permission.key)
+                    setSelected(next)
+                  }} />
+                <span className="min-w-0 wrap-anywhere">
+                  {permissionName(permission.key)}
+                  {permission.privileged && <span className="ms-2 inline-block text-xs text-amber-200">{t('roles.mfaBadge')}</span>}
+                </span>
+              </label>)}
+            </div>}
+          </div>
+        })}
+      </div>
     </fieldset>
     <label className="flex items-center gap-3"><input name="active" type="checkbox" defaultChecked={role?.active ?? true} disabled={disabled} />{t('roles.active')}</label>
-    <div className="flex gap-3"><Button type="submit" disabled={disabled}>{t('roles.saveRole')}</Button><Button disabled={disabled} onClick={onCancel}>{t('tenant.cancel')}</Button></div>
+    <div className="flex flex-wrap gap-3"><Button variant="primary" type="submit" disabled={disabled}>{t('roles.saveRole')}</Button><Button disabled={disabled} onClick={onCancel}>{t('tenant.cancel')}</Button></div>
   </form>
 }
 function apiError(failure: unknown) { return failure instanceof ApiClientError ? failure : new ApiClientError(t('roles.error')) }

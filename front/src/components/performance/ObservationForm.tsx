@@ -55,7 +55,7 @@ export function ObservationForm({ active, root, record, disabled, errors, onInva
     {availability === 'available' ? field('value', record?.value, true, 20) : field('missing_reason', record?.missing_reason, true, 1000)}
     <p className="text-sm text-slate-400">{text('decimalHint')}</p>{field('notes', record?.notes, false, 4000)}
     {record && <SelectField name="status" title={text('status')} defaultValue={record.status} disabled={disabled} error={errors.status?.[0]}>{['active', 'voided'].map((s) => <option key={s} value={s}>{text(s)}</option>)}</SelectField>}
-    {field('reason', null, true, 1000)}<div className="flex flex-wrap gap-3"><Button type="submit" disabled={disabled || (!record && (!metric || !person))}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{text('cancel')}</Button></div>
+    {field('reason', null, true, 1000)}<div className="flex flex-wrap gap-3"><Button variant="primary" type="submit" disabled={disabled || (!record && (!metric || !person))}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{text('cancel')}</Button></div>
   </form>
 }
 export function ObservationChoice({ active, path, name, value, onChange, disabled, onInvalid, required = false, error }: { active: ActiveOrganization; path: string; name: string; value: string; onChange: (v: string) => void; disabled: boolean; onInvalid: () => void; required?: boolean; error?: string }) {

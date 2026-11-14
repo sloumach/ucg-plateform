@@ -24,9 +24,9 @@ export function CalendarInvitationsPanel({ active, root, disabled, onInvalid, ac
   const blocked = disabled || mutation.blocked, timezone = active.context!.timezone
   if (!permissions.includes('calendar.read') || (activity && !canManage)) return null
   const currentIssued = list?.data.some((item) => item.activity_version === activity?.version)
-  return <section aria-label={activity ? text('management') : text('inbox')} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
+  return <section aria-label={activity ? text('management') : text('inbox')} className="ui-panel grid min-w-0 gap-3 p-3">
     <h3 className="font-bold">{activity ? text('management') : text('inbox')}</h3>
-    <Button disabled={blocked} onClick={() => { setOpen(!open); setHistory(null) }}>{text(open ? 'close' : 'open')}</Button>
+    <Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); setHistory(null) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>
       <p className="text-sm text-slate-400">{text('hint')}</p>
       {mutation.feedback}
@@ -51,8 +51,8 @@ export function CalendarInvitationsPanel({ active, root, disabled, onInvalid, ac
         <Button type="submit" disabled={blocked || activity.participants.length === 0}>{text('issue')}</Button>
       </form>}
       {currentIssued && activity && <p className="text-sm text-slate-400">{text('issuedHint')}</p>}
-      {list?.data.length === 0 && <p>{text('empty')}</p>}
-      <ol className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="grid min-w-0 gap-2 rounded-xl border border-white/10 p-3">
+      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      <ol className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-2 p-3">
         <h4 className="font-bold [overflow-wrap:anywhere]">{item.title}</h4>
         {activity && <p className="[overflow-wrap:anywhere]">{item.person_label ?? text('unknownPerson')}</p>}
         <p className="[overflow-wrap:anywhere]">{text('activityTime')} : {calendarDate(item.starts_at, timezone)}</p>

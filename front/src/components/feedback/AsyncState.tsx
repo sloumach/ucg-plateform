@@ -35,12 +35,12 @@ export function AsyncState({
   return (
     <div
       role={role}
-      className="grid justify-items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-10 text-center"
+      className="ui-state grid justify-items-center gap-3 px-4 py-6 text-center sm:py-8"
     >
       {marker}
       <div className="grid gap-1">
         <p className="font-semibold text-slate-100">{title}</p>
-        {description && <p className="text-sm leading-6 text-slate-400">{description}</p>}
+        {description && <p className="max-w-prose text-sm leading-6 text-muted">{description}</p>}
       </div>
       {actionLabel && onAction && (
         <Button onClick={onAction} className="mt-1 py-2 text-sm">

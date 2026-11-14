@@ -17,15 +17,17 @@ const role = { id: '33333333-3333-4333-8333-333333333333', organization_id: org,
   permissions: ['sports.read'], active: true, privileged: false, version }
 const assignment = { id: '44444444-4444-4444-8444-444444444444', organization_id: org, role_id: role.id,
   role_name: 'Coach', user_id: 42, scope_type: 'organization', scope_id: org, status: 'active', starts_at: '2026-01-01T12:00:05+00:00', ends_at: null, version }
+const member = { id: 43, name: 'Alex Martin', email: 'alex.martin@example.test' }
+const secondMember = { id: 44, name: 'Alex Martin', email: 'alex.coach@example.test' }
 function active(assign = true): ActiveOrganization {
   return { context: { organization_id: org, name: 'Alpha', slug: 'alpha', timezone: 'UTC', language: 'fr',
     roles: assign ? ['owner'] : ['member'], permissions: assign ? ['organization.view', 'roles.assign', 'roles.manage'] : ['organization.view'],
     is_owner: assign, actor_user_id: 42, membership_id: assign ? null : 'membership' }, revision: version, confirmed: false }
 }
 const page = (data: unknown[]) => ({ data, meta: { current_page: 1, last_page: 1, total: data.length, request_id: 'request' } })
-function show(assign = true) {
+function show(view: 'roles' | 'affectations' = 'roles', assign = true) {
   const changed = vi.fn()
-  const result = render(<NotificationProvider><RoleManagementPanel active={active(assign)} disabled={false} onChanged={changed} /></NotificationProvider>)
+  const result = render(<NotificationProvider><RoleManagementPanel view={view} active={active(assign)} disabled={false} onChanged={changed} /></NotificationProvider>)
   return { ...result, changed }
 }
 describe('Contextual role management', () => {
@@ -35,6 +37,7 @@ describe('Contextual role management', () => {
       if (options?.method) return { data: role, notification: { type: 'success', message: 'Droits enregistrés.' } }
       if (path.includes('permission-catalogue')) return { data: { permissions: [{ key: 'sports.read', privileged: false, organization_only: false }, { key: 'audit.view', privileged: true, organization_only: true }], scope_types: ['organization'], can_manage: true } }
       if (path.includes('role-assignments')) return page([assignment])
+      if (path.includes('role-assignment-members')) return page([member, secondMember])
       return page([role])
     })
   })
@@ -42,10 +45,17 @@ describe('Contextual role management', () => {
     const user = userEvent.setup()
     const { changed } = show()
     await user.click(await screen.findByRole('button', { name: 'Créer un rôle' }))
+    expect(screen.queryByRole('form', { name: 'Affecter un rôle' })).not.toBeInTheDocument()
+    expect(request.mock.calls.some(([path]) => path.includes('/role-assignments'))).toBe(false)
     const editor = screen.getByRole('form', { name: 'Enregistrer le rôle' })
     await user.type(within(editor).getByLabelText('Clé du rôle'), 'analyste')
     await user.type(within(editor).getByLabelText('Nom du rôle'), 'Analyste')
+    expect(within(editor).queryByRole('checkbox', { name: 'Consulter les données sportives' })).not.toBeInTheDocument()
+    await user.click(within(editor).getByRole('button', { name: /Équipes, jeux et suivi sportif/ }))
     await user.click(within(editor).getByLabelText('Consulter les données sportives'))
+    await user.type(within(editor).getByRole('searchbox'), 'aUdIt')
+    expect(within(editor).queryByRole('checkbox', { name: 'Consulter les données sportives' })).not.toBeInTheDocument()
+    expect(within(editor).getByRole('checkbox', { name: /Consulter le journal d’audit/ })).toBeVisible()
     await user.click(within(editor).getByRole('button', { name: 'Enregistrer le rôle' }))
     expect(request.mock.calls.some(([, options]) => options?.method)).toBe(false)
     const confirmation = screen.getByRole('region', { name: 'Confirmer l’action' })
@@ -65,6 +75,7 @@ describe('Contextual role management', () => {
     const editor = screen.getByRole('form', { name: 'Enregistrer le rôle' })
     await user.type(within(editor).getByLabelText('Clé du rôle'), 'auditeur')
     await user.type(within(editor).getByLabelText('Nom du rôle'), 'Auditeur')
+    await user.click(within(editor).getByRole('button', { name: /Organisation et accès/ }))
     await user.click(within(editor).getByRole('checkbox', { name: /Consulter le journal d’audit de l’organisation.*MFA/ }))
     await user.click(within(editor).getByRole('button', { name: 'Enregistrer le rôle' }))
     await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
@@ -89,6 +100,7 @@ describe('Contextual role management', () => {
     await user.click(await screen.findByRole('button', { name: 'Modifier le rôle Coach' }))
     const editor = screen.getByRole('form', { name: 'Enregistrer le rôle' })
     const permissions = within(editor).getByRole('group', { name: 'Permissions explicites' })
+    await user.click(within(permissions).getByRole('button', { name: 'Afficher la sélection' }))
     const checkboxes = within(permissions).getAllByRole('checkbox')
     expect(checkboxes).toHaveLength(keys.length)
     for (const key of keys) {
@@ -99,6 +111,7 @@ describe('Contextual role management', () => {
       expect(checkbox).toBeChecked()
       expect(checkbox).toHaveAccessibleName(label + (['organization.view', 'sports.read'].includes(key) ? '' : t('roles.mfaBadge')))
     }
+    await user.click(screen.getByText('Voir les permissions (66)'))
     expect(screen.getByText(keys.map((key) => t(('roles.permission.' + key) as TranslationKey)).join(', '))).toBeVisible()
     expect(within(permissions).queryByRole('checkbox', { name: 'roles.manage' })).not.toBeInTheDocument()
     await user.click(within(editor).getByRole('button', { name: 'Enregistrer le rôle' }))
@@ -120,7 +133,7 @@ describe('Contextual role management', () => {
     })))
   })
   it('un membre consulte uniquement ses affectations sans commandes de gestion', async () => {
-    show(false)
+    show('affectations', false)
     expect(await screen.findByRole('heading', { name: 'Mes affectations' })).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Créer un rôle' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Enregistrer l’affectation' })).not.toBeInTheDocument()
@@ -129,13 +142,44 @@ describe('Contextual role management', () => {
   })
   it('préserve les secondes et la version lors de la révocation ciblée', async () => {
     const user = userEvent.setup()
-    show()
+    show('affectations')
     const editor = await screen.findByRole('form', { name: 'Affectation Coach — compte 42' })
+    expect(screen.queryByRole('button', { name: 'Créer un rôle' })).not.toBeInTheDocument()
     await user.selectOptions(within(editor).getByLabelText('Statut de l’affectation'), 'revoked')
     await user.click(within(editor).getByRole('button', { name: 'Enregistrer l’affectation' }))
     await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
     await waitFor(() => expect(request).toHaveBeenCalledWith('tenants/' + org + '/role-assignments/' + assignment.id, expect.objectContaining({
       method: 'PUT', body: expect.objectContaining({ status: 'revoked', starts_at: assignment.starts_at, version, user_id: 42, role_id: role.id }),
+    })))
+  })
+  it('recherche par e-mail et confirme la personne choisie même quand deux membres ont le même nom', async () => {
+    const user = userEvent.setup()
+    const original = request.getMockImplementation()!
+    request.mockImplementation(async (path, options) => {
+      if (path.includes('role-assignment-members') && new URLSearchParams(path.split('?')[1]).get('q') === 'alex.coach') return page([secondMember])
+      return original(path, options)
+    })
+    show('affectations')
+    const form = await screen.findByRole('form', { name: 'Affecter un rôle' })
+    const picker = within(form).getByRole('group', { name: 'Choisir un membre' })
+    const firstOption = await within(picker).findByRole('radio', { name: 'Alex Martin — alex.martin@example.test' })
+    await user.click(within(form).getByRole('button', { name: 'Affecter un rôle' }))
+    expect(screen.queryByRole('region', { name: 'Confirmer l’action' })).not.toBeInTheDocument()
+    expect(within(picker).getByRole('alert')).toHaveTextContent('Sélectionne un membre')
+
+    await user.click(firstOption)
+    await user.type(within(form).getByRole('searchbox', { name: 'Rechercher par nom ou e-mail' }), 'alex.coach{Enter}')
+    const option = await within(picker).findByRole('radio', { name: 'Alex Martin — alex.coach@example.test' })
+    expect(within(picker).queryByRole('radio', { name: 'Alex Martin — alex.martin@example.test' })).not.toBeInTheDocument()
+    expect(option).not.toBeChecked()
+    await user.click(option)
+    await user.selectOptions(within(form).getByRole('combobox', { name: 'Rôle à affecter' }), role.id)
+    await user.click(within(form).getByRole('button', { name: 'Affecter un rôle' }))
+    const confirmation = screen.getByRole('region', { name: 'Confirmer l’action' })
+    expect(confirmation).toHaveTextContent('Alex Martin — alex.coach@example.test')
+    await user.click(within(confirmation).getByRole('button', { name: 'Confirmer et continuer' }))
+    await waitFor(() => expect(request).toHaveBeenCalledWith('tenants/' + org + '/role-assignments', expect.objectContaining({
+      method: 'POST', body: expect.objectContaining({ user_id: '44', role_id: role.id }),
     })))
   })
   it('une erreur de validation conserve le formulaire et place le focus sur le champ', async () => {
@@ -177,15 +221,16 @@ describe('Contextual role management', () => {
       ], scope_types: ['organization', 'team', 'game', 'cohort', 'event'], can_manage: true } }
       if (path.includes('authorization-scopes/')) return page([{ id: version, label: 'Objet autorisé' }])
       if (path.includes('role-assignments')) return page([])
+      if (path.includes('role-assignment-members')) return page([member])
       return page([limitedRole, organizationRole])
     })
-    show()
+    show('affectations')
     const form = await screen.findByRole('form', { name: 'Affecter un rôle' })
     await user.selectOptions(within(form).getByRole('combobox', { name: 'Périmètre' }), type)
     await within(form).findByRole('option', { name: 'Objet autorisé' })
     expect(within(form).queryByRole('option', { name: 'Gouvernance globale' })).not.toBeInTheDocument()
     await user.selectOptions(within(form).getByRole('combobox', { name: 'Rôle à affecter' }), role.id)
-    await user.type(within(form).getByLabelText('Identifiant du compte membre'), '43')
+    await user.click(await within(form).findByRole('radio', { name: 'Alex Martin — alex.martin@example.test' }))
     await user.selectOptions(within(form).getByRole('combobox', { name: 'Objet du périmètre' }), version)
     await user.click(within(form).getByRole('button', { name: 'Affecter un rôle' }))
     await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))

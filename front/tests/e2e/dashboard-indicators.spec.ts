@@ -37,7 +37,7 @@ test('indicateurs différés : confirmation, fraîcheur, erreur et lecture mobil
     }
     await route.fulfill({ status: 200, headers, contentType: 'application/json', body: JSON.stringify({ data, meta: { request_id: 'rep002-e2e', current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 0, can_manage: false }, ...(request.method() === 'POST' ? { notification: { type: 'success', message: 'Demande prise en compte.' } } : {}) }) })
   })
-  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/?rubrique=suivi')
   const panel = page.getByRole('region', { name: 'Tableaux de bord par rôle', exact: true })
   await panel.getByRole('button', { name: 'Ouvrir les tableaux de bord' }).click()
   const form = panel.getByRole('form', { name: 'Filtres du tableau de bord' })

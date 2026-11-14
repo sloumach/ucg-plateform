@@ -38,7 +38,7 @@ test('compétition : matchs, rang sourcé, réception exacte et droits financier
     if (target === awards + '/history') data = money ? [money] : []
     await route.fulfill({ headers, contentType: 'application/json', body: JSON.stringify({ data, meta: { request_id: 'comp003-e2e', current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 0 } }) })
   })
-  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/?rubrique=matchs&outil=competitions')
   const competitions = page.getByRole('region', { name: 'Compétitions externes', exact: true })
   await competitions.getByRole('button', { name: 'Ouvrir les compétitions' }).click(); await competitions.getByRole('button', { name: 'Matchs et classement', exact: true }).click()
   const panel = page.getByRole('region', { name: 'Matchs et classement', exact: true }); await expect(panel.getByText('Aucun suivi enregistré.')).toBeVisible(); await panel.getByRole('button', { name: 'Modifier ce suivi' }).click()

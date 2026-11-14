@@ -62,8 +62,8 @@ function Profiles({ active, disabled, onInvalid }: Props) {
     const params = new URLSearchParams(query.params); params.set(field, String(value)); setQuery({ params: params.toString(), token: Date.now() })
   }
   const month = today.slice(0, 8) + '01'
-  return <section aria-label={text('title')} className="grid min-w-0 gap-4 rounded-xl border border-slate-700 p-4">
-    <h2 className="font-bold">{text('title')}</h2><Button disabled={disabled} onClick={() => { setOpen(!open); setQuery(null); setLoaded(null) }}>{text(open ? 'close' : 'open')}</Button>
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4">
+    <h2 className="font-bold">{text('title')}</h2><Button disabled={disabled} aria-expanded={open} onClick={() => { setOpen(!open); setQuery(null); setLoaded(null) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <><p>{text('hint')}</p>
       <form aria-label={text('filters')} onSubmit={submit} onChange={() => { setQuery(null); setLoaded(null) }} className="grid min-w-0 gap-3">
         <SelectField name="profile_metric" title={text('metric')} value={metric?.id ?? ''} disabled={blocked || metrics.loading} required onChange={(id) => { setMetric(metrics.list?.data.find((entry) => entry.id === id) ?? null); setMode(''); setRole(''); setRelease('') }}>
@@ -94,21 +94,21 @@ function Profiles({ active, disabled, onInvalid }: Props) {
         <p>{data.metric.scope.game_name} · {data.metric.code} · v{data.metric.number} · {data.metric.unit}</p>
         <p>{text('generated')} : {date(data.generated_at)} · {text('live')}</p><p>{text('window')} : {String(data.filters.from)} → {String(data.filters.to)}</p>
         <Button disabled={blocked} onClick={() => query && setQuery({ ...query, token: Date.now() })}>{text('refresh')}</Button>
-        <div className="grid min-w-0 gap-4 xl:grid-cols-2">{data.profiles.map((profile) => <article key={profile.person_id} className="grid min-w-0 content-start gap-3 rounded-xl border border-slate-700 p-3">
+        <div className="grid min-w-0 gap-4 xl:grid-cols-2">{data.profiles.map((profile) => <article key={profile.person_id} className="ui-card grid min-w-0 content-start gap-3 p-3">
           <h3 className="font-bold">{profile.person_label}</h3><p>{text('sourceCount')} : {profile.source_count}</p>
           <p>{text('observed')} : {profile.latest_observed_on ?? text('unknown')} · {text('updated')} : {date(profile.last_updated_at)}</p>
-          {profile.source_count === 0 && <p>{text('empty')}</p>}
+          {profile.source_count === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
           <h4>{text('groups')}</h4>{profile.groups.data.map((group) => <Group key={group.key} group={group} />)}
           <Pagination currentPage={profile.groups.meta.current_page} totalPages={profile.groups.meta.last_page} disabled={blocked} onPageChange={(value) => page('page', value)} />
-          <h4>{text('timeline')}</h4><p>{text('timelineHint')}</p><ol className="grid min-w-0 gap-3">{profile.timeline.data.map((row) => <li key={row.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
+          <h4>{text('timeline')}</h4><p>{text('timelineHint')}</p><ol className="grid min-w-0 gap-3">{profile.timeline.data.map((row) => <li key={row.id} className="ui-card grid min-w-0 gap-2 p-3">
             <p>{row.metric_code} · v{row.metric_number} · {row.metric_unit} · {row.period_start} → {row.period_end}</p><Context context={row.context} labels={row.context_labels} />
             <p>{text('value')} : {row.status === 'voided' ? text('voided') : row.availability === 'available' ? row.value : text('unavailable')} · {text('sample')} : {row.sample_size}</p>
             <p>{text('observed')} : {row.observed_on} · {text('updated')} : {date(row.last_updated_at)}</p>
           </li>)}</ol><Pagination currentPage={profile.timeline.meta.current_page} totalPages={profile.timeline.meta.last_page} disabled={blocked} onPageChange={(value) => page('timeline_page', value)} />
         </article>)}</div>
         {data.comparison && <section aria-label={text('comparison')} className="grid min-w-0 gap-3"><h3 className="font-bold">{text('comparison')}</h3><p>{text('comparisonHint')}</p>
-          {data.comparison.meta.total === 0 && <p>{text('empty')}</p>}
-          {data.comparison.data.map((pair) => <article key={pair.key} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3"><Context context={pair.context} labels={pair.context_labels} />
+          {data.comparison.meta.total === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+          {data.comparison.data.map((pair) => <article key={pair.key} className="ui-card grid min-w-0 gap-3 p-3"><Context context={pair.context} labels={pair.context_labels} />
             <p>{pair.comparable ? text('comparable') : text(pair.reason ?? 'unavailable')}</p>
             {pair.comparable && <p>{text('difference')} ({data.profiles[0].person_label} − {data.profiles[1].person_label}) : {pair.difference}</p>}
             {pair.unequal_samples && <p>{text('unequalSamples')}</p>}
@@ -121,7 +121,7 @@ function Profiles({ active, disabled, onInvalid }: Props) {
   </section>
 }
 function Group({ group }: { group: ProfileGroup }) {
-  return <section className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3"><Context context={group.context} labels={group.context_labels} />
+  return <section className="ui-panel grid min-w-0 gap-2 p-3"><Context context={group.context} labels={group.context_labels} />
     <p>{text('window')} : {group.period_start} → {group.period_end} · {text('periodCount')} : {group.period_count}</p>
     {group.issue ? <p>{text(group.issue)}</p> : group.result && <CalculationResult result={group.result} />}
     <p>{text('observed')} : {group.latest_observed_on} · {text('updated')} : {date(group.last_updated_at)}</p>

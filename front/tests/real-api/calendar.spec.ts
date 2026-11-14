@@ -60,6 +60,7 @@ test('calendrier réel : indisponibilité, création, horaires et participants, 
 
   await login(page, 'browser-calendar@example.test')
   await page.getByRole('button', { name: /Ouvrir Calendar Alpha/ }).click()
+  await page.getByRole('link', { name: 'Calendrier', exact: true }).click()
   await expect(page.getByText('Organisation active : Calendar Alpha')).toBeVisible()
   await openCalendar()
   await expect(panel.getByText('Aucune activité accessible dans cette période.', { exact: true })).toBeVisible()
@@ -168,8 +169,10 @@ test('calendrier réel : indisponibilité, création, horaires et participants, 
   expect(history.ok()).toBe(true)
   expect((await history.json()).data.map((change: { kind: string }) => change.kind).sort()).toEqual(['cancelled', 'rescheduled'])
 
+  await page.getByRole('link', { name: 'Aperçu', exact: true }).click()
   await page.getByRole('button', { name: /Ouvrir Calendar Beta/ }).click()
   await expect(page.getByText('Organisation active : Calendar Beta')).toBeVisible()
+  await page.getByRole('link', { name: 'Calendrier', exact: true }).click()
   await openCalendar()
   await expect(panel.getByRole('heading', { name: 'Beta calendrier privé', exact: true })).toBeVisible()
   await expect(panel.getByText('Activité calendrier réelle', { exact: true })).toHaveCount(0)

@@ -34,7 +34,7 @@ export function AcademyCohortDetail({ active, cohort, disabled, onInvalid, limit
     {read.result?.data.length === 0 && <p>{t('academy.emptyDetails')}</p>}
     {tab === 'cycles' && <>
       {manage && <Button disabled={blocked} onClick={() => { setEditor('new'); setCycle(null) }}>{t('academy.createCycle')}</Button>}
-      <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => { const current = item as AcademyCycle; return <li key={current.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3 [overflow-wrap:anywhere]">
+      <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => { const current = item as AcademyCycle; return <li key={current.id} className="ui-card grid min-w-0 gap-2 p-3 [overflow-wrap:anywhere]">
         <h4 className="font-bold">{current.name}</h4><p>{current.starts_on} – {current.ends_on} · {current.timezone} · {t(current.status === 'active' ? 'academy.active' : 'academy.archived')}</p>
         {current.timetable.length === 0 && <p>{t('academy.noSlots')}</p>}
         <ul>{current.timetable.map((slot, index) => <li key={index}>{academyDay(slot.day)} : {slot.starts_at} – {slot.ends_at}</li>)}</ul>

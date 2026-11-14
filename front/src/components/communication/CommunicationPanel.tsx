@@ -24,10 +24,10 @@ export function CommunicationPanel({ active, disabled, onInvalid }: Communicatio
   function action(event: FormEvent<HTMLFormElement>, item: Announcement, name: string, extra: Record<string, unknown> = {}) {
     mutation.propose(event, text('action.' + name), root + '/announcements/' + item.id, { version: item.version, action: name, ...extra }, true)
   }
-  return <section aria-label={text('title')} className="grid min-w-0 gap-4 rounded-2xl border border-white/10 p-4">
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4">
     <h2 className="text-xl font-bold">{text('title')}</h2>
     <p className="text-sm text-slate-400">{text('hint')}</p>
-    <Button disabled={blocked} onClick={() => { setOpen(!open); setEditor(null); setThread(null) }}>{text(open ? 'close' : 'open')}</Button>
+    <Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); setEditor(null); setThread(null) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>
       {mutation.feedback}
       <div role="group" aria-label={text('views')} className="flex flex-wrap gap-2">
@@ -42,8 +42,8 @@ export function CommunicationPanel({ active, disabled, onInvalid }: Communicatio
           <Button disabled={blocked} onClick={() => { setEditor('new'); setThread(null) }}>{text('new')}</Button>
         </>}
         <CommunicationLoadState {...{ loading, error }} />
-        {list?.data.length === 0 && <p>{text('empty')}</p>}
-        <ul className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
+        {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+        <ul className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-3 p-3">
           <h3 className="font-bold [overflow-wrap:anywhere]">{item.title}</h3>
           <p>{text('status.' + item.status)} · {text('target.' + item.target_type)}</p>
           {item.published_at && <p className="text-sm text-slate-400">{text('publishedAt')} : {date(item.published_at, active.context!.timezone)}</p>}

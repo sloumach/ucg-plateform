@@ -63,7 +63,7 @@ test('références externes : capture conservée après renommage et archivage, 
     await mobile()
     await confirmation.getByRole('button', { name: 'Confirmer et continuer' }).click()
   }
-  await page.goto('/')
+  await page.goto('/?rubrique=equipes&outil=adversaires')
   await page.getByRole('button', { name: 'Adversaires et organisations externes' }).click()
   const panel = page.getByRole('region', { name: 'Adversaires et organisations externes', exact: true })
   await panel.getByRole('button', { name: 'Ajouter une référence externe' }).click()

@@ -70,16 +70,16 @@ export function ContractDocumentsPanel({ active, record, disabled, onInvalid, on
   const signedAllowed = validate && signedContractStates.includes(record.status)
     && (document?.kind !== 'amendment' || !!document.approval)
     && (!record.signature_separation_required || !signatureActors.includes(actor))
-  return <section aria-label={text('title')} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
-    <Button disabled={disabled || mutation.blocked} onClick={() => setOpen((value) => !value)}>{open ? text('close') : text('title')}</Button>
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-3 p-3">
+    <Button disabled={disabled || mutation.blocked} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? text('close') : text('title')}</Button>
     {open && <>
       <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('hint')}</p>
       <Button disabled={disabled || loading || mutation.blocked} onClick={() => setRefresh((value) => value + 1)}>{text('refresh')}</Button>
       {loading && <p role="status">{text('loading')}</p>}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
       {mutation.feedback}
-      {list?.data.length === 0 && <p>{text('empty')}</p>}
-      {list && <ul className="grid min-w-0 gap-3">{list.data.map((item) => <li key={item.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
+      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      {list && <ul className="grid min-w-0 gap-3">{list.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-2 p-3">
         <h4 className="font-bold [overflow-wrap:anywhere]">{item.title}</h4>
         <p className="[overflow-wrap:anywhere]">{item.reference} · {text(item.kind)} · {item.versions_count} {text('versions')}</p>
         {item.original_document_id && <p className="[overflow-wrap:anywhere]">{text('origin')} : {original?.id === item.original_document_id ? original.reference : item.original_document_id}</p>}
@@ -88,7 +88,7 @@ export function ContractDocumentsPanel({ active, record, disabled, onInvalid, on
         <Button disabled={blocked} onClick={() => { setSelected(item.id); setVersionPage(1); setCreating(false) }}>{text('history')} · {item.reference}</Button>
       </li>)}</ul>}
       {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={(next) => { setPage(next); setSelected(null); setVersions(null); setCreating(false) }} />}
-      {canCreate && <Button disabled={blocked} onClick={() => setCreating((value) => !value)}>{text('create')}</Button>}
+      {canCreate && <Button variant="primary" disabled={blocked} onClick={() => setCreating((value) => !value)}>{text('create')}</Button>}
       {creating && canCreate && <DocumentForm key={record.version} amendment={canAmend} original={original} disabled={blocked} errors={mutation.errors(path)}
         onSubmit={(event, body) => mutation.propose(event, text('create'), path, { ...body, contract_version: record.version })} />}
       {document && <section aria-label={text('history')} className="grid min-w-0 gap-3">
@@ -100,7 +100,7 @@ export function ContractDocumentsPanel({ active, record, disabled, onInvalid, on
             contractVersion={record.version} financialRequired={!!record.financial_documents_restricted} disabled={blocked || record.status === 'archived'} onInvalid={invalidate} onChanged={onChanged} />
         </>}
         {versions?.data.length === 0 && <p>{text('noVersions')}</p>}
-        {versions?.data.map((version) => <article aria-label={text('version') + ' ' + version.number} key={version.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
+        {versions?.data.map((version) => <article aria-label={text('version') + ' ' + version.number} key={version.id} className="ui-card grid min-w-0 gap-2 p-3">
           <p className="[overflow-wrap:anywhere]">{text('version')} {version.number} · {version.filename} · {text(version.purpose)}</p>
           {document.signed_version?.id === version.id && <p className="font-semibold">{text('signedVersion')}</p>}
           <p className="text-sm [overflow-wrap:anywhere]">{text('hash')} : {version.sha256}</p>
@@ -138,7 +138,7 @@ function DocumentForm({ amendment, original, disabled, errors, onSubmit }: {
     <FormField name="reference" label={text('reference')} required maxLength={80} disabled={disabled} error={errors.reference?.[0]} />
     <FormField name="title" label={text('documentTitle')} required maxLength={160} disabled={disabled} error={errors.title?.[0]} />
     {amendment && <FormField name="effective_on" label={text('effective')} type="date" disabled={disabled} error={errors.effective_on?.[0]} />}
-    <Button type="submit" disabled={disabled}>{text('create')}</Button>
+    <Button variant="primary" type="submit" disabled={disabled}>{text('create')}</Button>
   </form>
 }
 

@@ -38,7 +38,7 @@ test('audit sensible : accès réservé, filtres et curseurs opaques sur mobile'
     await route.fulfill({ status: 200, headers, json: { data, meta: { request_id: revision, current_page: 1, last_page: 1, per_page: 10, next_cursor: next } } })
   })
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/')
+  await page.goto('/?rubrique=acces&outil=journal')
   await page.getByRole('button', { name: 'Journal des accès sensibles', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Téléchargement du document autorisé', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Accès suivants', exact: true }).click()
@@ -58,7 +58,7 @@ test('audit sensible : accès réservé, filtres et curseurs opaques sur mobile'
   const before = reads
   permissions = ['organization.view', 'administrative.read']
   await page.reload()
-  await expect(page.getByRole('button', { name: 'Contrats de l’organisation', exact: true })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Contrats et partenariats', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Journal des accès sensibles', exact: true })).toHaveCount(0)
   expect(reads).toBe(before); expect(errors).toEqual([])
 })

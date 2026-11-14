@@ -127,7 +127,7 @@ test('documents privés : analyses, liens temporaires, versions signées et aven
     await page.getByRole('button', { name: 'Consulter le dossier' }).click()
     await page.getByRole('button', { name: 'Documents et avenants' }).click()
   }
-  await page.goto('/'); await openDocuments()
+  await page.goto('/?rubrique=administration'); await openDocuments()
   let panel = page.getByRole('region', { name: 'Documents et avenants', exact: true })
   const history = async (reference: string) => {
     const button = panel.getByRole('button', { name: 'Consulter les versions · ' + reference })

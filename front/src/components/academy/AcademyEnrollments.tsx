@@ -31,7 +31,7 @@ export function AcademyEnrollments({ active, cohort, cycle, disabled, onInvalid,
     {mutation.feedback}
     {manage && !limited && <Button disabled={blocked} onClick={() => setAdding((value) => !value)}>{t('academy.addEnrollment')}</Button>}
     {read.result?.data.length === 0 && <p>{t('academy.noEnrollments')}</p>}
-    <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => <li key={item.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3 [overflow-wrap:anywhere]">
+    <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-2 p-3 [overflow-wrap:anywhere]">
       <p>{item.person_label ?? t('academy.personUnavailable')} · {t(item.role === 'mentor' ? 'academy.mentor' : 'academy.student')}</p>
       <p>{item.starts_on} – {item.ends_on} · {t(item.status === 'active' ? 'academy.active' : item.status === 'completed' ? 'academy.completed' : 'academy.withdrawn')}</p>
       {manage && item.status === 'active' && <div className="flex flex-wrap gap-2">{(['withdrawn', 'completed'] as const).map((status) => <form key={status} onSubmit={(event) => mutation.propose(event, t(status === 'withdrawn' ? 'academy.withdraw' : 'academy.complete'), base + '/' + item.id, { version: item.version, status }, true)}><Button type="submit" disabled={blocked}>{t(status === 'withdrawn' ? 'academy.withdraw' : 'academy.complete')}</Button></form>)}</div>}

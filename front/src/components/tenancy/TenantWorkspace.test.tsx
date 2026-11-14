@@ -21,11 +21,12 @@ function active(id: string, admin = true): ActiveOrganization {
 const page = (data: unknown[]) => ({ data, meta: { current_page: 1, last_page: 1, total: data.length, request_id: 'request-id' } })
 let selection: ActiveOrganization
 function mount() {
-  return render(<NotificationProvider><TenantWorkspace /></NotificationProvider>)
+  return render(<NotificationProvider><TenantWorkspace userId={42} /></NotificationProvider>)
 }
 
 describe('TenantWorkspace', () => {
   beforeEach(() => {
+    window.history.replaceState(null, '', '/?rubrique=acces&outil=invitations')
     selection = active(alpha)
     request.mockReset()
     request.mockImplementation(async (path, options) => {
@@ -52,11 +53,15 @@ describe('TenantWorkspace', () => {
     const user = userEvent.setup()
     mount()
     expect(await screen.findByText(/secret-alpha@example.test/)).toBeVisible()
+    await user.click(screen.getByRole('link', { name: 'Aperçu' }))
     await user.click(screen.getByRole('button', { name: /Ouvrir Beta/ }))
     expect(screen.queryByText(/secret-alpha@example.test/)).not.toBeInTheDocument()
     expect(await screen.findByText('Organisation active : Beta')).toBeVisible()
     expect(screen.queryByRole('heading', { name: 'Inviter un membre' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Quitter cette organisation' })).toBeEnabled()
+    await user.click(screen.getByRole('link', { name: 'Membres et accès' }))
+    await screen.findByRole('heading', { name: 'Mes affectations' })
+    expect(screen.queryByRole('heading', { name: 'Inviter un membre' })).not.toBeInTheDocument()
     expect(request.mock.calls.filter(([path]) => path.startsWith('tenants/' + beta)).map(([path]) => path)).toEqual(['tenants/' + beta + '/my-role-assignments?per_page=10&page=1'])
   })
 
@@ -105,6 +110,7 @@ describe('TenantWorkspace', () => {
       return original(path, options)
     })
     await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
+    await user.click(await screen.findByRole('link', { name: 'Aperçu' }))
     expect(await screen.findByText('Organisation active : Beta')).toBeVisible()
     expect(screen.queryByText(/secret-alpha@example.test/)).not.toBeInTheDocument()
     expect(request.mock.calls.some(([, options]) => options?.method === 'DELETE')).toBe(false)
@@ -118,7 +124,7 @@ describe('TenantWorkspace', () => {
     const original = request.getMockImplementation()!
     let delayed = false
     request.mockImplementation(async (path, options) => {
-      if (path.includes('/invitations?') && !delayed) {
+      if (path === 'active-organization' && !delayed) {
         delayed = true
         return new Promise((resolve) => { resolveOld = resolve })
       }
@@ -126,21 +132,116 @@ describe('TenantWorkspace', () => {
     })
     await act(async () => window.dispatchEvent(new Event('focus')))
     selection = active(beta, false)
+    await userEvent.click(screen.getByRole('link', { name: 'Aperçu' }))
+    let resolveLists: (value: unknown) => void = () => {}
+    const withDelayedLists = request.getMockImplementation()!
+    request.mockImplementation(async (path, options) => {
+      if (path.startsWith('accessible-organizations')) return new Promise((resolve) => { resolveLists = resolve })
+      return withDelayedLists(path, options)
+    })
     await act(async () => window.dispatchEvent(new Event('focus')))
+    expect(screen.queryByText('Organisation active : Alpha')).not.toBeInTheDocument()
+    await act(async () => resolveLists(page([])))
     expect(await screen.findByText('Organisation active : Beta')).toBeVisible()
-    await act(async () => resolveOld(page([{ email: 'obsolete@example.test' }])))
-    expect(screen.queryByText(/obsolete@example.test/)).not.toBeInTheDocument()
+    await act(async () => resolveOld({ data: active(alpha) }))
+    expect(screen.getByText('Organisation active : Beta')).toBeVisible()
+    expect(screen.queryByText(/secret-alpha@example.test/)).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Inviter un membre' })).not.toBeInTheDocument()
+  })
+
+  it('conserve une saisie et sa confirmation quand les accès sont identiques au retour du focus', async () => {
+    const user = userEvent.setup()
+    mount()
+    const email = await screen.findByLabelText('E-mail de la personne invitée')
+    await user.type(email, 'brouillon@example.test')
+    selection = active(alpha)
+    selection.context!.permissions.reverse()
+    request.mockClear()
+
+    await act(async () => window.dispatchEvent(new Event('focus')))
+    expect(screen.getByLabelText('E-mail de la personne invitée')).toBe(email)
+    expect(email).toHaveValue('brouillon@example.test')
+    expect(request.mock.calls.map(([path]) => path)).toEqual(['active-organization'])
+
+    await user.click(screen.getByRole('button', { name: 'Envoyer l’invitation' }))
+    const confirmation = screen.getByRole('region', { name: 'Confirmer l’action' })
+    await act(async () => window.dispatchEvent(new Event('focus')))
+    expect(screen.getByRole('region', { name: 'Confirmer l’action' })).toBe(confirmation)
+    expect(confirmation).toHaveFocus()
+    expect(request.mock.calls.every(([, options]) => !options?.method)).toBe(true)
+  })
+
+  it('efface le formulaire si un droit disparaît sans changement de révision', async () => {
+    mount()
+    const email = await screen.findByLabelText('E-mail de la personne invitée')
+    await userEvent.type(email, 'brouillon@example.test')
+    selection = active(alpha)
+    selection.context!.permissions = selection.context!.permissions.filter((permission) => permission !== 'invitations.manage')
+    request.mockClear()
+
+    await act(async () => window.dispatchEvent(new Event('focus')))
+    expect(email).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /^Invitations$/ })).not.toBeInTheDocument()
+    expect(request.mock.calls.some(([path]) => path.includes('/invitations?'))).toBe(false)
   })
 
   it('affiche une panne sans réutiliser de données d’une ancienne organisation', async () => {
     mount()
     await screen.findByText(/secret-alpha@example.test/)
+    await userEvent.click(screen.getByRole('link', { name: 'Aperçu' }))
     request.mockRejectedValue(new ApiClientError('Service indisponible', { requestId: 'support-id' }))
     await userEvent.click(screen.getByRole('button', { name: 'Actualiser les accès' }))
     expect(await screen.findByText('Service indisponible')).toBeVisible()
     expect(screen.getByText('Référence de support : support-id')).toBeVisible()
     expect(screen.queryByText(/secret-alpha@example.test/)).not.toBeInTheDocument()
+  })
+
+  it('ouvre un espace avec une navigation filtrée et charge les outils à la demande', async () => {
+    window.history.replaceState(null, '', '/')
+    selection = { ...active(alpha), context: null }
+    const original = request.getMockImplementation()!
+    request.mockImplementation(async (path, options) => {
+      if (path === 'active-organization' && options?.method === 'POST') {
+        const organization = active(alpha)
+        selection = { ...organization, context: { ...organization.context!, permissions: ['organization.view', 'sports.read'] } }
+        return { data: selection }
+      }
+      return original(path, options)
+    })
+    const user = userEvent.setup()
+    mount()
+
+    expect(screen.queryByRole('navigation', { name: 'Outils de l’organisation' })).not.toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'Ouvrir Alpha' }))
+    const navigation = await screen.findByRole('navigation', { name: 'Outils de l’organisation' })
+    expect(within(navigation).getByRole('link', { name: 'Aperçu' })).toHaveAttribute('aria-current', 'page')
+    expect(within(navigation).queryByRole('link', { name: 'Calendrier' })).not.toBeInTheDocument()
+    expect(request.mock.calls.some(([path]) => path.startsWith('tenants/' + alpha + '/teams'))).toBe(false)
+
+    await user.click(within(navigation).getByRole('link', { name: 'Équipes et jeux' }))
+    expect(screen.getByRole('heading', { name: 'Équipes et jeux' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Équipes de l’organisation' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Jeux de l’organisation' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Mes invitations' })).not.toBeInTheDocument()
+    expect(window.location.search).toBe('?rubrique=equipes')
+    await user.click(screen.getByRole('link', { name: /^Jeux$/ }))
+    expect(screen.getByRole('button', { name: 'Jeux de l’organisation' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Équipes de l’organisation' })).not.toBeInTheDocument()
+    window.history.back()
+    expect(await screen.findByRole('button', { name: 'Équipes de l’organisation' })).toBeVisible()
+    window.history.back()
+    expect(await screen.findByRole('heading', { name: 'Mes invitations' })).toBeVisible()
+  })
+
+  it('ignore un lien direct à un outil réservé au gestionnaire et ne charge pas ses données', async () => {
+    selection = active(beta, false)
+    mount()
+
+    expect(await screen.findByRole('heading', { name: 'Mes affectations' })).toBeVisible()
+    expect(screen.queryByRole('link', { name: /^Rôles$/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /^Invitations$/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Inviter un membre' })).not.toBeInTheDocument()
+    expect(request.mock.calls.some(([path]) => path.startsWith('tenants/' + beta + '/invitations'))).toBe(false)
   })
 
   it('conserve les rôles multiples et les secondes de la période lorsqu’on ne change que le statut', async () => {
@@ -154,6 +255,7 @@ describe('TenantWorkspace', () => {
     })
     const user = userEvent.setup()
     mount()
+    await user.click(await screen.findByRole('link', { name: /^Membres$/ }))
     const form = await screen.findByRole('form', { name: 'Compte 7' })
     await user.selectOptions(within(form).getByLabelText('Statut de l’adhésion'), 'suspended')
     await user.click(within(form).getByRole('button', { name: 'Enregistrer l’adhésion' }))

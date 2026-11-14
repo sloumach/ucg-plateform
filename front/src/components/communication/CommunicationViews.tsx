@@ -20,7 +20,7 @@ export function CommentThread({ active, root, item, management, onInvalid, disab
   const [page, setPage] = useState(1)
   const { list, loading, error } = usePartnershipList<AnnouncementComment>(root + '/announcements/' + item.id + '/comments?per_page=10&page=' + page + (management ? '&management=1' : ''), active, true, onInvalid)
   const commentBlocked = disabled || loading || list === null
-  return <section aria-label={text('comments')} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
+  return <section aria-label={text('comments')} className="ui-panel grid min-w-0 gap-3 p-3">
     <h3 className="font-bold [overflow-wrap:anywhere]">{text('comments')} : {item.title}</h3>
     <CommunicationLoadState {...{ loading, error }} />
     {list?.data.length === 0 && <p>{text('noComments')}</p>}
@@ -49,7 +49,7 @@ export function CommunicationInbox({ active, root, onInvalid, disabled, refresh,
     <FormField name="unread" label={text('unreadOnly')} type="checkbox" checked={unread} disabled={disabled} onChange={(event) => { setUnread(event.target.checked); setPage(1); setSelected(null) }} />
     <CommunicationLoadState {...{ loading, error }} />
     {list?.data.length === 0 && <p>{text('inboxEmpty')}</p>}
-    <ul className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
+    <ul className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-2 p-3">
       <p className="font-bold [overflow-wrap:anywhere]">{item.title}</p>
       <p>{text('notification.' + item.kind)} · {date(item.created_at, active.context!.timezone)} · {text(item.read ? 'alreadyRead' : 'unread')}</p>
       <Button disabled={disabled} onClick={() => setSelected(item.announcement_id)}>{text('openAnnouncement')}</Button>
@@ -61,7 +61,7 @@ export function CommunicationInbox({ active, root, onInvalid, disabled, refresh,
 }
 function AnnouncementPreview({ active, root, id, onInvalid, disabled }: CommunicationProps & { root: string; id: string }) {
   const { data, loading, error } = useCommunicationValue<Announcement>(root + '/announcements/' + id, active, onInvalid)
-  return <section aria-label={text('announcementDetail')} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-3">
+  return <section aria-label={text('announcementDetail')} className="ui-editor grid min-w-0 gap-3 p-3">
     <CommunicationLoadState {...{ loading, error }} />
     {data && <><h3 className="font-bold [overflow-wrap:anywhere]">{data.title}</h3><p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{data.body}</p>{data.discussion && data.target_id && (data.target_type === 'event' || data.target_type === 'match' || data.target_type === 'session' || data.target_type === 'task') ? <ContextDiscussion {...{ active, onInvalid, disabled }} type={data.target_type} id={data.target_id} /> : <p>{text('replyInFeed')}</p>}</>}
   </section>

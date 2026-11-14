@@ -100,8 +100,8 @@ export function PersonImportsPanel({ active, disabled, onInvalid, onImported }: 
     { key: 'values', header: text('values'), render: (row) => <dl className="grid min-w-0 gap-1">{Object.entries(row.values).map(([field, value]) => <div className="break-words [overflow-wrap:anywhere]" key={field}><dt className="font-semibold">{label(field)}</dt><dd>{value ?? label('none')}</dd></div>)}</dl> },
     { key: 'errors', header: text('errors'), render: (row) => row.errors.map((code) => <p key={code}>{code.startsWith('INVALID_') ? t('people.import.invalidField', { field: label(code.slice(8).toLowerCase()) }) : text(code)}</p>) },
   ]
-  return <section className="grid min-w-0 gap-4 rounded-xl border border-slate-700 p-4" aria-label={text('title')}>
-    <Button disabled={disabled || mutation.blocked} onClick={() => setOpen((value) => !value)}>{open ? text('close') : text('title')}</Button>
+  return <section className="ui-panel grid min-w-0 gap-4 p-4" aria-label={text('title')}>
+    <Button disabled={disabled || mutation.blocked} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? text('close') : text('title')}</Button>
     {open && <>
       <p className="text-sm text-slate-300">{text('hint')}</p>
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}

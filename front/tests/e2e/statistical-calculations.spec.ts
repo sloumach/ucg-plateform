@@ -52,7 +52,7 @@ test('agrégat privé : sélection, confirmation, résultat périmé et recalcul
     if (['POST', 'PATCH'].includes(method) && ![calculationRoot, 'active-organization/confirmation', root + '/observations/' + id, calculationRoot + '/' + target + '/recalculate'].includes(path)) throw new Error('Unexpected mutation: ' + path)
     await route.fulfill({ status: 200, headers, contentType: 'application/json', body: JSON.stringify({ data, meta: { request_id: 'stat004-e2e', current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 0 } }) })
   })
-  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/?rubrique=suivi&outil=statistiques')
   const observations = page.getByRole('region', { name: 'Observations statistiques privées', exact: true })
   await observations.getByRole('button', { name: 'Ouvrir les observations', exact: true }).click()
   await observations.getByRole('checkbox', { name: 'Sélectionner pour un calcul · ' + id, exact: true }).check()

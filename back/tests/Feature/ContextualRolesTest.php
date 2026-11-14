@@ -139,6 +139,46 @@ class ContextualRolesTest extends TestCase
         DB::disableQueryLog();
     }
 
+    #[Group('tenant-isolation')]
+    public function test_assignment_member_picker_searches_and_paginates_active_verified_members_only(): void
+    {
+        $org = $this->owner();
+        $url = $this->path($org, 'role-assignment-members');
+        $alex = User::factory()->create(['name' => 'Alex Martin', 'email' => 'coach@example.test']);
+        $otherAlex = User::factory()->create(['name' => 'Alex Martin', 'email' => 'analyst@example.test']);
+        OrganizationMembership::factory()->create(['organization_id' => $org->id, 'user_id' => $alex->id]);
+        OrganizationMembership::factory()->create(['organization_id' => $org->id, 'user_id' => $otherAlex->id]);
+        OrganizationMembership::factory()->suspended()->create(['organization_id' => $org->id]);
+        OrganizationMembership::factory()->create(['organization_id' => $org->id, 'starts_at' => now()->addDay()]);
+        OrganizationMembership::factory()->create(['organization_id' => $org->id, 'ends_at' => now()]);
+        OrganizationMembership::factory()->create(['organization_id' => $org->id, 'user_id' => User::factory()->unverified()]);
+        OrganizationMembership::factory()->create(['user_id' => User::factory()->state(['name' => 'Alex Martin', 'email' => 'foreign-coach@example.test'])]);
+
+        $response = $this->getJson($url.'?per_page=1')->assertOk()->assertJsonPath('meta.total', 2)
+            ->assertJsonPath('meta.last_page', 2)->assertJsonPath('data', [['id' => $alex->id, 'name' => 'Alex Martin', 'email' => 'coach@example.test']]);
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+        $this->getJson($url.'?q=MARTIN&per_page=1&page=2')->assertOk()->assertJsonPath('meta.total', 2)
+            ->assertJsonPath('data', [['id' => $otherAlex->id, 'name' => 'Alex Martin', 'email' => 'analyst@example.test']]);
+        $this->getJson($url.'?q=COACH%40EXAMPLE.TEST')->assertOk()->assertJsonPath('meta.total', 1)->assertJsonPath('data.0.id', $alex->id);
+        $this->getJson($url.'?q=%25')->assertOk()->assertJsonCount(0, 'data');
+        $this->assertDatabaseCount('organization_role_assignments', 0);
+    }
+
+    public function test_assignment_member_picker_rejects_guests_unauthorized_accounts_and_invalid_filters(): void
+    {
+        $org = Organization::factory()->create();
+        $url = $this->path($org, 'role-assignment-members');
+        $this->getJson($url)->assertUnauthorized();
+        $member = OrganizationMembership::factory()->withMfaAccount()->create(['organization_id' => $org->id]);
+        $this->actingAsWithMfa(User::findOrFail($member->user_id));
+        $this->getJson($url)->assertForbidden();
+        $this->getJson($this->path(Organization::factory()->create(), 'role-assignment-members'))->assertNotFound();
+
+        $this->owner($org);
+        $this->getJson($url.'?q%5B%5D=alex&page=0&per_page=101&user_id='.$member->user_id.'&organization_id='.$org->id)
+            ->assertUnprocessable()->assertJsonValidationErrors(['q', 'page', 'per_page', 'user_id', 'organization_id']);
+    }
+
     public function test_owner_assigns_dated_permissions_and_cannot_assign_their_own_rights(): void
     {
         $org = $this->owner();

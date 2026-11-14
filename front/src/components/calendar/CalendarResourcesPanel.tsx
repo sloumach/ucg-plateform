@@ -14,8 +14,8 @@ export function CalendarResourcesPanel({ active, root, disabled, onInvalid }: { 
   const { list, loading, error } = usePartnershipList<CalendarResource>(root + '/resources?page=' + page + '&per_page=10' + (archived ? '&archived=1' : ''), active, open, onInvalid, refresh)
   const mutation = usePeopleMutation<CalendarResource>(active, () => { setEditor(null); setRefresh((n) => n + 1) }, onInvalid)
   const canManage = active.context!.permissions.includes('calendar.resources.manage'), blocked = disabled || mutation.blocked
-  return <section aria-label={text('resourceCatalogue')} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
-    <Button disabled={blocked} onClick={() => { setOpen(!open); setEditor(null) }}>{text(open ? 'closeResources' : 'openResources')}</Button>
+  return <section aria-label={text('resourceCatalogue')} className="ui-panel grid min-w-0 gap-3 p-3">
+    <Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); setEditor(null) }}>{text(open ? 'closeResources' : 'openResources')}</Button>
     {open && <>
       {mutation.feedback}<p className="text-sm text-slate-400">{text('catalogueHint')}</p>
       <FormField name="archived_resources" label={text('archivedResources')} type="checkbox" checked={archived} disabled={blocked} onChange={(event) => { setArchived(event.target.checked); setPage(1); setEditor(null) }} />

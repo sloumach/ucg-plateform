@@ -36,7 +36,7 @@ export function ScopeSourcePicker({ active, type, disabled, error }: {
     <label className="grid gap-2">{t('roles.source')}
       <select name="scope_id" required value={selected?.id ?? ''} disabled={disabled || loading || failure !== null}
         aria-invalid={error ? true : undefined} onChange={(event) => setSelected(options.find((item) => item.id === event.target.value) ?? null)}
-        className="min-w-0 w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-3 text-slate-100">
+        className="ui-input">
         <option value="">{t(loading ? 'roles.loading' : 'roles.choose')}</option>
         {selected && !options.some((item) => item.id === selected.id) && <option value={selected.id}>{selected.label}</option>}
         {options.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}

@@ -15,10 +15,10 @@ export function CalendarFeedPanel(props: Props) {
   const [open, setOpen] = useState(false)
   const permissions = props.active.context?.permissions ?? []
   if (!permissions.includes('calendar.read') || !permissions.includes('calendar.export')) return null
-  return <section aria-label={text('title')} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-3 p-3">
     <h3 className="font-bold">{text('title')}</h3>
     <p className="text-sm text-slate-400">{text('hint')}</p>
-    <Button disabled={props.disabled} onClick={() => setOpen(!open)}>{text(open ? 'close' : 'open')}</Button>
+    <Button disabled={props.disabled} aria-expanded={open} onClick={() => setOpen(!open)}>{text(open ? 'close' : 'open')}</Button>
     {open && <CalendarFeedEditor key={props.active.context!.organization_id + ':' + props.active.revision} {...props} />}
   </section>
 }

@@ -124,7 +124,7 @@ function NotificationToast({
     <div
       role={role}
       aria-atomic="true"
-      className={`pointer-events-auto flex items-start gap-3 rounded-xl border p-4 shadow-2xl shadow-black/30 ${toneClasses[notification.type]}`}
+      className={`pointer-events-auto flex items-start gap-3 rounded-xl border border-s-4 p-3 shadow-xl shadow-black/30 ${toneClasses[notification.type]}`}
     >
       <span
         aria-hidden="true"
@@ -133,7 +133,7 @@ function NotificationToast({
         {toneMarkers[notification.type]}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm leading-6">{notification.message}</p>
+        <p className="text-sm leading-6 wrap-anywhere">{notification.message}</p>
         {notification.requestId && (
           <p className="mt-1 break-all font-mono text-xs opacity-70">
             {t('errors.requestReference', {
@@ -145,7 +145,7 @@ function NotificationToast({
       <button
         type="button"
         onClick={() => onDismiss(notification.id)}
-        className="rounded p-1 text-current opacity-70 transition hover:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current"
+        className="grid size-9 shrink-0 place-items-center rounded-md text-lg leading-none text-current opacity-80 transition hover:bg-white/10 hover:opacity-100"
         aria-label={t('notifications.close')}
       >
         <span aria-hidden="true">×</span>

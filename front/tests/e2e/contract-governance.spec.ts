@@ -70,7 +70,7 @@ test('contrat financier : préparation, approbation, signature distincte et lect
   })
   await page.setViewportSize({ width: 390, height: 844 })
   const open = async () => {
-    await page.goto('/')
+    await page.goto('/?rubrique=administration')
     await page.getByRole('button', { name: 'Contrats de l’organisation', exact: true }).click()
     await page.getByRole('button', { name: 'Consulter le dossier', exact: true }).click()
     await expect(page.getByRole('region', { name: 'Consulter le dossier', exact: true })).toBeVisible()

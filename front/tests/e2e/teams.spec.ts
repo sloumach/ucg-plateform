@@ -37,7 +37,7 @@ test('équipes : création privée, recherche, patch partiel et archivage confir
     }
     await route.fulfill({ headers, json: { data, meta, ...(method !== 'GET' ? { notification: { type: 'success', message: 'Équipe enregistrée.' } } : {}) } })
   })
-  await page.goto('/')
+  await page.goto('/?rubrique=equipes')
   await page.getByRole('button', { name: 'Équipes de l’organisation' }).click()
   const panel = page.getByRole('region', { name: 'Équipes de l’organisation', exact: true })
   await panel.getByRole('button', { name: 'Créer une équipe' }).click()

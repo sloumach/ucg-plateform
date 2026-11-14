@@ -22,12 +22,12 @@ export function CompetitionDocuments({ active, root, item, disabled, onInvalid, 
   const mutation = usePeopleMutation<CompetitionDocument>(active, () => { setEditor(null); setHistory(null); setRefresh((value) => value + 1) }, onInvalid)
   const blocked = disabled || mutation.blocked
   if (!allowed) return null
-  return <section aria-label={text('documents')} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-3"><h3 className="font-bold [overflow-wrap:anywhere]">{text('documents')} · {item.name}</h3>
+  return <section aria-label={text('documents')} className="ui-editor grid min-w-0 gap-3 p-3"><h3 className="font-bold [overflow-wrap:anywhere]">{text('documents')} · {item.name}</h3>
     <p className="text-sm text-slate-400">{text('documentsHint')}</p><Button disabled={blocked} onClick={onClose}>{text('closeDocuments')}</Button>{mutation.feedback}
     {loading && <p role="status">{text('loading')}</p>}{error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
     {writable && <Button disabled={blocked} onClick={() => { setHistory(null); setEditor('new') }}>{text('createDocument')}</Button>}
     {list?.data.length === 0 && <p>{text('emptyDocuments')}</p>}
-    <ol className="grid min-w-0 gap-3">{list?.data.map((document) => <li key={document.version} className="grid min-w-0 gap-3 rounded-lg border border-slate-700 p-3">
+    <ol className="grid min-w-0 gap-3">{list?.data.map((document) => <li key={document.version} className="ui-card grid min-w-0 gap-3 p-3">
       <DocumentContent document={document} zone={active.context!.timezone} />
       <div className="flex flex-wrap gap-3">{writable && <Button disabled={blocked} onClick={() => { setHistory(null); setEditor(document) }}>{text('editDocument')}</Button>}
         <Button disabled={blocked} onClick={() => { setEditor(null); setHistory(document) }}>{text('documentHistory')}</Button>
@@ -56,7 +56,7 @@ function DocumentForm({ item, disabled, errors, onCancel, onSubmit }: { item: Co
   }}>
     {item ? <p>{text(item.kind)} · {text('fixedKind')}</p> : <SelectField name="kind" title={text('kind')} defaultValue="rules" required disabled={disabled} error={errors.kind?.[0]}><option value="rules">{text('rules')}</option><option value="note">{text('note')}</option></SelectField>}
     <FormField name="title" label={text('documentTitle')} defaultValue={item?.title ?? ''} maxLength={200} required disabled={disabled} error={errors.title?.[0]} />
-    <label htmlFor={id}>{text('documentBody')}</label><textarea id={id} name="body" defaultValue={item?.body ?? ''} rows={7} maxLength={20000} required disabled={disabled} aria-invalid={!!errors.body} aria-describedby={errors.body ? id + '-error' : undefined} className="min-w-0 w-full rounded-xl border border-white/15 bg-slate-900 p-3" />
+    <label htmlFor={id}>{text('documentBody')}</label><textarea id={id} name="body" defaultValue={item?.body ?? ''} rows={7} maxLength={20000} required disabled={disabled} aria-invalid={!!errors.body} aria-describedby={errors.body ? id + '-error' : undefined} className="ui-input" />
     {errors.body?.[0] && <p id={id + '-error'} className="text-rose-200">{errors.body[0]}</p>}
     <FormField name="source_url" label={text('sourceUrl')} type="url" pattern="https://.*" defaultValue={item?.source_url ?? ''} maxLength={2000} disabled={disabled} error={errors.source_url?.[0]} />
     <FormField name="reason" label={text('reason')} minLength={10} maxLength={1000} required disabled={disabled} error={errors.reason?.[0]} />
@@ -66,7 +66,7 @@ function DocumentForm({ item, disabled, errors, onCancel, onSubmit }: { item: Co
 function DocumentHistory({ active, path, disabled, onInvalid, onClose }: { active: ActiveOrganization; path: string; disabled: boolean; onInvalid: () => void; onClose: () => void }) {
   const [page, setPage] = useState(1)
   const { list, loading, error } = usePartnershipList<CompetitionDocument, Page<CompetitionDocument>>(path + '/history?page=' + page + '&per_page=5', active, true, onInvalid)
-  return <section aria-label={text('documentHistory')} className="grid min-w-0 gap-3 rounded-lg border border-slate-700 p-3"><h4 className="font-bold">{text('documentHistory')}</h4><Button disabled={disabled} onClick={onClose}>{text('closeHistory')}</Button>
+  return <section aria-label={text('documentHistory')} className="ui-panel grid min-w-0 gap-3 p-3"><h4 className="font-bold">{text('documentHistory')}</h4><Button disabled={disabled} onClick={onClose}>{text('closeHistory')}</Button>
     {loading && <p role="status">{text('loading')}</p>}{error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
     <ol className="grid min-w-0 gap-3">{list?.data.map((document) => <li key={document.version} className="grid min-w-0 gap-3 border-b border-slate-700 pb-3"><DocumentContent {...{ document }} zone={active.context!.timezone} />
       <DocumentDownload {...{ active, onInvalid, disabled }} path={path + '/versions/' + document.version + '/download'} version={document.version} />

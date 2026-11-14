@@ -19,7 +19,7 @@ export function AcademyCycleForm({ cycle, timezone, disabled, errors, onCancel, 
     <FormField label={t('academy.timezone')} name="timezone" required maxLength={64} defaultValue={cycle?.timezone ?? timezone} disabled={disabled} error={errors.timezone?.[0]} />
     <p>{t('academy.scheduleHint')}</p>
     {errors.timetable && <p role="alert">{errors.timetable[0]}</p>}
-    {slots.map((value, index) => <fieldset key={index} disabled={disabled} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3 sm:grid-cols-2">
+    {slots.map((value, index) => <fieldset key={index} disabled={disabled} className="ui-editor grid min-w-0 gap-3 p-3 sm:grid-cols-2">
       <legend>{t('academy.slot')} {index + 1}</legend>
       <SelectField name={'day-' + index} title={t('academy.day')} value={String(value.day)} onChange={(next) => slot(index, { day: Number(next) })} error={errors['timetable.' + index + '.day']?.[0]}>{[1, 2, 3, 4, 5, 6, 7].map((day) => <option key={day} value={day}>{academyDay(day)}</option>)}</SelectField>
       <FormField label={t('academy.slotStart')} type="time" required value={value.starts_at} onChange={(event) => slot(index, { starts_at: event.target.value })} error={errors['timetable.' + index + '.starts_at']?.[0]} />

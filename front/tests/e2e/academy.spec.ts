@@ -32,7 +32,7 @@ test('académie : cohorte, cycle, créneau, mentor, historique et affichage mobi
     }
     await route.fulfill({ status: request.method() === 'POST' ? 201 : 200, headers, contentType: 'application/json', body: JSON.stringify({ data, meta: { request_id: 'aca001-e2e', current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 0 }, ...(request.method() === 'POST' ? { notification: { type: 'success', message: 'Académie mise à jour.' } } : {}) }) })
   })
-  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/?rubrique=academie')
   const panel = page.getByRole('region', { name: 'Académie : cohortes et cycles', exact: true })
   await panel.getByRole('button', { name: 'Académie : cohortes et cycles', exact: true }).click()
   await panel.getByRole('button', { name: 'Créer une cohorte' }).click()

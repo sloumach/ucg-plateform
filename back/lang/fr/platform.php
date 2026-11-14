@@ -1,6 +1,14 @@
 <?php
 
 return [
+    'client_email_taken' => 'Cette adresse est déjà utilisée. Le compte existant est conservé.',
+    'client_link_invalid' => 'Ce lien est invalide ou expiré. Demandez une nouvelle invitation au gestionnaire de la plateforme.',
+    'client_invited' => 'Invitation envoyée. Le client créera son compte et son organisation en confirmant le lien.',
+    'client_preview' => 'Invitation préparée en mode local. Utilisez le lien affiché pour tester l’activation.',
+    'client_mail_unavailable' => 'Configurez un transport d’envoi d’e-mails avant d’inviter un client.',
+    'client_mail_subject' => 'Activez votre compte et votre organisation',
+    'client_password_length' => 'Le mot de passe doit contenir au maximum 72 octets.',
+    'client_mail_body' => "Bonjour :name,\n\nVous êtes invité à devenir propriétaire de l’organisation :organization.\n\nOuvrez ce lien pour confirmer votre adresse e-mail et définir votre mot de passe. Votre organisation sera alors créée.\n\n:url\n\nLe lien expire dans une heure et ne peut créer qu’un seul compte. Si vous n’attendiez pas cette invitation, vous pouvez ignorer cet e-mail.",
     'identity_immutable' => 'L’identité d’un rôle ou accès technique ne peut pas être modifiée.',
     'audit_immutable' => 'Le journal d’accès plateforme et support ne peut pas être modifié.',
     'bootstrap_closed' => 'L’initialisation plateforme est déjà effectuée ou incompatible avec les comptes existants.',

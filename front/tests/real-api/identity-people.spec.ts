@@ -29,6 +29,7 @@ test('connexion réelle, MFA, création persistée et isolation lors du changeme
   await page.getByRole('button', { name: 'Valider le code' }).click()
   await page.getByRole('button', { name: /Ouvrir Browser Alpha/ }).click()
   await expect(page.getByText('Organisation active : Browser Alpha')).toBeVisible()
+  await page.getByRole('link', { name: 'Fiches et profils', exact: true }).click()
   await expect(page.getByRole('button', { name: /Ouvrir Browser Foreign/ })).toHaveCount(0)
   const panel = page.getByRole('region', { name: 'Personnes', exact: true })
   await panel.getByRole('button', { name: 'Ajouter une personne' }).click()
@@ -62,8 +63,10 @@ test('connexion réelle, MFA, création persistée et isolation lors du changeme
     expect(await hidden.text()).not.toMatch(/Beta private|Foreign private/)
   }
 
+  await page.getByRole('link', { name: 'Aperçu', exact: true }).click()
   await page.getByRole('button', { name: /Ouvrir Browser Beta/ }).click()
   await expect(page.getByText('Organisation active : Browser Beta')).toBeVisible()
+  await page.getByRole('link', { name: 'Fiches et profils', exact: true }).click()
   await expect(panel.getByText('Beta private player', { exact: true })).toBeVisible()
   await expect(panel.getByText('Alpha browser player', { exact: true })).toHaveCount(0)
   await expect(panel.getByRole('button', { name: 'Ajouter une personne' })).toHaveCount(0)
@@ -86,7 +89,9 @@ test('connexion réelle, MFA, création persistée et isolation lors du changeme
     await expect(panel.getByText('Beta private player', { exact: true })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   }
+  await page.getByRole('link', { name: 'Aperçu', exact: true }).click()
   await page.getByRole('button', { name: /Ouvrir Browser Alpha/ }).click()
+  await page.getByRole('link', { name: 'Fiches et profils', exact: true }).click()
   await panel.getByRole('button', { name: 'Ouvrir la fiche Alpha browser player', exact: true }).click()
   const returned = (await (await context.request.get(`${api}/api/v1/active-organization`, { headers })).json()).data
   const readHeaders = { ...headers, 'X-Tenant-Revision': returned.revision }

@@ -28,10 +28,10 @@ export function WorkTasksPanel(props: CommunicationProps) {
     const editing = editor !== 'new'
     mutation.propose(event, text('save'), root + (editing ? '/' + editor.id : ''), editing ? { ...values, version: editor.version } : values, editing)
   }
-  return <section aria-label={text('title')} className="grid min-w-0 gap-4 rounded-2xl border border-white/10 p-4">
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4">
     <h2 className="text-xl font-bold">{text('title')}</h2>
     <p className="text-sm text-slate-400">{text('hint')}</p>
-    <Button disabled={blocked} onClick={() => { setOpen(!open); setEditor(null) }}>{text(open ? 'close' : 'open')}</Button>
+    <Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); setEditor(null) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>
       {mutation.feedback}
       <div className="grid gap-3 sm:grid-cols-2">
@@ -41,13 +41,13 @@ export function WorkTasksPanel(props: CommunicationProps) {
         <FormField name="due_before" label={text('dueBefore')} type="date" value={dueBefore} onChange={(event) => { setDueBefore(event.target.value); setPage(1); setEditor(null) }} disabled={blocked} />
       </div>
       <div className="flex flex-wrap gap-3"><Button disabled={blocked || loading} onClick={() => { setEditor(null); setRefresh((value) => value + 1) }}>{text('refresh')}</Button>
-        {canManage && <Button disabled={blocked || loading} onClick={() => setEditor('new')}>{text('create')}</Button>}
+        {canManage && <Button variant="primary" disabled={blocked || loading} onClick={() => setEditor('new')}>{text('create')}</Button>}
       </div>
       {editor !== null && canManage && <WorkTaskForm key={editor === 'new' ? 'new' : editor.id + editor.version} {...props} root={root} item={editor === 'new' ? null : editor}
         disabled={blocked} errors={mutation.errors(root + (editor === 'new' ? '' : '/' + editor.id))} onSubmit={save} onCancel={() => setEditor(null)} />}
       <CommunicationLoadState {...{ loading, error }} />
-      {list?.data.length === 0 && <p>{text('empty')}</p>}
-      <ul className="grid min-w-0 gap-3">{list?.data.map((task) => <li key={task.id} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
+      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      <ul className="grid min-w-0 gap-3">{list?.data.map((task) => <li key={task.id} className="ui-card grid min-w-0 gap-3 p-3">
         <h3 className="font-bold [overflow-wrap:anywhere]">{task.title}</h3><p>{text('status.' + task.status)}</p>
         {task.description && <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{task.description}</p>}
         <p className="[overflow-wrap:anywhere]">{text('assignee')} : {task.assignee_label ?? text(task.assignee_id ? 'unavailableAssignee' : 'unassigned')}</p>

@@ -75,8 +75,8 @@ export function GameCataloguePanel() {
       }
     } finally { if (alive.current) setBusy(false) }
   }
-  return <section aria-label={t('games.globalTitle')} className="grid min-w-0 gap-4 rounded-xl border border-slate-700 p-4">
-    <Button disabled={blocked} onClick={() => setOpen((value) => !value)}>{open ? t('games.close') : t('games.globalTitle')}</Button>
+  return <section aria-label={t('games.globalTitle')} className="ui-panel grid min-w-0 gap-4 p-4">
+    <Button disabled={blocked} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? t('games.close') : t('games.globalTitle')}</Button>
     {open && <>
       <p className="text-sm text-slate-300">{t('games.globalHint')}</p>
       <SelectField name="catalogue_kind" title={t('games.kind')} value={kind} disabled={blocked}
@@ -99,7 +99,7 @@ export function GameCataloguePanel() {
       {list && <>
         {!list.meta.can_manage && <p>{t('games.readOnly')}</p>}
         {list.meta.can_manage && <Button disabled={blocked} onClick={() => { setError(null); setEditor('new') }}>{t('games.create')}</Button>}
-        <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{list.data.map((entry) => <li key={entry.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
+        <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{list.data.map((entry) => <li key={entry.id} className="ui-card grid min-w-0 gap-2 p-3">
           <p className="break-words font-semibold [overflow-wrap:anywhere]">{entry.name}</p>
           <p className="break-words text-sm text-slate-400 [overflow-wrap:anywhere]">{entry.key} · {entry.active ? t('games.available') : t('games.retired')}</p>
           {list.meta.can_manage && <Button disabled={blocked} onClick={() => { setError(null); setEditor(entry) }}>{t('games.edit')}</Button>}
@@ -127,7 +127,7 @@ function GameCatalogueForm({ entry, kind, gameId, choices, disabled, errors, onS
       ...(entry ? { version: entry.version } : { kind, key: form.get('key'), ...(scopedKinds.includes(kind) ? { game_id: gameId } : {}) }),
       ...(kind === 'game' ? { definition: { platforms, regions } } : {}) })
   }
-  return <form aria-label={t('games.save')} onSubmit={submit} className="grid min-w-0 gap-4 rounded-xl border border-cyan-400/30 p-4">
+  return <form aria-label={t('games.save')} onSubmit={submit} className="ui-editor grid min-w-0 gap-4 p-4">
     <h3 className="font-bold">{kindLabel(kind)}</h3>
     {entry ? <p className="break-words [overflow-wrap:anywhere]">{t('games.key')} : {entry.key}</p> :
       <FormField name="key" label={t('games.key')} hint={t('games.keyHint')} required disabled={disabled}

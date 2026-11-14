@@ -39,7 +39,7 @@ test('préparation privée, annotation VOD partageable, historique et droits dis
     const meta = Array.isArray(data) ? { current_page: 1, last_page: 1, total: data.length } : undefined
     await route.fulfill({ status, headers, json: { data, ...(meta ? { meta } : {}), ...(target === path && method === 'GET' ? { writable_audiences: actor === 42 ? ['internal', 'strategy', 'shared'] : [] } : {}) } })
   })
-  await page.setViewportSize({ width: 375, height: 900 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 900 }); await page.goto('/?rubrique=matchs')
   const panel = page.getByRole('region', { name: 'Scrims et matchs', exact: true })
   const notebook = page.getByRole('region', { name: 'Préparation, VOD et débrief', exact: true })
   const open = async () => { await panel.getByRole('button', { name: 'Ouvrir les matchs' }).click(); await panel.getByRole('button', { name: 'Préparation, VOD et débrief', exact: true }).click() }

@@ -9,6 +9,8 @@ const root = '/api/v1/tenants/' + data.alpha + '/sponsors/' + data.sponsor + '/a
 
 async function openAgreement(page: Page) {
   await page.getByRole('button', { name: /Ouvrir Sponsor Alpha/ }).click()
+  await page.getByRole('link', { name: 'Contrats et partenariats', exact: true }).click()
+  await page.getByRole('link', { name: 'Partenariats', exact: true }).click()
   const partners = page.getByRole('region', { name: 'Prospects et partenariats', exact: true })
   await partners.getByRole('button', { name: 'Ouvrir les prospects', exact: true }).click()
   await partners.getByRole('button', { name: 'Ouvrir le dossier', exact: true }).click()
@@ -92,8 +94,10 @@ test('accord sponsor réel : événement et média, approbation indépendante, p
   expect(await partners.locator('script,img,iframe').count()).toBe(0)
   await page.setViewportSize({ width: 320, height: 844 })
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.getByRole('link', { name: 'Aperçu', exact: true }).click()
   await page.getByRole('button', { name: /Ouvrir Sponsor Beta/ }).click()
   await expect(page.getByText('Organisation active : Sponsor Beta')).toBeVisible()
+  await page.getByRole('link', { name: 'Contrats et partenariats', exact: true }).click()
   const hidden = await context.request.get(api + root.replace(data.alpha, data.beta) + '/exposures', { headers: await headers(context, data.beta) })
   expect(hidden.status()).toBe(404)
   expect(external).toEqual([]); expect(errors).toEqual([])

@@ -35,7 +35,7 @@ test('ICS privé : création confirmée, secret éphémère et révocation sur m
     }
     await route.fulfill({ status, headers, contentType: 'application/json', body: JSON.stringify({ data, meta: { current_page: 1, last_page: 1, total: 0 }, calendar: { viewer_timezone: 'UTC', display_timezone: 'UTC' } }) })
   })
-  await page.setViewportSize({ width: 375, height: 844 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 844 }); await page.goto('/?rubrique=calendrier')
   const calendar = page.getByRole('region', { name: 'Calendrier des activités' })
   await calendar.getByRole('button', { name: 'Ouvrir le calendrier' }).click()
   const panel = calendar.getByRole('region', { name: 'Mon calendrier ICS privé' })

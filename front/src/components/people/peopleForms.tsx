@@ -8,10 +8,10 @@ export function SelectField({ name, title, children, error, disabled, value, onC
 }) {
   const id = useId()
   return <div className="grid min-w-0 grid-cols-1 gap-2">
-    <label className="[overflow-wrap:anywhere]" htmlFor={id}>{title}</label>
+    <label className="text-sm leading-5 font-semibold wrap-anywhere" htmlFor={id}>{title}</label>
     <select id={id} name={name} value={value} defaultValue={defaultValue} onChange={onChange ? (event) => onChange(event.target.value) : undefined}
       disabled={disabled} required={required} aria-invalid={error ? true : undefined} aria-describedby={error ? id + '-error' : undefined}
-      className="min-w-0 w-full rounded-xl border border-white/15 bg-slate-900 px-3 py-3 text-slate-100">
+      className="ui-input">
       {children}
     </select>
     {error && <p id={id + '-error'} className="text-sm text-rose-200">{error}</p>}
@@ -26,10 +26,10 @@ export function PersonField({ name, value, error, disabled, language, timezone }
     {personStatuses.map((status) => <option key={status} value={status}>{label('status.' + status)}</option>)}
   </SelectField>
   if (name.startsWith('biography')) return <div className="grid min-w-0 gap-2">
-    <label htmlFor={id}>{label(name)}</label>
+    <label className="text-sm leading-5 font-semibold" htmlFor={id}>{label(name)}</label>
     <textarea id={id} name={name} defaultValue={value ?? ''} disabled={disabled} maxLength={4000} rows={4}
       aria-invalid={error ? true : undefined} aria-describedby={error ? id + '-error' : undefined}
-      className="min-w-0 w-full rounded-xl border border-white/15 bg-slate-900 px-4 py-3 text-slate-100" />
+      className="ui-input" />
     {error && <p id={id + '-error'} className="text-sm text-rose-200">{error}</p>}
   </div>
   const defaults: Record<string, string> = { language: language ?? 'fr', timezone: timezone ?? 'UTC' }

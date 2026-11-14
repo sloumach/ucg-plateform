@@ -6,7 +6,7 @@ export function CatalogueChoices({ title, choices, value, onChange, disabled, er
   disabled: boolean; error?: string; inherit?: boolean
 }) {
   const retired = (value ?? []).filter((key) => !choices.some((choice) => choice.key === key))
-  return <fieldset disabled={disabled} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
+  return <fieldset disabled={disabled} className="ui-editor grid min-w-0 gap-3 p-3">
     <legend className="px-1 font-semibold">{title}</legend>
     {inherit && <label className="flex items-start gap-2"><input type="checkbox" checked={value === undefined}
       onChange={(event) => onChange(event.target.checked ? undefined : [])} />{t('games.inherit')}</label>}

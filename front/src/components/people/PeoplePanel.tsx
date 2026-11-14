@@ -121,17 +121,17 @@ export function PeoplePanel({ active, disabled: parentDisabled, onInvalid }: {
     ...((editing === null ? administrativeWrite : administrative && administrativeWrite) ? personAdminFields : []),
   ]
 
-  return <section aria-labelledby={'people-' + organizationId} aria-busy={loading} className="grid min-w-0 grid-cols-1 gap-4 rounded-2xl border border-white/10 p-5">
+  return <section aria-labelledby={'people-' + organizationId} aria-busy={loading} className="ui-panel grid min-w-0 grid-cols-1 gap-4 p-5">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h3 id={'people-' + organizationId} className="text-xl font-bold">{t('people.title')}</h3>
       {canRead && <Button disabled={disabled} onClick={() => setRefresh((value) => value + 1)}>{t('people.refresh')}</Button>}
-      {sportsWrite && <Button disabled={disabled} onClick={() => { setPerson(null); setEditing(null) }}>{t('people.create')}</Button>}
+      {sportsWrite && <Button variant="primary" disabled={disabled} onClick={() => { setPerson(null); setEditing(null) }}>{t('people.create')}</Button>}
     </div>
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
     {mutation.feedback}
     <PersonImportsPanel key={'imports-' + organizationId + revision} active={active} disabled={disabled} onInvalid={onInvalid} onImported={() => setRefresh((value) => value + 1)} />
     {!canRead && <p>{t('people.noRead')}</p>}
-    {canRead && <form key={JSON.stringify(filters)} noValidate aria-label={t('people.apply')} onSubmit={apply} className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
+    {canRead && <form key={JSON.stringify(filters)} noValidate aria-label={t('people.apply')} onSubmit={apply} className="ui-filters grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
       <SelectField name="view" title={label('view')} defaultValue={filters.view ?? 'general'} disabled={disabled}>
         <option value="general">{label('general')}</option>{sports && <option value="sports">{label('sports')}</option>}{administrative && <option value="administrative">{label('administrative')}</option>}
       </SelectField>
@@ -150,7 +150,7 @@ export function PeoplePanel({ active, disabled: parentDisabled, onInvalid }: {
     {loading && <AsyncState variant="loading" title={label('loading')} />}
     {data && <><DataTable caption={label('title')} columns={columns} rows={data.data} rowKey={(row) => row.id} emptyTitle={label('empty')} emptyDescription={label('emptyHint')} />
       <Pagination currentPage={data.meta.current_page} totalPages={data.meta.last_page} disabled={disabled} onPageChange={setPage} /></>}
-    {(person || editing !== undefined) && <section ref={details} tabIndex={-1} aria-label={label('edit')} className="grid min-w-0 gap-4 rounded-xl border border-cyan-400/30 p-4">
+    {(person || editing !== undefined) && <section ref={details} tabIndex={-1} aria-label={label('edit')} className="ui-editor grid min-w-0 gap-4 p-4">
       <div className="flex flex-wrap gap-3"><Button disabled={disabled} onClick={() => { setPerson(null); setEditing(undefined) }}>{label('close')}</Button>
         {person && ((sports && sportsWrite) || (administrative && administrativeWrite)) && <Button disabled={disabled} onClick={() => setEditing(person)}>{label('edit')}</Button>}
       </div>
@@ -160,7 +160,7 @@ export function PeoplePanel({ active, disabled: parentDisabled, onInvalid }: {
       }}>
         {editorFields.map((name) => <PersonField key={name} name={name} value={editing?.[name]} language={context.language} timezone={context.timezone} disabled={disabled || (closed && editing !== null && ['status','user_id'].includes(name))} error={mutation.errors(path)[name]?.[0]} />)}
         <p className="text-sm text-slate-400 md:col-span-2">{label('statusHint')} {editorFields.includes('user_id') && label('linkHint')}</p>
-        <div className="flex flex-wrap gap-3"><Button type="submit" disabled={disabled}>{label('save')}</Button><Button disabled={disabled} onClick={() => setEditing(undefined)}>{t('tenant.cancel')}</Button></div>
+        <div className="flex flex-wrap gap-3"><Button variant="primary" type="submit" disabled={disabled}>{label('save')}</Button><Button disabled={disabled} onClick={() => setEditing(undefined)}>{t('tenant.cancel')}</Button></div>
       </form> : person && <>
         <SelectField name="detail_view" title={label('view')} value={view} onChange={(value) => setView(value as PeopleView)} disabled={disabled}>
           <option value="general">{label('general')}</option>{sports && <option value="sports">{label('sports')}</option>}{administrative && <option value="administrative">{label('administrative')}</option>}

@@ -38,6 +38,7 @@ test('personne et équipes réelles, transfert de roster, clôture et accès ten
 
   await login(page, 'browser-roster@example.test')
   await page.getByRole('button', { name: /Ouvrir Roster Alpha/ }).click()
+  await page.getByRole('link', { name: 'Équipes et jeux', exact: true }).click()
   await expect(page.getByText('Organisation active : Roster Alpha')).toBeVisible()
   const people = page.getByRole('region', { name: 'Personnes', exact: true })
   await people.getByRole('button', { name: 'Ajouter une personne' }).click()
@@ -157,8 +158,10 @@ test('personne et équipes réelles, transfert de roster, clôture et accès ten
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   }
 
+  await page.getByRole('link', { name: 'Aperçu', exact: true }).click()
   await page.getByRole('button', { name: /Ouvrir Roster Beta/ }).click()
   await expect(page.getByText('Organisation active : Roster Beta')).toBeVisible()
+  await page.getByRole('link', { name: 'Équipes et jeux', exact: true }).click()
   await expect(page.getByText(/Roster browser player/)).toHaveCount(0)
   await page.getByRole('button', { name: 'Équipes de l’organisation', exact: true }).click()
   await expect(teams.getByRole('button', { name: 'Créer une équipe', exact: true })).toHaveCount(0)

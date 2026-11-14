@@ -45,7 +45,7 @@ export function AmendmentApprovalPanel({ active, document, path, contractVersion
       {mutation.errors(path).confirm_approval && <p role="alert">{mutation.errors(path).confirm_approval[0]}</p>}
       <Button type="submit" disabled={blocked}>{text('approve')}</Button>
     </form>}
-    <Button disabled={blocked} onClick={() => setOpen((value) => !value)}>{text('history')}</Button>
+    <Button disabled={blocked} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{text('history')}</Button>
     {open && <>{loading && <p role="status">{text('loading')}</p>}{error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
       {list?.data.map((item) => <p key={item.id} className="[overflow-wrap:anywhere]">{text('approved')} · {item.approved_by} · {item.approved_at} · {item.document_version_id}</p>)}
       {list?.data.length === 0 && <p>{text('noApprovals')}</p>}

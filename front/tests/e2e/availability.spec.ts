@@ -47,7 +47,7 @@ test('disponibilités personnelles : heure répétée, historique, annulation et
         availability: { viewer_person_id: person, viewer_timezone: 'Europe/Paris', display_timezone: url.searchParams.get('timezone') || 'Europe/Paris',
           from_utc: '2026-10-24T22:00:00+00:00', to_utc: '2026-10-25T23:00:00+00:00', can_self: true, can_manage: false } }) })
   })
-  await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/')
+  await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/?rubrique=calendrier&outil=disponibilites')
   const panel = page.getByRole('region', { name: 'Disponibilités et absences', exact: true })
   await panel.getByRole('button', { name: 'Ouvrir les disponibilités' }).click()
   await expect(panel.getByText(/Aucun créneau dans cette période/)).toBeVisible()

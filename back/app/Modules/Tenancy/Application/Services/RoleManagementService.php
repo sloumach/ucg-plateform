@@ -51,6 +51,16 @@ final readonly class RoleManagementService
         return $this->roles->assignments($context->organizationId, $own ? $context->actorUserId : null, $perPage, $page);
     }
 
+    /** @return LengthAwarePaginator<int, array{id: int, name: string, email: string}> */
+    public function assignmentMembers(TenantContext $context, ?string $search, int $perPage, int $page): LengthAwarePaginator
+    {
+        $this->authorization->authorize($context, 'roles.assign');
+        $this->validatePage($perPage, $page);
+        $eligibleIds = $this->memberships->activeAccountIdsQuery($context->organizationId)->where('user_id', '!=', $context->actorUserId);
+
+        return $this->accounts->searchVerifiedAccounts($eligibleIds, $search, $perPage, $page);
+    }
+
     public function saveRole(TenantContext $context, RoleData $data, ?string $id = null): OrganizationRole
     {
         $this->validator->make([...$data->attributes(), 'version' => $data->version],

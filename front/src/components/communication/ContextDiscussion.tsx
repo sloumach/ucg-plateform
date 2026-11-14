@@ -22,7 +22,7 @@ export function ContextDiscussion(props: Props) {
   const required = { event: 'calendar.read', match: 'sports.read', session: 'academy.read', task: 'tasks.read' }[props.type]
   if (!permissions.includes('communication.read') || !permissions.includes(required)) return null
   return <div className="grid min-w-0 gap-3">
-    <Button disabled={props.disabled} onClick={() => setOpen(!open)}>{text(open ? 'closeDiscussion' : 'openDiscussion')}</Button>
+    <Button disabled={props.disabled} aria-expanded={open} onClick={() => setOpen(!open)}>{text(open ? 'closeDiscussion' : 'openDiscussion')}</Button>
     {open && <Discussion key={props.active.context!.organization_id + props.type + props.id + props.active.revision} {...props} />}
   </div>
 }
@@ -37,7 +37,7 @@ function Discussion({ active, disabled, onInvalid, type, id }: Props) {
   const blocked = disabled || mutation.blocked, pendingRead = loading || list === null
   const errors = mutation.errors(path)
   const mayComment = active.context!.permissions.includes('communication.comment')
-  return <section aria-label={text('discussion')} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
+  return <section aria-label={text('discussion')} className="ui-panel grid min-w-0 gap-3 p-3">
     <h4 className="font-bold [overflow-wrap:anywhere]">{list?.context.label ?? text('discussion')}</h4>
     <p className="text-sm text-slate-400">{text('contextHint')}</p>
     {mutation.feedback}
@@ -57,7 +57,7 @@ function Discussion({ active, disabled, onInvalid, type, id }: Props) {
       <label htmlFor={messageId}>{text('body')}</label>
       <textarea id={messageId} name="body" value={body} onChange={(event) => setBody(event.target.value)} rows={4} required maxLength={4000}
         disabled={blocked || pendingRead || !list?.context.can_comment} aria-invalid={errors.body ? true : undefined}
-        aria-describedby={errors.body ? messageId + '-error' : undefined} className="min-w-0 w-full rounded-xl border border-white/15 bg-slate-900 px-4 py-3 text-slate-100" />
+        aria-describedby={errors.body ? messageId + '-error' : undefined} className="ui-input" />
       {errors.body && <p id={messageId + '-error'} className="text-sm text-rose-200">{errors.body[0]}</p>}
       <FormField name="notify_members" label={text('notifyComments')} type="checkbox" checked={notify} onChange={(event) => setNotify(event.target.checked)} disabled={blocked || pendingRead || !list?.context.can_comment} />
       <Button type="submit" disabled={blocked || pendingRead || !list?.context.can_comment}>{text('sendComment')}</Button>

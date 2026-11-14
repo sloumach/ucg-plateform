@@ -26,7 +26,7 @@ export function MatchReferenceSelect({ active, root, disabled, onInvalid, type, 
 }
 export function MatchParticipants({ active, root, disabled, onInvalid, game, selected, onChange, error }: Props & { game: string; selected: MatchSelection[]; onChange: (next: MatchSelection[]) => void; error?: string }) {
   const [kind, setKind] = useState<MatchParticipantKind>('person'), [choice, setChoice] = useState<MatchChoice | null>(null)
-  return <fieldset className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
+  return <fieldset className="ui-editor grid min-w-0 gap-3 p-3">
     <legend>{text('participants')}</legend><p className="text-sm text-slate-400">{text('participantsHint')}</p>
     <SelectField name="participant_kind" title={text('participantKind')} value={kind} disabled={disabled} onChange={(value) => { setKind(value as MatchParticipantKind); setChoice(null) }}>
       {(['person', 'team', 'opponent_snapshot'] as const).map((type) => <option key={type} value={type}>{text('source.' + type)}</option>)}

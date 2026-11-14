@@ -52,7 +52,7 @@ test('compétition externe privée : dossier, règlement versionné, télécharg
     }
     await route.fulfill({ status, headers, contentType: 'application/json', body: JSON.stringify({ data, meta: { current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 0 } }) })
   })
-  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/?rubrique=matchs&outil=competitions')
   const panel = page.getByRole('region', { name: 'Compétitions externes', exact: true })
   const open = async () => { await panel.getByRole('button', { name: 'Ouvrir les compétitions' }).click() }
   const confirm = async () => { await page.getByRole('button', { name: 'Confirmer et continuer' }).click() }

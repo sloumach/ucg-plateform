@@ -10,9 +10,10 @@ import { useNotifications } from '../feedback/notificationContext'
 
 type Operation = 'enrollment' | 'confirmation' | 'challenge' | 'recovery-codes' | 'disable'
 
-export function MfaPanel({ user, onUserChanged }: {
+export function MfaPanel({ user, onUserChanged, onRecoveryCodesVisibilityChange }: {
   user: AuthenticatedUser
   onUserChanged: (user: AuthenticatedUser | null) => void
+  onRecoveryCodesVisibilityChange?: (visible: boolean) => void
 }) {
   const [enrollment, setEnrollment] = useState<MfaEnrollment | null>(null)
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
@@ -62,7 +63,10 @@ export function MfaPanel({ user, onUserChanged }: {
       } else {
         setEnrollment(null)
         setManagement(null)
-        if ('recovery_codes' in result.data) setRecoveryCodes(result.data.recovery_codes)
+        if ('recovery_codes' in result.data && result.data.recovery_codes.length > 0) {
+          setRecoveryCodes(result.data.recovery_codes)
+          onRecoveryCodesVisibilityChange?.(true)
+        }
         // Drop the previous workspace while rechecking the server's session status.
         const account = await getCurrentUser()
         if (!mounted.current) return
@@ -103,7 +107,7 @@ export function MfaPanel({ user, onUserChanged }: {
           <h4 className="font-bold">{t('mfa.recoveryTitle')}</h4>
           <p className="text-sm text-slate-300">{t('mfa.recoveryDescription')}</p>
           <ul className="grid gap-2 font-mono text-sm break-all">{recoveryCodes.map((code) => <li key={code}>{code}</li>)}</ul>
-          <Button onClick={() => setRecoveryCodes([])}>{t('mfa.codesSaved')}</Button>
+          <Button onClick={() => { setRecoveryCodes([]); onRecoveryCodesVisibilityChange?.(false) }}>{t('mfa.codesSaved')}</Button>
         </div>
       )}
       {enrollment ? (

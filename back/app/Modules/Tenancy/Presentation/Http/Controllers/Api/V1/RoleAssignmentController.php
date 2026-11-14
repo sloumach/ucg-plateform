@@ -7,10 +7,13 @@ use App\Modules\Tenancy\Application\Contracts\TenantContext;
 use App\Modules\Tenancy\Application\Services\RoleManagementService;
 use App\Modules\Tenancy\Domain\Models\OrganizationRole;
 use App\Modules\Tenancy\Domain\Models\OrganizationRoleAssignment;
+use App\Modules\Tenancy\Presentation\Http\Requests\Api\V1\RoleAssignmentMemberListRequest;
 use App\Modules\Tenancy\Presentation\Http\Requests\Api\V1\RoleListRequest;
 use App\Modules\Tenancy\Presentation\Http\Requests\Api\V1\SaveRoleAssignmentRequest;
+use App\Modules\Tenancy\Presentation\Http\Resources\Api\V1\RoleAssignmentMemberResource;
 use App\Modules\Tenancy\Presentation\Http\Resources\Api\V1\RoleAssignmentResource;
 use Illuminate\Contracts\Auth\Access\Gate;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 final class RoleAssignmentController extends Controller
@@ -29,6 +32,13 @@ final class RoleAssignmentController extends Controller
         $this->gate->authorize('view', $context);
 
         return RoleAssignmentResource::collection($this->roles->assignments($context, $request->integer('per_page', 20), $request->integer('page', 1), true));
+    }
+
+    public function members(RoleAssignmentMemberListRequest $request, TenantContext $context): JsonResponse
+    {
+        $members = $this->roles->assignmentMembers($context, $request->validated('q'), $request->integer('per_page', 10), $request->integer('page', 1));
+
+        return RoleAssignmentMemberResource::collection($members)->response()->header('Cache-Control', 'private, no-store');
     }
 
     public function store(SaveRoleAssignmentRequest $request, TenantContext $context): RoleAssignmentResource

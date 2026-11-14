@@ -24,7 +24,7 @@ export function CalendarTeamSelect({ active, root, disabled, onInvalid, error, v
 export function CalendarParticipantPicker({ active, root, disabled, onInvalid, error, selected, onChange }: Props & { selected: CalendarReference[]; onChange: (selected: CalendarReference[]) => void }) {
   const [page, setPage] = useState(1)
   const { list, loading, error: failure } = usePartnershipList<CalendarReference>(root + '/people?page=' + page + '&per_page=10', active, true, onInvalid)
-  return <fieldset className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
+  return <fieldset className="ui-editor grid min-w-0 gap-3 p-3">
     <legend>{text('participants')} ({selected.length}/50)</legend>
     <p className="text-sm text-slate-400">{text('participantsHint')}</p>
     <ul className="grid min-w-0 gap-2">{selected.map((person) => <li key={person.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2">

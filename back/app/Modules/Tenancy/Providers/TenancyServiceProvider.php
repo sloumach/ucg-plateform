@@ -39,6 +39,7 @@ use App\Modules\Tenancy\Application\Services\TenantTechnicalLimits;
 use App\Modules\Tenancy\Domain\Contracts\AccessAuditRepository;
 use App\Modules\Tenancy\Domain\Contracts\ApprovedTenantDomains;
 use App\Modules\Tenancy\Domain\Contracts\ArtifactLedger;
+use App\Modules\Tenancy\Domain\Contracts\ClientActivationDelivery;
 use App\Modules\Tenancy\Domain\Contracts\CommunicationRolesRepository;
 use App\Modules\Tenancy\Domain\Contracts\ErasureJournal;
 use App\Modules\Tenancy\Domain\Contracts\InvitationNotifier;
@@ -61,6 +62,7 @@ use App\Modules\Tenancy\Domain\Models\OrganizationInvitation;
 use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
 use App\Modules\Tenancy\Domain\Models\OrganizationRole;
 use App\Modules\Tenancy\Domain\Models\OrganizationSupportAccess;
+use App\Modules\Tenancy\Infrastructure\Mail\MailClientActivationDelivery;
 use App\Modules\Tenancy\Infrastructure\Mail\MailInvitationNotifier;
 use App\Modules\Tenancy\Infrastructure\Persistence\DatabaseArtifactLedger;
 use App\Modules\Tenancy\Infrastructure\Persistence\DatabaseManualErasureRepository;
@@ -158,6 +160,7 @@ final class TenancyServiceProvider extends ServiceProvider
         $this->app->bind(InvitationRepository::class, EloquentInvitationRepository::class);
         $this->app->bind(AccessAuditRepository::class, EloquentAccessAuditRepository::class);
         $this->app->bind(InvitationNotifier::class, MailInvitationNotifier::class);
+        $this->app->bind(ClientActivationDelivery::class, MailClientActivationDelivery::class);
         $this->app->bind(ApprovedTenantDomains::class, ConfiguredTenantDomains::class);
         // Resolve from the current request every time; never cache a context in a singleton.
         $this->app->bind(TenantContext::class, function (Application $app): TenantContext {
@@ -185,6 +188,7 @@ final class TenancyServiceProvider extends ServiceProvider
         Gate::policy(OrganizationSupportAccess::class, SupportAccessPolicy::class);
         RateLimiter::for('platform-support', fn (Request $request): Limit => Limit::perMinute(30)
             ->by('platform-support:'.(string) $request->user()?->getAuthIdentifier()));
+        RateLimiter::for('client-onboarding', fn (Request $request): Limit => Limit::perMinute(5)->by('client-onboarding:'.$request->ip()));
         Gate::define('tenant.permission', fn (Authenticatable $user, TenantContext $context, string $permission, string $type = 'organization', ?string $id = null): bool => (int) $user->getAuthIdentifier() === $context->actorUserId
             && $this->app->make(TenantAuthorization::class)->allows($context, $permission, $type, $id));
         Gate::policy(Organization::class, OrganizationPolicy::class);

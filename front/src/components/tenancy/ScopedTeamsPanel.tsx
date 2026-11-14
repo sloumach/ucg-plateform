@@ -14,8 +14,8 @@ export function ScopedTeamsPanel({ active, disabled, onInvalid }: { active: Acti
   const root = 'tenants/' + active.context!.organization_id
   const { list, loading, error } = usePartnershipList<{ id: string; label: string }>(root + '/my-team-scopes?per_page=10&page=' + page, active, open, onInvalid)
   const detail = useAgreementRead<Team>(teamsPath(active.context!.organization_id, selected ?? ''), active, open && selected !== null, onInvalid)
-  return <section aria-label={t('roles.myTeams')} className="grid min-w-0 gap-3 rounded-xl border border-white/10 p-4">
-    <Button disabled={disabled} onClick={() => { setOpen((value) => !value); setSelected(null) }}>{t('roles.myTeams')}</Button>
+  return <section aria-label={t('roles.myTeams')} className="ui-panel grid min-w-0 gap-3 p-4">
+    <Button disabled={disabled} aria-expanded={open} onClick={() => { setOpen((value) => !value); setSelected(null) }}>{t('roles.myTeams')}</Button>
     {open && <>
       {(loading || detail.loading) && <p role="status">{t('roles.loading')}</p>}
       {(error || detail.error) && <Alert tone="error" title={(error || detail.error)!.message} />}

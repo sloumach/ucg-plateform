@@ -25,13 +25,13 @@ export function MediaPanel({ active, disabled, onInvalid }: Props) {
   const mutation = usePeopleMutation<MediaItem>(active, () => { setEditor(null); setRefresh((n) => n + 1) }, onInvalid)
   const blocked = disabled || mutation.blocked
   if (!canRead) return null
-  return <section aria-label={text('title')} className="grid min-w-0 gap-4 rounded-2xl border border-white/10 p-4">
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4">
     <h2 className="text-xl font-bold">{text('title')}</h2>
     <p className="text-sm text-slate-400">{text('hint')}</p>
-    <Button disabled={blocked} onClick={() => { setOpen(!open); setEditor(null) }}>{text(open ? 'close' : 'open')}</Button>
+    <Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); setEditor(null) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>
       {mutation.feedback}
-      <form aria-label={text('search')} className="grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
+      <form aria-label={text('search')} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
         event.preventDefault(); const values = new FormData(event.currentTarget)
         setFilters({ q: String(values.get('q') ?? '').trim(), kind: String(values.get('kind') ?? ''), status: String(values.get('status') ?? ''), archived: String(values.get('archived') ?? '') })
         setPage(1); setEditor(null)
@@ -45,8 +45,8 @@ export function MediaPanel({ active, disabled, onInvalid }: Props) {
       {canWrite && <Button disabled={blocked} onClick={() => setEditor('new')}>{text('new')}</Button>}
       {loading && <AsyncState variant="loading" title={text('loading')} />}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-      {list?.data.length === 0 && <p>{text('empty')}</p>}
-      <ul className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
+      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      <ul className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-2 p-3">
         <h3 className="font-bold [overflow-wrap:anywhere]">{item.title}</h3>
         {item.context_type && <p className="[overflow-wrap:anywhere]">{text('context.' + item.context_type)} : {item.context_label}</p>}
         <p className="[overflow-wrap:anywhere]">{text('kind.' + item.kind)} · {item.provider === 'youtube' ? 'YouTube' : 'Twitch'} · {item.team_label ?? text('teamUnavailable')}</p>
@@ -95,7 +95,7 @@ function MediaForm({ active, root, item, disabled, errors, onSubmit, onCancel, o
     if (item && ['kind','provider','url','status'].some((key) => key in values)) values.status_observed_at = isoDate(String(new FormData(event.currentTarget).get('status_observed_at') ?? ''))
     onSubmit(event, values)
   }
-  return <form noValidate aria-label={text('save')} onSubmit={submit} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-3 sm:grid-cols-2">
+  return <form noValidate aria-label={text('save')} onSubmit={submit} className="ui-editor grid min-w-0 gap-3 p-3 sm:grid-cols-2">
     <FormField name="title" label={text('name')} defaultValue={item?.title ?? ''} required maxLength={160} disabled={disabled} error={errors.title?.[0]} />
     <TeamSelect {...{ active, root, onInvalid, disabled }} value={item?.team_id ?? ''} error={errors.team_id?.[0]} />
     <MediaContextPicker {...{ active, root, item, disabled, onInvalid, errors }} type={contextType} selected={contextTarget} onType={(value) => setContextType(value as 'event' | 'match' | '')}
@@ -114,7 +114,7 @@ function MediaForm({ active, root, item, disabled, errors, onSubmit, onCancel, o
       <FormField name="confirm_sharing" label={text('confirmSharing')} type="checkbox" disabled={disabled || !publisher} error={errors.confirm_sharing?.[0]} />
       <p className="text-sm text-slate-400 sm:col-span-2">{text('sharingHint')}</p>
     </>}
-    <div className="flex flex-wrap gap-3 sm:col-span-2"><Button type="submit" disabled={disabled || contextPending}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{t('tenant.cancel')}</Button></div>
+    <div className="flex flex-wrap gap-3 sm:col-span-2"><Button variant="primary" type="submit" disabled={disabled || contextPending}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{t('tenant.cancel')}</Button></div>
   </form>
 }
 

@@ -16,7 +16,7 @@ export function AgreementDocumentsPanel({ active, record, disabled, onChanged, o
   const { data, loading, error } = useAgreementRead<ContractRecord>(contractsPath(active.context!.organization_id, record.contract_id ?? ''), active, open && allowed, onInvalid)
   if (!allowed) return null
   return <section className="grid min-w-0 gap-3" aria-label={text('documents')}>
-    <Button disabled={disabled} onClick={() => setOpen(!open)}>{text(open ? 'closeDocuments' : 'documents')}</Button>
+    <Button disabled={disabled} aria-expanded={open} onClick={() => setOpen(!open)}>{text(open ? 'closeDocuments' : 'documents')}</Button>
     {open && <>
       <p className="text-sm text-slate-400">{text('documentHint')}</p>
       {loading && <p role="status">{text('loading')}</p>}

@@ -72,24 +72,24 @@ export function ContractsPanel({ active, disabled, onInvalid }: Props) {
   }
   const save = (event: FormEvent<HTMLFormElement>, body: Record<string, unknown>, record: ContractRecord | null) =>
     mutation.propose(event, text('save'), contractsPath(org!, record?.id), { ...body, ...(record ? { version: record.version } : {}) }, !!record)
-  return <section aria-label={text('title')} className="grid min-w-0 gap-4 rounded-xl border border-slate-700 p-4">
-    <Button disabled={disabled || mutation.blocked} onClick={() => { setOpen((value) => !value); setDetailId(null); setDetail(null); setCreating(false); setEditing(false) }}>{open ? text('close') : text('title')}</Button>
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4">
+    <Button disabled={disabled || mutation.blocked} aria-expanded={open} onClick={() => { setOpen((value) => !value); setDetailId(null); setDetail(null); setCreating(false); setEditing(false) }}>{open ? text('close') : text('title')}</Button>
     {open && <>
       <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('private')}</p>
       {loading || detailLoading ? <p role="status">{text('loading')}</p> : null}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
       {mutation.feedback}
       <MyContractReminders active={active} disabled={blocked} onInvalid={invalidate} onSelect={(id) => { setCreating(false); setEditing(false); setDetail(null); setDetailId(id); setRefresh((value) => value + 1) }} />
-      <form aria-label={text('search')} onSubmit={filter} className="grid min-w-0 gap-3 sm:grid-cols-2">
+      <form aria-label={text('search')} onSubmit={filter} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2">
         <FormField name="q" label={text('q')} maxLength={80} disabled={blocked} />
         <SelectField name="type" title={text('type')} disabled={blocked}><option value="">{text('all')}</option>{contractTypes.map((kind) => <option key={kind} value={kind}>{text('type.' + kind)}</option>)}</SelectField>
         <SelectField name="status" title={text('status')} disabled={blocked}><option value="">{text('all')}</option>{contractStatuses.map((status) => <option key={status} value={status}>{text('status.' + status)}</option>)}</SelectField>
         <Button type="submit" disabled={blocked}>{text('search')}</Button>
       </form>
-      {manage && <Button disabled={blocked} onClick={() => { setCreating(true); setEditing(false); setDetail(null); setDetailId(null) }}>{text('create')}</Button>}
+      {manage && <Button variant="primary" disabled={blocked} onClick={() => { setCreating(true); setEditing(false); setDetail(null); setDetailId(null) }}>{text('create')}</Button>}
       {!manage && <p>{text('readOnly')}</p>}
-      {list?.data.length === 0 && <p>{text('empty')}</p>}
-      {list && <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{list.data.map((record) => <li key={record.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
+      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      {list && <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{list.data.map((record) => <li key={record.id} className="ui-card grid min-w-0 gap-2 p-3">
         <h3 className="font-bold [overflow-wrap:anywhere]">{record.title}</h3>
         <p className="[overflow-wrap:anywhere]">{record.reference} · {text('type.' + record.type)} · {text('status.' + record.status)}</p>
         <p className="[overflow-wrap:anywhere]">{text('responsible')} : {record.responsible_name}</p>
@@ -98,7 +98,7 @@ export function ContractsPanel({ active, disabled, onInvalid }: Props) {
       </li>)}</ul>}
       {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={(next) => { setDetail(null); setDetailId(null); setPage(next) }} />}
       {creating && <ContractForm key="new" active={active} record={null} disabled={blocked} errors={mutation.errors(contractsPath(org))} onInvalid={invalidate} onCancel={() => setCreating(false)} onSave={save} />}
-      {detail && <section aria-label={text('detail')} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-4">
+      {detail && <section aria-label={text('detail')} className="ui-panel grid min-w-0 gap-3 p-4">
         <h3 className="font-bold [overflow-wrap:anywhere]">{detail.title}</h3>
         <p>{text('status.' + detail.status)} · {detail.in_force ? text('inForce') : text('notInForce')}</p>
         <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('eligibility')}</p>
@@ -116,7 +116,7 @@ export function ContractsPanel({ active, disabled, onInvalid }: Props) {
         <p>{text('starts_on')} : {detail.starts_on ?? '—'} · {text('ends_on')} : {detail.ends_on ?? '—'}</p>
         {detail.signed_on && <p className="[overflow-wrap:anywhere]">{text('signature')} : {detail.signed_on} · {detail.signature_reference}. {text('signatureHint')}</p>}
         {detail.parties?.map((party) => <p key={party.id} className="[overflow-wrap:anywhere]">{text('party')} : {party.name}</p>)}
-        {detail.obligations?.map((item) => <form key={item.id + item.version} aria-label={text('obligation') + ' ' + item.title} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3"
+        {detail.obligations?.map((item) => <form key={item.id + item.version} aria-label={text('obligation') + ' ' + item.title} className="ui-editor grid min-w-0 gap-2 p-3"
           onSubmit={(event) => mutation.propose(event, text('obligationSave') + ' ' + item.title, detailPath + '/obligations/' + item.id,
             { version: item.version, contract_version: detail.version, status: new FormData(event.currentTarget).get('status') }, true)}>
           <p className="[overflow-wrap:anywhere]">{item.title}{item.due_on && ' · ' + item.due_on} · {text('obligation.' + item.status)}</p>
@@ -165,7 +165,7 @@ function ContractForm({ active, record, disabled, errors, onSave, onCancel, onIn
   const choices = people?.data ?? []
   const updateParty = (index: number, changes: Partial<PartyInput>) => setParties((items) => items.map((item, position) => position === index ? { ...item, ...changes } : item))
   const updateObligation = (index: number, changes: Partial<ObligationInput>) => setObligations((items) => items.map((item, position) => position === index ? { ...item, ...changes } : item))
-  return <form noValidate aria-label={text('save')} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-4" onSubmit={(event) => {
+  return <form noValidate aria-label={text('save')} className="ui-editor grid min-w-0 gap-3 p-4" onSubmit={(event) => {
     const data = new FormData(event.currentTarget), body: Record<string, unknown> = {}
     for (const field of record ? ['title', 'starts_on', 'ends_on', 'responsible_person_id'] : ['reference', 'type', 'title', 'starts_on', 'ends_on', 'responsible_person_id']) {
       if (!data.has(field)) continue
@@ -197,7 +197,7 @@ function ContractForm({ active, record, disabled, errors, onSave, onCancel, onIn
       <label className="flex min-w-0 items-start gap-2"><input type="checkbox" name="signature_separation_required" defaultChecked={record?.signature_separation_required ?? false} disabled={blocked} /><span className="[overflow-wrap:anywhere]">{financialText('separateSignature')}</span></label>
       <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{financialText('separationHint')}</p>
       <h4 className="font-bold">{text('parties')}</h4>
-      {parties.map((party, index) => <fieldset key={index} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
+      {parties.map((party, index) => <fieldset key={index} className="ui-editor grid min-w-0 gap-2 p-3">
         <legend>{text('party')} {index + 1}</legend>
         <SelectField name={'parties.' + index + '.kind'} title={text('partyKind')} value={party.kind} disabled={blocked} onChange={(kind) => updateParty(index, { kind: kind as PartyInput['kind'], person_id: null })}>
           <option value="external">{text('partyExternal')}</option><option value="person">{text('partyPerson')}</option>
@@ -213,7 +213,7 @@ function ContractForm({ active, record, disabled, errors, onSave, onCancel, onIn
       <Button disabled={blocked || parties.length >= 10} onClick={() => setParties((items) => [...items, { kind: 'external', person_id: null, name: '' }])}>{text('addParty')}</Button>
       <h4 className="font-bold">{text('obligations')}</h4>
       {record?.obligations?.some((item) => item.status !== 'pending') ? <p>{text('obligationsRetained')}</p> : <>
-        {obligations.map((item, index) => <fieldset key={index} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
+        {obligations.map((item, index) => <fieldset key={index} className="ui-editor grid min-w-0 gap-2 p-3">
           <legend>{text('obligation')} {index + 1}</legend>
           <FormField name={'obligations.' + index + '.title'} label={text('obligationTitle')} value={item.title} onChange={(event) => updateObligation(index, { title: event.target.value })} required maxLength={160} disabled={blocked} error={errors['obligations.' + index + '.title']?.[0]} />
           <FormField name={'obligations.' + index + '.due_on'} label={text('due_on')} type="date" value={item.due_on ?? ''} onChange={(event) => updateObligation(index, { due_on: event.target.value || null })} disabled={blocked} error={errors['obligations.' + index + '.due_on']?.[0]} />
@@ -223,7 +223,7 @@ function ContractForm({ active, record, disabled, errors, onSave, onCancel, onIn
       </>}
       {errors.obligations && <p role="alert">{errors.obligations[0]}</p>}
     </>}
-    <div className="flex flex-wrap gap-3"><Button type="submit" disabled={blocked}>{text('save')}</Button><Button disabled={blocked} onClick={onCancel}>{t('tenant.cancel')}</Button></div>
+    <div className="flex flex-wrap gap-3"><Button variant="primary" type="submit" disabled={blocked}>{text('save')}</Button><Button disabled={blocked} onClick={onCancel}>{t('tenant.cancel')}</Button></div>
   </form>
 }
 

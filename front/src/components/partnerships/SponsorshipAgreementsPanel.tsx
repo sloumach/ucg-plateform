@@ -34,7 +34,7 @@ export function SponsorshipAgreementsPanel({ active, sponsor, disabled, onInvali
     <h4 className="font-bold">{text('title')}</h4>
     <p className="text-sm text-slate-400">{text('hint')}</p>
     {mutation.feedback}
-    <form aria-label={text('search')} className="grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
+    <form aria-label={text('search')} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
       event.preventDefault(); const data = new FormData(event.currentTarget); setQuery(String(data.get('q') ?? '').trim()); setStatus(String(data.get('status') ?? '')); setPage(1); setSelected(null); setCreating(false)
     }}>
       <FormField name="q" label={text('search')} maxLength={80} disabled={blocked} />
@@ -44,8 +44,8 @@ export function SponsorshipAgreementsPanel({ active, sponsor, disabled, onInvali
     {writable && <Button disabled={blocked} onClick={() => { setCreating(true); setSelected(null) }}>{text('new')}</Button>}
     {loading && <p role="status">{text('loading')}</p>}
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-    {list?.data.length === 0 && <p>{text('empty')}</p>}
-    <ul className="grid min-w-0 gap-3">{list?.data.map((agreement) => <li key={agreement.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
+    {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+    <ul className="grid min-w-0 gap-3">{list?.data.map((agreement) => <li key={agreement.id} className="ui-card grid min-w-0 gap-2 p-3">
       <p className="font-bold [overflow-wrap:anywhere]">{agreement.reference} · {agreement.title}</p><p>{text('status.' + agreement.status)}</p>
       <p>{agreement.starts_on} → {agreement.ends_on}</p>
       <Button disabled={blocked} onClick={() => { setCreating(false); setSelected(agreement.id) }}>{text('details')}</Button>
@@ -65,7 +65,7 @@ function AgreementDetails({ active, sponsor, path, refresh, disabled, onInvalid,
   const writable = sponsor.status !== 'archived' && permissions.includes('partnerships.write')
   const editable = writable && !!record && ['draft', 'approved'].includes(record.status)
   const validate = writable && permissions.includes('partnerships.validate')
-  return <section aria-label={text('details')} className="grid min-w-0 gap-4 rounded-xl border border-cyan-400/30 p-4">
+  return <section aria-label={text('details')} className="ui-editor grid min-w-0 gap-4 p-4">
     <Button disabled={blocked} onClick={onClose}>{text('close')}</Button>
     {loading && <p role="status">{text('loading')}</p>}
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
@@ -99,14 +99,14 @@ function AgreementDetails({ active, sponsor, path, refresh, disabled, onInvalid,
 function AgreementForm({ active, sponsor, record, disabled, errors, onSubmit, onCancel, onInvalid }: Props & { record: SponsorshipAgreement | null; errors: Record<string, string[]>; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onCancel: () => void }) {
   const [today] = useState(() => new Date().toLocaleDateString('en-CA'))
   const refs = 'tenants/' + active.context!.organization_id + '/sponsorship-references/'
-  return <form noValidate aria-label={text('save')} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-3" onSubmit={onSubmit}>
+  return <form noValidate aria-label={text('save')} className="ui-editor grid min-w-0 gap-3 p-3" onSubmit={onSubmit}>
     {!record && <FormField name="reference" label={text('reference')} required maxLength={80} disabled={disabled} error={errors.reference?.[0]} />}
     <FormField name="title" label={text('titleField')} defaultValue={record?.title ?? ''} required maxLength={160} disabled={disabled} error={errors.title?.[0]} />
     {(['starts_on', 'ends_on'] as const).map((field) => <FormField key={field} name={field} label={text(field)} defaultValue={record?.[field] ?? today} type="date" required disabled={disabled} error={errors[field]?.[0]} />)}
     <SponsorshipReferenceSelect {...{ active, disabled, onInvalid }} path={refs + 'members'} name="responsible_user_id" title={text('responsible_user_id')} value={String(record?.responsible_user_id ?? active.context!.actor_user_id)} error={errors.responsible_user_id?.[0]} />
     {!record && <SponsorshipReferenceSelect {...{ active, disabled, onInvalid }} optional path={sponsorsPath(active.context!.organization_id, sponsor.id) + '/opportunities'} name="opportunity_id" title={text('opportunity_id')} error={errors.opportunity_id?.[0]} />}
     {active.context!.permissions.includes('administrative.read') && <SponsorshipReferenceSelect {...{ active, disabled, onInvalid }} optional path={refs + 'contracts'} name="contract_id" title={text('contract_id')} value={record?.contract_id ?? ''} error={errors.contract_id?.[0]} />}
-    <div className="flex flex-wrap gap-3"><Button type="submit" disabled={disabled}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{t('tenant.cancel')}</Button></div>
+    <div className="flex flex-wrap gap-3"><Button variant="primary" type="submit" disabled={disabled}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{t('tenant.cancel')}</Button></div>
   </form>
 }
 
@@ -116,7 +116,7 @@ function AgreementHistory({ active, path, disabled, onInvalid }: { active: Activ
   return <section aria-label={text('history')} className="grid min-w-0 gap-3">
     {loading && <p role="status">{text('loading')}</p>}
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-    {list?.data.length === 0 && <p>{text('empty')}</p>}
+    {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
     <ul className="grid min-w-0 gap-2">{list?.data.map((event) => <li key={event.id} className="[overflow-wrap:anywhere]">{text('action.' + event.action)} · {text('status.' + event.to_status)} · {new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short', timeZone: active.context!.timezone }).format(new Date(event.occurred_at))}</li>)}</ul>
     {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={disabled} onPageChange={setPage} />}
   </section>

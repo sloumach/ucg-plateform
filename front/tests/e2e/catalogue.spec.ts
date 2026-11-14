@@ -49,6 +49,7 @@ test('catalogue commun : création, désactivation, carte et confirmation global
     return undefined
   })
   await page.goto('/')
+  await page.getByRole('link', { name: 'Catalogues', exact: true }).click()
   await page.getByRole('button', { name: 'Catalogue commun des jeux' }).click()
   await page.getByRole('button', { name: 'Ajouter une référence' }).click()
   const form = page.getByRole('form', { name: 'Enregistrer la référence' })
@@ -115,6 +116,8 @@ test('jeux tenant : sélection locale et confirmation de l’organisation sur mo
     return undefined
   })
   await page.goto('/')
+  await page.getByRole('link', { name: 'Équipes et jeux', exact: true }).click()
+  await page.getByRole('link', { name: 'Jeux', exact: true }).click()
   await page.getByRole('button', { name: 'Jeux de l’organisation' }).click()
   const panel = page.getByRole('region', { name: 'Jeux de l’organisation', exact: true })
   await panel.getByRole('button', { name: 'Modifier' }).click()

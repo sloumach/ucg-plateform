@@ -58,7 +58,7 @@ test('import CSV : dépôt privé confirmé, mapping, erreurs, création et rapp
     if (path.endsWith('/report')) { await route.fulfill({ headers: { ...headers, 'Content-Type': 'text/csv' }, body: 'line,status,errors,person_id\r\n2,created,,person-uuid\r\n3,invalid,INVALID_CONTACT_EMAIL,\r\n' }); return }
     await route.fulfill({ headers, json: { data, meta, ...(method === 'POST' ? { notification: { type: 'success', message: 'Étape d’import enregistrée.' } } : {}) } })
   })
-  await page.goto('/')
+  await page.goto('/?rubrique=personnes')
   await page.getByRole('button', { name: 'Importer des personnes par CSV' }).click()
   const upload = page.getByRole('form', { name: 'Déposer le CSV privé' })
   const input = upload.getByLabel('Fichier CSV')

@@ -28,7 +28,7 @@ export function AcademyObjectiveForm({ active, cohort, cycle, item, disabled, er
     onSubmit(event, { title: String(data.get('title')), description: String(data.get('description') ?? '') || null, due_on: String(data.get('due_on')), responsible_enrollment_id: mentor,
       ...(item ? { version: item.version, status: String(data.get('status')), change_reason: String(data.get('change_reason')) } : { target_enrollment_id: target || null }) })
   }
-  return <form aria-label={text('saveObjective')} onSubmit={save} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
+  return <form aria-label={text('saveObjective')} onSubmit={save} className="ui-editor grid min-w-0 gap-3 p-3">
     <p>{text('audienceFixed')}</p>
     {read.loading && <p role="status">{text('loading')}</p>}{read.error && <><Alert tone="error" title={read.error.message} /><Button onClick={() => setRetry((value) => value + 1)}>{text('retry')}</Button></>}
     <FormField label={text('title')} name="title" required maxLength={160} defaultValue={item?.title} disabled={blocked} error={errors.title?.[0]} />

@@ -8,9 +8,15 @@ use App\Modules\Tenancy\Domain\Models\OrganizationMembership;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 
 final class EloquentMembershipRepository implements MembershipRepository
 {
+    public function activeAccountIdsQuery(string $organizationId): QueryBuilder
+    {
+        return OrganizationMembership::query()->where('organization_id', $organizationId)->effective(now())->select('user_id')->toBase();
+    }
+
     /** @return \Illuminate\Pagination\LengthAwarePaginator<int, OrganizationMembership> */
     public function activePage(string $organizationId, int $perPage, int $page): \Illuminate\Pagination\LengthAwarePaginator
     {

@@ -27,8 +27,8 @@ export function AcademyPanel(props: Props) {
     const data = new FormData(event.currentTarget), editing = editor !== 'new' ? editor : null
     mutation.propose(event, t('academy.saveCohort'), path + (editing ? '/' + editing.id : ''), { name: String(data.get('name')), ...(editing ? { version: editing.version } : {}) }, !!editing)
   }
-  return <section aria-label={t('academy.title')} className="grid min-w-0 gap-4 rounded-xl border border-slate-700 p-4">
-    <Button disabled={disabled || mutation.blocked} onClick={() => { setOpen((value) => !value); setEditor(null); setSelected(null) }}>{open ? t('academy.close') : t('academy.title')}</Button>
+  return <section aria-label={t('academy.title')} className="ui-panel grid min-w-0 gap-4 p-4">
+    <Button disabled={disabled || mutation.blocked} aria-expanded={open} onClick={() => { setOpen((value) => !value); setEditor(null); setSelected(null) }}>{open ? t('academy.close') : t('academy.title')}</Button>
     {open && <>
       <p className="text-sm text-slate-400">{t('academy.hint')}</p>
       {read.loading && <p role="status">{t('academy.loading')}</p>}
@@ -36,7 +36,7 @@ export function AcademyPanel(props: Props) {
       {mutation.feedback}
       {manage && !props.limited && <Button disabled={blocked} onClick={() => { setEditor('new'); setSelected(null) }}>{t('academy.createCohort')}</Button>}
       {read.result?.data.length === 0 && <p>{t('academy.empty')}</p>}
-      <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{read.result?.data.map((cohort) => <li key={cohort.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3 [overflow-wrap:anywhere]">
+      <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{read.result?.data.map((cohort) => <li key={cohort.id} className="ui-card grid min-w-0 gap-2 p-3 [overflow-wrap:anywhere]">
         <h3 className="font-bold">{cohort.name}</h3><p>{t(cohort.status === 'active' ? 'academy.active' : 'academy.archived')}</p>
         <Button disabled={blocked} onClick={() => { setSelected(cohort); setEditor(null) }}>{t('academy.details')} {cohort.name}</Button>
         {manage && cohort.status === 'active' && <>

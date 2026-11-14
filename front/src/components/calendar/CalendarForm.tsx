@@ -56,7 +56,7 @@ export function CalendarForm({ active, root, item, disabled, onInvalid, errors, 
   return <form noValidate aria-label={text('save')} onSubmit={submit} onChange={(event) => {
     const name = event.target.name
     if (!['conflict_reason', 'confirm_conflicts'].includes(name)) invalidate()
-  }} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-3">
+  }} className="ui-editor grid min-w-0 gap-3 p-3">
     {review.error && <Alert tone="error" title={review.error.message} requestId={review.error.requestId} />}
     <FormField name="title" label={text('name')} defaultValue={item?.title ?? ''} required maxLength={160} disabled={disabled} error={fieldErrors.title?.[0]} />
     <SelectField name="kind" title={text('kind')} defaultValue={item?.kind ?? 'training'} disabled={disabled} error={fieldErrors.kind?.[0]}>{calendarKinds.map((kind) => <option key={kind} value={kind}>{text('kind.' + kind)}</option>)}</SelectField>
@@ -64,7 +64,7 @@ export function CalendarForm({ active, root, item, disabled, onInvalid, errors, 
       <label htmlFor={id}>{text('description')}</label>
       <textarea id={id} name="description" defaultValue={item?.description ?? ''} maxLength={4000} rows={4} disabled={disabled}
         aria-invalid={errors.description ? true : undefined} aria-describedby={errors.description ? id + '-error' : undefined}
-        className="min-w-0 w-full rounded-xl border border-white/15 bg-slate-900 px-4 py-3" />
+        className="ui-input" />
       {errors.description && <p id={id + '-error'} className="text-sm text-rose-200">{errors.description[0]}</p>}
     </div>
     <FormField name="origin_timezone" label={text('originTimezone')} value={timezone} disabled={disabled} required error={fieldErrors.origin_timezone?.[0]} onChange={(event) => { setTimezone(event.target.value); setStartChoice(''); setEndChoice('') }} />

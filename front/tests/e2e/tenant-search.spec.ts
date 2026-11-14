@@ -26,7 +26,7 @@ test('recherche tenant : suggestions, pagination, filtres et lecture mobile', as
     }
     await route.fulfill({ status: 200, headers, contentType: 'application/json', body: JSON.stringify({ data, meta: { request_id: 'rep003-e2e', current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 0, can_manage: false } }) })
   })
-  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/?rubrique=suivi&outil=recherche')
   const panel = page.getByRole('region', { name: 'Rechercher dans l’organisation', exact: true })
   await panel.getByRole('button', { name: 'Ouvrir la recherche' }).click(); expect(searches).toBe(0)
   const input = panel.getByLabel('Texte à rechercher'); await input.fill('Al')

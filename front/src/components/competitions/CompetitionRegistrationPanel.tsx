@@ -27,11 +27,11 @@ export function CompetitionRegistrationPanel({ active, root, item, disabled, onI
   }, [path, active.revision, allowed, onInvalid, refresh])
   const mutation = usePeopleMutation<CompetitionRegistration>(active, () => { setEditing(false); setHistory(false); setRefresh((n) => n + 1) }, onInvalid), blocked = disabled || mutation.blocked
   if (!allowed) return null
-  return <section aria-label={text('panel')} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-3"><h3 className="font-bold [overflow-wrap:anywhere]">{text('panel')} · {item.name}</h3>
+  return <section aria-label={text('panel')} className="ui-editor grid min-w-0 gap-3 p-3"><h3 className="font-bold [overflow-wrap:anywhere]">{text('panel')} · {item.name}</h3>
     <p className="text-sm text-slate-400">{text('hint')}</p><Button disabled={blocked} onClick={onClose}>{text('close')}</Button>{mutation.feedback}
     {!loaded && !error && <p role="status">{text('loading')}</p>}{error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
     <Button disabled={blocked} onClick={() => { setEditing(false); setRefresh((n) => n + 1) }}>{text('refresh')}</Button>
-    {loaded && !record && <p>{text('empty')}</p>}
+    {loaded && !record && <p className="ui-state text-sm">{text('empty')}</p>}
     {record && <><RegistrationView payload={record.payload} zone={active.context!.timezone} /><p>{text('pending')} : {record.summary.pending} · {text('dueSoon')} : {record.summary.due_soon} · {text('overdue')} : {record.summary.overdue}</p></>}
     {loaded && writable && !editing && <Button disabled={blocked} onClick={() => { setHistory(false); setEditing(true) }}>{text('edit')}</Button>}
     {editing && loaded && writable && <CompetitionRegistrationForm key={record?.version ?? 'new'} {...{ active, path, record, onInvalid }} disabled={blocked} errors={mutation.errors(path)} onCancel={() => setEditing(false)} onSubmit={(event, body) => mutation.propose(event, text('save'), path, { ...body, competition_version: item.version }, true)} />}
@@ -48,7 +48,7 @@ function RegistrationView({ payload, zone }: { payload: RegistrationPayload; zon
     {payload.notes && <p className="whitespace-pre-wrap">{payload.notes}</p>}<p className="text-sm text-slate-400">{text('declarative')}</p>
     {(['age', 'residence', 'rank'] as const).map((key) => <p key={key}>{text('requirement.' + key)} : {payload.requirements[key] || text('unspecified')}</p>)}
     <h4 className="font-bold">{text('roster')}</h4><ol>{payload.roster.map((p) => <li key={p.person_id}>{p.label} · {text(p.role)}</li>)}</ol>
-    <h4 className="font-bold">{text('items')}</h4><ol className="grid min-w-0 gap-3">{payload.items.map((entry) => <li key={entry.id} className="grid min-w-0 gap-2 rounded-lg border border-slate-700 p-3"><h5 className="font-bold">{entry.title}</h5><p>{text('kind.' + entry.kind)} · {text('state.' + entry.status)}</p><p>{text('responsible')} : {entry.responsible_label || text('unassigned')}</p><p>{text('due')} : {entry.due_at ? calendarDate(entry.due_at, zone) : text('unspecified')}</p>{entry.note && <p className="whitespace-pre-wrap">{entry.note}</p>}{entry.document_version_id && <p>{text('linkedVersion')}</p>}</li>)}</ol>
+    <h4 className="font-bold">{text('items')}</h4><ol className="grid min-w-0 gap-3">{payload.items.map((entry) => <li key={entry.id} className="ui-card grid min-w-0 gap-2 p-3"><h5 className="font-bold">{entry.title}</h5><p>{text('kind.' + entry.kind)} · {text('state.' + entry.status)}</p><p>{text('responsible')} : {entry.responsible_label || text('unassigned')}</p><p>{text('due')} : {entry.due_at ? calendarDate(entry.due_at, zone) : text('unspecified')}</p>{entry.note && <p className="whitespace-pre-wrap">{entry.note}</p>}{entry.document_version_id && <p>{text('linkedVersion')}</p>}</li>)}</ol>
   </div>
 }
 function RegistrationHistory({ active, path, disabled, onInvalid }: { active: ActiveOrganization; path: string; disabled: boolean; onInvalid: () => void }) {

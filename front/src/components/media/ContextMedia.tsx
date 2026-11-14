@@ -14,12 +14,12 @@ export function ContextMedia({ active, type, id, disabled, onInvalid }: { active
   const { list, loading, error } = usePartnershipList<MediaItem>(path, active, open && allowed, onInvalid, refresh)
   if (!allowed) return null
   return <div className="grid min-w-0 gap-3">
-    <Button disabled={disabled} onClick={() => setOpen(!open)}>{text(open ? 'closeContextMedia' : 'openContextMedia')}</Button>
-    {open && <section aria-label={text('contextMedia')} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
+    <Button disabled={disabled} aria-expanded={open} onClick={() => setOpen(!open)}>{text(open ? 'closeContextMedia' : 'openContextMedia')}</Button>
+    {open && <section aria-label={text('contextMedia')} className="ui-panel grid min-w-0 gap-3 p-3">
       <h4 className="font-bold">{text('contextMedia')}</h4><p className="text-sm text-slate-400">{text('manual')}</p>
       <Button disabled={disabled || loading} onClick={() => setRefresh((value) => value + 1)}>{text('refresh')}</Button>
       {loading && <p role="status">{text('loading')}</p>}{error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-      {list?.data.length === 0 && <p>{text('empty')}</p>}
+      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
       <ul className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="grid min-w-0 gap-1 border-b border-slate-700 pb-2">
         <p className="font-bold [overflow-wrap:anywhere]">{item.title}</p><p>{text('kind.' + item.kind)} · {text('status.' + item.status)} · {text('visibility.' + item.effective_visibility)}</p>
         <p className="text-sm text-slate-400">{text('observed')} : {new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short', timeZone: active.context!.timezone }).format(new Date(item.status_observed_at))}</p>

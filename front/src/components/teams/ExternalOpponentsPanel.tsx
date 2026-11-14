@@ -50,15 +50,15 @@ export function ExternalOpponentsPanel({ active, disabled, onInvalid }: Props) {
     setFilters(Object.fromEntries([...new FormData(event.currentTarget)].filter(([, value]) => value !== '').map(([key, value]) => [key, String(value)])))
     setPage(1)
   }
-  return <section aria-label={text('title')} className="grid min-w-0 gap-4 rounded-xl border border-slate-700 p-4">
-    <Button disabled={disabled || mutation.blocked} onClick={() => setOpen((value) => !value)}>{open ? text('close') : text('title')}</Button>
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4">
+    <Button disabled={disabled || mutation.blocked} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? text('close') : text('title')}</Button>
     {open && <>
       <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('private')}</p>
       {!canManage && <p>{text('readOnly')}</p>}
       {loading && <p role="status">{text('loading')}</p>}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
       {mutation.feedback}
-      <form aria-label={text('search')} onSubmit={filter} className="grid min-w-0 gap-3 sm:grid-cols-2">
+      <form aria-label={text('search')} onSubmit={filter} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2">
         <FormField name="q" label={text('q')} maxLength={80} disabled={blocked} />
         <SelectField name="kind" title={text('kind')} disabled={blocked}><option value="">{text('all')}</option>{opponentKinds.map((kind) => <option key={kind} value={kind}>{text('kind.' + kind)}</option>)}</SelectField>
         <SelectField name="status" title={text('status')} disabled={blocked}><option value="">{text('all')}</option>{(['active', 'archived'] as const).map((status) => <option key={status} value={status}>{text('status.' + status)}</option>)}</SelectField>
@@ -66,9 +66,9 @@ export function ExternalOpponentsPanel({ active, disabled, onInvalid }: Props) {
         <SelectField name="sort" title={text('sort')} disabled={blocked}><option value="name">{text('sort.name')}</option><option value="newest">{text('sort.newest')}</option></SelectField>
         <Button type="submit" disabled={blocked}>{text('search')}</Button>
       </form>
-      {canManage && <Button disabled={blocked} onClick={() => { setHistory(null); setEditor('new') }}>{text('create')}</Button>}
-      {list?.data.length === 0 && <p>{text('empty')}</p>}
-      {list && <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{list.data.map((opponent) => <li key={opponent.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
+      {canManage && <Button variant="primary" disabled={blocked} onClick={() => { setHistory(null); setEditor('new') }}>{text('create')}</Button>}
+      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      {list && <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{list.data.map((opponent) => <li key={opponent.id} className="ui-card grid min-w-0 gap-2 p-3">
         <h3 className="font-bold [overflow-wrap:anywhere]">{opponent.name}</h3>
         <p className="[overflow-wrap:anywhere]">{text('kind.' + opponent.kind)} · {text('status.' + opponent.status)}{opponent.game_name && ' · ' + opponent.game_name}</p>
         {opponent.organization_name && <p className="[overflow-wrap:anywhere]">{text('organization_name')} : {opponent.organization_name}</p>}
@@ -108,7 +108,7 @@ function OpponentForm({ opponent, games, disabled, errors, onSubmit, onCancel }:
   opponent: ExternalOpponent | null; games: OrganizationGame[]; disabled: boolean; errors: Record<string, string[]>
   onSubmit: (event: FormEvent<HTMLFormElement>) => void; onCancel: () => void
 }) {
-  return <form noValidate aria-label={text('save')} onSubmit={onSubmit} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-4 sm:grid-cols-2">
+  return <form noValidate aria-label={text('save')} onSubmit={onSubmit} className="ui-editor grid min-w-0 gap-3 p-4 sm:grid-cols-2">
     {opponent ? <p className="sm:col-span-2 [overflow-wrap:anywhere]">{opponent.key} · {text('kind.' + opponent.kind)}. {text('stable')}</p> : <>
       <FormField name="key" label={text('key')} required maxLength={80} disabled={disabled} error={errors.key?.[0]} />
       <SelectField name="kind" title={text('kind')} defaultValue="team" disabled={disabled} error={errors.kind?.[0]}>{opponentKinds.map((kind) => <option key={kind} value={kind}>{text('kind.' + kind)}</option>)}</SelectField>
@@ -121,7 +121,7 @@ function OpponentForm({ opponent, games, disabled, errors, onSubmit, onCancel }:
     <FormField name="source_url" label={text('source_url')} defaultValue={opponent?.source_url ?? ''} type="url" maxLength={1000} disabled={disabled} error={errors.source_url?.[0]} />
     <FormField name="observed_at" label={text('observed_at')} type="datetime-local" step="1" defaultValue={localDate(opponent?.observed_at)} required disabled={disabled} error={errors.observed_at?.[0]} />
     <PublicConsent disabled={disabled} error={errors.confirm_public_data?.[0]} />
-    <div className="flex flex-wrap gap-3 sm:col-span-2"><Button type="submit" disabled={disabled}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{t('tenant.cancel')}</Button></div>
+    <div className="flex flex-wrap gap-3 sm:col-span-2"><Button variant="primary" type="submit" disabled={disabled}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{t('tenant.cancel')}</Button></div>
   </form>
 }
 
@@ -149,7 +149,7 @@ function OpponentHistory({ active, opponent, disabled, onInvalid, onClose }: Pro
   }, [path, revision, page, refresh, onInvalid])
   const blocked = disabled || loading || mutation.blocked
   const errors = mutation.errors(path)
-  return <section aria-label={text('history')} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-4">
+  return <section aria-label={text('history')} className="ui-panel grid min-w-0 gap-3 p-4">
     <h3 className="font-bold [overflow-wrap:anywhere]">{text('history')} · {opponent.name}</h3>
     <Button disabled={disabled || mutation.blocked} onClick={onClose}>{text('closeHistory')}</Button>
     {loading && <p role="status">{text('loading')}</p>}
@@ -166,7 +166,7 @@ function OpponentHistory({ active, opponent, disabled, onInvalid, onClose }: Pro
       <Button type="submit" disabled={blocked}>{text('capture')}</Button>
     </form>}
     {list?.data.length === 0 && <p>{text('noSnapshots')}</p>}
-    {list && <ul className="grid min-w-0 gap-3">{list.data.map((snapshot) => <li key={snapshot.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
+    {list && <ul className="grid min-w-0 gap-3">{list.data.map((snapshot) => <li key={snapshot.id} className="ui-card grid min-w-0 gap-2 p-3">
       <h4 className="font-bold [overflow-wrap:anywhere]">{snapshot.context_label} · {snapshot.name}</h4>
       <p className="[overflow-wrap:anywhere]">{text('kind.' + snapshot.kind)}{snapshot.game_name && ' · ' + snapshot.game_name}</p>
       {snapshot.organization_name && <p className="[overflow-wrap:anywhere]">{snapshot.organization_name}</p>}

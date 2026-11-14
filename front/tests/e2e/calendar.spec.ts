@@ -49,7 +49,7 @@ test('calendrier : fuseaux, heure répétée, participants et annulation sur mob
       body: JSON.stringify({ data, meta: { current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 0 },
         calendar: { viewer_timezone: 'Europe/Paris', display_timezone: url.searchParams.get('timezone') || 'Europe/Paris', from_utc: '2026-10-24T22:00:00+00:00', to_utc: '2026-10-25T23:00:00+00:00' } }) })
   })
-  await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/')
+  await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/?rubrique=calendrier')
   const panel = page.getByRole('region', { name: 'Calendrier des activités' })
   await panel.getByRole('button', { name: 'Ouvrir le calendrier' }).click()
   await expect(panel.getByText('Aucune activité accessible dans cette période.')).toBeVisible()

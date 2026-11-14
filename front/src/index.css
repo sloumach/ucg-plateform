@@ -1,13 +1,22 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-sans: Inter, 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
+  --color-canvas: #080e1a;
+  --color-surface: #101a2a;
+  --color-raised: #162337;
+  --color-field: #0b1423;
+  --color-outline: #2d4059;
+  --color-control: #536880;
+  --color-accent: #67e8f9;
+  --color-muted: #a7b8cc;
 }
 
 :root {
   font-family: var(--font-sans);
   color: #f8fafc;
-  background: #020617;
+  background: var(--color-canvas);
+  color-scheme: dark;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -18,4 +27,142 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+}
+
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+  }
+
+  :where(button, a, input[type='checkbox'], input[type='radio']) {
+    touch-action: manipulation;
+  }
+
+  :where(input[type='checkbox'], input[type='radio'], progress) {
+    accent-color: var(--color-accent);
+  }
+
+  :where(input, select, textarea) {
+    min-width: 0;
+    max-width: 100%;
+    font-size: 1rem;
+  }
+
+  :where(textarea:not([rows])) {
+    min-height: 6rem;
+  }
+
+  :where(textarea) {
+    resize: vertical;
+  }
+
+  :where(a[href]:not([class])) {
+    color: var(--color-accent);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+}
+
+@layer components {
+  .workspace-header {
+    border-bottom: 1px solid var(--color-outline);
+    background: var(--color-canvas);
+  }
+
+  .workspace-sidebar {
+    border-color: var(--color-outline);
+    background: var(--color-surface);
+  }
+
+  .workspace-nav-link {
+    display: block;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid transparent;
+    border-radius: 0.6rem;
+    color: var(--color-muted);
+    font-size: 0.875rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  .workspace-nav-link:hover {
+    background: var(--color-raised);
+    color: white;
+  }
+
+  .workspace-nav-link[aria-current='page'] {
+    border-color: #36768b;
+    background: #143346;
+    color: #cffafe;
+  }
+
+  .auth-background {
+    background: radial-gradient(ellipse at 50% 0%, #15283c, transparent 70%), var(--color-canvas);
+  }
+
+  .auth-card,
+  .ui-panel {
+    min-width: 0;
+    border: 1px solid var(--color-outline);
+    border-radius: 1rem;
+    background: var(--color-surface);
+    overflow-wrap: anywhere;
+  }
+
+  .auth-card {
+    box-shadow: 0 18px 60px #03071180;
+  }
+
+  .ui-card,
+  .ui-editor {
+    min-width: 0;
+    border: 1px solid var(--color-outline);
+    border-radius: 0.75rem;
+    background: var(--color-raised);
+    overflow-wrap: anywhere;
+  }
+
+  .ui-filters {
+    min-width: 0;
+    border: 1px solid var(--color-outline);
+    border-radius: 0.75rem;
+    background: var(--color-field);
+    padding: clamp(0.75rem, 2vw, 1rem);
+  }
+
+  .ui-editor {
+    border-color: #3c6380;
+    background: var(--color-field);
+  }
+
+  .ui-input {
+    min-width: 0;
+    width: 100%;
+    border: 1px solid var(--color-control);
+    border-radius: 0.6rem;
+    background: var(--color-field);
+    padding: 0.65rem 0.8rem;
+    color: #f8fafc;
+  }
+
+  .ui-input[aria-invalid='true'] {
+    border-color: #fb7185;
+  }
+
+  .ui-input:disabled {
+    opacity: 0.65;
+  }
+
+  .ui-input::placeholder {
+    color: var(--color-muted);
+  }
+
+  .ui-state {
+    border: 1px dashed var(--color-control);
+    border-radius: 0.75rem;
+    background: var(--color-field);
+    padding: 1rem;
+    color: var(--color-muted);
+  }
 }

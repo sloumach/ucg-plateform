@@ -41,7 +41,7 @@ export function MatchForm({ active, root, item, disabled, onInvalid, errors, onC
     if (visibility !== 'private' && data.has('confirm_sharing')) body.confirm_sharing = true
     onSubmit(event, body)
   }
-  return <form noValidate aria-label={text('save')} onSubmit={submit} className="grid min-w-0 gap-3 rounded-xl border border-cyan-400/30 p-3">
+  return <form noValidate aria-label={text('save')} onSubmit={submit} className="ui-editor grid min-w-0 gap-3 p-3">
     <FormField name="title" label={text('name')} defaultValue={item?.title ?? ''} required maxLength={160} disabled={disabled} error={errors.title?.[0]} />
     <MatchReferenceSelect {...{ active, root, onInvalid }} name="game_id" type="game" title={text('game')} value={game?.id ?? ''} label={game?.label} load={!item} disabled={disabled || Boolean(item)}
       onChange={(next) => { setGame(next); setParticipants([]) }} error={errors.game_id?.[0]} />
@@ -63,6 +63,6 @@ export function MatchForm({ active, root, item, disabled, onInvalid, errors, onC
       {(['private', 'team', 'organization'] as const).filter((value) => canPublish || value === 'private' || value === item?.visibility).map((value) => <option key={value} value={value}>{text('visibility.' + value)}</option>)}
     </SelectField>
     {visibility !== 'private' && <FormField name="confirm_sharing" label={text('confirmSharing')} type="checkbox" disabled={disabled || !canPublish} error={errors.confirm_sharing?.[0]} />}
-    <div className="flex flex-wrap gap-3"><Button type="submit" disabled={disabled || !startInstant || !endInstant}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{text('cancel')}</Button></div>
+    <div className="flex flex-wrap gap-3"><Button variant="primary" type="submit" disabled={disabled || !startInstant || !endInstant}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{text('cancel')}</Button></div>
   </form>
 }

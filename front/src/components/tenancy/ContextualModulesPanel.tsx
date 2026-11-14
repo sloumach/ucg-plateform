@@ -30,8 +30,8 @@ export function ContextualModulesPanel({ active, disabled, onInvalid }: { active
   }, [active.context, active.revision, open])
   if (!active.context) return null
   const scoped = (prefix: string): ActiveOrganization => ({ ...active, context: { ...active.context!, permissions: [...new Set([...active.context!.permissions, ...(permissions ?? []).filter((key) => prefix === 'games' ? key === 'sports.read' || key === 'games.manage' : key.startsWith(prefix))])] } })
-  return <section aria-label={t('roles.limitedTitle')} className="grid min-w-0 gap-3 rounded-xl border border-white/10 p-4">
-    <Button disabled={disabled} onClick={() => { setPermissions(null); setFailure(null); setOpen((value) => !value) }}>{t('roles.limitedTitle')}</Button>
+  return <section aria-label={t('roles.limitedTitle')} className="ui-panel grid min-w-0 gap-3 p-4">
+    <Button disabled={disabled} aria-expanded={open} onClick={() => { setPermissions(null); setFailure(null); setOpen((value) => !value) }}>{t('roles.limitedTitle')}</Button>
     {open && <>
       <p>{t('roles.limitedHint')}</p>
       {failure && <Alert tone="error" title={failure.message} requestId={failure.requestId} />}

@@ -40,7 +40,7 @@ test('exports privés : confirmation, téléchargement, source modifiée et lect
     }
     await route.fulfill({ status: 200, headers, contentType: 'application/json', body: JSON.stringify({ data, meta: { request_id: 'rep004-e2e', current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 0, can_manage: false }, ...(request.method() === 'POST' ? { notification: { type: 'success', message: 'Export demandé.' } } : {}) }) })
   })
-  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/?rubrique=suivi')
   const dashboard = page.getByRole('region', { name: 'Tableaux de bord par rôle', exact: true })
   await dashboard.getByRole('button', { name: 'Ouvrir les tableaux de bord' }).click()
   const filters = dashboard.getByRole('form', { name: 'Filtres du tableau de bord' })

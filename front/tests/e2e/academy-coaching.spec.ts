@@ -43,7 +43,7 @@ test('académie : objectif individuel, partage, note justifiée et lecture perso
     }
     await route.fulfill({ status: request.method() === 'POST' ? 201 : 200, headers, contentType: 'application/json', body: JSON.stringify({ data, meta: { request_id: 'aca003-browser', current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 0 }, ...(request.method() === 'POST' ? { notification: { type: 'success', message: 'Suivi enregistré.' } } : {}) }) })
   })
-  await page.setViewportSize({ width: 375, height: 900 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 900 }); await page.goto('/?rubrique=academie')
   const academy = page.getByRole('region', { name: 'Académie : cohortes et cycles', exact: true })
   await academy.getByRole('button', { name: 'Académie : cohortes et cycles', exact: true }).click()
   await academy.getByRole('button', { name: 'Consulter Académie pilote' }).click(); await academy.getByRole('button', { name: 'Inscriptions et mentors Automne' }).click()

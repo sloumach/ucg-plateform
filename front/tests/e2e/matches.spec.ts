@@ -54,7 +54,7 @@ test('match privé à trois participants, confirmation, historique et annulation
     await route.fulfill({ status: method === 'POST' && path === root ? 201 : 200, headers, contentType: 'application/json',
       body: JSON.stringify({ data, meta: { current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 0 } }) })
   })
-  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/?rubrique=matchs')
   const panel = page.getByRole('region', { name: 'Scrims et matchs' })
   await expect(panel.getByRole('button', { name: 'Ouvrir les matchs' })).toBeVisible().catch((failure: unknown) => { throw new Error(String(failure) + '; browser errors: ' + JSON.stringify(errors)) }); expect(reads).toBe(0)
   await panel.getByRole('button', { name: 'Ouvrir les matchs' }).click()

@@ -91,7 +91,7 @@ export function PersonLifecyclePanel({ active, person, view, catalogue, disabled
         <p className="text-sm text-slate-400">{lt('periodHint')}</p>
         <p role="status">{lt(data.periods.meta.unavailable_now ? 'unavailable' : 'available')}</p>
         {!closed && permissions.includes('sports.write') && <Button disabled={disabled} onClick={() => { setPeriodEditor(null); setKind('assignment') }}>{lt('addPeriod')}</Button>}
-        {periodEditor !== undefined && !closed && <form noValidate aria-label={lt('savePeriod')} key={periodEditor?.version ?? 'new'} className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-cyan-400/30 p-4 md:grid-cols-2" onSubmit={(event) => {
+        {periodEditor !== undefined && !closed && <form noValidate aria-label={lt('savePeriod')} key={periodEditor?.version ?? 'new'} className="ui-editor grid min-w-0 grid-cols-1 gap-3 p-4 md:grid-cols-2" onSubmit={(event) => {
           departing.current = false
           const values = changedValues(event.currentTarget, periodEditor, ['starts_at', 'ends_at'])
           mutation.propose(event, lt('savePeriod'), periodPath, { ...values, ...(periodEditor ? { version: periodEditor.version } : {}) }, periodEditor !== null)
@@ -106,7 +106,7 @@ export function PersonLifecyclePanel({ active, person, view, catalogue, disabled
           <div className="flex flex-wrap gap-3 md:col-span-2"><Button type="submit" disabled={disabled}>{lt('savePeriod')}</Button><Button disabled={disabled} onClick={() => setPeriodEditor(undefined)}>{t('tenant.cancel')}</Button></div>
         </form>}
         {data.periods.data.length === 0 && <p>{lt('periodEmpty')}</p>}
-        {data.periods.data.map((period) => <article key={period.id} className="grid min-w-0 gap-2 rounded-xl border border-white/10 p-4">
+        {data.periods.data.map((period) => <article key={period.id} className="ui-card grid min-w-0 gap-2 p-4">
           <p className="font-semibold">{lt(period.kind)} · {period.role_key ? lt(period.role_key) : ''} · {lt(period.status)}</p>
           <p className="break-words">{new Date(period.starts_at).toLocaleString('fr')} → {period.ends_at ? new Date(period.ends_at).toLocaleString('fr') : t('tenant.noEnd')}</p>
           {period.effective && <p>{lt('effective')}</p>}
@@ -117,20 +117,20 @@ export function PersonLifecyclePanel({ active, person, view, catalogue, disabled
       {admin && data.items && <section aria-label={lt('items')} className="grid min-w-0 gap-3">
         <h5 className="font-semibold">{lt('items')}</h5><p>{t('lifecycle.pending', { count: data.items.meta.pending_items_count })}</p>
         {permissions.includes('administrative.write') && <Button disabled={disabled} onClick={() => setItemEditor(null)}>{lt('addItem')}</Button>}
-        {itemEditor !== undefined && <form noValidate key={itemEditor?.version ?? 'new'} aria-label={lt('saveItem')} className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-cyan-400/30 p-4 md:grid-cols-2" onSubmit={(event) => {
+        {itemEditor !== undefined && <form noValidate key={itemEditor?.version ?? 'new'} aria-label={lt('saveItem')} className="ui-editor grid min-w-0 grid-cols-1 gap-3 p-4 md:grid-cols-2" onSubmit={(event) => {
           departing.current = false
           const values = changedValues(event.currentTarget, itemEditor, ['due_at'])
           mutation.propose(event, lt('saveItem'), itemPath, { ...values, ...(itemEditor ? { version: itemEditor.version } : {}) }, itemEditor !== null)
         }}>
           {itemEditor ? <p>{lt(itemEditor.kind)}</p> : <SelectField name="kind" title={lt('kind')} disabled={disabled} error={itemErrors.kind?.[0]}><option value="equipment">{lt('equipment')}</option><option value="obligation">{lt('obligation')}</option></SelectField>}
           <FormField name="title" label={lt('itemTitle')} defaultValue={itemEditor?.title ?? ''} required maxLength={120} disabled={disabled} error={itemErrors.title?.[0]} />
-          <div className="grid min-w-0 gap-2 md:col-span-2"><label htmlFor={person.id + '-item-notes'}>{lt('notes')}</label><textarea id={person.id + '-item-notes'} name="notes" defaultValue={itemEditor?.notes ?? ''} maxLength={4000} rows={3} disabled={disabled} aria-invalid={Boolean(itemErrors.notes)} aria-describedby={itemErrors.notes ? person.id + '-notes-error' : undefined} className="min-w-0 w-full rounded-xl border border-white/15 bg-slate-900 p-3" />{itemErrors.notes && <p id={person.id + '-notes-error'} className="text-sm text-rose-200">{itemErrors.notes[0]}</p>}</div>
+          <div className="grid min-w-0 gap-2 md:col-span-2"><label htmlFor={person.id + '-item-notes'}>{lt('notes')}</label><textarea id={person.id + '-item-notes'} name="notes" defaultValue={itemEditor?.notes ?? ''} maxLength={4000} rows={3} disabled={disabled} aria-invalid={Boolean(itemErrors.notes)} aria-describedby={itemErrors.notes ? person.id + '-notes-error' : undefined} className="ui-input" />{itemErrors.notes && <p id={person.id + '-notes-error'} className="text-sm text-rose-200">{itemErrors.notes[0]}</p>}</div>
           <SelectField name="status" title={lt('itemStatus')} defaultValue={itemEditor?.status ?? 'open'} disabled={disabled} error={itemErrors.status?.[0]}>{['open', 'resolved', 'waived'].map((status) => <option key={status} value={status}>{lt(status)}</option>)}</SelectField>
           <FormField name="due_at" label={lt('due_at')} type="datetime-local" step="1" defaultValue={localDate(itemEditor?.due_at)} disabled={disabled} error={itemErrors.due_at?.[0]} />
           <div className="flex flex-wrap gap-3 md:col-span-2"><Button type="submit" disabled={disabled}>{lt('saveItem')}</Button><Button disabled={disabled} onClick={() => setItemEditor(undefined)}>{t('tenant.cancel')}</Button></div>
         </form>}
         {data.items.data.length === 0 && <p>{lt('itemsEmpty')}</p>}
-        {data.items.data.map((item) => <article key={item.id} className="grid min-w-0 gap-2 rounded-xl border border-white/10 p-4">
+        {data.items.data.map((item) => <article key={item.id} className="ui-card grid min-w-0 gap-2 p-4">
           <p className="break-words font-semibold">{item.title} · {lt(item.kind)} · {lt(item.status)}</p><p className="whitespace-pre-wrap break-words">{item.notes}</p>
           {item.due_at && <p>{lt('due_at')} : {new Date(item.due_at).toLocaleString('fr')}</p>}
           {item.completed_at && <p>{lt('completed_at')} : {new Date(item.completed_at).toLocaleString('fr')}</p>}

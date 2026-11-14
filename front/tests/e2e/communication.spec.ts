@@ -59,7 +59,7 @@ test('communications : brouillon ciblé, publication confirmée, réponse, préf
     await route.fulfill({ status: method === 'POST' && path.includes('/announcements') ? 201 : 200, headers, contentType: 'application/json',
       body: JSON.stringify({ data, meta: { current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 0 } }) })
   })
-  await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/')
+  await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/?rubrique=collaboration&outil=communications')
   const panel = page.getByRole('region', { name: 'Annonces et discussions' })
   await panel.getByRole('button', { name: 'Ouvrir les communications' }).click()
   await expect(panel.getByText('Aucune annonce accessible dans cette sélection.')).toBeVisible()

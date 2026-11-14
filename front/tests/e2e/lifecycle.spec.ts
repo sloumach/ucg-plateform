@@ -67,7 +67,7 @@ test('départ : confirmation, périodes clôturées et équipements encore régu
     if (Array.isArray(data)) meta.total = data.length
     await route.fulfill({ status, headers, json: { data, meta, ...(method === 'POST' || method === 'PATCH' ? { notification: { type: 'success', message: 'Suivi enregistré.' } } : {}) } })
   })
-  await page.goto('/')
+  await page.goto('/?rubrique=personnes')
   await page.getByRole('button', { name: 'Ouvrir la fiche Camille' }).click()
   await page.getByRole('button', { name: 'Ajouter une période' }).click()
   const periodForm = page.getByRole('form', { name: 'Enregistrer la période' })
@@ -80,6 +80,7 @@ test('départ : confirmation, périodes clôturées et équipements encore régu
   await itemForm.getByLabel('Libellé administratif').fill('Keyboard')
   await itemForm.getByRole('button', { name: 'Enregistrer l’élément' }).click()
   await page.getByRole('region', { name: 'Confirmer l’action' }).getByRole('button', { name: 'Confirmer et continuer' }).click()
+  await expect(page.getByText('1 élément(s) encore ouvert(s).')).toBeVisible()
   const departForm = page.getByRole('form', { name: 'Départ effectif de l’organisation' })
   await departForm.getByLabel('Motif de départ').selectOption('decision')
   await departForm.getByLabel('Je confirme le départ effectif de cette personne.').check()

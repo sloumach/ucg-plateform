@@ -182,8 +182,7 @@ export function GuestAuthenticationForms({
 function FormHeading({ title, description }: { title: string; description: string }) {
   return (
     <div>
-      <p className="text-sm font-semibold tracking-[0.18em] text-cyan-300 uppercase">{t('auth.secureArea')}</p>
-      <h2 className="mt-3 text-3xl font-black">{title}</h2>
+      <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
       <p className="mt-3 text-sm leading-6 text-slate-400">{description}</p>
     </div>
   )

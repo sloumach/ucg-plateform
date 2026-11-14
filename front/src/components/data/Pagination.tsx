@@ -23,7 +23,7 @@ export function Pagination({
 
   return (
     <nav aria-label={t('pagination.label')}>
-      <ul className="flex flex-wrap items-center justify-center gap-2">
+      <ul className="flex flex-wrap items-center justify-center gap-1.5">
         <li>
           <PaginationButton
             label={t('pagination.previous')}
@@ -90,10 +90,10 @@ function PaginationButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className={`grid min-h-10 min-w-10 place-items-center rounded-lg border px-3 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300 disabled:cursor-not-allowed disabled:opacity-40 ${
+      className={`grid size-11 place-items-center rounded-lg border text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-45 ${
         current
-          ? 'border-cyan-300 bg-cyan-300 text-slate-950'
-          : 'border-white/10 bg-white/[0.04] text-slate-200 hover:bg-white/10'
+          ? 'border-accent bg-accent text-slate-950'
+          : 'border-control bg-field text-slate-200 hover:bg-raised'
       }`}
     >
       {children}

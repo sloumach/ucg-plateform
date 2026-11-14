@@ -38,9 +38,9 @@ export function MatchesPanel({ active, disabled, onInvalid }: Props) {
   const mutation = usePeopleMutation<MatchRecord>(active, () => { setEditor(null); setTransition(null); setHistory(null); setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setRefresh((n) => n + 1) }, onInvalid)
   const blocked = disabled || mutation.blocked
   if (!allowed) return null
-  return <section aria-label={text('title')} className="grid min-w-0 gap-4 rounded-2xl border border-white/10 p-4">
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4">
     <h2 className="text-xl font-bold">{text('title')}</h2><p className="text-sm text-slate-400">{text('hint')}</p>
-    <Button disabled={blocked} onClick={() => { setOpen(!open); setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null) }}>{text(open ? 'close' : 'open')}</Button>
+    <Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>
       {mutation.feedback}
       <p className="text-sm text-amber-200">{text('resultHint')}</p>
@@ -48,23 +48,28 @@ export function MatchesPanel({ active, disabled, onInvalid }: Props) {
         event.preventDefault(); const values = new FormData(event.currentTarget)
         setFilters({ kind: String(values.get('kind') ?? ''), status: String(values.get('status') ?? ''), management: canWrite && values.has('management') })
         setPage(1); setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null)
-      }} className="grid min-w-0 gap-3 sm:grid-cols-2">
+      }} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2">
         <SelectField name="kind" title={text('kind')} disabled={blocked}><option value="">{text('all')}</option><option value="scrim">{text('kind.scrim')}</option><option value="official">{text('kind.official')}</option></SelectField>
         <SelectField name="status" title={text('status')} disabled={blocked}><option value="">{text('all')}</option>{matchStatuses.map((status) => <option key={status} value={status}>{text('status.' + status)}</option>)}</SelectField>
         {canWrite && <FormField name="management" label={text('management')} type="checkbox" disabled={blocked} />}
         <div className="flex flex-wrap gap-3 sm:col-span-2"><Button type="submit" disabled={blocked}>{text('filter')}</Button><Button disabled={blocked || loading} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setRefresh((n) => n + 1) }}>{text('refresh')}</Button></div>
       </form>
       {filters.management && <p className="text-sm text-amber-200">{text('managementHint')}</p>}
-      {canWrite && <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor('new'); setTransition(null); setHistory(null) }}>{text('create')}</Button>}
+      {canWrite && <Button variant="primary" className="justify-self-start" disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor('new'); setTransition(null); setHistory(null) }}>{text('create')}</Button>}
       {loading && <p role="status">{text('loading')}</p>}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-      {list?.data.length === 0 && <p>{text('empty')}</p>}
-      <ol className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
-        <h3 className="font-bold [overflow-wrap:anywhere]">{item.title}</h3>
-        <Button disabled={blocked} onClick={() => { setLive(item); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null) }}>{text('live.title')}</Button>
+      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      <ol className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-2 p-3">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <h3 className="text-lg font-bold wrap-anywhere">{item.title}</h3>
+          <p className="rounded-md bg-field px-2 py-1 text-xs font-medium text-muted">{text('status.' + item.status)} · {text('visibility.' + item.visibility)}</p>
+        </div>
         <p className="[overflow-wrap:anywhere]">{item.game_name} · {text('kind.' + item.kind)} · {text('format.' + item.format)}</p>
-        <p>{text('status.' + item.status)} · {text('visibility.' + item.visibility)}</p>
-        <p className="[overflow-wrap:anywhere]">{calendarDate(item.starts_at, zone)} → {calendarDate(item.ends_at, zone)}</p>
+        <p className="font-semibold text-cyan-100 wrap-anywhere">
+          <time dateTime={item.starts_at}>{calendarDate(item.starts_at, zone)}</time>
+          {' → '}
+          <time dateTime={item.ends_at}>{calendarDate(item.ends_at, zone)}</time>
+        </p>
         <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('origin')} : {item.origin_timezone}</p>
         <p className="[overflow-wrap:anywhere]">{text('responsible')} : {item.responsible_label}</p>
         <ol className="grid min-w-0 gap-2">{item.participants.map((p) => <li key={p.id} className="grid min-w-0 gap-2 [overflow-wrap:anywhere]">
@@ -72,6 +77,7 @@ export function MatchesPanel({ active, disabled, onInvalid }: Props) {
           {p.kind === 'team' && <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups({ item, participant: p }); setEditor(null); setTransition(null); setHistory(null) }}>{text('lineups')} · {p.label}</Button>}
         </li>)}</ol>
         <div className="flex flex-wrap gap-3">
+          <Button disabled={blocked} onClick={() => { setLive(item); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null) }}>{text('live.title')}</Button>
           <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(item); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null) }}>{text('corrections.title')}</Button>
           <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(item); setResults(null); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null) }}>{text('notebook.title')}</Button>
           <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(item); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null) }}>{text('results.title')}</Button>
@@ -117,13 +123,13 @@ export function MatchesPanel({ active, disabled, onInvalid }: Props) {
 function MatchHistory({ active, root, item, management, disabled, onInvalid, onClose }: Props & { root: string; item: MatchRecord; management: boolean; onClose: () => void }) {
   const [page, setPage] = useState(1)
   const { list, loading, error } = usePartnershipList<MatchStatusEvent, Page<MatchStatusEvent>>(root + '/' + item.id + '/history?page=' + page + '&per_page=10' + (management ? '&management=1' : ''), active, true, onInvalid)
-  return <section aria-label={text('history')} className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
+  return <section aria-label={text('history')} className="ui-panel grid min-w-0 gap-3 p-3">
     <h3 className="font-bold [overflow-wrap:anywhere]">{text('history')} · {item.title}</h3>
     <Button disabled={disabled} onClick={onClose}>{text('closeHistory')}</Button>
     {loading && <p role="status">{text('loading')}</p>}
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
     {list?.data.length === 0 && <p>{text('emptyHistory')}</p>}
-    <ol className="grid min-w-0 gap-3">{list?.data.map((event) => <li key={event.id} className="grid min-w-0 gap-1 rounded-lg border border-slate-700 p-3">
+    <ol className="grid min-w-0 gap-3">{list?.data.map((event) => <li key={event.id} className="ui-card grid min-w-0 gap-1 p-3">
       <p>{event.from_status ? text('status.' + event.from_status) : text('initial')} → {text('status.' + event.to_status)}</p>
       <p className="text-sm text-slate-400">{calendarDate(event.occurred_at, active.context!.timezone)}</p>
       {event.reason && <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{event.reason}</p>}

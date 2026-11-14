@@ -40,6 +40,8 @@ import { Pagination } from '../data/Pagination'
 import { Alert } from '../feedback/Alert'
 import { AsyncState } from '../feedback/AsyncState'
 import { useNotifications } from '../feedback/notificationContext'
+import { SectionLinks } from '../layout/SectionLinks'
+import { organizationSections } from './organizationSections'
 
 type Workspace = {
   active: ActiveOrganization
@@ -59,11 +61,44 @@ type Action = {
   revision?: string
 }
 const firstPages: Pages = { organizations: 1, inbox: 1, memberships: 1, invitations: 1 }
-const selectClass = 'rounded-xl border border-white/15 bg-slate-900 px-3 py-3 text-slate-100'
+const selectClass = 'ui-input'
 
-export function TenantWorkspace({ onContextChange }: { onContextChange?: (context: ActiveOrganization['context']) => void }) {
-  const [campaignRefresh, setCampaignRefresh] = useState(0)
-  const refreshCampaignDashboard = useCallback(() => setCampaignRefresh((n) => n + 1), [])
+function organizationUrl(section: string, tool?: string) {
+  const url = new URL(window.location.href)
+  if (section === 'apercu') url.searchParams.delete('rubrique')
+  else url.searchParams.set('rubrique', section)
+  if (tool) url.searchParams.set('outil', tool)
+  else url.searchParams.delete('outil')
+  return url
+}
+
+function requestedSection() {
+  const query = new URLSearchParams(window.location.search)
+  return { section: query.get('rubrique') ?? 'apercu', tool: query.get('outil') }
+}
+
+function sameOrganizationAccess(previous: ActiveOrganization, current: ActiveOrganization) {
+  const before = previous.context
+  const after = current.context
+  if (previous.revision !== current.revision) return false
+  if (!before || !after) return before === after
+  return before.organization_id === after.organization_id
+    && before.actor_user_id === after.actor_user_id
+    && before.membership_id === after.membership_id
+    && before.is_owner === after.is_owner
+    && before.name === after.name
+    && before.slug === after.slug
+    && before.timezone === after.timezone
+    && before.language === after.language
+    && before.roles.length === after.roles.length && before.roles.every((role) => after.roles.includes(role))
+    && before.permissions.length === after.permissions.length && before.permissions.every((permission) => after.permissions.includes(permission))
+}
+
+export function TenantWorkspace({ userId, onContextChange }: {
+  userId: number
+  onContextChange?: (context: ActiveOrganization['context']) => void
+}) {
+  const [requested, setRequested] = useState(requestedSection)
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
   const [pages, setPages] = useState<Pages>(firstPages)
   const [loading, setLoading] = useState(true)
@@ -75,45 +110,80 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
   const readController = useRef<AbortController | null>(null)
   const confirmRegion = useRef<HTMLDivElement>(null)
   const previousFocus = useRef<HTMLElement | null>(null)
+  const sectionTitle = useRef<HTMLHeadingElement>(null)
+  const focusSectionTitle = useRef(false)
   const { notify } = useNotifications()
+  const active = workspace?.active
+  const selected = active?.context
+  const available = organizationSections(selected ?? null)
+  const section = available.find((item) => item.id === requested.section) ?? available[0]
+  const tool = section.tools.find((item) => item.id === requested.tool) ?? section.tools[0]
+  const overview = section.id === 'apercu'
 
-  // A new read discards all tenant data; obsolete responses never repopulate it.
-  const reload = useCallback(async (nextPages: Pages) => {
+  const reload = useCallback(async (nextPages: Pages, background?: { active: ActiveOrganization; refreshLists: boolean }) => {
     const version = ++generation.current
     readController.current?.abort()
     const controller = new AbortController()
     readController.current = controller
-    setWorkspace(null)
-    onContextChange?.(null)
-    setLoading(true)
-    setAction(null)
-    setError(null)
-    setErrorTarget(null)
+    const isCurrent = () => version === generation.current && !controller.signal.aborted
+    function clearWorkspace() {
+      setWorkspace(null)
+      onContextChange?.(null)
+      setAction(null)
+      setError(null)
+      setErrorTarget(null)
+    }
+    if (!background) {
+      clearWorkspace()
+      setLoading(true)
+    }
+    const fetchSelection = () => tenancyRequest<ApiSuccessResponse<ActiveOrganization>>('active-organization', { signal: controller.signal })
+    const fetchLists = () => Promise.all([
+      tenancyRequest<Page<AccessibleOrganization>>('accessible-organizations?per_page=10&page=' + nextPages.organizations, { signal: controller.signal }),
+      tenancyRequest<Page<Invitation>>('my-invitations?per_page=10&page=' + nextPages.inbox, { signal: controller.signal }),
+    ])
     try {
-      const [selection, organizations, inbox] = await Promise.all([
-        tenancyRequest<ApiSuccessResponse<ActiveOrganization>>('active-organization', { signal: controller.signal }),
-        tenancyRequest<Page<AccessibleOrganization>>('accessible-organizations?per_page=10&page=' + nextPages.organizations, { signal: controller.signal }),
-        tenancyRequest<Page<Invitation>>('my-invitations?per_page=10&page=' + nextPages.inbox, { signal: controller.signal }),
-      ])
-      const active = selection.data
+      const [selection, lists] = await Promise.all([fetchSelection(), background ? null : fetchLists()])
+      if (!isCurrent()) return
+      if (selection.data.context && selection.data.context.actor_user_id !== userId) {
+        clearWorkspace()
+        return
+      }
+      const unchanged = background !== undefined && sameOrganizationAccess(background.active, selection.data)
+      let active = selection.data
+      // Preserve the context object so unchanged access does not restart child reads or reset editors.
+      if (unchanged) {
+        active = background.active.confirmed === active.confirmed ? background.active : { ...background.active, confirmed: active.confirmed }
+      }
+      if (unchanged && !background.refreshLists) {
+        setWorkspace((current) => current && current.active.confirmed !== active.confirmed ? { ...current, active } : current)
+        return
+      }
+      if (background && !unchanged) {
+        clearWorkspace()
+        setLoading(true)
+      }
+      const [organizations, inbox] = lists ?? await fetchLists()
+      if (!isCurrent()) return
       const options = { signal: controller.signal, revision: active.revision ?? undefined }
       const prefix = 'tenants/' + active.context?.organization_id
       const [memberships, invitations] = await Promise.all([
         active.context?.permissions.includes('memberships.manage') ? tenancyRequest<Page<Membership>>(prefix + '/memberships?per_page=10&page=' + nextPages.memberships, options) : null,
         active.context?.permissions.includes('invitations.manage') ? tenancyRequest<Page<Invitation>>(prefix + '/invitations?per_page=10&page=' + nextPages.invitations, options) : null,
       ])
-      if (version !== generation.current || controller.signal.aborted) return
+      if (!isCurrent()) return
       setWorkspace({ active, organizations, inbox, memberships, invitations })
-      onContextChange?.(active.context)
+      if (!unchanged) onContextChange?.(active.context)
       if (selection.notification) notify(selection.notification)
     } catch (failure) {
-      if (version === generation.current && !isAbortError(failure) && !controller.signal.aborted) {
+      if (isCurrent() && !isAbortError(failure)) {
+        clearWorkspace()
         setError(asApiError(failure))
       }
     } finally {
-      if (version === generation.current && !controller.signal.aborted) setLoading(false)
+      if (isCurrent()) setLoading(false)
     }
-  }, [notify, onContextChange])
+  }, [notify, onContextChange, userId])
 
   const cancelReads = useCallback(() => {
     generation.current++
@@ -131,11 +201,14 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
 
   useEffect(() => {
     function onFocus() {
-      if (!busy) void reload(pages)
+      if (busy || loading) return
+      // Object-scoped access can change independently of the organization snapshot.
+      const scopedView = tool?.id === 'equipes-autorisees' || tool?.id === 'acces-limites'
+      void reload(pages, active && !scopedView ? { active, refreshLists: overview } : undefined)
     }
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
-  }, [busy, pages, reload])
+  }, [active, busy, loading, overview, pages, reload, tool?.id])
 
   useEffect(() => {
     if (action) {
@@ -145,6 +218,22 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
       previousFocus.current?.focus()
     }
   }, [action])
+
+  useEffect(() => {
+    const onHistoryChange = () => {
+      focusSectionTitle.current = true
+      setRequested(requestedSection())
+    }
+    window.addEventListener('popstate', onHistoryChange)
+    return () => window.removeEventListener('popstate', onHistoryChange)
+  }, [])
+
+  function navigate(next: string, tool?: string) {
+    if (action || busy) return
+    window.history.pushState(null, '', organizationUrl(next, tool))
+    focusSectionTitle.current = true
+    setRequested(requestedSection())
+  }
 
   function cancelAction() {
     setAction(null)
@@ -160,8 +249,13 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
     readController.current?.abort()
     try {
       await tenancyRequest<ApiSuccessResponse<ActiveOrganization>>('active-organization', { method: 'POST', body: { organization_id: id } })
+      if (requested.section !== 'apercu' || requested.tool) {
+        window.history.replaceState(null, '', organizationUrl('apercu'))
+        setRequested(requestedSection())
+      }
       setPages(firstPages)
       await reload(firstPages)
+      sectionTitle.current?.focus()
     } catch (failure) {
       setError(asApiError(failure))
       setLoading(false)
@@ -221,21 +315,46 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
 
   const invalidatePeopleContext = useCallback(() => { void reload(pages) }, [reload, pages])
 
-  const active = workspace?.active
-  const selected = active?.context
   const ownMembership = selected?.membership_id
   const disabled = loading || busy || action !== null
 
+  useEffect(() => {
+    if (focusSectionTitle.current) {
+      sectionTitle.current?.focus()
+      focusSectionTitle.current = false
+    }
+  }, [requested])
+
   return (
-    <section className="grid gap-6 border-t border-white/10 py-8" aria-labelledby="tenant-title" aria-busy={loading || busy}>
+    <section className="mt-5 grid min-w-0 gap-5" aria-labelledby="tenant-title" aria-busy={loading || busy}>
+      {selected && (
+        <SectionLinks
+          label={t('tenant.sections.navigation')}
+          links={available.map(({ id, label }) => ({ id, label: t(label), href: organizationUrl(id).href }))}
+          current={section.id}
+          onNavigate={navigate}
+        />
+      )}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 id="tenant-title" className="text-2xl font-bold">{t('tenant.title')}</h2>
-        <Button disabled={busy || loading} onClick={() => void reload(pages)}>{t('tenant.refresh')}</Button>
+        <h2 id="tenant-title" ref={sectionTitle} tabIndex={-1} className="scroll-mt-36 text-xl font-bold sm:text-2xl">
+          {t(overview ? 'tenant.title' : section.label)}
+        </h2>
+        {overview && <Button disabled={disabled} onClick={() => void reload(pages)}>{t('tenant.refresh')}</Button>}
       </div>
-      <p role="status" className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 p-4 font-semibold">
-        {selected ? t('tenant.active', { name: selected.name }) : t('tenant.none')}
-        {selected && <span className="ml-3 text-sm text-cyan-200">{roleNames(selected.roles)}</span>}
-      </p>
+      {section.tools.length > 1 && tool && (
+        <SectionLinks
+          label={t('workspace.tools')}
+          links={section.tools.map(({ id, label }) => ({ id, label: t(label), href: organizationUrl(section.id, id).href }))}
+          current={tool.id}
+          onNavigate={(id) => navigate(section.id, id)}
+        />
+      )}
+      {overview && selected && (
+        <div role="status" className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3">
+          <p className="font-semibold wrap-anywhere">{t('tenant.active', { name: selected.name })}</p>
+          <p className="rounded-md bg-cyan-300/10 px-2 py-1 text-xs font-medium text-cyan-100">{roleNames(selected.roles)}</p>
+        </div>
+      )}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
       {loading && <AsyncState variant="loading" title={t('tenant.loading')} />}
       {action && (
@@ -250,62 +369,80 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
       )}
       {workspace && (
         <>
-          {selected && <ScopedTeamsPanel key={'team-scopes:' + selected.organization_id + ':' + workspace.active.revision} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
-          {selected && <ContextualModulesPanel key={'scoped:' + selected.organization_id + ':' + workspace.active.revision} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
-          {selected && <RoleManagementPanel key={selected.organization_id} active={workspace.active} disabled={disabled} onChanged={() => void reload(pages)} />}
-          {selected?.permissions.some((permission) => ['sports.read', 'administrative.read'].includes(permission)) && <Suspense fallback={<p>{t('search.loading')}</p>}><TenantSearchPanel active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
-          {selected?.permissions.some((permission) => permission.startsWith('reporting.')) && <Suspense fallback={<p>{t('dashboards.loading')}</p>}><DashboardPanel active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
-          {selected && <PeoplePanel key={selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
-          {selected && <OrganizationGamesPanel key={'games:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
-          {selected && <TeamsPanel key={'teams:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
-          {selected && <ExternalOpponentsPanel key={'opponents:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
-          {selected && <SensitiveAccessPanel key={'sensitive-audit:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
-          {selected?.permissions.includes('media.read') && <Suspense fallback={<p role="status">{t('media.loading')}</p>}><MediaPanel key={'media:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
-          {selected?.permissions.includes('tasks.read') && <Suspense fallback={<p role="status">{t('tasks.loading')}</p>}><WorkTasksPanel key={'tasks:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
-          {selected?.permissions.includes('communication.read') && <Suspense fallback={<p role="status">{t('communication.loading')}</p>}><CommunicationPanel key={'communication:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
-          {selected?.permissions.some((permission) => ['availability.self', 'availability.read'].includes(permission)) && <Suspense fallback={<p role="status">{t('availability.loading')}</p>}><AvailabilityPanel key={'availability:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
-          {selected?.permissions.includes('calendar.read') && <Suspense fallback={<p role="status">{t('calendar.loading')}</p>}><CalendarPanel key={'calendar:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
-          {selected?.permissions.includes('academy.self.read') && <Suspense fallback={<p role="status">{t('academy.loading')}</p>}><AcademyPersonalPanel key={'academy-self:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
-          {selected?.permissions.includes('academy.read') && <Suspense fallback={<p role="status">{t('academy.loading')}</p>}><AcademyPanel key={'academy:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
-          {selected?.permissions.includes('sports.read') && selected.permissions.includes('sports.statistics.read') && <Suspense fallback={<p role="status">{t('observations.loading')}</p>}><ObservationPanel key={'observations:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
-          {selected?.permissions.includes('sports.read') && selected.permissions.includes('sports.competitions.read') && <Suspense fallback={<p role="status">{t('competitions.loading')}</p>}><ExternalCompetitionsPanel key={'competitions:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
-          {selected?.permissions.includes('sports.read') && <Suspense fallback={<p role="status">{t('matches.loading')}</p>}><MatchesPanel key={'matches:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
-          {selected?.permissions.includes('partnerships.read') && <Suspense fallback={<p role="status">{t('sponsorships.loading')}</p>}><SponsorshipDashboardPanel key={'campaign-dashboard:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} refresh={campaignRefresh} onInvalid={invalidatePeopleContext} /></Suspense>}
-          {selected && <PartnershipsPanel key={'partnerships:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} onCampaignChanged={refreshCampaignDashboard} />}
-          {selected && <ContractsPanel key={'contracts:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
-          <div className="grid gap-3">
-            {workspace.organizations.data.length === 0 && <p className="text-slate-400">{t('tenant.empty')}</p>}
-            <div className="flex flex-wrap gap-3">
-              {workspace.organizations.data.map((org) => (
-                <Button key={org.id} disabled={disabled || org.id === selected?.organization_id} onClick={() => void selectOrganization(org.id)}>
-                  {t('tenant.select', { name: org.name })} · {roleNames(org.roles)}
-                </Button>
-              ))}
-            </div>
-            <Pagination currentPage={workspace.organizations.meta.current_page} totalPages={workspace.organizations.meta.last_page} disabled={disabled} onPageChange={(page) => changePage('organizations', page)} />
-          </div>
-          <div className="grid gap-3">
-            <h3 className="text-xl font-bold">{t('tenant.inbox')}</h3>
-            {workspace.inbox.data.length === 0 && <p className="text-slate-400">{t('tenant.noInvitations')}</p>}
-            {workspace.inbox.data.map((invitation) => (
-              <div key={invitation.id} className="grid gap-3 rounded-xl border border-white/10 p-4">
-                <p>{invitation.organization_name} · {roleNames(invitation.roles)} · {t(`tenant.status.${invitation.status}`)}</p>
-                <Period start={invitation.starts_at} end={invitation.ends_at} />
-                <p className="text-sm text-slate-400">{t('tenant.expires', { date: formatDate(invitation.expires_at) })}</p>
-                {invitation.status === 'pending' && <div className="flex gap-3">{(['accepted', 'declined'] as const).map((decision) => (
-                  <Button key={decision} disabled={disabled} onClick={() => setAction({
-                    label: t(decision === 'accepted' ? 'tenant.accept' : 'tenant.decline'), organizationName: invitation.organization_name,
-                    path: 'my-invitations/' + invitation.id, method: 'PUT', body: { decision, confirm: true },
-                    revision: workspace.active.revision ?? undefined,
-                  })}>{t(decision === 'accepted' ? 'tenant.accept' : 'tenant.decline')}</Button>
-                ))}</div>}
+          {tool?.id === 'equipes-autorisees' && selected && <ScopedTeamsPanel key={'team-scopes:' + selected.organization_id + ':' + workspace.active.revision} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
+          {tool?.id === 'acces-limites' && selected && <ContextualModulesPanel key={'scoped:' + selected.organization_id + ':' + workspace.active.revision} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
+          {(tool?.id === 'roles' || tool?.id === 'affectations') && selected && (
+            <RoleManagementPanel key={selected.organization_id + ':' + tool.id} view={tool.id} active={workspace.active} disabled={disabled} onChanged={() => void reload(pages)} />
+          )}
+          {tool?.id === 'recherche' && selected && <Suspense fallback={<p>{t('search.loading')}</p>}><TenantSearchPanel active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
+          {tool?.id === 'tableaux' && selected && <Suspense fallback={<p>{t('dashboards.loading')}</p>}><DashboardPanel active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
+          {tool?.id === 'fiches' && selected && <PeoplePanel key={selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
+          {tool?.id === 'jeux' && selected && <OrganizationGamesPanel key={'games:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
+          {tool?.id === 'liste' && selected && <TeamsPanel key={'teams:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
+          {tool?.id === 'adversaires' && selected && <ExternalOpponentsPanel key={'opponents:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
+          {tool?.id === 'journal' && selected && <SensitiveAccessPanel key={'sensitive-audit:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
+          {tool?.id === 'medias' && selected && <Suspense fallback={<p role="status">{t('media.loading')}</p>}><MediaPanel key={'media:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
+          {tool?.id === 'taches' && selected && <Suspense fallback={<p role="status">{t('tasks.loading')}</p>}><WorkTasksPanel key={'tasks:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
+          {tool?.id === 'communications' && selected && <Suspense fallback={<p role="status">{t('communication.loading')}</p>}><CommunicationPanel key={'communication:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
+          {tool?.id === 'disponibilites' && selected && <Suspense fallback={<p role="status">{t('availability.loading')}</p>}><AvailabilityPanel key={'availability:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
+          {tool?.id === 'activites' && selected && <Suspense fallback={<p role="status">{t('calendar.loading')}</p>}><CalendarPanel key={'calendar:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
+          {tool?.id === 'parcours' && selected && <Suspense fallback={<p role="status">{t('academy.loading')}</p>}><AcademyPersonalPanel key={'academy-self:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
+          {tool?.id === 'cohortes' && selected && <Suspense fallback={<p role="status">{t('academy.loading')}</p>}><AcademyPanel key={'academy:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
+          {tool?.id === 'statistiques' && selected && <Suspense fallback={<p role="status">{t('observations.loading')}</p>}><ObservationPanel key={'observations:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
+          {tool?.id === 'competitions' && selected && <Suspense fallback={<p role="status">{t('competitions.loading')}</p>}><ExternalCompetitionsPanel key={'competitions:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
+          {tool?.id === 'matchs' && selected && <Suspense fallback={<p role="status">{t('matches.loading')}</p>}><MatchesPanel key={'matches:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
+          {tool?.id === 'campagnes' && selected && <Suspense fallback={<p role="status">{t('sponsorships.loading')}</p>}><SponsorshipDashboardPanel key={'campaign-dashboard:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} /></Suspense>}
+          {tool?.id === 'partenariats' && selected && <PartnershipsPanel key={'partnerships:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
+          {tool?.id === 'contrats' && selected && <ContractsPanel key={'contracts:' + selected.organization_id + ':' + workspace.active.revision + ':' + selected.permissions.join(',')} active={workspace.active} disabled={disabled} onInvalid={invalidatePeopleContext} />}
+          {overview && (
+            <div className="grid min-w-0 gap-5 lg:grid-cols-2">
+              <div className="ui-panel grid content-start gap-3 p-4 sm:p-5">
+                <h3 className="text-lg font-semibold">{t('tenant.sections.chooseOrganization')}</h3>
+                {workspace.organizations.data.length === 0 && <p className="text-slate-400">{t('tenant.empty')}</p>}
+                {workspace.organizations.data.map((org) => (
+                  <div key={org.id} className="ui-card flex flex-wrap items-center justify-between gap-3 p-3">
+                    <div className="min-w-0">
+                      <p className="font-medium wrap-anywhere">{org.name}</p>
+                      <p className="mt-1 text-sm text-slate-400">{roleNames(org.roles)}</p>
+                    </div>
+                    {org.id === selected?.organization_id ? (
+                      <span className="rounded-md bg-cyan-300/10 px-2 py-1 text-xs font-medium text-cyan-100">{t('tenant.sections.current')}</span>
+                    ) : (
+                      <Button variant={!selected ? 'primary' : 'secondary'} disabled={disabled} aria-label={t('tenant.select', { name: org.name })} onClick={() => void selectOrganization(org.id)}>
+                        {t('tenant.sections.open')}
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                <Pagination currentPage={workspace.organizations.meta.current_page} totalPages={workspace.organizations.meta.last_page} disabled={disabled} onPageChange={(page) => changePage('organizations', page)} />
               </div>
-            ))}
-            <Pagination currentPage={workspace.inbox.meta.current_page} totalPages={workspace.inbox.meta.last_page} disabled={disabled} onPageChange={(page) => changePage('inbox', page)} />
-          </div>
-          {selected && (workspace.memberships || workspace.invitations) && (
+              <div className="ui-panel grid content-start gap-3 p-4 sm:p-5">
+                <h3 className="text-lg font-semibold">{t('tenant.inbox')}</h3>
+                {workspace.inbox.data.length === 0 && <p className="text-slate-400">{t('tenant.noInvitations')}</p>}
+                {workspace.inbox.data.map((invitation) => (
+                  <div key={invitation.id} className="grid gap-3 rounded-xl border border-white/10 p-4">
+                    <p>{invitation.organization_name} · {roleNames(invitation.roles)} · {t(`tenant.status.${invitation.status}`)}</p>
+                    <Period start={invitation.starts_at} end={invitation.ends_at} />
+                    <p className="text-sm text-slate-400">{t('tenant.expires', { date: formatDate(invitation.expires_at) })}</p>
+                    {invitation.status === 'pending' && <div className="flex gap-3">{(['accepted', 'declined'] as const).map((decision) => (
+                      <Button key={decision} disabled={disabled} onClick={() => setAction({
+                        label: t(decision === 'accepted' ? 'tenant.accept' : 'tenant.decline'), organizationName: invitation.organization_name,
+                        path: 'my-invitations/' + invitation.id, method: 'PUT', body: { decision, confirm: true },
+                        revision: workspace.active.revision ?? undefined,
+                      })}>{t(decision === 'accepted' ? 'tenant.accept' : 'tenant.decline')}</Button>
+                    ))}</div>}
+                  </div>
+                ))}
+                <Pagination currentPage={workspace.inbox.meta.current_page} totalPages={workspace.inbox.meta.last_page} disabled={disabled} onPageChange={(page) => changePage('inbox', page)} />
+                {selected && ownMembership && <Button className="justify-self-start" disabled={disabled} onClick={() => setAction({
+                  label: t('tenant.leave'), organizationName: selected.name, path: 'my-memberships/' + ownMembership, method: 'DELETE', body: { confirm: true }, context: workspace.active,
+                })}>{t('tenant.leave')}</Button>}
+              </div>
+            </div>
+          )}
+          {selected && (tool?.id === 'membres' || tool?.id === 'invitations') && (
             <>
-              {workspace.invitations && <form noValidate className="grid gap-4 rounded-xl border border-white/10 p-5 md:grid-cols-2" onSubmit={invite}>
+              {tool.id === 'invitations' && workspace.invitations && <form noValidate className="ui-editor grid gap-4 p-5 md:grid-cols-2" onSubmit={invite}>
                 <h3 className="text-xl font-bold md:col-span-2">{t('tenant.invite')}</h3>
                 <FormField name="email" type="email" required label={t('tenant.email')} disabled={disabled} error={errorTarget?.endsWith('/invitations') ? error?.fieldErrors.email?.[0] : undefined} />
                 <label className="grid gap-2">{t('tenant.role')}<select name="role" className={selectClass} disabled={disabled}>
@@ -316,7 +453,7 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
                 <FormField name="ends_at" type="datetime-local" step="1" label={t('tenant.end')} disabled={disabled} error={errorTarget?.endsWith('/invitations') ? error?.fieldErrors.ends_at?.[0] : undefined} />
                 <Button type="submit" variant="primary" disabled={disabled}>{t('tenant.send')}</Button>
               </form>}
-              {workspace.memberships && <div className="grid gap-3">
+              {tool.id === 'membres' && workspace.memberships && <div className="grid gap-3">
                 <h3 className="text-xl font-bold">{t('tenant.members')}</h3>
                 {workspace.memberships.data.length === 0 && <p className="text-slate-400">{t('tenant.noMembers')}</p>}
                 {workspace.memberships.data.map((member) => (
@@ -324,7 +461,7 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
                 ))}
                 <Pagination currentPage={workspace.memberships.meta.current_page} totalPages={workspace.memberships.meta.last_page} disabled={disabled} onPageChange={(page) => changePage('memberships', page)} />
               </div>}
-              {workspace.invitations && <div className="grid gap-3">
+              {tool.id === 'invitations' && workspace.invitations && <div className="grid gap-3">
                 <h3 className="text-xl font-bold">{t('tenant.manageInvitations')}</h3>
                 {workspace.invitations.data.length === 0 && <p className="text-slate-400">{t('tenant.noInvitations')}</p>}
                 {workspace.invitations.data.map((invitation) => (
@@ -342,9 +479,6 @@ export function TenantWorkspace({ onContextChange }: { onContextChange?: (contex
               </div>}
             </>
           )}
-          {selected && ownMembership && <Button disabled={disabled} onClick={() => setAction({
-            label: t('tenant.leave'), organizationName: selected.name, path: 'my-memberships/' + ownMembership, method: 'DELETE', body: { confirm: true }, context: workspace.active,
-          })}>{t('tenant.leave')}</Button>}
         </>
       )}
     </section>
@@ -370,7 +504,7 @@ function MembershipEditor({ membership, active, disabled, errors, onAction }: {
     })
   }
   return (
-    <form noValidate aria-label={t('tenant.account', { id: membership.user_id })} onSubmit={submit} className="grid gap-3 rounded-xl border border-white/10 p-4 md:grid-cols-2">
+    <form noValidate aria-label={t('tenant.account', { id: membership.user_id })} onSubmit={submit} className="ui-editor grid gap-3 p-4 md:grid-cols-2">
       <p className="font-semibold md:col-span-2">{t('tenant.account', { id: membership.user_id })} · {roleNames(membership.roles)} · {t(`tenant.status.${membership.status}`)}</p>
       {canEdit ? <>
         <label className="grid gap-2">{t('tenant.role')}<select name="role" className={selectClass} defaultValue={primaryRole} disabled={disabled || !context?.is_owner}>

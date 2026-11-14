@@ -43,6 +43,6 @@ export function CompetitionOutcomeForm({ active, path, stream, record, disabled,
       <FormField name="received_on" label={text('received_on')} type="date" value={receivedOn} onChange={(e) => setReceivedOn(e.target.value)} required={received.trim() !== ''} disabled={disabled} error={errors.received_on?.[0]} />
     </>}
     {field('notes', p?.notes)}<FormField name="reason" label={text('reason')} required minLength={10} maxLength={1000} disabled={disabled} error={errors.reason?.[0]} />
-    <div className="flex flex-wrap gap-3"><Button type="submit" disabled={disabled}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{text('cancel')}</Button></div>
+    <div className="flex flex-wrap gap-3"><Button variant="primary" type="submit" disabled={disabled}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{text('cancel')}</Button></div>
   </form>
 }

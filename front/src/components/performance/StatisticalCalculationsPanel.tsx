@@ -27,8 +27,8 @@ export function StatisticalCalculationsPanel({ active, disabled, onInvalid, sele
   function create(event: FormEvent<HTMLFormElement>) {
     mutation.propose(event, text('create'), root, { metric_id: metric?.id, metric_version: metric?.version, observations: selected.map((row) => row.id), confirm: true })
   }
-  return <section aria-label={text('title')} className="grid min-w-0 gap-4 rounded-xl border border-slate-700 p-4">
-    <h2 className="font-bold">{text('title')}</h2><Button disabled={blocked} onClick={() => setOpen(!open)}>{text(open ? 'close' : 'open')}</Button>
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4">
+    <h2 className="font-bold">{text('title')}</h2><Button disabled={blocked} aria-expanded={open} onClick={() => setOpen(!open)}>{text(open ? 'close' : 'open')}</Button>
     {open && <><p>{text('hint')}</p>{mutation.feedback}
       {write && <form aria-label={text('create')} onSubmit={create} className="grid min-w-0 gap-3">
         <p>{text('selected')} : {selected.length} / 1000</p><p>{text('selectionHint')}</p>
@@ -40,12 +40,12 @@ export function StatisticalCalculationsPanel({ active, disabled, onInvalid, sele
         {metrics.error && <Alert tone="error" title={metrics.error.message} />}
         {metrics.list && <Pagination currentPage={metrics.list.meta.current_page} totalPages={metrics.list.meta.last_page} disabled={blocked || metrics.loading} onPageChange={setMetricPage} />}
         {metric?.ratio_components && <div className="grid min-w-0 gap-2 [overflow-wrap:anywhere]"><p>{text('components')}</p>{(['numerator', 'denominator'] as const).map((side) => <ul key={side}>{metric.ratio_components?.[side].map((component) => <li key={component.version}>{text(side)} · {component.code ?? component.metric_id} · {component.version}</li>)}</ul>)}</div>}
-        <Button type="submit" disabled={blocked || selected.length === 0 || !metric}>{text('create')}</Button>
+        <Button variant="primary" type="submit" disabled={blocked || selected.length === 0 || !metric}>{text('create')}</Button>
       </form>}
       <Button disabled={blocked || list.loading} onClick={() => setRefresh((n) => n + 1)}>{text('refresh')}</Button>
       {list.loading && <p role="status">{text('loading')}</p>}{list.error && <Alert tone="error" title={list.error.message} />}
-      {list.list?.data.length === 0 && <p>{text('empty')}</p>}
-      <ul className="grid min-w-0 gap-3">{list.list?.data.map((row) => <li key={row.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3 [overflow-wrap:anywhere]">
+      {list.list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      <ul className="grid min-w-0 gap-3">{list.list?.data.map((row) => <li key={row.id} className="ui-card grid min-w-0 gap-2 p-3 [overflow-wrap:anywhere]">
         <p>{row.metric.code} · {row.cohort.source_label} · {text(row.status)}</p><Button disabled={blocked} onClick={() => setDetail(row.id)}>{text('view')} · {row.id.slice(-8)}</Button>
       </li>)}</ul>
       {list.list && <Pagination currentPage={list.list.meta.current_page} totalPages={list.list.meta.last_page} disabled={blocked || list.loading} onPageChange={(next) => { setPage(next); setDetail(null) }} />}
@@ -75,7 +75,7 @@ function CalculationDetail({ active, onInvalid, id, root, disabled, write, onRec
         {row.sources && <Pagination currentPage={row.sources.meta.current_page} totalPages={row.sources.meta.last_page} disabled={disabled} onPageChange={(next) => { setRow(null); setError(null); setPage(next) }} />}</details>
       <Button disabled={disabled} onClick={() => setHistory(!history)}>{text(history ? 'closeHistory' : 'history')}</Button>
       {history && <section aria-label={text('history')} className="grid min-w-0 gap-3"><p>{text('historyHint')}</p>{revisions.error && <Alert tone="error" title={revisions.error.message} />}
-        {revisions.list?.data.map((revision) => <article key={revision.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3"><p>v{revision.number} · {revision.created_at}</p><CalculationResult result={revision.result} /></article>)}
+        {revisions.list?.data.map((revision) => <article key={revision.id} className="ui-card grid min-w-0 gap-2 p-3"><p>v{revision.number} · {revision.created_at}</p><CalculationResult result={revision.result} /></article>)}
         {revisions.list && <Pagination currentPage={revisions.list.meta.current_page} totalPages={revisions.list.meta.last_page} disabled={disabled} onPageChange={setHistoryPage} />}
       </section>}
     </>}

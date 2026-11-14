@@ -47,7 +47,7 @@ export function MatchCorrections({ active, item, root, management, disabled, onI
       <Button type="submit" disabled={blocked}>{text('corrections.save')}</Button>
     </form>}
     {list?.data.length === 0 && <p>{text('corrections.empty')}</p>}
-    <ol className="grid min-w-0 gap-3">{list?.data.map((entry) => <li key={entry.id} className="grid min-w-0 gap-2 rounded-lg border border-slate-700 p-3">
+    <ol className="grid min-w-0 gap-3">{list?.data.map((entry) => <li key={entry.id} className="ui-card grid min-w-0 gap-2 p-3">
       <h4 className="font-bold">#{entry.number} · {text('corrections.state.' + entry.state)}</h4>
       <p className="text-sm">{text('actor')} #{entry.actor_user_id} · {calendarDate(entry.occurred_at, active.context!.timezone)}</p>
       <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{entry.reason}</p>
@@ -61,7 +61,7 @@ export function MatchCorrections({ active, item, root, management, disabled, onI
 }
 function CorrectionGame({ game, disabled }: { game: MatchGame; disabled: boolean }) {
   const [selected, setSelected] = useState(false), [outcome, setOutcome] = useState<MatchGameOutcome>(game.outcome)
-  return <fieldset className="grid min-w-0 gap-3 rounded-xl border border-slate-700 p-3">
+  return <fieldset className="ui-editor grid min-w-0 gap-3 p-3">
     <legend className="[overflow-wrap:anywhere]">#{game.number} · {game.map ?? game.mode}</legend>
     <FormField name={'select_' + game.id} label={text('corrections.select') + ' #' + game.number} type="checkbox" checked={selected} onChange={(e) => setSelected(e.target.checked)} disabled={disabled} />
     {selected && <><SelectField name={'outcome_' + game.id} title={text('scores.outcome') + ' #' + game.number} value={outcome} onChange={(value) => setOutcome(value as MatchGameOutcome)} disabled={disabled}>

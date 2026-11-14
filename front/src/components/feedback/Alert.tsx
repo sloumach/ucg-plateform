@@ -30,9 +30,9 @@ export function Alert({
   return (
     <div
       role={role}
-      className={`rounded-xl border p-4 text-sm ${toneClasses[tone]}`}
+      className={`min-w-0 rounded-xl border border-s-4 px-4 py-3 text-sm wrap-anywhere ${toneClasses[tone]}`}
     >
-      <p className="font-semibold">{title}</p>
+      <p className="leading-5 font-semibold">{title}</p>
       {children && <div className="mt-1 leading-6">{children}</div>}
       {requestId && (
         <p className="mt-2 break-all font-mono text-xs opacity-80">

@@ -57,7 +57,7 @@ test('deux comptes, proposition, approbation, contestation, nouvelle preuve et c
     await route.fulfill({ status, headers, contentType: 'application/json', body: JSON.stringify({ data, ...(path.endsWith('/results') && method === 'GET' ? { result: currentResult() } : {}),
       meta: { current_page: Number(url.searchParams.get('page') ?? 1), last_page: path.endsWith('/results') ? Math.max(1, history.length) : 1, total: path.endsWith('/results') ? history.length : Array.isArray(data) ? data.length : 0 } }) })
   })
-  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/')
+  await page.setViewportSize({ width: 375, height: 812 }); await page.goto('/?rubrique=matchs')
   const panel = page.getByRole('region', { name: 'Scrims et matchs' }), results = panel.getByRole('region', { name: 'Résultats et validation', exact: true })
   const open = async () => { await panel.getByRole('button', { name: 'Ouvrir les matchs' }).click(); await panel.getByRole('button', { name: 'Résultats et validation', exact: true }).click() }
   await open(); expect(reads).toBeGreaterThan(0)

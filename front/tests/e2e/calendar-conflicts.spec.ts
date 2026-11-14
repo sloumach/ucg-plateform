@@ -41,7 +41,7 @@ test('réservation : ressource, conflit privé, exception motivée et historique
       body: JSON.stringify({ data, meta: { current_page: 1, last_page: 1, total: Array.isArray(data) ? data.length : 0 },
         calendar: { viewer_timezone: 'Europe/Paris', display_timezone: 'Europe/Paris', from_utc: '2026-10-17T22:00:00+00:00', to_utc: '2026-10-18T22:00:00+00:00' } }) })
   })
-  await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/')
+  await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/?rubrique=calendrier')
   const panel = page.getByRole('region', { name: 'Calendrier des activités', exact: true })
   await panel.getByRole('button', { name: 'Ouvrir le calendrier' }).click()
   await panel.getByRole('button', { name: 'Ouvrir les ressources réservables' }).click()

@@ -37,16 +37,16 @@ export function CalendarPanel({ active, disabled, onInvalid, limited = false }: 
   const mutation = usePeopleMutation<CalendarActivity>(active, () => { setEditor(null); setCancellation(null); setRefresh((n) => n + 1) }, onInvalid)
   const blocked = disabled || mutation.blocked, timezone = list?.calendar.display_timezone ?? (filters.timezone || active.context!.timezone)
   if (!canRead) return null
-  return <section aria-label={text('title')} className="grid min-w-0 gap-4 rounded-2xl border border-white/10 p-4">
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4">
     <h2 className="text-xl font-bold">{text('title')}</h2><p className="text-sm text-slate-400">{text('hint')}</p>
-    <Button disabled={blocked} onClick={() => { setOpen(!open); setEditor(null); setHistory(null); setCancellation(null); setChangeHistory(null) }}>{text(open ? 'close' : 'open')}</Button>
+    <Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); setEditor(null); setHistory(null); setCancellation(null); setChangeHistory(null) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>
       {mutation.feedback}
       {!limited && <CalendarFeedPanel {...{ active, root, onInvalid }} disabled={blocked} />}
       {!limited && <CalendarChangesPanel {...{ active, root, onInvalid, timezone }} disabled={blocked} />}
       <CalendarInvitationsPanel {...{ active, root, onInvalid }} disabled={blocked} />
       {canWrite && !limited && <CalendarResourcesPanel {...{ active, root, onInvalid }} disabled={blocked} />}
-      <form aria-label={text('filter')} className="grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
+      <form aria-label={text('filter')} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
         event.preventDefault(); const values = new FormData(event.currentTarget)
         setFilters({ from: String(values.get('from_date') ?? ''), to: String(values.get('to_date') ?? ''), timezone: String(values.get('timezone') ?? '').trim(),
           kind: String(values.get('kind') ?? ''), management: canWrite && values.get('management') === '1', archived: values.has('archived') })
@@ -59,18 +59,24 @@ export function CalendarPanel({ active, disabled, onInvalid, limited = false }: 
         {canWrite && !limited && <><SelectField name="management" title={text('mode')} defaultValue="0" disabled={blocked}><option value="0">{text('myCalendar')}</option><option value="1">{text('management')}</option></SelectField>
           <FormField name="archived" label={text('archivedFilter')} type="checkbox" disabled={blocked} /></>}
         <p className="text-sm text-slate-400 sm:col-span-2">{text('windowHint')}</p>
-        <div className="flex flex-wrap gap-3 sm:col-span-2"><Button type="submit" disabled={blocked}>{text('filterAction')}</Button><Button disabled={blocked} onClick={() => setRefresh((n) => n + 1)}>{text('refresh')}</Button></div>
+        <div className="flex flex-wrap gap-3 sm:col-span-2"><Button variant="primary" type="submit" disabled={blocked}>{text('filterAction')}</Button><Button disabled={blocked} onClick={() => setRefresh((n) => n + 1)}>{text('refresh')}</Button></div>
       </form>
       <p className="text-sm text-cyan-200 [overflow-wrap:anywhere]">{text('displayedIn')} : {timezone}</p>
       {filters.management && <p className="text-sm text-amber-200">{text('managementHint')}</p>}
-      {canWrite && !limited && <Button disabled={blocked} onClick={() => { setEditor('new'); setCancellation(null) }}>{text('new')}</Button>}
+      {canWrite && !limited && <Button variant="primary" className="justify-self-start" disabled={blocked} onClick={() => { setEditor('new'); setCancellation(null) }}>{text('new')}</Button>}
       {loading && <AsyncState variant="loading" title={text('loading')} />}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-      {list?.data.length === 0 && <p>{text('empty')}</p>}
-      <ol className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="grid min-w-0 gap-2 rounded-xl border border-slate-700 p-3">
-        <h3 className="font-bold [overflow-wrap:anywhere]">{item.title}</h3>
-        <p>{text('kind.' + item.kind)} · {text('visibility.' + item.visibility)}</p>
-        <p className="[overflow-wrap:anywhere]">{date(item.starts_at, timezone)} → {date(item.ends_at, timezone)}</p>
+      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      <ol className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-2 border-s-4 border-s-cyan-700 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <h3 className="text-lg font-bold wrap-anywhere">{item.title}</h3>
+          <p className="rounded-md bg-field px-2 py-1 text-xs font-medium text-muted">{text('kind.' + item.kind)} · {text('visibility.' + item.visibility)}</p>
+        </div>
+        <p className="font-semibold text-cyan-100 wrap-anywhere">
+          <time dateTime={item.starts_at}>{date(item.starts_at, timezone)}</time>
+          {' → '}
+          <time dateTime={item.ends_at}>{date(item.ends_at, timezone)}</time>
+        </p>
         <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('origin')} : {item.origin_timezone} · {date(item.starts_at, item.origin_timezone)} → {date(item.ends_at, item.origin_timezone)}</p>
         {item.team_id && <p>{text('team')} : {item.team_label ?? text('currentTeam')}</p>}
         {item.description && <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{item.description}</p>}

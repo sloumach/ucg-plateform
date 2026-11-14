@@ -40,7 +40,7 @@ export function MetricCatalogueForm({ record, disabled, errors, onCancel, onSubm
       <MetricReference key={'release:' + game} kind="release" name="release_id" game={game} value={release} onChange={setRelease} disabled={disabled} error={errors.release_id?.[0]} fallback={record?.scope.release_name} />
     </>}
     <SelectField name="status" title={text('status')} defaultValue={record?.status ?? 'active'} disabled={disabled} error={errors.status?.[0]}>{['active', 'retired'].map((v) => <option key={v} value={v}>{text(v)}</option>)}</SelectField>{field('reason', undefined, 1000)}
-    <div className="flex flex-wrap gap-3"><Button type="submit" disabled={disabled || !game}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{text('cancel')}</Button></div>
+    <div className="flex flex-wrap gap-3"><Button variant="primary" type="submit" disabled={disabled || !game}>{text('save')}</Button><Button disabled={disabled} onClick={onCancel}>{text('cancel')}</Button></div>
   </form>
 }
 export function MetricReference({ kind, name, game, value, onChange, disabled, error, fallback, required = false }: { kind: 'game' | 'mode' | 'role' | 'release'; name: string; game?: string; value: string; onChange: (v: string) => void; disabled: boolean; error?: string; fallback?: string | null; required?: boolean }) {
