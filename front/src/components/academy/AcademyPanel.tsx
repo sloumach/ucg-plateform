@@ -9,6 +9,7 @@ import { Alert } from '../feedback/Alert'
 import { usePeopleMutation } from '../people/usePeopleMutation'
 import { useAcademyPage } from './useAcademyPage'
 import { AcademyCohortDetail } from './AcademyCohortDetail'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 
 type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void; limited?: boolean }
 export function AcademyPanel(props: Props) {
@@ -34,21 +35,25 @@ export function AcademyPanel(props: Props) {
       {read.loading && <p role="status">{t('academy.loading')}</p>}
       {read.error && <><Alert tone="error" title={read.error.message} requestId={read.error.requestId} /><Button onClick={() => setRefresh((value) => value + 1)}>{t('academy.retry')}</Button></>}
       {mutation.feedback}
-      {manage && !props.limited && <Button disabled={blocked} onClick={() => { setEditor('new'); setSelected(null) }}>{t('academy.createCohort')}</Button>}
-      {read.result?.data.length === 0 && <p>{t('academy.empty')}</p>}
-      <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{read.result?.data.map((cohort) => <li key={cohort.id} className="ui-card grid min-w-0 gap-2 p-3 [overflow-wrap:anywhere]">
-        <h3 className="font-bold">{cohort.name}</h3><p>{t(cohort.status === 'active' ? 'academy.active' : 'academy.archived')}</p>
-        <Button disabled={blocked} onClick={() => { setSelected(cohort); setEditor(null) }}>{t('academy.details')} {cohort.name}</Button>
-        {manage && cohort.status === 'active' && <>
-          <Button disabled={blocked} onClick={() => { setEditor(cohort); setSelected(null) }}>{t('academy.edit')} {cohort.name}</Button>
-          <form onSubmit={(event) => mutation.propose(event, t('academy.archive'), path + '/' + cohort.id, { version: cohort.version, status: 'archived' }, true)}><Button type="submit" disabled={blocked}>{t('academy.archive')} {cohort.name}</Button></form>
-        </>}
-      </li>)}</ul>
-      {read.result && <Pagination currentPage={read.result.meta.current_page} totalPages={read.result.meta.last_page} disabled={blocked} onPageChange={(next) => { setPage(next); setSelected(null); setEditor(null) }} />}
-      {editor && <form key={editor === 'new' ? 'new' : editor.id + editor.version} aria-label={t('academy.saveCohort')} className="grid min-w-0 gap-3" onSubmit={save}>
+      <div hidden={editor !== null} className="grid min-w-0 gap-4">
+        {manage && !props.limited && <Button disabled={blocked} onClick={() => { setEditor('new'); setSelected(null) }}>{t('academy.createCohort')}</Button>}
+        {read.result?.data.length === 0 && <p>{t('academy.empty')}</p>}
+        <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{read.result?.data.map((cohort) => <li key={cohort.id} className="ui-card grid min-w-0 gap-2 p-3 [overflow-wrap:anywhere]">
+          <h3 className="font-bold">{cohort.name}</h3><p>{t(cohort.status === 'active' ? 'academy.active' : 'academy.archived')}</p>
+          <Button disabled={blocked} onClick={() => { setSelected(cohort); setEditor(null) }}>{t('academy.details')} {cohort.name}</Button>
+          {manage && cohort.status === 'active' && <>
+            <Button disabled={blocked} onClick={() => { setEditor(cohort); setSelected(null) }}>{t('academy.edit')} {cohort.name}</Button>
+            <form onSubmit={(event) => mutation.propose(event, t('academy.archive'), path + '/' + cohort.id, { version: cohort.version, status: 'archived' }, true)}><Button type="submit" disabled={blocked}>{t('academy.archive')} {cohort.name}</Button></form>
+          </>}
+        </li>)}</ul>
+        {read.result && <Pagination currentPage={read.result.meta.current_page} totalPages={read.result.meta.last_page} disabled={blocked} onPageChange={(next) => { setPage(next); setSelected(null); setEditor(null) }} />}
+      </div>
+      {editor && <WorkspaceEditor title={editor === 'new' ? t('academy.createCohort') : t('academy.edit') + ' · ' + editor.name}>
+        <form key={editor === 'new' ? 'new' : editor.id + editor.version} aria-label={t('academy.saveCohort')} className="ui-editor grid p-4 min-w-0 gap-3" onSubmit={save}>
         <FormField label={t('academy.name')} name="name" required maxLength={120} disabled={blocked} defaultValue={editor === 'new' ? '' : editor.name} error={mutation.errors(path + (editor === 'new' ? '' : '/' + editor.id)).name?.[0]} />
         <div className="flex flex-wrap gap-2"><Button type="submit" disabled={blocked}>{t('academy.saveCohort')}</Button><Button disabled={blocked} onClick={() => setEditor(null)}>{t('academy.cancel')}</Button></div>
-      </form>}
+      </form>
+      </WorkspaceEditor>}
       {selected && <AcademyCohortDetail key={selected.id + selected.version} {...props} disabled={blocked} cohort={selected} />}
     </>}
   </section>

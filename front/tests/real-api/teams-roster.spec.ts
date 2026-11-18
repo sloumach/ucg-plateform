@@ -38,8 +38,8 @@ test('personne et équipes réelles, transfert de roster, clôture et accès ten
 
   await login(page, 'browser-roster@example.test')
   await page.getByRole('button', { name: /Ouvrir Roster Alpha/ }).click()
-  await page.getByRole('link', { name: 'Équipes et jeux', exact: true }).click()
-  await expect(page.getByText('Organisation active : Roster Alpha')).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Contexte d’organisation' })).toHaveText('Roster Alpha')
+  await page.getByRole('link', { name: 'Fiches et profils', exact: true }).click()
   const people = page.getByRole('region', { name: 'Personnes', exact: true })
   await people.getByRole('button', { name: 'Ajouter une personne' }).click()
   await people.getByLabel('Pseudonyme', { exact: true }).fill('Roster browser player')
@@ -48,12 +48,17 @@ test('personne et équipes réelles, transfert de roster, clôture et accès ten
   const person = await approve(people, `${base}/people`, 'POST', 201)
   await expect(people.getByText('Roster browser player', { exact: true })).toBeVisible()
 
+  await page.getByRole('link', { name: 'Équipes et jeux', exact: true }).click()
   await page.getByRole('button', { name: 'Équipes de l’organisation', exact: true }).click()
   const teams = page.getByRole('region', { name: 'Équipes de l’organisation', exact: true })
   const savedTeams: { id: string; version: string; name: string }[] = []
   for (const [slug, name] of [['roster-source', 'Roster source'], ['roster-destination', 'Roster destination']]) {
     await teams.getByRole('button', { name: 'Créer une équipe', exact: true }).click()
     const form = teams.getByRole('form', { name: 'Enregistrer l’équipe' })
+    if (slug === 'roster-destination') {
+      await expect(teams.getByRole('heading', { name: 'Roster source', exact: true })).toHaveCount(0)
+      await expect(form).toBeVisible()
+    }
     await form.getByLabel('Jeu activé').selectOption(data.game)
     await form.getByLabel('Slug stable').fill(slug)
     await form.getByLabel('Saison', { exact: true }).fill('browser-2026')
@@ -74,7 +79,8 @@ test('personne et équipes réelles, transfert de roster, clôture et accès ten
   const [source, destination] = savedTeams
   const sourcePath = `${base}/teams/${source.id}`
   const destinationPath = `${base}/teams/${destination.id}`
-  const sourceCard = teams.getByRole('heading', { name: source.name, exact: true }).locator('..')
+  const teamCard = (name: string) => teams.getByRole('listitem').filter({ has: page.getByRole('heading', { name, exact: true }) })
+  const sourceCard = teamCard(source.name)
   await sourceCard.getByRole('button', { name: 'Effectif et historique', exact: true }).click()
   const sourceRoster = page.getByRole('region', { name: `Effectif et historique ${source.name}`, exact: true })
   await sourceRoster.getByRole('button', { name: 'Ajouter une appartenance', exact: true }).click()
@@ -115,7 +121,8 @@ test('personne et équipes réelles, transfert de roster, clôture et accès ten
   expect(stale.status()).toBe(409)
   expect((await stale.json()).code).toBe('TEAM_MEMBERSHIP_VERSION_STALE')
 
-  await teams.getByRole('heading', { name: destination.name, exact: true }).locator('..').getByRole('button', { name: 'Effectif et historique', exact: true }).click()
+  await sourceRoster.getByRole('button', { name: 'Fermer l’effectif', exact: true }).click()
+  await teamCard(destination.name).getByRole('button', { name: 'Effectif et historique', exact: true }).click()
   const targetRoster = page.getByRole('region', { name: `Effectif et historique ${destination.name}`, exact: true })
   await expect(targetRoster.getByRole('heading', { name: 'Roster browser player · Remplaçant', exact: true })).toBeVisible()
   await expect.poll(() => Date.now()).toBeGreaterThan(new Date(transferred.starts_at).getTime() + 1000)
@@ -134,7 +141,7 @@ test('personne et équipes réelles, transfert de roster, clôture et accès ten
 
   await page.reload()
   await page.getByRole('button', { name: 'Équipes de l’organisation', exact: true }).click()
-  await teams.getByRole('heading', { name: destination.name, exact: true }).locator('..').getByRole('button', { name: 'Effectif et historique', exact: true }).click()
+  await teamCard(destination.name).getByRole('button', { name: 'Effectif et historique', exact: true }).click()
   await expect(targetRoster.getByRole('heading', { name: 'Roster browser player · Remplaçant', exact: true })).toBeVisible()
   await expect(targetRoster.getByText('Clôturée · Non effective à la date consultée', { exact: true })).toBeVisible()
   const persistedHeaders = await headers()
@@ -160,12 +167,12 @@ test('personne et équipes réelles, transfert de roster, clôture et accès ten
 
   await page.getByRole('link', { name: 'Aperçu', exact: true }).click()
   await page.getByRole('button', { name: /Ouvrir Roster Beta/ }).click()
-  await expect(page.getByText('Organisation active : Roster Beta')).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Contexte d’organisation' })).toHaveText('Roster Beta')
   await page.getByRole('link', { name: 'Équipes et jeux', exact: true }).click()
   await expect(page.getByText(/Roster browser player/)).toHaveCount(0)
   await page.getByRole('button', { name: 'Équipes de l’organisation', exact: true }).click()
   await expect(teams.getByRole('button', { name: 'Créer une équipe', exact: true })).toHaveCount(0)
-  await teams.getByRole('heading', { name: 'Beta roster team', exact: true }).locator('..').getByRole('button', { name: 'Effectif et historique', exact: true }).click()
+  await teamCard('Beta roster team').getByRole('button', { name: 'Effectif et historique', exact: true }).click()
   const betaRoster = page.getByRole('region', { name: 'Effectif et historique Beta roster team', exact: true })
   await expect(betaRoster.getByRole('heading', { name: 'Beta roster player · Titulaire', exact: true })).toBeVisible()
   await expect(betaRoster.getByRole('button', { name: 'Ajouter une appartenance', exact: true })).toHaveCount(0)

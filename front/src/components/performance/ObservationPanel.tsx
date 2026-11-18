@@ -13,6 +13,7 @@ import { ObservationForm } from './ObservationForm'
 import { calculationText } from '../../api/statisticalCalculations'
 import { StatisticalCalculationsPanel } from './StatisticalCalculationsPanel'
 import { StatisticalProfilesPanel } from './StatisticalProfilesPanel'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 
 type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
 export function ObservationPanel({ active, disabled, onInvalid }: Props) {
@@ -26,16 +27,24 @@ export function ObservationPanel({ active, disabled, onInvalid }: Props) {
   const { list, loading, error } = usePartnershipList<StatisticalObservation>(root + '?per_page=10&page=' + page + '&status=' + status + (source ? '&source_kind=' + source : ''), active, open && allowed, onInvalid, refresh)
   const mutation = usePeopleMutation<StatisticalObservation>(active, () => { setEditing(null); setHistory(null); setRefresh((n) => n + 1) }, onInvalid), blocked = disabled || mutation.blocked
   if (!allowed) return null
-  return <section aria-label={text('title')} className="grid min-w-0 gap-4 rounded-2xl border border-white/15 p-4"><h2 className="font-bold">{text('title')}</h2><p>{text('hint')}</p><Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); setEditing(null); setHistory(null) }}>{text(open ? 'close' : 'open')}</Button>
-    {open && <>{mutation.feedback}<div className="grid min-w-0 gap-3"><SelectField name="source_filter" title={text('source_kind')} value={source} onChange={(v) => { setSource(v); setPage(1); setEditing(null); setHistory(null) }} disabled={blocked}><option value="">{text('all')}</option>{observationSources.map((s) => <option key={s} value={s}>{text(s)}</option>)}</SelectField><SelectField name="status_filter" title={text('status')} value={status} onChange={(v) => { setStatus(v); setPage(1); setEditing(null); setHistory(null) }} disabled={blocked}>{['active', 'voided'].map((s) => <option key={s} value={s}>{text(s)}</option>)}</SelectField></div>
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4"><h2 className="font-bold">{text('title')}</h2><p>{text('hint')}</p><Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); setEditing(null); setHistory(null) }}>{text(open ? 'close' : 'open')}</Button>
+    {open && <>
+      {mutation.feedback}
+      <div hidden={editing !== null} className="grid min-w-0 gap-3">
+        <div className="grid min-w-0 gap-3 sm:grid-cols-2"><SelectField name="source_filter" title={text('source_kind')} value={source} onChange={(v) => { setSource(v); setPage(1); setEditing(null); setHistory(null) }} disabled={blocked}><option value="">{text('all')}</option>{observationSources.map((s) => <option key={s} value={s}>{text(s)}</option>)}</SelectField><SelectField name="status_filter" title={text('status')} value={status} onChange={(v) => { setStatus(v); setPage(1); setEditing(null); setHistory(null) }} disabled={blocked}>{['active', 'voided'].map((s) => <option key={s} value={s}>{text(s)}</option>)}</SelectField></div>
       <Button disabled={blocked || loading} onClick={() => { setEditing(null); setHistory(null); setRefresh((n) => n + 1) }}>{text('refresh')}</Button>
       {loading && <p role="status">{text('loading')}</p>}{error && <Alert tone="error" title={error.message} requestId={error.requestId} />}{list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
-      {list && create && !editing && <Button variant="primary" disabled={blocked} onClick={() => { setEditing('new'); setHistory(null) }}>{text('create')}</Button>}
-      {editing && ((editing === 'new' && create) || (editing !== 'new' && correct)) && <ObservationForm key={editing === 'new' ? 'new' : editing.version} {...{ active, root, onInvalid }} record={editing === 'new' ? null : editing} disabled={blocked} errors={mutation.errors(root + (editing === 'new' ? '' : '/' + editing.id))} onCancel={() => setEditing(null)} onSubmit={(event, body) => mutation.propose(event, text(editing === 'new' ? 'create' : 'correct'), root + (editing === 'new' ? '' : '/' + editing.id), body, editing !== 'new')} />}
-      <ul className="grid min-w-0 gap-3">{list?.data.map((row) => <li key={row.id} className="ui-card grid min-w-0 gap-3 p-3"><ObservationView row={row} />
-        {create && <label className="flex min-w-0 items-start gap-2 [overflow-wrap:anywhere]"><input type="checkbox" aria-label={calculationText('select') + ' · ' + row.id} disabled={blocked || (selected.length >= 1000 && !selected.some((entry) => entry.id === row.id))} checked={selected.some((entry) => entry.id === row.id)} onChange={(event) => setSelection({ scope, rows: event.target.checked ? [...selected, row] : selected.filter((entry) => entry.id !== row.id) })} />{calculationText('select')} · {row.id.slice(-8)}</label>}
-        {correct && <Button disabled={blocked} onClick={() => { setEditing(row); setHistory(null) }}>{text('correct')}</Button>}<Button disabled={blocked} onClick={() => { setEditing(null); setHistory(row) }}>{text('history')}</Button></li>)}</ul>
-      {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(n) => { setPage(n); setEditing(null); setHistory(null) }} />}
+      {list && create && <Button variant="primary" className="justify-self-start" disabled={blocked} onClick={() => { setEditing('new'); setHistory(null) }}>{text('create')}</Button>}
+      </div>
+      {editing && ((editing === 'new' && create) || (editing !== 'new' && correct)) && <WorkspaceEditor title={text(editing === 'new' ? 'create' : 'correct')}>
+        <ObservationForm key={editing === 'new' ? 'new' : editing.version} {...{ active, root, onInvalid }} record={editing === 'new' ? null : editing} disabled={blocked} errors={mutation.errors(root + (editing === 'new' ? '' : '/' + editing.id))} onCancel={() => setEditing(null)} onSubmit={(event, body) => mutation.propose(event, text(editing === 'new' ? 'create' : 'correct'), root + (editing === 'new' ? '' : '/' + editing.id), body, editing !== 'new')} />
+      </WorkspaceEditor>}
+      <div hidden={editing !== null} className="grid min-w-0 gap-4">
+        <ul className="grid min-w-0 gap-3">{list?.data.map((row) => <li key={row.id} className="ui-card grid min-w-0 gap-3 p-3"><ObservationView row={row} />
+          {create && <label className="flex min-w-0 items-start gap-2 [overflow-wrap:anywhere]"><input type="checkbox" aria-label={calculationText('select') + ' · ' + row.id} disabled={blocked || (selected.length >= 1000 && !selected.some((entry) => entry.id === row.id))} checked={selected.some((entry) => entry.id === row.id)} onChange={(event) => setSelection({ scope, rows: event.target.checked ? [...selected, row] : selected.filter((entry) => entry.id !== row.id) })} />{calculationText('select')} · {row.id.slice(-8)}</label>}
+          {correct && <Button disabled={blocked} onClick={() => { setEditing(row); setHistory(null) }}>{text('correct')}</Button>}<Button disabled={blocked} onClick={() => { setEditing(null); setHistory(row) }}>{text('history')}</Button></li>)}</ul>
+        {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(n) => { setPage(n); setEditing(null); setHistory(null) }} />}
+      </div>
       {history && <ObservationHistory key={history.id} {...{ active, root, onInvalid }} record={history} disabled={blocked} onClose={() => setHistory(null)} />}
     </>}
     <StatisticalImportsPanel {...{ active, disabled: blocked, onInvalid }} />

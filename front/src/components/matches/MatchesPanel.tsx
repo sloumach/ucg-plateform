@@ -19,6 +19,8 @@ import { MatchResults } from './MatchResults'
 import { MatchScores } from './MatchScores'
 import { MatchLineups } from './MatchLineups'
 import type { MatchParticipant } from '../../api/matches'
+import { WorkspaceFilters } from '../layout/WorkspaceFilters'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 
 type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
 export function MatchesPanel({ active, disabled, onInvalid }: Props) {
@@ -44,55 +46,61 @@ export function MatchesPanel({ active, disabled, onInvalid }: Props) {
     {open && <>
       {mutation.feedback}
       <p className="text-sm text-amber-200">{text('resultHint')}</p>
-      <form aria-label={text('filters')} onSubmit={(event) => {
-        event.preventDefault(); const values = new FormData(event.currentTarget)
-        setFilters({ kind: String(values.get('kind') ?? ''), status: String(values.get('status') ?? ''), management: canWrite && values.has('management') })
-        setPage(1); setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null)
-      }} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2">
-        <SelectField name="kind" title={text('kind')} disabled={blocked}><option value="">{text('all')}</option><option value="scrim">{text('kind.scrim')}</option><option value="official">{text('kind.official')}</option></SelectField>
-        <SelectField name="status" title={text('status')} disabled={blocked}><option value="">{text('all')}</option>{matchStatuses.map((status) => <option key={status} value={status}>{text('status.' + status)}</option>)}</SelectField>
-        {canWrite && <FormField name="management" label={text('management')} type="checkbox" disabled={blocked} />}
-        <div className="flex flex-wrap gap-3 sm:col-span-2"><Button type="submit" disabled={blocked}>{text('filter')}</Button><Button disabled={blocked || loading} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setRefresh((n) => n + 1) }}>{text('refresh')}</Button></div>
-      </form>
-      {filters.management && <p className="text-sm text-amber-200">{text('managementHint')}</p>}
-      {canWrite && <Button variant="primary" className="justify-self-start" disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor('new'); setTransition(null); setHistory(null) }}>{text('create')}</Button>}
-      {loading && <p role="status">{text('loading')}</p>}
-      {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
-      <ol className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-2 p-3">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <h3 className="text-lg font-bold wrap-anywhere">{item.title}</h3>
-          <p className="rounded-md bg-field px-2 py-1 text-xs font-medium text-muted">{text('status.' + item.status)} · {text('visibility.' + item.visibility)}</p>
-        </div>
-        <p className="[overflow-wrap:anywhere]">{item.game_name} · {text('kind.' + item.kind)} · {text('format.' + item.format)}</p>
-        <p className="font-semibold text-cyan-100 wrap-anywhere">
-          <time dateTime={item.starts_at}>{calendarDate(item.starts_at, zone)}</time>
-          {' → '}
-          <time dateTime={item.ends_at}>{calendarDate(item.ends_at, zone)}</time>
-        </p>
-        <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('origin')} : {item.origin_timezone}</p>
-        <p className="[overflow-wrap:anywhere]">{text('responsible')} : {item.responsible_label}</p>
-        <ol className="grid min-w-0 gap-2">{item.participants.map((p) => <li key={p.id} className="grid min-w-0 gap-2 [overflow-wrap:anywhere]">
-          <span>{p.slot}. {text('source.' + p.kind)} · {p.label}</span>
-          {p.kind === 'team' && <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups({ item, participant: p }); setEditor(null); setTransition(null); setHistory(null) }}>{text('lineups')} · {p.label}</Button>}
+      <div hidden={editor !== null || transition !== null} className="grid min-w-0 gap-4">
+        <WorkspaceFilters>
+          <form aria-label={text('filters')} onSubmit={(event) => {
+            event.preventDefault(); const values = new FormData(event.currentTarget)
+            setFilters({ kind: String(values.get('kind') ?? ''), status: String(values.get('status') ?? ''), management: canWrite && values.has('management') })
+            setPage(1); setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null)
+          }} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2">
+            <SelectField name="kind" title={text('kind')} disabled={blocked}><option value="">{text('all')}</option><option value="scrim">{text('kind.scrim')}</option><option value="official">{text('kind.official')}</option></SelectField>
+            <SelectField name="status" title={text('status')} disabled={blocked}><option value="">{text('all')}</option>{matchStatuses.map((status) => <option key={status} value={status}>{text('status.' + status)}</option>)}</SelectField>
+            {canWrite && <FormField name="management" label={text('management')} type="checkbox" disabled={blocked} />}
+            <div className="flex flex-wrap gap-3 sm:col-span-2"><Button type="submit" disabled={blocked}>{text('filter')}</Button><Button disabled={blocked || loading} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setRefresh((n) => n + 1) }}>{text('refresh')}</Button></div>
+          </form>
+        </WorkspaceFilters>
+        {filters.management && <p className="text-sm text-amber-200">{text('managementHint')}</p>}
+        {canWrite && <Button variant="primary" className="justify-self-start" disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor('new'); setTransition(null); setHistory(null) }}>{text('create')}</Button>}
+        {loading && <p role="status">{text('loading')}</p>}
+        {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
+        {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+        <ol className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-2 p-3">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <h3 className="text-lg font-bold wrap-anywhere">{item.title}</h3>
+            <p className="rounded-md bg-field px-2 py-1 text-xs font-medium text-muted">{text('status.' + item.status)} · {text('visibility.' + item.visibility)}</p>
+          </div>
+          <p className="[overflow-wrap:anywhere]">{item.game_name} · {text('kind.' + item.kind)} · {text('format.' + item.format)}</p>
+          <p className="font-semibold text-cyan-100 wrap-anywhere">
+            <time dateTime={item.starts_at}>{calendarDate(item.starts_at, zone)}</time>
+            {' → '}
+            <time dateTime={item.ends_at}>{calendarDate(item.ends_at, zone)}</time>
+          </p>
+          <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('origin')} : {item.origin_timezone}</p>
+          <p className="[overflow-wrap:anywhere]">{text('responsible')} : {item.responsible_label}</p>
+          <ol className="grid min-w-0 gap-2">{item.participants.map((p) => <li key={p.id} className="grid min-w-0 gap-2 [overflow-wrap:anywhere]">
+            <span>{p.slot}. {text('source.' + p.kind)} · {p.label}</span>
+            {p.kind === 'team' && <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups({ item, participant: p }); setEditor(null); setTransition(null); setHistory(null) }}>{text('lineups')} · {p.label}</Button>}
+          </li>)}</ol>
+          <div className="flex flex-wrap gap-3">
+            <Button disabled={blocked} onClick={() => { setLive(item); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null) }}>{text('live.title')}</Button>
+            <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(item); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null) }}>{text('corrections.title')}</Button>
+            <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(item); setResults(null); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null) }}>{text('notebook.title')}</Button>
+            <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(item); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null) }}>{text('results.title')}</Button>
+            <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(item); setLineups(null); setEditor(null); setTransition(null); setHistory(null) }}>{text('scores.title')}</Button>
+            <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setHistory(item); setEditor(null); setTransition(null) }}>{text('history')}</Button>
+            {canWrite && item.editable && <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor(item); setHistory(null); setTransition(null) }}>{text('edit')}</Button>}
+            {canWrite && item.available_transitions.length > 0 && <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setTransition(item); setEditor(null); setHistory(null) }}>{text('transition')}</Button>}
+          </div>
+          {item.status !== 'cancelled' && <ContextDiscussion {...{ active, onInvalid }} type="match" id={item.id} disabled={blocked} />}
+          {item.status !== 'cancelled' && <ContextMedia key={item.id + item.version} {...{ active, onInvalid }} type="match" id={item.id} disabled={blocked} />}
         </li>)}</ol>
-        <div className="flex flex-wrap gap-3">
-          <Button disabled={blocked} onClick={() => { setLive(item); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null) }}>{text('live.title')}</Button>
-          <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(item); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null) }}>{text('corrections.title')}</Button>
-          <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(item); setResults(null); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null) }}>{text('notebook.title')}</Button>
-          <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(item); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null) }}>{text('results.title')}</Button>
-          <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(item); setLineups(null); setEditor(null); setTransition(null); setHistory(null) }}>{text('scores.title')}</Button>
-          <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setHistory(item); setEditor(null); setTransition(null) }}>{text('history')}</Button>
-          {canWrite && item.editable && <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor(item); setHistory(null); setTransition(null) }}>{text('edit')}</Button>}
-          {canWrite && item.available_transitions.length > 0 && <Button disabled={blocked} onClick={() => { setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setTransition(item); setEditor(null); setHistory(null) }}>{text('transition')}</Button>}
-        </div>
-        {item.status !== 'cancelled' && <ContextDiscussion {...{ active, onInvalid }} type="match" id={item.id} disabled={blocked} />}
-        {item.status !== 'cancelled' && <ContextMedia key={item.id + item.version} {...{ active, onInvalid }} type="match" id={item.id} disabled={blocked} />}
-      </li>)}</ol>
-      {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(next) => { setPage(next); setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null) }} />}
-      {editor && <MatchForm key={editor === 'new' ? 'new' : editor.id + editor.version} {...{ active, root, onInvalid }} item={editor === 'new' ? null : editor} disabled={blocked}
+        {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(next) => { setPage(next); setLive(null); setCorrections(null); setNotebook(null); setResults(null); setScores(null); setLineups(null); setEditor(null); setTransition(null); setHistory(null) }} />}
+      </div>
+      {editor && <WorkspaceEditor title={editor === 'new' ? text('create') : text('edit') + ' · ' + editor.title}>
+        <MatchForm key={editor === 'new' ? 'new' : editor.id + editor.version} {...{ active, root, onInvalid }} item={editor === 'new' ? null : editor} disabled={blocked}
         errors={mutation.errors(root + (editor === 'new' ? '' : '/' + editor.id))} onCancel={() => setEditor(null)}
-        onSubmit={(event, body) => mutation.propose(event, text('save'), root + (editor === 'new' ? '' : '/' + editor.id), { ...body, ...(editor === 'new' ? {} : { version: editor.version }) }, editor !== 'new')} />}
+        onSubmit={(event, body) => mutation.propose(event, text('save'), root + (editor === 'new' ? '' : '/' + editor.id), { ...body, ...(editor === 'new' ? {} : { version: editor.version }) }, editor !== 'new')} />
+      </WorkspaceEditor>}
       {transition && <form key={transition.id + transition.version} aria-label={text('transitionForm')} className="grid min-w-0 gap-3 rounded-xl border border-amber-400/30 p-3" onSubmit={(event) => {
         const values = new FormData(event.currentTarget)
         mutation.propose(event, text('transition') + ' : ' + text('status.' + String(values.get('status') ?? '')), root + '/' + transition.id + '/transitions', { version: transition.version, status: String(values.get('status') ?? ''), reason: String(values.get('reason') ?? '').trim() })

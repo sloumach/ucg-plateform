@@ -31,17 +31,17 @@ function Dashboards({ active, disabled, onInvalid }: Props) {
     if (selected) setQuery({ view: selected.id, from: String(form.get('from')), to: String(form.get('to')), revision: (query?.revision ?? 0) + 1 })
   }
   return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4">
-    <h2 className="font-bold">{text('title')}</h2><p>{text('hint')}</p>
+    <h2 className="text-xl font-bold">{text('title')}</h2><p className="text-sm text-muted">{text('hint')}</p>
     <Button disabled={disabled} aria-expanded={open} onClick={() => { setOpen(!open); setQuery(null); setCatalogueRevision((revision) => revision + 1) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>{catalogue.loading && <p role="status">{text('loading')}</p>}{catalogue.error && <Alert tone="error" title={catalogue.error.message} requestId={catalogue.error.requestId} />}
       {catalogue.error && <Button disabled={disabled} onClick={() => setCatalogueRevision((revision) => revision + 1)}>{text('retry')}</Button>}
-      {catalogue.data && <><form aria-label={text('filters')} onSubmit={submit} onChange={() => setQuery(null)} className="grid min-w-0 gap-3">
+      {catalogue.data && <><form aria-label={text('filters')} onSubmit={submit} onChange={() => setQuery(null)} className="ui-filters grid min-w-0 items-end gap-3 sm:grid-cols-2">
         <SelectField name="view" title={text('view')} value={selected?.id ?? ''} disabled={disabled} onChange={(id) => { setView(id); setQuery(null) }}>
           {catalogue.data.views.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}
-        </SelectField><p>{text('timezone')} : {catalogue.data.timezone} · {text('limit')} : {catalogue.data.max_days}</p>
+        </SelectField><p className="pb-2 text-sm text-muted">{text('timezone')} : {catalogue.data.timezone} · {text('limit')} : {catalogue.data.max_days}</p>
         <FormField name="from" label={text('from')} type="date" defaultValue={today} required disabled={disabled} />
         <FormField name="to" label={text('to')} type="date" defaultValue={end} required disabled={disabled} />
-        <p>{text('periodHint')}</p><Button type="submit" disabled={disabled || !selected}>{text('show')}</Button>
+        <p className="text-sm text-muted sm:col-span-2">{text('periodHint')}</p><Button variant="primary" type="submit" disabled={disabled || !selected}>{text('show')}</Button>
       </form>
       {selected?.cards.length === 0 && <p>{text('noCards')}</p>}
       {query && query.view === selected?.id && <section aria-label={text('results')} className="grid min-w-0 gap-4">

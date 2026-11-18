@@ -11,6 +11,7 @@ import { Button } from '../Button'
 import { Alert } from '../feedback/Alert'
 import { Pagination } from '../data/Pagination'
 import { CompetitionRegistrationForm } from './CompetitionRegistrationForm'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 type Props = { active: ActiveOrganization; root: string; item: ExternalCompetition; disabled: boolean; onInvalid: () => void; onClose: () => void }
 export function CompetitionRegistrationPanel({ active, root, item, disabled, onInvalid, onClose }: Props) {
   const [record, setRecord] = useState<CompetitionRegistration | null>(null), [loaded, setLoaded] = useState(false), [editing, setEditing] = useState(false), [history, setHistory] = useState(false)
@@ -34,7 +35,9 @@ export function CompetitionRegistrationPanel({ active, root, item, disabled, onI
     {loaded && !record && <p className="ui-state text-sm">{text('empty')}</p>}
     {record && <><RegistrationView payload={record.payload} zone={active.context!.timezone} /><p>{text('pending')} : {record.summary.pending} · {text('dueSoon')} : {record.summary.due_soon} · {text('overdue')} : {record.summary.overdue}</p></>}
     {loaded && writable && !editing && <Button disabled={blocked} onClick={() => { setHistory(false); setEditing(true) }}>{text('edit')}</Button>}
-    {editing && loaded && writable && <CompetitionRegistrationForm key={record?.version ?? 'new'} {...{ active, path, record, onInvalid }} disabled={blocked} errors={mutation.errors(path)} onCancel={() => setEditing(false)} onSubmit={(event, body) => mutation.propose(event, text('save'), path, { ...body, competition_version: item.version }, true)} />}
+    {editing && loaded && writable && <WorkspaceEditor title={text('edit')}>
+      <CompetitionRegistrationForm key={record?.version ?? 'new'} {...{ active, path, record, onInvalid }} disabled={blocked} errors={mutation.errors(path)} onCancel={() => setEditing(false)} onSubmit={(event, body) => mutation.propose(event, text('save'), path, { ...body, competition_version: item.version }, true)} />
+    </WorkspaceEditor>}
     {record && <Button disabled={blocked} onClick={() => { setEditing(false); setHistory(!history) }}>{text('history')}</Button>}
     {history && <RegistrationHistory {...{ active, path, onInvalid }} disabled={blocked} />}
     <RegistrationReminders key={refresh} {...{ active, path, onInvalid }} disabled={blocked} />

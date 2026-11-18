@@ -21,6 +21,8 @@ import { CalendarFeedPanel } from './CalendarFeedPanel'
 import { CalendarChangesPanel } from './CalendarChangesPanel'
 import { CalendarCancellationForm } from './CalendarCancellationForm'
 import { changeText } from '../../api/calendarChanges'
+import { WorkspaceFilters } from '../layout/WorkspaceFilters'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void; limited?: boolean }
 export function CalendarPanel({ active, disabled, onInvalid, limited = false }: Props) {
   const [open, setOpen] = useState(false), [page, setPage] = useState(1), [refresh, setRefresh] = useState(0)
@@ -42,69 +44,77 @@ export function CalendarPanel({ active, disabled, onInvalid, limited = false }: 
     <Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); setEditor(null); setHistory(null); setCancellation(null); setChangeHistory(null) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>
       {mutation.feedback}
-      {!limited && <CalendarFeedPanel {...{ active, root, onInvalid }} disabled={blocked} />}
-      {!limited && <CalendarChangesPanel {...{ active, root, onInvalid, timezone }} disabled={blocked} />}
-      <CalendarInvitationsPanel {...{ active, root, onInvalid }} disabled={blocked} />
-      {canWrite && !limited && <CalendarResourcesPanel {...{ active, root, onInvalid }} disabled={blocked} />}
-      <form aria-label={text('filter')} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
-        event.preventDefault(); const values = new FormData(event.currentTarget)
-        setFilters({ from: String(values.get('from_date') ?? ''), to: String(values.get('to_date') ?? ''), timezone: String(values.get('timezone') ?? '').trim(),
-          kind: String(values.get('kind') ?? ''), management: canWrite && values.get('management') === '1', archived: values.has('archived') })
-        setPage(1); setEditor(null); setCancellation(null)
-      }}>
-        <FormField name="from_date" label={text('fromDate')} type="date" defaultValue={filters.from} required disabled={blocked} error={error?.fieldErrors.from_date?.[0]} />
-        <FormField name="to_date" label={text('toDate')} type="date" defaultValue={filters.to} required disabled={blocked} error={error?.fieldErrors.to_date?.[0]} />
-        <FormField name="timezone" label={text('displayTimezone')} defaultValue={filters.timezone} placeholder={list?.calendar.viewer_timezone ?? active.context!.timezone} disabled={blocked} error={error?.fieldErrors.timezone?.[0]} />
-        <SelectField name="kind" title={text('kind')} defaultValue="" disabled={blocked}><option value="">{text('allKinds')}</option>{calendarKinds.map((key) => <option key={key} value={key}>{text('kind.' + key)}</option>)}</SelectField>
-        {canWrite && !limited && <><SelectField name="management" title={text('mode')} defaultValue="0" disabled={blocked}><option value="0">{text('myCalendar')}</option><option value="1">{text('management')}</option></SelectField>
-          <FormField name="archived" label={text('archivedFilter')} type="checkbox" disabled={blocked} /></>}
-        <p className="text-sm text-slate-400 sm:col-span-2">{text('windowHint')}</p>
-        <div className="flex flex-wrap gap-3 sm:col-span-2"><Button variant="primary" type="submit" disabled={blocked}>{text('filterAction')}</Button><Button disabled={blocked} onClick={() => setRefresh((n) => n + 1)}>{text('refresh')}</Button></div>
-      </form>
-      <p className="text-sm text-cyan-200 [overflow-wrap:anywhere]">{text('displayedIn')} : {timezone}</p>
-      {filters.management && <p className="text-sm text-amber-200">{text('managementHint')}</p>}
-      {canWrite && !limited && <Button variant="primary" className="justify-self-start" disabled={blocked} onClick={() => { setEditor('new'); setCancellation(null) }}>{text('new')}</Button>}
-      {loading && <AsyncState variant="loading" title={text('loading')} />}
-      {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
-      <ol className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-2 border-s-4 border-s-cyan-700 p-4">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <h3 className="text-lg font-bold wrap-anywhere">{item.title}</h3>
-          <p className="rounded-md bg-field px-2 py-1 text-xs font-medium text-muted">{text('kind.' + item.kind)} · {text('visibility.' + item.visibility)}</p>
-        </div>
-        <p className="font-semibold text-cyan-100 wrap-anywhere">
-          <time dateTime={item.starts_at}>{date(item.starts_at, timezone)}</time>
-          {' → '}
-          <time dateTime={item.ends_at}>{date(item.ends_at, timezone)}</time>
-        </p>
-        <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('origin')} : {item.origin_timezone} · {date(item.starts_at, item.origin_timezone)} → {date(item.ends_at, item.origin_timezone)}</p>
-        {item.team_id && <p>{text('team')} : {item.team_label ?? text('currentTeam')}</p>}
-        {item.description && <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{item.description}</p>}
-        {item.location && <p className="[overflow-wrap:anywhere]">{text('location')} : {item.location}</p>}
-        {safeCalendarUrl(item.url) && <a className="w-fit text-cyan-300 underline" href={safeCalendarUrl(item.url)!} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">{text('openLink')}</a>}
-        <p className="text-sm text-slate-400">{text('participants')} : {item.participants.length}</p>
-        {item.participants.length > 0 && <ul className="flex min-w-0 flex-wrap gap-2">{item.participants.map((person) => <li key={person.id} className="rounded-lg bg-slate-800 px-2 py-1 text-sm [overflow-wrap:anywhere]">{person.label ?? text('unavailablePerson')}</li>)}</ul>}
-        {(item.resources ?? []).length > 0 && <p className="[overflow-wrap:anywhere]">{bookingText('resources')} : {item.resources!.map((resource) => resource.label ?? bookingText('unknownResource')).join(', ')}</p>}
-        {item.archived_at && <p>{item.cancelled_at ? changeText('cancelled') : text('archived')}</p>}
-        {canWrite && <Button disabled={blocked} onClick={() => setChangeHistory(item.id)}>{changeText('history')}</Button>}
-        {canWrite && permissions.includes('calendar.invitations.manage') && <CalendarInvitationsPanel key={item.id + item.version} {...{ active, root, onInvalid }} activity={item} disabled={blocked} />}
-        {canWrite && permissions.includes('availability.read') && <Button disabled={blocked} onClick={() => setHistory(item.id)}>{bookingText('history')}</Button>}
-        {canWrite && !item.archived_at && <div className="flex flex-wrap gap-3"><Button disabled={blocked} onClick={() => { setEditor(item); setCancellation(null) }}>{text('edit')}</Button>
-          <Button disabled={blocked} onClick={() => { setCancellation(item); setEditor(null) }}>{changeText('cancelAction')}</Button>
-        </div>}
-        {!item.archived_at && !item.cancelled_at && <ContextDiscussion {...{ active, onInvalid }} type="event" id={item.id} disabled={blocked} />}
-        {!item.archived_at && !item.cancelled_at && <ContextMedia key={'media:' + item.id + ':' + item.version} {...{ active, onInvalid }} type="event" id={item.id} disabled={blocked} />}
-      </li>)}</ol>
-      {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(next) => { setPage(next); setEditor(null); setCancellation(null) }} />}
-      {editor && <CalendarForm limited={limited} key={editor === 'new' ? 'new' : editor.id + editor.version} {...{ active, root, onInvalid }} item={editor === 'new' ? null : editor}
+      <div hidden={editor !== null || cancellation !== null} className="grid min-w-0 gap-4">
+        {!limited && <CalendarFeedPanel {...{ active, root, onInvalid }} disabled={blocked} />}
+        {!limited && <CalendarChangesPanel {...{ active, root, onInvalid, timezone }} disabled={blocked} />}
+        <CalendarInvitationsPanel {...{ active, root, onInvalid }} disabled={blocked} />
+        {canWrite && !limited && <CalendarResourcesPanel {...{ active, root, onInvalid }} disabled={blocked} />}
+        <WorkspaceFilters>
+          <form aria-label={text('filter')} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
+            event.preventDefault(); const values = new FormData(event.currentTarget)
+            setFilters({ from: String(values.get('from_date') ?? ''), to: String(values.get('to_date') ?? ''), timezone: String(values.get('timezone') ?? '').trim(),
+              kind: String(values.get('kind') ?? ''), management: canWrite && values.get('management') === '1', archived: values.has('archived') })
+            setPage(1); setEditor(null); setCancellation(null)
+          }}>
+            <FormField name="from_date" label={text('fromDate')} type="date" defaultValue={filters.from} required disabled={blocked} error={error?.fieldErrors.from_date?.[0]} />
+            <FormField name="to_date" label={text('toDate')} type="date" defaultValue={filters.to} required disabled={blocked} error={error?.fieldErrors.to_date?.[0]} />
+            <FormField name="timezone" label={text('displayTimezone')} defaultValue={filters.timezone} placeholder={list?.calendar.viewer_timezone ?? active.context!.timezone} disabled={blocked} error={error?.fieldErrors.timezone?.[0]} />
+            <SelectField name="kind" title={text('kind')} defaultValue="" disabled={blocked}><option value="">{text('allKinds')}</option>{calendarKinds.map((key) => <option key={key} value={key}>{text('kind.' + key)}</option>)}</SelectField>
+            {canWrite && !limited && <><SelectField name="management" title={text('mode')} defaultValue="0" disabled={blocked}><option value="0">{text('myCalendar')}</option><option value="1">{text('management')}</option></SelectField>
+              <FormField name="archived" label={text('archivedFilter')} type="checkbox" disabled={blocked} /></>}
+            <p className="text-sm text-slate-400 sm:col-span-2">{text('windowHint')}</p>
+            <div className="flex flex-wrap gap-3 sm:col-span-2"><Button variant="primary" type="submit" disabled={blocked}>{text('filterAction')}</Button><Button disabled={blocked} onClick={() => setRefresh((n) => n + 1)}>{text('refresh')}</Button></div>
+          </form>
+        </WorkspaceFilters>
+        <p className="text-sm text-cyan-200 [overflow-wrap:anywhere]">{text('displayedIn')} : {timezone}</p>
+        {filters.management && <p className="text-sm text-amber-200">{text('managementHint')}</p>}
+        {canWrite && !limited && <Button variant="primary" className="justify-self-start" disabled={blocked} onClick={() => { setEditor('new'); setCancellation(null) }}>{text('new')}</Button>}
+        {loading && <AsyncState variant="loading" title={text('loading')} />}
+        {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
+        {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+        <ol className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-2 border-s-4 border-s-cyan-700 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <h3 className="text-lg font-bold wrap-anywhere">{item.title}</h3>
+            <p className="rounded-md bg-field px-2 py-1 text-xs font-medium text-muted">{text('kind.' + item.kind)} · {text('visibility.' + item.visibility)}</p>
+          </div>
+          <p className="font-semibold text-cyan-100 wrap-anywhere">
+            <time dateTime={item.starts_at}>{date(item.starts_at, timezone)}</time>
+            {' → '}
+            <time dateTime={item.ends_at}>{date(item.ends_at, timezone)}</time>
+          </p>
+          <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('origin')} : {item.origin_timezone} · {date(item.starts_at, item.origin_timezone)} → {date(item.ends_at, item.origin_timezone)}</p>
+          {item.team_id && <p>{text('team')} : {item.team_label ?? text('currentTeam')}</p>}
+          {item.description && <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{item.description}</p>}
+          {item.location && <p className="[overflow-wrap:anywhere]">{text('location')} : {item.location}</p>}
+          {safeCalendarUrl(item.url) && <a className="w-fit text-cyan-300 underline" href={safeCalendarUrl(item.url)!} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">{text('openLink')}</a>}
+          <p className="text-sm text-slate-400">{text('participants')} : {item.participants.length}</p>
+          {item.participants.length > 0 && <ul className="flex min-w-0 flex-wrap gap-2">{item.participants.map((person) => <li key={person.id} className="rounded-lg bg-slate-800 px-2 py-1 text-sm [overflow-wrap:anywhere]">{person.label ?? text('unavailablePerson')}</li>)}</ul>}
+          {(item.resources ?? []).length > 0 && <p className="[overflow-wrap:anywhere]">{bookingText('resources')} : {item.resources!.map((resource) => resource.label ?? bookingText('unknownResource')).join(', ')}</p>}
+          {item.archived_at && <p>{item.cancelled_at ? changeText('cancelled') : text('archived')}</p>}
+          {canWrite && <Button disabled={blocked} onClick={() => setChangeHistory(item.id)}>{changeText('history')}</Button>}
+          {canWrite && permissions.includes('calendar.invitations.manage') && <CalendarInvitationsPanel key={item.id + item.version} {...{ active, root, onInvalid }} activity={item} disabled={blocked} />}
+          {canWrite && permissions.includes('availability.read') && <Button disabled={blocked} onClick={() => setHistory(item.id)}>{bookingText('history')}</Button>}
+          {canWrite && !item.archived_at && <div className="flex flex-wrap gap-3"><Button disabled={blocked} onClick={() => { setEditor(item); setCancellation(null) }}>{text('edit')}</Button>
+            <Button disabled={blocked} onClick={() => { setCancellation(item); setEditor(null) }}>{changeText('cancelAction')}</Button>
+          </div>}
+          {!item.archived_at && !item.cancelled_at && <ContextDiscussion {...{ active, onInvalid }} type="event" id={item.id} disabled={blocked} />}
+          {!item.archived_at && !item.cancelled_at && <ContextMedia key={'media:' + item.id + ':' + item.version} {...{ active, onInvalid }} type="event" id={item.id} disabled={blocked} />}
+        </li>)}</ol>
+        {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(next) => { setPage(next); setEditor(null); setCancellation(null) }} />}
+      </div>
+      {editor && <WorkspaceEditor title={editor === 'new' ? text('new') : text('edit') + ' · ' + editor.title}>
+        <CalendarForm limited={limited} key={editor === 'new' ? 'new' : editor.id + editor.version} {...{ active, root, onInvalid }} item={editor === 'new' ? null : editor}
         defaultTimezone={list?.calendar.viewer_timezone ?? active.context!.timezone} disabled={blocked} errors={mutation.errors(root + '/activities' + (editor === 'new' ? '' : '/' + editor.id))} onCancel={() => setEditor(null)}
-        onSubmit={(event, values) => mutation.propose(event, text('save'), root + '/activities' + (editor === 'new' ? '' : '/' + editor.id), { ...values, ...(editor === 'new' ? {} : { version: editor.version }) }, editor !== 'new')} />}
+        onSubmit={(event, values) => mutation.propose(event, text('save'), root + '/activities' + (editor === 'new' ? '' : '/' + editor.id), { ...values, ...(editor === 'new' ? {} : { version: editor.version }) }, editor !== 'new')} />
+      </WorkspaceEditor>}
       {history && <CalendarConflictHistory key={history} {...{ active, timezone, onInvalid }} path={root + '/activities/' + history} disabled={blocked} onClose={() => setHistory(null)} />}
       {changeHistory && <CalendarChangesPanel key={changeHistory} {...{ active, root, timezone, onInvalid }} activity={changeHistory} disabled={blocked} onClose={() => setChangeHistory(null)} />}
-      {cancellation && <CalendarCancellationForm key={cancellation.id + cancellation.version} title={cancellation.title} disabled={blocked}
-        errors={mutation.errors(root + '/activities/' + cancellation.id)} onCancel={() => setCancellation(null)}
-        onSubmit={(event, reason) => mutation.propose(event, changeText('cancelAction'), root + '/activities/' + cancellation.id,
-          { version: cancellation.version, archive: true, change_reason: reason }, true)} />}
+      {cancellation && <WorkspaceEditor title={changeText('cancelAction')}>
+        <CalendarCancellationForm key={cancellation.id + cancellation.version} title={cancellation.title} disabled={blocked}
+          errors={mutation.errors(root + '/activities/' + cancellation.id)} onCancel={() => setCancellation(null)}
+          onSubmit={(event, reason) => mutation.propose(event, changeText('cancelAction'), root + '/activities/' + cancellation.id,
+            { version: cancellation.version, archive: true, change_reason: reason }, true)} />
+      </WorkspaceEditor>}
       <p className="text-sm text-slate-400">{text('limits')}</p>
     </>}
   </section>

@@ -491,7 +491,7 @@ export function TenantWorkspace({ userId, onContextChange }: {
                 </div>
                 {workspace.invitations.data.length === 0 && <p className="ui-state">{t('tenant.noInvitations')}</p>}
                 {workspace.invitations.data.map((invitation) => (
-                  <div key={invitation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 p-4">
+                  <div key={invitation.id} className="ui-card flex flex-wrap items-center justify-between gap-3 p-4">
                     <p className="min-w-0 break-all">{invitation.email} · {roleNames(invitation.roles)} · {t(`tenant.status.${invitation.status}`)}</p>
                     {invitation.status === 'pending' && (selected.is_owner || !invitation.roles.includes('administrator')) && (
                       <Button disabled={disabled} onClick={() => setAction({

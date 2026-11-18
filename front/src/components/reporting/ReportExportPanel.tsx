@@ -82,13 +82,13 @@ function Exports({ active, disabled, onInvalid, cards, query }: Props) {
       {!error && read.data && <><p>{text('limit')} : {read.data.max_rows} · {text('lifetime')} : {read.data.lifetime_minutes} min</p>
         {!read.data.enabled && <p>{text('disabled')}</p>}
         {!active.confirmed && <p>{text('context')}</p>}
-        {read.data.enabled && card && <form aria-label={text('form')} onSubmit={submit} className="grid min-w-0 gap-3">
+        {read.data.enabled && card && <form aria-label={text('form')} onSubmit={submit} className="ui-editor grid min-w-0 gap-3 p-4">
           <SelectField name="export_card" title={text('report')} value={card.id} disabled={blocked} onChange={(id) => { setSelected(id); requestKey.current = crypto.randomUUID() }}>
             {choices.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}
           </SelectField>
           <p>{card.period_kind === 'snapshot' ? text('snapshot') : query.from + ' → ' + query.to + ' · ' + active.context?.timezone}</p>
           <label className="flex items-start gap-2"><input type="checkbox" name="confirm" required disabled={blocked} className="mt-1" />{text('confirm')}</label>
-          <Button type="submit" disabled={blocked}>{text('request')}</Button>
+          <Button variant="primary" type="submit" className="justify-self-start" disabled={blocked}>{text('request')}</Button>
         </form>}
         {!card && <p>{text('noReports')}</p>}
         {read.data.items.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}

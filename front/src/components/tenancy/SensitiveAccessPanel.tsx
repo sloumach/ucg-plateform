@@ -7,6 +7,7 @@ import { FormField } from '../FormField'
 import { SelectField } from '../people/peopleForms'
 import { apiError, shouldReloadContext } from '../people/peopleFormValues'
 import { Alert } from '../feedback/Alert'
+import { WorkspaceFilters } from '../layout/WorkspaceFilters'
 
 export function SensitiveAccessPanel({ active, disabled, onInvalid }: { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }) {
   const org = active.context?.organization_id, revision = active.revision ?? undefined
@@ -44,13 +45,15 @@ export function SensitiveAccessPanel({ active, disabled, onInvalid }: { active: 
     <Button disabled={disabled} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? text('close') : text('title')}</Button>
     {open && <>
       <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('hint')}</p>
-      <form aria-label={text('filter')} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={filter}>
-        <SelectField name="action" title={text('action')} disabled={blocked}><option value="">{text('all')}</option>
-          {sensitiveActions.map((action) => <option key={action} value={action}>{text(action)}</option>)}
-        </SelectField>
-        <FormField name="actor_user_id" label={text('actorFilter')} inputMode="numeric" pattern="[0-9]*" maxLength={19} disabled={blocked} />
-        <Button type="submit" disabled={blocked}>{text('filter')}</Button>
-      </form>
+      <WorkspaceFilters>
+        <form aria-label={text('filter')} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={filter}>
+          <SelectField name="action" title={text('action')} disabled={blocked}><option value="">{text('all')}</option>
+            {sensitiveActions.map((action) => <option key={action} value={action}>{text(action)}</option>)}
+          </SelectField>
+          <FormField name="actor_user_id" label={text('actorFilter')} inputMode="numeric" pattern="[0-9]*" maxLength={19} disabled={blocked} />
+          <Button type="submit" disabled={blocked}>{text('filter')}</Button>
+        </form>
+      </WorkspaceFilters>
       {loading && <p role="status">{text('loading')}</p>}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
       {page?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}

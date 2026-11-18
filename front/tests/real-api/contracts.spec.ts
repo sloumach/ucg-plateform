@@ -71,7 +71,7 @@ test('contrat réel : préparation, confidentialité financière, approbation in
   await login(page, 'browser-contract@example.test')
   await page.getByRole('button', { name: /Ouvrir Contract Alpha/ }).click()
   await page.getByRole('link', { name: 'Contrats et partenariats', exact: true }).click()
-  await expect(page.getByText('Organisation active : Contract Alpha')).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Contexte d’organisation' })).toHaveText('Contract Alpha')
   const root = `${api}/api/v1/tenants/${data.alpha}/contracts`
   await panel(page).getByRole('button', { name: 'Contrats de l’organisation', exact: true }).click()
   await panel(page).getByRole('button', { name: 'Créer un dossier de contrat', exact: true }).click()
@@ -245,7 +245,7 @@ test('contrat réel : préparation, confidentialité financière, approbation in
   expect(history.map((event) => event.to_status).sort()).toEqual(['draft', 'in_review', 'approved', 'sent', 'signed', 'active', 'terminated', 'archived'].sort())
   await page.getByRole('link', { name: 'Aperçu', exact: true }).click()
   await page.getByRole('button', { name: /Ouvrir Contract Beta/ }).click()
-  await expect(page.getByText('Organisation active : Contract Beta')).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Contexte d’organisation' })).toHaveText('Contract Beta')
   await page.getByRole('link', { name: 'Contrats et partenariats', exact: true }).click()
   await openContract(page, 'Beta contrat privé')
   await expect(panel(page).getByRole('heading', { name: updated.title, exact: true })).toHaveCount(0)

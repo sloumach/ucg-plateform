@@ -51,6 +51,7 @@ test('disponibilités personnelles : heure répétée, historique, annulation et
   const panel = page.getByRole('region', { name: 'Disponibilités et absences', exact: true })
   await panel.getByRole('button', { name: 'Ouvrir les disponibilités' }).click()
   await expect(panel.getByText(/Aucun créneau dans cette période/)).toBeVisible()
+  await panel.getByText('Filtres', { exact: true }).click()
   const filters = panel.getByRole('form', { name: 'Filtres des disponibilités' })
   await filters.getByLabel('Du (inclus)').fill('2026-10-25'); await filters.getByLabel('Au (exclu)').fill('2026-10-26')
   await filters.getByLabel('Fuseau d’affichage (facultatif)').fill('Asia/Tokyo'); await filters.getByRole('button', { name: 'Afficher la période' }).click()

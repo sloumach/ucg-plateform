@@ -53,6 +53,7 @@ test('calendrier : fuseaux, heure répétée, participants et annulation sur mob
   const panel = page.getByRole('region', { name: 'Calendrier des activités' })
   await panel.getByRole('button', { name: 'Ouvrir le calendrier' }).click()
   await expect(panel.getByText('Aucune activité accessible dans cette période.')).toBeVisible()
+  await panel.getByText('Filtres', { exact: true }).click()
   const filters = panel.getByRole('form', { name: 'Filtres du calendrier' })
   await filters.getByLabel('Du (inclus)').fill('2026-10-25'); await filters.getByLabel('Au (exclu)').fill('2026-10-26')
   await filters.getByLabel('Fuseau d’affichage (facultatif)').fill('Asia/Tokyo')

@@ -87,7 +87,7 @@ test('compétition externe privée : dossier, règlement versionné, télécharg
   stale = false; await page.reload(); await open(); await panel.getByRole('button', { name: 'Archiver le dossier' }).click()
   const archive = panel.getByRole('form', { name: 'Archiver le dossier' }); await archive.getByLabel('Motif du changement').fill('Fin de participation, conservation des documents privés.')
   await archive.getByRole('button', { name: 'Archiver le dossier' }).click(); await confirm(); await expect(archive).toHaveCount(0)
-  writer = false; await page.reload(); await open(); const filters = panel.getByRole('form', { name: 'Filtres des compétitions' }); await filters.getByLabel('État du dossier').selectOption('archived'); await filters.getByRole('button', { name: 'Appliquer les filtres' }).click()
+  writer = false; await page.reload(); await open(); await panel.getByText('Filtres', { exact: true }).click(); const filters = panel.getByRole('form', { name: 'Filtres des compétitions' }); await filters.getByLabel('État du dossier').selectOption('archived'); await filters.getByRole('button', { name: 'Appliquer les filtres' }).click()
   await expect(panel.getByText(name, { exact: true })).toBeVisible(); await expect(panel.getByRole('button', { name: 'Modifier le dossier' })).toHaveCount(0)
   await panel.getByRole('button', { name: 'Documents privés de compétition', exact: true }).click(); await expect(docs.getByText('Règlement révisé et conservé.', { exact: true })).toBeVisible()
   await expect(docs.getByRole('button', { name: 'Nouveau document privé' })).toHaveCount(0)

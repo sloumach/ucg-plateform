@@ -11,6 +11,7 @@ import { changedValues } from '../people/peopleFormValues'
 import { usePeopleMutation } from '../people/usePeopleMutation'
 import { usePartnershipList } from './usePartnershipList'
 import { SponsorshipReferenceSelect, SponsorshipTextArea } from './SponsorshipFields'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 
 type Props = { active: ActiveOrganization; record: SponsorshipAgreement; path: string; disabled: boolean; readOnly?: boolean; onChanged: () => void; onInvalid: () => void }
 export function AgreementExposuresPanel({ active, record, path, disabled, readOnly = false, onChanged, onInvalid }: Props) {
@@ -26,30 +27,34 @@ export function AgreementExposuresPanel({ active, record, path, disabled, readOn
     {loading && <p role="status">{text('loading')}</p>}
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
     {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
-    {writable && <Button disabled={blocked} onClick={() => setEditor('new')}>{text('newExposure')}</Button>}
-    <ul className="grid min-w-0 gap-3">{list?.data.map((exposure) => <li key={exposure.id} className="ui-card grid min-w-0 gap-2 p-3">
-      <p className="font-bold [overflow-wrap:anywhere]">{exposure.target_label} · {text('channel.' + exposure.channel)}</p>
-      {exposure.target_current === false && <Alert tone="warning" title={text('targetChanged')} />}
-      {exposure.description && <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{exposure.description}</p>}
-      <p className="[overflow-wrap:anywhere]">{text('authorization_reference')} : {exposure.authorization_reference}</p>
-      {exposure.exclusivity_key && <p className="[overflow-wrap:anywhere]">{text('exclusivity_key')} : {exposure.exclusivity_key}</p>}
-      <p className={exposure.exposure_authorized ? 'text-emerald-300' : 'text-amber-200'}>{text(exposure.status === 'archived' ? 'archivedExposure' : exposure.exposure_authorized ? 'authorized' : 'notAuthorized')}</p>
-      {writable && exposure.status === 'active' && <>
-        <Button disabled={blocked} onClick={() => setEditor(exposure)}>{text('editExposure')}</Button>
-        <form aria-label={text('archiveExposure')} onSubmit={(event) => mutation.propose(event, text('archiveExposure'), path + '/' + exposure.id, { version: exposure.version, agreement_version: record.version, status: 'archived' }, true)}>
-          <Button type="submit" disabled={blocked}>{text('archiveExposure')}</Button>
-        </form>
-      </>}
-    </li>)}</ul>
-    {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={setPage} />}
-    {editor && <ExposureForm key={editor === 'new' ? 'new' : editor.id} {...{ active, disabled: blocked, onInvalid }} exposure={editor === 'new' ? null : editor}
+    <div hidden={editor !== null} className="grid min-w-0 gap-4">
+      {writable && <Button disabled={blocked} onClick={() => setEditor('new')}>{text('newExposure')}</Button>}
+      <ul className="grid min-w-0 gap-3">{list?.data.map((exposure) => <li key={exposure.id} className="ui-card grid min-w-0 gap-2 p-3">
+        <p className="font-bold [overflow-wrap:anywhere]">{exposure.target_label} · {text('channel.' + exposure.channel)}</p>
+        {exposure.target_current === false && <Alert tone="warning" title={text('targetChanged')} />}
+        {exposure.description && <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{exposure.description}</p>}
+        <p className="[overflow-wrap:anywhere]">{text('authorization_reference')} : {exposure.authorization_reference}</p>
+        {exposure.exclusivity_key && <p className="[overflow-wrap:anywhere]">{text('exclusivity_key')} : {exposure.exclusivity_key}</p>}
+        <p className={exposure.exposure_authorized ? 'text-emerald-300' : 'text-amber-200'}>{text(exposure.status === 'archived' ? 'archivedExposure' : exposure.exposure_authorized ? 'authorized' : 'notAuthorized')}</p>
+        {writable && exposure.status === 'active' && <>
+          <Button disabled={blocked} onClick={() => setEditor(exposure)}>{text('editExposure')}</Button>
+          <form aria-label={text('archiveExposure')} onSubmit={(event) => mutation.propose(event, text('archiveExposure'), path + '/' + exposure.id, { version: exposure.version, agreement_version: record.version, status: 'archived' }, true)}>
+            <Button type="submit" disabled={blocked}>{text('archiveExposure')}</Button>
+          </form>
+        </>}
+      </li>)}</ul>
+      {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={setPage} />}
+    </div>
+    {editor && <WorkspaceEditor title={editor === 'new' ? text('newExposure') : text('editExposure')}>
+      <ExposureForm key={editor === 'new' ? 'new' : editor.id} {...{ active, disabled: blocked, onInvalid }} exposure={editor === 'new' ? null : editor}
       errors={mutation.errors(path + (editor === 'new' ? '' : '/' + editor.id))} onCancel={() => setEditor(null)} onSubmit={(event) => {
         const exposure = editor === 'new' ? null : editor
         const values = changedValues(event.currentTarget, exposure), data = new FormData(event.currentTarget)
         delete values.confirm_target_version
         if (data.has('target_version')) values.target_version = data.get('target_version')
         mutation.propose(event, text('saveExposure'), path + (exposure ? '/' + exposure.id : ''), { ...values, agreement_version: record.version, ...(exposure ? { version: exposure.version } : {}) }, !!exposure)
-      }} />}
+      }} />
+    </WorkspaceEditor>}
   </section>
 }
 

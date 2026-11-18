@@ -28,7 +28,7 @@ test('connexion réelle, MFA, création persistée et isolation lors du changeme
   await page.getByLabel('Code de l’application (6 chiffres)').fill(fixtureCode())
   await page.getByRole('button', { name: 'Valider le code' }).click()
   await page.getByRole('button', { name: /Ouvrir Browser Alpha/ }).click()
-  await expect(page.getByText('Organisation active : Browser Alpha')).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Contexte d’organisation' })).toHaveText('Browser Alpha')
   await page.getByRole('link', { name: 'Fiches et profils', exact: true }).click()
   await expect(page.getByRole('button', { name: /Ouvrir Browser Foreign/ })).toHaveCount(0)
   const panel = page.getByRole('region', { name: 'Personnes', exact: true })
@@ -65,7 +65,7 @@ test('connexion réelle, MFA, création persistée et isolation lors du changeme
 
   await page.getByRole('link', { name: 'Aperçu', exact: true }).click()
   await page.getByRole('button', { name: /Ouvrir Browser Beta/ }).click()
-  await expect(page.getByText('Organisation active : Browser Beta')).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Contexte d’organisation' })).toHaveText('Browser Beta')
   await page.getByRole('link', { name: 'Fiches et profils', exact: true }).click()
   await expect(panel.getByText('Beta private player', { exact: true })).toBeVisible()
   await expect(panel.getByText('Alpha browser player', { exact: true })).toHaveCount(0)

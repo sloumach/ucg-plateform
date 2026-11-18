@@ -53,7 +53,7 @@ export function ClientOnboardingPanel() {
     <Button variant={open ? 'secondary' : 'primary'} disabled={busy} aria-expanded={open} className="justify-self-start" onClick={() => setOpen(!open)}>{t(open ? 'tenant.cancel' : 'clients.add')}</Button>
     {open && <>
       <p>{t('clients.explanation')}</p>
-      <form ref={formRef} aria-label={t('clients.add')} onSubmit={(event) => void submit(event)} className="grid min-w-0 gap-4">
+      <form ref={formRef} aria-label={t('clients.add')} onSubmit={(event) => void submit(event)} className="ui-editor grid min-w-0 gap-4 p-4 sm:p-5">
         <fieldset disabled={busy} className="grid min-w-0 gap-4 sm:grid-cols-2">
           <legend className="mb-3 font-semibold">{t('clients.contact')}</legend>
           <FormField name="client_name" label={t('clients.client_name')} required maxLength={255} error={error?.fieldErrors.client_name?.[0]} />
@@ -69,7 +69,7 @@ export function ClientOnboardingPanel() {
         <FormField name="reason" label={t('clients.reason')} required minLength={10} maxLength={500} disabled={busy} error={error?.fieldErrors.reason?.[0]} />
         <label className="flex items-start gap-2"><input name="confirm" type="checkbox" required disabled={busy} />{t('clients.confirm')}</label>
         {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-        <Button variant="primary" type="submit" isLoading={busy} loadingLabel={t('tenant.busy')}>{t('clients.send')}</Button>
+        <Button variant="primary" type="submit" className="justify-self-start" isLoading={busy} loadingLabel={t('tenant.busy')}>{t('clients.send')}</Button>
       </form>
     </>}
     {preview && <div className="grid min-w-0 gap-3 rounded-xl border border-amber-400/40 p-4">

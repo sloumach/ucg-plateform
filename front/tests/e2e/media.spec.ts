@@ -71,6 +71,7 @@ test('médias : scrim privé, autorisation différée, référence échappée et
   await panel.getByRole('button', { name: 'Archiver le média', exact: true }).click()
   await panel.getByRole('button', { name: 'Confirmer et continuer' }).click()
   await expect(panel.getByText('Aucun média accessible dans cette sélection.')).toBeVisible()
+  await panel.getByText('Filtres', { exact: true }).click()
   await panel.getByLabel('Archives', { exact: true }).selectOption('1')
   await panel.getByRole('button', { name: 'Rechercher', exact: true }).click()
   await expect(panel.getByRole('heading', { name: title })).toBeVisible()

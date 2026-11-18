@@ -38,13 +38,13 @@ function Search({ active, disabled, onInvalid }: Props) {
   function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); search(term) }
   const error = result.error ?? suggestions.error ?? catalogue.error
   return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4 [overflow-wrap:anywhere]">
-    <h2 className="text-xl font-bold">{text('title')}</h2><p>{text('hint')}</p>
+    <h2 className="text-xl font-bold">{text('title')}</h2><p className="text-sm text-muted">{text('hint')}</p>
     <Button disabled={disabled} aria-expanded={open} onClick={() => { setOpen(!open); setSelection(null); setTerm(''); setDebounced(''); setFocused(false) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>
       {catalogue.loading && <p role="status">{text('loading')}</p>}
       {error && <><Alert tone="error" title={error.message} requestId={error.requestId} />{Object.entries(error.fieldErrors).map(([field, messages]) => <p key={field} role="alert">{messages.join(' ')}</p>)}</>}
       {catalogue.error && <Button disabled={disabled} onClick={() => setCatalogueRevision((n) => n + 1)}>{text('retry')}</Button>}
-      {chosen && <form aria-label={text('filters')} onSubmit={submit} className="grid min-w-0 gap-3" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false) }}>
+      {chosen && <form aria-label={text('filters')} onSubmit={submit} className="ui-filters grid min-w-0 gap-3" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setFocused(false) }}>
         <SelectField name="search_type" title={text('type')} value={chosen} disabled={disabled} onChange={(value) => { setType(value as SearchType); setSelection(null); setDebounced('') }}>
           {available.map((value) => <option key={value} value={value}>{text('type.' + value)}</option>)}
         </SelectField>
@@ -54,7 +54,7 @@ function Search({ active, disabled, onInvalid }: Props) {
           <ul aria-label={text('suggestions')} className="grid min-w-0 gap-2">{suggestions.data.items.map((item) => <li key={item.id}><Button type="button" disabled={disabled} onClick={() => { const value = Array.from(item.label).slice(0, 80).join(''); setTerm(value); search(value) }}>{item.label}{item.reference ? ' · ' + item.reference : ''}</Button></li>)}</ul>
           {suggestions.data.meta.has_more && <p>{text('suggestPartial')}</p>}
         </div>}
-        <Button type="submit" disabled={disabled || term.trim().length < 2 || result.loading}>{text('submit')}</Button>
+        <Button variant="primary" type="submit" disabled={disabled || term.trim().length < 2 || result.loading}>{text('submit')}</Button>
       </form>}
       {result.loading && <p role="status">{text('loading')}</p>}
       {result.data && selection && <section aria-label={text('results')} className="grid min-w-0 gap-3">

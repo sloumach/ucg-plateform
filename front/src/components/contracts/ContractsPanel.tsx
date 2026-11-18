@@ -15,6 +15,8 @@ import { ContractDocumentsPanel } from './ContractDocumentsPanel'
 import { ContractRemindersPanel, MyContractReminders } from './ContractRemindersPanel'
 import { ContractFinancialPanel } from './ContractFinancialPanel'
 import { financialText } from '../../api/contractGovernance'
+import { WorkspaceFilters } from '../layout/WorkspaceFilters'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 
 type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
 type PartyInput = { kind: 'person' | 'external'; person_id: string | null; name: string }
@@ -81,24 +83,30 @@ export function ContractsPanel({ active, disabled, onInvalid }: Props) {
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
       {mutation.feedback}
       <MyContractReminders active={active} disabled={blocked} onInvalid={invalidate} onSelect={(id) => { setCreating(false); setEditing(false); setDetail(null); setDetailId(id); setRefresh((value) => value + 1) }} />
-      <form aria-label={text('search')} onSubmit={filter} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2">
-        <FormField name="q" label={text('q')} maxLength={80} disabled={blocked} />
-        <SelectField name="type" title={text('type')} disabled={blocked}><option value="">{text('all')}</option>{contractTypes.map((kind) => <option key={kind} value={kind}>{text('type.' + kind)}</option>)}</SelectField>
-        <SelectField name="status" title={text('status')} disabled={blocked}><option value="">{text('all')}</option>{contractStatuses.map((status) => <option key={status} value={status}>{text('status.' + status)}</option>)}</SelectField>
-        <Button type="submit" disabled={blocked}>{text('search')}</Button>
-      </form>
-      {manage && <Button variant="primary" disabled={blocked} onClick={() => { setCreating(true); setEditing(false); setDetail(null); setDetailId(null) }}>{text('create')}</Button>}
-      {!manage && <p>{text('readOnly')}</p>}
-      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
-      {list && <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{list.data.map((record) => <li key={record.id} className="ui-card grid min-w-0 gap-2 p-3">
-        <h3 className="font-bold [overflow-wrap:anywhere]">{record.title}</h3>
-        <p className="[overflow-wrap:anywhere]">{record.reference} · {text('type.' + record.type)} · {text('status.' + record.status)}</p>
-        <p className="[overflow-wrap:anywhere]">{text('responsible')} : {record.responsible_name}</p>
-        <p>{text('pending')} : {record.pending_obligations_count}</p>
-        <Button disabled={blocked} onClick={() => { setCreating(false); setEditing(false); setDetail(null); setDetailId(record.id) }}>{text('detail')}</Button>
-      </li>)}</ul>}
-      {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={(next) => { setDetail(null); setDetailId(null); setPage(next) }} />}
-      {creating && <ContractForm key="new" active={active} record={null} disabled={blocked} errors={mutation.errors(contractsPath(org))} onInvalid={invalidate} onCancel={() => setCreating(false)} onSave={save} />}
+      <div hidden={creating || editing} className="grid min-w-0 gap-4">
+        <WorkspaceFilters>
+          <form aria-label={text('search')} onSubmit={filter} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2">
+            <FormField name="q" label={text('q')} maxLength={80} disabled={blocked} />
+            <SelectField name="type" title={text('type')} disabled={blocked}><option value="">{text('all')}</option>{contractTypes.map((kind) => <option key={kind} value={kind}>{text('type.' + kind)}</option>)}</SelectField>
+            <SelectField name="status" title={text('status')} disabled={blocked}><option value="">{text('all')}</option>{contractStatuses.map((status) => <option key={status} value={status}>{text('status.' + status)}</option>)}</SelectField>
+            <Button type="submit" disabled={blocked}>{text('search')}</Button>
+          </form>
+        </WorkspaceFilters>
+        {manage && <Button variant="primary" disabled={blocked} onClick={() => { setCreating(true); setEditing(false); setDetail(null); setDetailId(null) }}>{text('create')}</Button>}
+        {!manage && <p>{text('readOnly')}</p>}
+        {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+        {list && <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{list.data.map((record) => <li key={record.id} className="ui-card grid min-w-0 gap-2 p-3">
+          <h3 className="font-bold [overflow-wrap:anywhere]">{record.title}</h3>
+          <p className="[overflow-wrap:anywhere]">{record.reference} · {text('type.' + record.type)} · {text('status.' + record.status)}</p>
+          <p className="[overflow-wrap:anywhere]">{text('responsible')} : {record.responsible_name}</p>
+          <p>{text('pending')} : {record.pending_obligations_count}</p>
+          <Button disabled={blocked} onClick={() => { setCreating(false); setEditing(false); setDetail(null); setDetailId(record.id) }}>{text('detail')}</Button>
+        </li>)}</ul>}
+        {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={(next) => { setDetail(null); setDetailId(null); setPage(next) }} />}
+      </div>
+      {creating && <WorkspaceEditor title={text('create')}>
+        <ContractForm key="new" active={active} record={null} disabled={blocked} errors={mutation.errors(contractsPath(org))} onInvalid={invalidate} onCancel={() => setCreating(false)} onSave={save} />
+      </WorkspaceEditor>}
       {detail && <section aria-label={text('detail')} className="ui-panel grid min-w-0 gap-3 p-4">
         <h3 className="font-bold [overflow-wrap:anywhere]">{detail.title}</h3>
         <p>{text('status.' + detail.status)} · {detail.in_force ? text('inForce') : text('notInForce')}</p>
@@ -139,7 +147,9 @@ export function ContractsPanel({ active, disabled, onInvalid }: Props) {
           </div>
         })}
         {manage && detail.status !== 'archived' && <Button disabled={blocked} onClick={() => setEditing((value) => !value)}>{text('edit')}</Button>}
-        {editing && <ContractForm key={detail.id + detail.version} active={active} record={detail} disabled={blocked} errors={mutation.errors(detailPath)} onInvalid={invalidate} onCancel={() => setEditing(false)} onSave={save} />}
+        {editing && <WorkspaceEditor title={text('edit') + ' · ' + detail.title}>
+          <ContractForm key={detail.id + detail.version} active={active} record={detail} disabled={blocked} errors={mutation.errors(detailPath)} onInvalid={invalidate} onCancel={() => setEditing(false)} onSave={save} />
+        </WorkspaceEditor>}
         {manage && detail.status !== 'archived' && <TransitionForm key={'transition:' + detail.version} record={detail} actor={active.context!.actor_user_id} validate={validate} permissions={active.context!.permissions}
           disabled={blocked} errors={mutation.errors(detailPath + '/transitions')} onSubmit={(event, body) => mutation.propose(event, text('transition'), detailPath + '/transitions', { version: detail.version, ...body })} />}
         <ContractHistory key={'history:' + detail.id + ':' + detail.version} active={active} record={detail} onInvalid={invalidate} />

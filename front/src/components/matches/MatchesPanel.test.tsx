@@ -101,7 +101,7 @@ describe('scrims et matchs', () => {
     const user = userEvent.setup(); show(); await user.click(screen.getByRole('button', { name: 'Ouvrir les matchs' })); await screen.findByText(record.title)
     expect(screen.queryByRole('button', { name: 'Modifier le match' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Changer le statut du match' })).not.toBeInTheDocument()
-    expect(screen.getByText('Terminé à valider')).toBeVisible()
+    expect(screen.getByText(/^Terminé à valider · /)).toBeVisible()
   })
   it('préserve le motif après 422 puis invalide un contexte périmé sans rejeu', async () => {
     const normal = request.getMockImplementation()!

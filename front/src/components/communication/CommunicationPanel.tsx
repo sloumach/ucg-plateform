@@ -8,6 +8,7 @@ import { usePeopleMutation } from '../people/usePeopleMutation'
 import { usePartnershipList } from '../partnerships/usePartnershipList'
 import { CommunicationForm, PublishForm } from './CommunicationForm'
 import { CommentThread, CommunicationInbox, CommunicationPreferencesForm, CommunicationLoadState } from './CommunicationViews'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 
 export type CommunicationProps = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
 export function CommunicationPanel({ active, disabled, onInvalid }: CommunicationProps) {
@@ -35,35 +36,39 @@ export function CommunicationPanel({ active, disabled, onInvalid }: Communicatio
         <Button disabled={blocked} onClick={() => { setThread(null); setRefresh((n) => n + 1) }}>{text('refresh')}</Button>
       </div>
       {['feed', 'management'].includes(view) && <>
-        {management && <><p className="text-sm text-amber-200">{text('managementHint')}</p>
-          <SelectField name="status" title={text('statusFilter')} value={status} disabled={blocked} onChange={(next) => { setStatus(next); setPage(1); setThread(null) }}>
-            <option value="">{text('all')}</option>{['draft', 'published', 'withdrawn'].map((key) => <option key={key} value={key}>{text('status.' + key)}</option>)}
-          </SelectField>
-          <Button disabled={blocked} onClick={() => { setEditor('new'); setThread(null) }}>{text('new')}</Button>
-        </>}
-        <CommunicationLoadState {...{ loading, error }} />
-        {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
-        <ul className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-3 p-3">
-          <h3 className="font-bold [overflow-wrap:anywhere]">{item.title}</h3>
-          <p>{text('status.' + item.status)} · {text('target.' + item.target_type)}</p>
-          {item.published_at && <p className="text-sm text-slate-400">{text('publishedAt')} : {date(item.published_at, active.context!.timezone)}</p>}
-          {item.expires_at && <p className="text-sm text-slate-400">{text('expiresAt')} : {date(item.expires_at, active.context!.timezone)}</p>}
-          <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{item.body}</p>
-          <p>{text(item.comments_enabled ? 'commentsOpen' : 'commentsClosed')}</p>
-          {management && item.status === 'draft' && <>
-            <Button disabled={blocked} onClick={() => { setEditor(item); setThread(null) }}>{text('edit')}</Button>
-            {canPublish && <PublishForm disabled={blocked} errors={mutation.errors(root + '/announcements/' + item.id)} onSubmit={(event, notify) => action(event, item, 'publish', { confirm_publication: true, notify_members: notify })} />}
+        <div hidden={editor !== null} className="grid min-w-0 gap-4">
+          {management && <><p className="text-sm text-amber-200">{text('managementHint')}</p>
+            <SelectField name="status" title={text('statusFilter')} value={status} disabled={blocked} onChange={(next) => { setStatus(next); setPage(1); setThread(null) }}>
+              <option value="">{text('all')}</option>{['draft', 'published', 'withdrawn'].map((key) => <option key={key} value={key}>{text('status.' + key)}</option>)}
+            </SelectField>
+            <Button disabled={blocked} onClick={() => { setEditor('new'); setThread(null) }}>{text('new')}</Button>
           </>}
-          {management && item.status === 'published' && <div className="flex flex-wrap gap-2">
-            <form onSubmit={(event) => action(event, item, 'comments', { comments_enabled: !item.comments_enabled })}><Button type="submit" disabled={blocked}>{text(item.comments_enabled ? 'closeComments' : 'openComments')}</Button></form>
-            {canPublish && <form onSubmit={(event) => action(event, item, 'withdraw')}><Button type="submit" disabled={blocked}>{text('action.withdraw')}</Button></form>}
-          </div>}
-          {item.status !== 'draft' && <Button disabled={blocked} onClick={() => { setThread(thread?.id === item.id ? null : item); setEditor(null) }}>{text('comments')}</Button>}
-        </li>)}</ul>
-        {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(next) => { setPage(next); setThread(null) }} />}
-        {editor && management && <CommunicationForm key={editor === 'new' ? 'new' : editor.id + editor.version} {...{ active, onInvalid, root }} disabled={blocked} item={editor === 'new' ? null : editor}
+          <CommunicationLoadState {...{ loading, error }} />
+          {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+          <ul className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-3 p-3">
+            <h3 className="font-bold [overflow-wrap:anywhere]">{item.title}</h3>
+            <p>{text('status.' + item.status)} · {text('target.' + item.target_type)}</p>
+            {item.published_at && <p className="text-sm text-slate-400">{text('publishedAt')} : {date(item.published_at, active.context!.timezone)}</p>}
+            {item.expires_at && <p className="text-sm text-slate-400">{text('expiresAt')} : {date(item.expires_at, active.context!.timezone)}</p>}
+            <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{item.body}</p>
+            <p>{text(item.comments_enabled ? 'commentsOpen' : 'commentsClosed')}</p>
+            {management && item.status === 'draft' && <>
+              <Button disabled={blocked} onClick={() => { setEditor(item); setThread(null) }}>{text('edit')}</Button>
+              {canPublish && <PublishForm disabled={blocked} errors={mutation.errors(root + '/announcements/' + item.id)} onSubmit={(event, notify) => action(event, item, 'publish', { confirm_publication: true, notify_members: notify })} />}
+            </>}
+            {management && item.status === 'published' && <div className="flex flex-wrap gap-2">
+              <form onSubmit={(event) => action(event, item, 'comments', { comments_enabled: !item.comments_enabled })}><Button type="submit" disabled={blocked}>{text(item.comments_enabled ? 'closeComments' : 'openComments')}</Button></form>
+              {canPublish && <form onSubmit={(event) => action(event, item, 'withdraw')}><Button type="submit" disabled={blocked}>{text('action.withdraw')}</Button></form>}
+            </div>}
+            {item.status !== 'draft' && <Button disabled={blocked} onClick={() => { setThread(thread?.id === item.id ? null : item); setEditor(null) }}>{text('comments')}</Button>}
+          </li>)}</ul>
+          {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(next) => { setPage(next); setThread(null) }} />}
+        </div>
+        {editor && management && <WorkspaceEditor title={editor === 'new' ? text('new') : text('edit') + ' · ' + editor.title}>
+          <CommunicationForm key={editor === 'new' ? 'new' : editor.id + editor.version} {...{ active, onInvalid, root }} disabled={blocked} item={editor === 'new' ? null : editor}
           errors={mutation.errors(root + '/announcements' + (editor === 'new' ? '' : '/' + editor.id))} onCancel={() => setEditor(null)}
-          onSubmit={(event, values) => mutation.propose(event, text('save'), root + '/announcements' + (editor === 'new' ? '' : '/' + editor.id), { ...values, ...(editor === 'new' ? {} : { version: editor.version }) }, editor !== 'new')} />}
+          onSubmit={(event, values) => mutation.propose(event, text('save'), root + '/announcements' + (editor === 'new' ? '' : '/' + editor.id), { ...values, ...(editor === 'new' ? {} : { version: editor.version }) }, editor !== 'new')} />
+        </WorkspaceEditor>}
         {thread && <CommentThread key={thread.id + thread.version + management} {...{ active, root, onInvalid, management }} item={thread} disabled={blocked} errors={mutation.errors(root + '/announcements/' + thread.id + '/comments')}
           onSubmit={(event, values) => mutation.propose(event, text('sendComment'), root + '/announcements/' + thread.id + '/comments', { ...values, version: thread.version })} />}
       </>}

@@ -12,6 +12,7 @@ import { useNotifications } from '../feedback/notificationContext'
 import { SelectField } from '../people/peopleForms'
 import { apiError } from '../people/peopleFormValues'
 import { CatalogueChoices } from './CatalogueChoices'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 
 type Pending = { body: Record<string, unknown>; entry: CatalogueEntry | null; name: string; form: HTMLFormElement }
 export function GameCataloguePanel() {
@@ -79,6 +80,7 @@ export function GameCataloguePanel() {
     <Button disabled={blocked} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? t('games.close') : t('games.globalTitle')}</Button>
     {open && <>
       <p className="text-sm text-slate-300">{t('games.globalHint')}</p>
+      <div hidden={editor !== null} className="grid min-w-0 items-start gap-3 sm:grid-cols-2">
       <SelectField name="catalogue_kind" title={t('games.kind')} value={kind} disabled={blocked}
         onChange={(value) => { setKind(value as CatalogueKind); setPage(1); setGameId(''); setEditor(null) }}>
         {catalogueKinds.map((value) => <option key={value} value={value}>{kindLabel(value)}</option>)}
@@ -87,29 +89,33 @@ export function GameCataloguePanel() {
         <option value="">{t('games.chooseGame')}</option>
         {choices?.games.map((game) => <option key={game.id} value={game.id}>{game.name}</option>)}
       </SelectField>}
+      </div>
       {loading && <p role="status">{t('games.loading')}</p>}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-      {pending && <div ref={region} tabIndex={-1} role="region" aria-label={t('games.globalConfirmTitle')} className="grid min-w-0 gap-3 rounded-xl border border-amber-400/40 bg-amber-400/10 p-4">
-        <p className="break-words [overflow-wrap:anywhere]">{t('games.globalConfirmMessage', { name: pending.name })}</p>
+      {pending && <div ref={region} tabIndex={-1} role="region" aria-label={t('games.globalConfirmTitle')} className="ui-confirmation grid min-w-0 gap-3">
+        <p className="break-words [overflow-wrap:anywhere]">{t(pending.entry ? 'games.globalConfirmMessage' : kind === 'game' ? 'games.globalConfirmCreate' : 'games.globalConfirmAddReference', { name: pending.name })}</p>
         <label className="flex items-start gap-2"><input type="checkbox" checked={confirmed} disabled={busy}
           onChange={(event) => setConfirmed(event.target.checked)} />{t('games.globalConfirmCheckbox')}</label>
         <div className="flex flex-wrap gap-3"><Button disabled={!confirmed} isLoading={busy} loadingLabel={t('tenant.busy')} onClick={() => void save()}>{t('games.globalConfirm')}</Button>
           <Button disabled={busy} onClick={() => setPending(null)}>{t('tenant.cancel')}</Button></div>
       </div>}
-      {list && <>
+      {list && <div hidden={editor !== null} className="grid min-w-0 gap-3">
         {!list.meta.can_manage && <p>{t('games.readOnly')}</p>}
-        {list.meta.can_manage && <Button disabled={blocked} onClick={() => { setError(null); setEditor('new') }}>{t('games.create')}</Button>}
-        <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{list.data.map((entry) => <li key={entry.id} className="ui-card grid min-w-0 gap-2 p-3">
-          <p className="break-words font-semibold [overflow-wrap:anywhere]">{entry.name}</p>
-          <p className="break-words text-sm text-slate-400 [overflow-wrap:anywhere]">{entry.key} · {entry.active ? t('games.available') : t('games.retired')}</p>
+        {list.meta.can_manage && <Button variant="primary" className="justify-self-start" disabled={blocked} onClick={() => { setError(null); setEditor('new') }}>{t('games.create')}</Button>}
+        <ul className="grid min-w-0 gap-3">{list.data.map((entry) => <li key={entry.id} className="ui-card flex min-w-0 flex-wrap items-center justify-between gap-3 p-4">
+          <div className="min-w-0"><h3 className="font-semibold wrap-anywhere">{entry.name}</h3>
+            <p className="text-sm text-muted wrap-anywhere">{entry.key} · {entry.active ? t('games.available') : t('games.retired')}</p>
+          </div>
           {list.meta.can_manage && <Button disabled={blocked} onClick={() => { setError(null); setEditor(entry) }}>{t('games.edit')}</Button>}
         </li>)}</ul>
-        {list.data.length === 0 && <p>{t('games.empty')}</p>}
+        {list.data.length === 0 && <p className="ui-state text-sm">{t('games.empty')}</p>}
         <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={setPage} />
-      </>}
-      {editor && choices && list?.meta.can_manage && <GameCatalogueForm key={editor === 'new' ? 'new:' + kind + ':' + gameId : editor.id + ':' + editor.version}
+      </div>}
+      {editor && choices && list?.meta.can_manage && <WorkspaceEditor title={editor === 'new' ? t('games.create') : t('games.edit') + ' · ' + editor.name}>
+        <GameCatalogueForm key={editor === 'new' ? 'new:' + kind + ':' + gameId : editor.id + ':' + editor.version}
         entry={editor === 'new' ? null : editor} kind={kind} gameId={gameId} choices={choices} disabled={blocked}
-        errors={error?.fieldErrors ?? {}} onSubmit={propose} onCancel={() => setEditor(null)} />}
+        errors={error?.fieldErrors ?? {}} onSubmit={propose} onCancel={() => setEditor(null)} />
+      </WorkspaceEditor>}
       {error && !editor && <Button disabled={blocked} onClick={() => setRefresh((value) => value + 1)}>{t('games.reload')}</Button>}
     </>}
   </section>

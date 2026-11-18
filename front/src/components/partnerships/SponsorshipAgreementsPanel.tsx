@@ -18,6 +18,8 @@ import { AgreementExposuresPanel } from './AgreementExposuresPanel'
 import { AgreementFinancialPanel } from './AgreementFinancialPanel'
 import { AgreementDocumentsPanel } from './AgreementDocumentsPanel'
 import { SponsorshipCampaignsPanel } from './SponsorshipCampaignsPanel'
+import { WorkspaceFilters } from '../layout/WorkspaceFilters'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 
 type Props = { active: ActiveOrganization; sponsor: Sponsor; disabled: boolean; onInvalid: () => void; onCampaignChanged?: () => void }
 export function SponsorshipAgreementsPanel({ active, sponsor, disabled, onInvalid, onCampaignChanged }: Props) {
@@ -34,25 +36,31 @@ export function SponsorshipAgreementsPanel({ active, sponsor, disabled, onInvali
     <h4 className="font-bold">{text('title')}</h4>
     <p className="text-sm text-slate-400">{text('hint')}</p>
     {mutation.feedback}
-    <form aria-label={text('search')} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
-      event.preventDefault(); const data = new FormData(event.currentTarget); setQuery(String(data.get('q') ?? '').trim()); setStatus(String(data.get('status') ?? '')); setPage(1); setSelected(null); setCreating(false)
-    }}>
-      <FormField name="q" label={text('search')} maxLength={80} disabled={blocked} />
-      <SelectField name="status" title={text('status')} defaultValue="" disabled={blocked}><option value="">{text('all')}</option>{agreementStatuses.map((value) => <option key={value} value={value}>{text('status.' + value)}</option>)}</SelectField>
-      <Button type="submit" disabled={blocked}>{t('partnerships.searchAction')}</Button>
-    </form>
-    {writable && <Button disabled={blocked} onClick={() => { setCreating(true); setSelected(null) }}>{text('new')}</Button>}
-    {loading && <p role="status">{text('loading')}</p>}
-    {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-    {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
-    <ul className="grid min-w-0 gap-3">{list?.data.map((agreement) => <li key={agreement.id} className="ui-card grid min-w-0 gap-2 p-3">
-      <p className="font-bold [overflow-wrap:anywhere]">{agreement.reference} · {agreement.title}</p><p>{text('status.' + agreement.status)}</p>
-      <p>{agreement.starts_on} → {agreement.ends_on}</p>
-      <Button disabled={blocked} onClick={() => { setCreating(false); setSelected(agreement.id) }}>{text('details')}</Button>
-    </li>)}</ul>
-    {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={(next) => { setPage(next); setSelected(null); setCreating(false) }} />}
-    {creating && <AgreementForm {...{ active, sponsor, onInvalid }} record={null} errors={mutation.errors(path)} disabled={blocked} onCancel={() => setCreating(false)}
-      onSubmit={(event) => { const body = changedValues(event.currentTarget, null); body.responsible_user_id = Number(body.responsible_user_id); mutation.propose(event, text('save'), path, body) }} />}
+    <div hidden={creating} className="grid min-w-0 gap-4">
+      <WorkspaceFilters>
+        <form aria-label={text('search')} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
+          event.preventDefault(); const data = new FormData(event.currentTarget); setQuery(String(data.get('q') ?? '').trim()); setStatus(String(data.get('status') ?? '')); setPage(1); setSelected(null); setCreating(false)
+        }}>
+          <FormField name="q" label={text('search')} maxLength={80} disabled={blocked} />
+          <SelectField name="status" title={text('status')} defaultValue="" disabled={blocked}><option value="">{text('all')}</option>{agreementStatuses.map((value) => <option key={value} value={value}>{text('status.' + value)}</option>)}</SelectField>
+          <Button type="submit" disabled={blocked}>{t('partnerships.searchAction')}</Button>
+        </form>
+      </WorkspaceFilters>
+      {writable && <Button disabled={blocked} onClick={() => { setCreating(true); setSelected(null) }}>{text('new')}</Button>}
+      {loading && <p role="status">{text('loading')}</p>}
+      {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
+      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      <ul className="grid min-w-0 gap-3">{list?.data.map((agreement) => <li key={agreement.id} className="ui-card grid min-w-0 gap-2 p-3">
+        <p className="font-bold [overflow-wrap:anywhere]">{agreement.reference} · {agreement.title}</p><p>{text('status.' + agreement.status)}</p>
+        <p>{agreement.starts_on} → {agreement.ends_on}</p>
+        <Button disabled={blocked} onClick={() => { setCreating(false); setSelected(agreement.id) }}>{text('details')}</Button>
+      </li>)}</ul>
+      {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={(next) => { setPage(next); setSelected(null); setCreating(false) }} />}
+    </div>
+    {creating && <WorkspaceEditor title={text('new')}>
+      <AgreementForm {...{ active, sponsor, onInvalid }} record={null} errors={mutation.errors(path)} disabled={blocked} onCancel={() => setCreating(false)}
+      onSubmit={(event) => { const body = changedValues(event.currentTarget, null); body.responsible_user_id = Number(body.responsible_user_id); mutation.propose(event, text('save'), path, body) }} />
+    </WorkspaceEditor>}
     {selected && <AgreementDetails key={selected} {...{ active, sponsor, onInvalid, onCampaignChanged, disabled: blocked }} path={path + '/' + selected} refresh={refresh} onChanged={changed} onClose={() => setSelected(null)} />}
   </section>
 }
@@ -74,10 +82,12 @@ function AgreementDetails({ active, sponsor, path, refresh, disabled, onInvalid,
       <h4 className="font-bold [overflow-wrap:anywhere]">{record.reference} · {record.title} · {text('status.' + record.status)}</h4>
       <p className="[overflow-wrap:anywhere]">{text('responsible_user_id')} : {record.responsible_label ?? text('responsibleUnavailable')}</p>
       {editable && <Button disabled={blocked} onClick={() => setEditing(!editing)}>{text('edit')}</Button>}
-      {editing && editable && <AgreementForm key={record.version} {...{ active, sponsor, record, onInvalid }} disabled={blocked} errors={mutation.errors(path)} onCancel={() => setEditing(false)} onSubmit={(event) => {
+      {editing && editable && <WorkspaceEditor title={text('edit')}>
+        <AgreementForm key={record.version} {...{ active, sponsor, record, onInvalid }} disabled={blocked} errors={mutation.errors(path)} onCancel={() => setEditing(false)} onSubmit={(event) => {
         const body = changedValues(event.currentTarget, record); if ('responsible_user_id' in body) body.responsible_user_id = Number(body.responsible_user_id)
         mutation.propose(event, text('save'), path, { ...body, version: record.version }, true)
-      }} />}
+      }} />
+      </WorkspaceEditor>}
       {editable && record.contract_id && permissions.includes('administrative.read') && <form aria-label={text('rebind')} onSubmit={(event) => mutation.propose(event, text('rebind'), path, { version: record.version, contract_id: record.contract_id }, true)}><Button type="submit" disabled={blocked}>{text('rebind')}</Button></form>}
       <AgreementExposuresPanel key={'exposures:' + record.version} {...{ active, record, onInvalid, onChanged, disabled: blocked, readOnly: sponsor.status === 'archived' }} path={path + '/exposures'} />
       <AgreementFinancialPanel key={'financial:' + record.version} {...{ active, record, onInvalid, onChanged, disabled: blocked, readOnly: sponsor.status === 'archived' }} path={path + '/financial'} />

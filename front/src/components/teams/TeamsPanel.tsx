@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { tenancyRequest, type ActiveOrganization, type Page } from '../../api/tenancy'
 import type { OrganizationGame } from '../../api/gameCatalogue'
 import { isAbortError } from '../../api/errors'
@@ -15,6 +15,11 @@ import { TeamMembershipPanel } from './TeamMembershipPanel'
 import { rosterText } from '../../api/teamMemberships'
 import { TeamLineupPanel } from './TeamLineupPanel'
 import { lineupText } from '../../api/teamLineups'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
+import { WorkspaceFilters } from '../layout/WorkspaceFilters'
+
+type TeamView = { mode: 'create' } | { mode: 'edit' | 'roster' | 'lineups'; team: Team }
+
 export function TeamsPanel({ active, disabled, onInvalid }: { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }) {
   const org = active.context?.organization_id, revision = active.revision ?? undefined
   const allowed = active.context?.permissions.includes('sports.read') ?? false
@@ -22,19 +27,25 @@ export function TeamsPanel({ active, disabled, onInvalid }: { active: ActiveOrga
   const [open, setOpen] = useState(false), [page, setPage] = useState(1), [refresh, setRefresh] = useState(0)
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [list, setList] = useState<Page<Team> | null>(null), [games, setGames] = useState<OrganizationGame[]>([])
-  const [editor, setEditor] = useState<Team | 'new' | null>(null)
-  const [roster, setRoster] = useState<Team | null>(null)
-  const [lineups, setLineups] = useState<Team | null>(null)
+  const [view, setView] = useState<TeamView | null>(null)
+  const returnFocus = useRef<HTMLButtonElement | null>(null)
   const [loading, setLoading] = useState(false), [error, setError] = useState<ReturnType<typeof apiError> | null>(null)
-  const mutation = usePeopleMutation<Team>(active, () => { setEditor(null); setRefresh((value) => value + 1) }, (failure) => {
+  const mutation = usePeopleMutation<Team>(active, () => { setView(null); setRefresh((value) => value + 1) }, (failure) => {
     if (failure.status === 409 && failure.code === 'TEAM_SLUG_ALREADY_EXISTS') return
     onInvalid()
   })
   useEffect(() => {
+    if (!view && !loading && list && returnFocus.current) {
+      returnFocus.current.focus({ preventScroll: true })
+      returnFocus.current = null
+    }
+  }, [view, loading, list])
+
+  useEffect(() => {
     if (!org || !allowed || !open) return
     const controller = new AbortController()
     const load = async () => {
-      setLoading(true); setList(null); setEditor(null); setRoster(null); setLineups(null); setError(null)
+      setLoading(true); setList(null); setView(null); setError(null)
       const query = new URLSearchParams({ per_page: '10', page: String(page), ...filters })
       try {
         const [next, catalogue] = await Promise.all([
@@ -51,56 +62,81 @@ export function TeamsPanel({ active, disabled, onInvalid }: { active: ActiveOrga
   }, [org, revision, allowed, open, page, filters, refresh, onInvalid])
   if (!org || !allowed) return null
   const blocked = disabled || loading || mutation.blocked
+  const team = view && view.mode !== 'create' ? view.team : null
+  const edit = view?.mode === 'create' || view?.mode === 'edit'
+  const openView = (next: TeamView, trigger: HTMLButtonElement) => {
+    returnFocus.current = trigger
+    setView(next)
+  }
   function filter(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setFilters(Object.fromEntries([...new FormData(event.currentTarget)].filter(([, value]) => value !== '').map(([key, value]) => [key, String(value)])))
     setPage(1)
   }
-  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4">
-    <Button disabled={disabled || mutation.blocked} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? text('close') : text('title')}</Button>
+  return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4 sm:p-5">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      {open && <h2 className="text-xl font-bold">{text('title')}</h2>}
+      <Button disabled={disabled || mutation.blocked} aria-expanded={open} onClick={() => { setOpen(!open); setView(null) }}>{open ? text('close') : text('title')}</Button>
+    </div>
     {open && <>
-      {!canManage && <p>{text('readOnly')}</p>}
       {loading && <p role="status">{text('loading')}</p>}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
       {mutation.feedback}
-      <form aria-label={text('search')} onSubmit={filter} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2">
-        <FormField name="q" label={text('q')} maxLength={80} disabled={blocked} />
-        <FormField name="season" label={text('season')} maxLength={64} disabled={blocked} />
-        <SelectField name="kind" title={text('kind')} disabled={blocked}><option value="">{text('all')}</option>{teamKinds.map((kind) => <option key={kind} value={kind}>{text('kind.' + kind)}</option>)}</SelectField>
-        <SelectField name="status" title={text('status')} disabled={blocked}><option value="">{text('all')}</option>{teamStatuses.map((status) => <option key={status} value={status}>{text('status.' + status)}</option>)}</SelectField>
-        <SelectField name="game_id" title={text('game')} disabled={blocked}><option value="">{text('all')}</option>{games.map((game) => <option key={game.id} value={game.id}>{game.name}</option>)}</SelectField>
-        <SelectField name="sort" title={text('sort')} disabled={blocked}><option value="name">{text('sort.name')}</option><option value="newest">{text('sort.newest')}</option></SelectField>
-        <Button type="submit" disabled={blocked}>{text('search')}</Button>
-      </form>
-      {canManage && <Button variant="primary" className="justify-self-start" disabled={blocked || !games.some((game) => game.enabled)} onClick={() => setEditor('new')}>{text('create')}</Button>}
+      <div hidden={view !== null} className="grid min-w-0 gap-4">
+      {!canManage && <p>{text('readOnly')}</p>}
+      {canManage && <Button variant="primary" className="justify-self-start" disabled={blocked || !games.some((game) => game.enabled)} onClick={(event) => openView({ mode: 'create' }, event.currentTarget)}>{text('create')}</Button>}
       {canManage && !loading && !games.some((game) => game.enabled) && <p>{text('noGames')}</p>}
+      <WorkspaceFilters>
+        <form aria-label={text('search')} onSubmit={filter} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <FormField name="q" label={text('q')} maxLength={80} disabled={blocked} />
+          <FormField name="season" label={text('season')} maxLength={64} disabled={blocked} />
+          <SelectField name="kind" title={text('kind')} disabled={blocked}><option value="">{text('all')}</option>{teamKinds.map((kind) => <option key={kind} value={kind}>{text('kind.' + kind)}</option>)}</SelectField>
+          <SelectField name="status" title={text('status')} disabled={blocked}><option value="">{text('all')}</option>{teamStatuses.map((status) => <option key={status} value={status}>{text('status.' + status)}</option>)}</SelectField>
+          <SelectField name="game_id" title={text('game')} disabled={blocked}><option value="">{text('all')}</option>{games.map((game) => <option key={game.id} value={game.id}>{game.name}</option>)}</SelectField>
+          <SelectField name="sort" title={text('sort')} disabled={blocked}><option value="name">{text('sort.name')}</option><option value="newest">{text('sort.newest')}</option></SelectField>
+          <Button type="submit" disabled={blocked}>{text('search')}</Button>
+        </form>
+      </WorkspaceFilters>
       <p className="text-sm text-slate-400">{text('private')}</p>
       {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
-      {list && <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{list.data.map((team) => <li key={team.id} className="ui-card grid min-w-0 gap-2 p-3">
-        <h3 className="text-lg font-bold wrap-anywhere">{team.name}</h3>
-        <p className="text-sm text-muted wrap-anywhere">{team.game_name} · {team.season} · {text('kind.' + team.kind)} · {text('status.' + team.status)}</p>
+      {list && <ul className="grid min-w-0 gap-3">{list.data.map((team) => <li key={team.id} className="ui-card grid min-w-0 gap-3 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-lg font-bold wrap-anywhere">{team.name}</h3>
+            <p className="text-sm text-muted wrap-anywhere">{team.game_name} · {team.season} · {text('kind.' + team.kind)}</p>
+          </div>
+          <span className={team.status === 'active' ? 'rounded-md bg-emerald-400/10 px-2.5 py-1 text-sm font-medium text-emerald-200' : 'rounded-md bg-slate-700/60 px-2.5 py-1 text-sm font-medium text-slate-200'}>{text('status.' + team.status)}</span>
+        </div>
         {team.custom_category && <p>{team.custom_category}</p>}{team.public_description && <p className="break-words [overflow-wrap:anywhere]">{team.public_description}</p>}
         <p className="break-words text-sm text-slate-400 [overflow-wrap:anywhere]">{team.slug}{team.short_name && ' · ' + team.short_name}{team.color && ' · ' + team.color}</p>
-        <Button disabled={blocked} onClick={() => { setEditor(null); setLineups(null); setRoster(team) }}>{rosterText('title')}</Button>
-        <Button disabled={blocked} onClick={() => { setEditor(null); setRoster(null); setLineups(team) }}>{lineupText('title')}</Button>
+        <div className="flex flex-wrap items-center gap-2 border-t border-outline pt-3">
+        <Button disabled={blocked} onClick={(event) => openView({ mode: 'roster', team }, event.currentTarget)}>{rosterText('title')}</Button>
+        <Button disabled={blocked} onClick={(event) => openView({ mode: 'lineups', team }, event.currentTarget)}>{lineupText('title')}</Button>
         {canManage && team.status !== 'archived' && <>
-          <Button disabled={blocked} onClick={() => setEditor(team)}>{text('edit')}</Button>
+          <Button disabled={blocked} onClick={(event) => openView({ mode: 'edit', team }, event.currentTarget)}>{text('edit')}</Button>
           <form aria-label={text('archive') + ' ' + team.name} onSubmit={(event) => mutation.propose(event, text('archive') + ' ' + team.name, teamsPath(org, team.id), { version: team.version, status: 'archived' }, true)}>
             <Button type="submit" disabled={blocked}>{text('archive')}</Button>
           </form>
         </>}
+        </div>
       </li>)}</ul>}
       {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={setPage} />}
-      {roster && <TeamMembershipPanel key={roster.id + roster.version} active={active} team={roster} disabled={blocked} onInvalid={onInvalid} onClose={() => setRoster(null)} />}
-      {lineups && <TeamLineupPanel key={lineups.id + lineups.version} active={active} team={lineups} disabled={blocked} onInvalid={onInvalid} onClose={() => setLineups(null)} />}
-      {editor && <TeamForm key={editor === 'new' ? 'new' : editor.id + editor.version} team={editor === 'new' ? null : editor}
-        games={games.filter((game) => game.enabled)} disabled={blocked} errors={mutation.errors(teamsPath(org, editor === 'new' ? undefined : editor.id))}
-        onCancel={() => setEditor(null)} onSubmit={(event) => {
-          const team = editor === 'new' ? null : editor
+      {canManage && list?.data.some((item) => item.status !== 'archived') && <p className="text-sm text-slate-400">{text('archiveHint')}</p>}
+      </div>
+      {view?.mode === 'roster' && <WorkspaceEditor title={view.team.name}>
+        <TeamMembershipPanel active={active} team={view.team} disabled={blocked} onInvalid={onInvalid} onClose={() => setView(null)} />
+      </WorkspaceEditor>}
+      {view?.mode === 'lineups' && <WorkspaceEditor title={view.team.name}>
+        <TeamLineupPanel active={active} team={view.team} disabled={blocked} onInvalid={onInvalid} onClose={() => setView(null)} />
+      </WorkspaceEditor>}
+      {edit && <WorkspaceEditor title={team ? text('edit') + ' · ' + team.name : text('create')}>
+        <TeamForm key={team ? team.id + team.version : 'new'} team={team}
+        games={games.filter((game) => game.enabled)} disabled={blocked} errors={mutation.errors(teamsPath(org, team?.id))}
+        onCancel={() => setView(null)} onSubmit={(event) => {
           const body = changedValues(event.currentTarget, team)
           mutation.propose(event, text('save'), teamsPath(org, team?.id), { ...body, ...(team ? { version: team.version } : {}) }, !!team)
-        }} />}
-      <p className="text-sm text-slate-400">{text('archiveHint')}</p>
+        }} />
+      </WorkspaceEditor>}
     </>}
   </section>
 }

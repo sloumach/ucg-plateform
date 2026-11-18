@@ -98,6 +98,7 @@ test('discussion réelle : calendrier, confirmation, commentaire persisté, anno
   await page.getByRole('link', { name: 'Calendrier', exact: true }).click()
   const calendar = page.getByRole('region', { name: 'Calendrier des activités', exact: true })
   await calendar.getByRole('button', { name: 'Ouvrir le calendrier', exact: true }).click()
+  await calendar.getByText('Filtres', { exact: true }).click()
   const filters = calendar.getByRole('form', { name: 'Filtres du calendrier' })
   await filters.getByLabel('Du (inclus)').fill(data.day)
   await filters.getByLabel('Au (exclu)').fill(new Date(new Date(data.day + 'T00:00:00Z').getTime() + 86400000).toISOString().slice(0, 10))

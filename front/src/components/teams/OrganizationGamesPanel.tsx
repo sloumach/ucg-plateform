@@ -7,6 +7,7 @@ import { t } from '../../i18n/fr'
 import { Button } from '../Button'
 import { Pagination } from '../data/Pagination'
 import { Alert } from '../feedback/Alert'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 import { SelectField } from '../people/peopleForms'
 import { apiError, shouldReloadContext } from '../people/peopleFormValues'
 import { usePeopleMutation } from '../people/usePeopleMutation'
@@ -43,30 +44,35 @@ export function OrganizationGamesPanel({ active, disabled, onInvalid }: { active
   if (!org || !allowed) return null
   const blocked = disabled || loading || mutation.blocked
   return <section aria-label={t('games.orgTitle')} className="ui-panel grid min-w-0 gap-4 p-4">
-    <Button disabled={disabled || mutation.blocked} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? t('games.close') : t('games.orgTitle')}</Button>
+    <Button className="justify-self-start" disabled={disabled || mutation.blocked} aria-expanded={open} onClick={() => { setOpen(!open); setSelected(null); setGame(null) }}>{open ? t('games.close') : t('games.orgTitle')}</Button>
     {open && <>
-      <p className="text-sm text-slate-300">{t('games.orgHint')}</p>
-      {!canManage && <p>{t('games.readOnly')}</p>}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
       {loading && <p role="status">{t('games.loading')}</p>}
       {mutation.feedback}
-      {list && <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{list.data.map((entry) => <li key={entry.id} className="ui-card grid min-w-0 gap-2 p-3">
-        <p className="break-words font-semibold [overflow-wrap:anywhere]">{entry.name}</p>
-        <p>{!entry.available ? t('games.retired') : entry.enabled ? t('games.enabledStatus') : t('games.disabled')}</p>
+      {selected && error && !game && <Button className="justify-self-start" onClick={() => setSelected(null)}>{t('workspace.backToList')}</Button>}
+      {!selected && <>
+      <p className="text-sm text-slate-300">{t('games.orgHint')}</p>
+      {!canManage && <p>{t('games.readOnly')}</p>}
+      {list && <ul className="grid min-w-0 gap-3">{list.data.map((entry) => <li key={entry.id} className="ui-card flex min-w-0 flex-wrap items-center justify-between gap-3 p-4">
+        <div className="min-w-0"><h3 className="font-semibold wrap-anywhere">{entry.name}</h3>
+        <p className="text-sm text-muted">{!entry.available ? t('games.retired') : entry.enabled ? t('games.enabledStatus') : t('games.disabled')}</p></div>
         <Button disabled={blocked} onClick={() => setSelected(entry.id)}>{canManage ? t('games.edit') : t('games.available')}</Button>
       </li>)}</ul>}
-      {list?.data.length === 0 && <p>{t('games.empty')}</p>}
+      {list?.data.length === 0 && <p className="ui-state text-sm">{t('games.empty')}</p>}
       {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked}
         onPageChange={(next) => { setSelected(null); setPage(next) }} />}
-      {game && <OrganizationGameForm key={game.id + ':' + game.version} game={game} disabled={blocked || !canManage}
-        errors={mutation.errors(organizationGamesPath(org, game.id))} onCancel={() => setSelected(null)}
-        onSubmit={(event, body) => mutation.propose(event, t('games.orgConfirm', { name: game.name }), organizationGamesPath(org, game.id), body, true)} />}
+      </>}
+      {selected && game && <WorkspaceEditor key={game.id} title={game.name}>
+        <OrganizationGameForm key={game.version ?? 'default'} game={game} disabled={blocked} readOnly={!canManage}
+          errors={mutation.errors(organizationGamesPath(org, game.id))} onCancel={() => setSelected(null)}
+          onSubmit={(event, body) => mutation.propose(event, t('games.orgConfirm', { name: game.name }), organizationGamesPath(org, game.id), body, true)} />
+      </WorkspaceEditor>}
     </>}
   </section>
 }
 
-function OrganizationGameForm({ game, disabled, errors, onCancel, onSubmit }: {
-  game: OrganizationGameDetail; disabled: boolean; errors: Record<string, string[]>; onCancel: () => void
+function OrganizationGameForm({ game, disabled, readOnly, errors, onCancel, onSubmit }: {
+  game: OrganizationGameDetail; disabled: boolean; readOnly: boolean; errors: Record<string, string[]>; onCancel: () => void
   onSubmit: (event: FormEvent<HTMLFormElement>, body: Record<string, unknown>) => void
 }) {
   // Laravel returns [] when there are no restrictions. Its map property is Array.prototype.map.
@@ -76,18 +82,17 @@ function OrganizationGameForm({ game, disabled, errors, onCancel, onSubmit }: {
     onSubmit(event, { enabled: form.get('enabled') === 'yes', restrictions, version: game.version, catalogue_version: game.catalogue_version })
   }
   return <form aria-label={t('games.orgSave')} onSubmit={submit} className="ui-editor grid min-w-0 gap-4 p-4">
-    <h3 className="break-words text-lg font-bold [overflow-wrap:anywhere]">{game.name}</h3>
     {!game.available && <p className="text-amber-200">{t('games.retired')}</p>}
     {!game.available && <p className="text-sm text-amber-200">{t('games.retiredHint')}</p>}
-    <SelectField name="enabled" title={t('games.enabled')} disabled={disabled} defaultValue={game.available && game.configured_enabled ? 'yes' : 'no'} error={errors.enabled?.[0]}>
+    <SelectField name="enabled" title={t('games.enabled')} disabled={disabled || readOnly} defaultValue={game.available && game.configured_enabled ? 'yes' : 'no'} error={errors.enabled?.[0]}>
       <option value="no">{t('games.disabled')}</option><option value="yes" disabled={!game.available}>{t('games.enabledStatus')}</option>
     </SelectField>
     <p className="text-sm text-slate-400">{t('games.restrictionHint')}</p>
-    {restrictionKinds.map((kind) => <CatalogueChoices key={kind} title={kindLabel(kind)} choices={game.options[kind]} value={restrictions[kind]} inherit
-      disabled={disabled} error={errors['restrictions.' + kind]?.[0]} onChange={(keys) => setRestrictions((current) => {
+    <div className="grid min-w-0 items-start gap-3 lg:grid-cols-2">{restrictionKinds.map((kind) => <CatalogueChoices key={kind} title={kindLabel(kind)} choices={game.options[kind]} value={restrictions[kind]} inherit
+      disabled={disabled || readOnly} error={errors['restrictions.' + kind]?.[0]} onChange={(keys) => setRestrictions((current) => {
         const next = { ...current }; if (keys === undefined) delete next[kind]; else next[kind] = keys; return next
-      })} />)}
-    <div className="flex flex-wrap gap-3"><Button type="submit" disabled={disabled}>{t('games.orgSave')}</Button>
-      <Button disabled={disabled} onClick={onCancel}>{t('tenant.cancel')}</Button></div>
+      })} />)}</div>
+    <div className="flex flex-wrap gap-3"><Button variant="primary" type="submit" disabled={disabled || readOnly}>{t('games.orgSave')}</Button>
+      <Button disabled={disabled} onClick={onCancel}>{t('workspace.backToList')}</Button></div>
   </form>
 }

@@ -227,7 +227,7 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
     {!showingRoles && <p className="text-slate-400">{t('roles.description')}</p>}
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
     {loading && <AsyncState variant="loading" title={t('roles.loading')} />}
-    {pending && <div ref={confirmRegion} tabIndex={-1} role="region" aria-label={t('tenant.confirmTitle')} className="grid min-w-0 gap-3 rounded-xl border border-amber-400/40 bg-amber-400/10 p-4">
+    {pending && <div ref={confirmRegion} tabIndex={-1} role="region" aria-label={t('tenant.confirmTitle')} className="ui-confirmation grid min-w-0 gap-3">
       <p>{t('tenant.confirmMessage', { action: pending.label, name: context.name })}</p>
       <Button isLoading={busy} loadingLabel={t('tenant.busy')} onClick={() => void save()}>{t('tenant.confirm')}</Button>
       <Button disabled={busy} onClick={cancel}>{t('tenant.cancel')}</Button>

@@ -88,6 +88,7 @@ test('personnes : création confirmée, recherche, profils et comptes sur mobile
   await expect(confirmation).toBeFocused()
   await confirmation.getByRole('button', { name: 'Confirmer et continuer' }).click()
   await expect(panel.getByRole('button', { name: 'Ouvrir la fiche Camille' })).toBeVisible()
+  await panel.getByText('Filtres', { exact: true }).click()
   await panel.getByLabel('Début du pseudonyme').fill('Ca')
   await panel.getByRole('button', { name: 'Appliquer les filtres' }).click()
   await panel.getByRole('button', { name: 'Ouvrir la fiche Camille' }).click()

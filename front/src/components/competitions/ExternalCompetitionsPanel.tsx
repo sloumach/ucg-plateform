@@ -16,6 +16,8 @@ import { registrationText } from '../../api/competitionRegistrations'
 
 import { CompetitionOutcomePanel } from './CompetitionOutcomePanel'
 import { outcomeText, type OutcomeStream } from '../../api/competitionOutcomes'
+import { WorkspaceFilters } from '../layout/WorkspaceFilters'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 
 type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
 export function ExternalCompetitionsPanel({ active, disabled, onInvalid }: Props) {
@@ -39,32 +41,41 @@ export function ExternalCompetitionsPanel({ active, disabled, onInvalid }: Props
     <Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); clear() }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>
       {mutation.feedback}
-      <form aria-label={text('filters')} className="grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
-        event.preventDefault(); const values = new FormData(event.currentTarget)
-        setFilters({ status: String(values.get('status') ?? 'active'), region: String(values.get('region') ?? '').trim(), season: String(values.get('season') ?? '').trim() }); setPage(1); clear()
-      }}>
-        <SelectField name="status" title={text('status')} defaultValue="active" disabled={blocked}><option value="active">{text('active')}</option><option value="archived">{text('archived')}</option></SelectField>
-        <FormField name="season" label={text('season')} maxLength={100} disabled={blocked} /><FormField name="region" label={text('region')} maxLength={80} disabled={blocked} />
-        <div className="flex flex-wrap gap-3"><Button type="submit" disabled={blocked}>{text('filter')}</Button><Button disabled={blocked || loading} onClick={() => { clear(); setRefresh((value) => value + 1) }}>{text('refresh')}</Button></div>
-      </form>
-      {canWrite && <Button variant="primary" disabled={blocked} onClick={() => { clear(); setEditor('new') }}>{text('create')}</Button>}
-      {loading && <p role="status">{text('loading')}</p>}{error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
-      <ol className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-3 p-3">
-        <CompetitionMetadata item={item} />
-        <div className="flex flex-wrap gap-3"><Button disabled={blocked} onClick={() => { clear(); setOutcome({ item, stream: 'sport' }) }}>{outcomeText('sport')}</Button>{permissions.includes('financial.read') && <Button disabled={blocked} onClick={() => { clear(); setOutcome({ item, stream: 'awards' }) }}>{outcomeText('awards')}</Button>}</div>
-        {permissions.includes('sports.registrations.read') && <Button disabled={blocked} onClick={() => { clear(); setRegistration(item) }}>{registrationText('panel')}</Button>}
-        <div className="flex flex-wrap gap-3">
-          <Button disabled={blocked} onClick={() => { clear(); setDocuments(item) }}>{text('documents')}</Button><Button disabled={blocked} onClick={() => { clear(); setHistory(item) }}>{text('history')}</Button>
-          {canWrite && item.status === 'active' && <><Button disabled={blocked} onClick={() => { clear(); setEditor(item) }}>{text('edit')}</Button><Button disabled={blocked} onClick={() => { clear(); setArchive(item) }}>{text('archive')}</Button></>}
-        </div>
-      </li>)}</ol>
-      {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(value) => { clear(); setPage(value) }} />}
-      {editor && <ExternalCompetitionForm key={editor === 'new' ? 'new' : editor.version} {...{ active, root, onInvalid }} item={editor === 'new' ? null : editor} disabled={blocked} errors={mutation.errors(editPath)} onCancel={() => setEditor(null)} onSubmit={(event, body) => mutation.propose(event, text('save'), editPath, body, editor !== 'new')} />}
-      {archive && <form aria-label={text('archive')} className="grid min-w-0 gap-3" onSubmit={(event) => {
+      <div hidden={editor !== null || archive !== null} className="grid min-w-0 gap-4">
+        <WorkspaceFilters>
+          <form aria-label={text('filters')} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
+            event.preventDefault(); const values = new FormData(event.currentTarget)
+            setFilters({ status: String(values.get('status') ?? 'active'), region: String(values.get('region') ?? '').trim(), season: String(values.get('season') ?? '').trim() }); setPage(1); clear()
+          }}>
+            <SelectField name="status" title={text('status')} defaultValue="active" disabled={blocked}><option value="active">{text('active')}</option><option value="archived">{text('archived')}</option></SelectField>
+            <FormField name="season" label={text('season')} maxLength={100} disabled={blocked} /><FormField name="region" label={text('region')} maxLength={80} disabled={blocked} />
+            <div className="flex flex-wrap gap-3"><Button type="submit" disabled={blocked}>{text('filter')}</Button><Button disabled={blocked || loading} onClick={() => { clear(); setRefresh((value) => value + 1) }}>{text('refresh')}</Button></div>
+          </form>
+        </WorkspaceFilters>
+        {canWrite && <Button variant="primary" disabled={blocked} onClick={() => { clear(); setEditor('new') }}>{text('create')}</Button>}
+        {loading && <p role="status">{text('loading')}</p>}{error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
+        {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+        <ol className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-3 p-3">
+          <CompetitionMetadata item={item} />
+          <div className="flex flex-wrap gap-3"><Button disabled={blocked} onClick={() => { clear(); setOutcome({ item, stream: 'sport' }) }}>{outcomeText('sport')}</Button>{permissions.includes('financial.read') && <Button disabled={blocked} onClick={() => { clear(); setOutcome({ item, stream: 'awards' }) }}>{outcomeText('awards')}</Button>}</div>
+          {permissions.includes('sports.registrations.read') && <Button disabled={blocked} onClick={() => { clear(); setRegistration(item) }}>{registrationText('panel')}</Button>}
+          <div className="flex flex-wrap gap-3">
+            <Button disabled={blocked} onClick={() => { clear(); setDocuments(item) }}>{text('documents')}</Button><Button disabled={blocked} onClick={() => { clear(); setHistory(item) }}>{text('history')}</Button>
+            {canWrite && item.status === 'active' && <><Button disabled={blocked} onClick={() => { clear(); setEditor(item) }}>{text('edit')}</Button><Button disabled={blocked} onClick={() => { clear(); setArchive(item) }}>{text('archive')}</Button></>}
+          </div>
+        </li>)}</ol>
+        {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(value) => { clear(); setPage(value) }} />}
+      </div>
+      {editor && <WorkspaceEditor title={editor === 'new' ? text('create') : text('edit') + ' · ' + editor.name}>
+        <ExternalCompetitionForm key={editor === 'new' ? 'new' : editor.version} {...{ active, root, onInvalid }} item={editor === 'new' ? null : editor} disabled={blocked} errors={mutation.errors(editPath)} onCancel={() => setEditor(null)} onSubmit={(event, body) => mutation.propose(event, text('save'), editPath, body, editor !== 'new')} />
+      </WorkspaceEditor>}
+      {archive && <WorkspaceEditor title={text('archive') + ' · ' + archive.name}>
+      <form aria-label={text('archive')} className="ui-editor grid min-w-0 gap-3 p-4" onSubmit={(event) => {
         const values = new FormData(event.currentTarget); mutation.propose(event, text('archive'), root + '/' + archive.id, { version: archive.version, archive: true, reason: String(values.get('reason') ?? '').trim() }, true)
       }}><p className="[overflow-wrap:anywhere]">{archive.name} · {text('archiveHint')}</p><FormField name="reason" label={text('reason')} minLength={10} maxLength={1000} required disabled={blocked} error={mutation.errors(root + '/' + archive.id).reason?.[0]} />
-        <div className="flex flex-wrap gap-3"><Button type="submit" disabled={blocked}>{text('archive')}</Button><Button disabled={blocked} onClick={() => setArchive(null)}>{text('cancel')}</Button></div></form>}
+        <div className="flex flex-wrap gap-3"><Button type="submit" disabled={blocked}>{text('archive')}</Button><Button disabled={blocked} onClick={() => setArchive(null)}>{text('cancel')}</Button></div>
+      </form>
+      </WorkspaceEditor>}
       {history && <CompetitionHistory key={history.id} {...{ active, onInvalid }} path={root + '/' + history.id + '/history'} disabled={blocked} onClose={() => setHistory(null)} />}
       {outcome && <CompetitionOutcomePanel key={outcome.item.id + outcome.stream + active.revision} {...{ active, root, onInvalid }} item={outcome.item} stream={outcome.stream} disabled={blocked} onClose={() => setOutcome(null)} />}
       {registration && <CompetitionRegistrationPanel key={registration.id + active.revision} {...{ active, root, onInvalid }} item={registration} disabled={blocked} onClose={() => setRegistration(null)} />}

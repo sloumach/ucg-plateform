@@ -9,6 +9,7 @@ import { Alert } from '../feedback/Alert'
 import { Pagination } from '../data/Pagination'
 import { SelectField } from '../people/peopleForms'
 import { useNotifications } from '../feedback/notificationContext'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 type Pending = { body: Record<string, unknown>; path: string; form: HTMLFormElement; method: 'POST' | 'PATCH' }
 export function MetricCataloguePanel() {
   const [open, setOpen] = useState(false), [page, setPage] = useState(1), [game, setGame] = useState(''), [status, setStatus] = useState('active'), [refresh, setRefresh] = useState(0)
@@ -49,12 +50,16 @@ export function MetricCataloguePanel() {
   }
   return <section aria-label={text('title')} className="ui-panel grid min-w-0 gap-4 p-4"><h2 className="text-xl font-bold">{text('title')}</h2><p className="text-sm text-slate-400">{text('hint')}</p><Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); setEditor(null); setHistory(null); setError(null) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <><p className="text-sm text-slate-400">{text('formulaHint')}</p>{error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-      <MetricReference kind="game" name="game_id" value={game} onChange={(v) => { setGame(v); setPage(1) }} disabled={blocked} /><SelectField name="filter_status" title={text('status')} value={status} onChange={(v) => { setStatus(v); setPage(1) }} disabled={blocked}>{['active', 'retired'].map((v) => <option key={v} value={v}>{text(v)}</option>)}</SelectField>
-      <Button disabled={blocked} onClick={() => setRefresh((n) => n + 1)}>{text('refresh')}</Button>{loading && <p role="status">{text('loading')}</p>}{list?.meta.can_manage && <Button variant="primary" disabled={blocked} onClick={() => { setHistory(null); setError(null); setEditor('new') }}>{text('create')}</Button>}{list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
-      <ol className="grid min-w-0 gap-3">{list?.data.map((row) => <li key={row.id} className="ui-card grid min-w-0 gap-3 p-3"><MetricView record={row} /><div className="flex flex-wrap gap-3"><Button disabled={blocked} onClick={() => { setEditor(null); setHistory(row) }}>{text('history')}</Button>{list.meta.can_manage && <Button disabled={blocked} onClick={() => { setHistory(null); setError(null); setEditor(row) }}>{text('edit')}</Button>}</div></li>)}</ol>
-      {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={setPage} />}
-      {pending && <div ref={region} role="region" tabIndex={-1} aria-label={text('confirmSave')} className="grid min-w-0 gap-3 rounded-xl border border-amber-400/40 p-3"><p>{text('globalWarning')}</p><label className="flex min-w-0 items-start gap-2"><input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} disabled={busy} />{text('confirmGlobal')}</label><div className="flex flex-wrap gap-3"><Button disabled={!confirmed || busy} onClick={() => void save()}>{text('confirmSave')}</Button><Button disabled={busy} onClick={() => setPending(null)}>{text('cancel')}</Button></div></div>}
-      {editor && list?.meta.can_manage && <MetricCatalogueForm key={editor === 'new' ? 'new' : editor.version} record={editor === 'new' ? null : editor} disabled={blocked} errors={error?.fieldErrors ?? {}} onCancel={() => setEditor(null)} onSubmit={propose} />}
+      <div hidden={editor !== null} className="grid min-w-0 gap-4">
+        <MetricReference kind="game" name="game_id" value={game} onChange={(v) => { setGame(v); setPage(1) }} disabled={blocked} /><SelectField name="filter_status" title={text('status')} value={status} onChange={(v) => { setStatus(v); setPage(1) }} disabled={blocked}>{['active', 'retired'].map((v) => <option key={v} value={v}>{text(v)}</option>)}</SelectField>
+        <Button disabled={blocked} onClick={() => setRefresh((n) => n + 1)}>{text('refresh')}</Button>{loading && <p role="status">{text('loading')}</p>}{list?.meta.can_manage && <Button variant="primary" disabled={blocked} onClick={() => { setHistory(null); setError(null); setEditor('new') }}>{text('create')}</Button>}{list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+        <ol className="grid min-w-0 gap-3">{list?.data.map((row) => <li key={row.id} className="ui-card grid min-w-0 gap-3 p-3"><MetricView record={row} /><div className="flex flex-wrap gap-3"><Button disabled={blocked} onClick={() => { setEditor(null); setHistory(row) }}>{text('history')}</Button>{list.meta.can_manage && <Button disabled={blocked} onClick={() => { setHistory(null); setError(null); setEditor(row) }}>{text('edit')}</Button>}</div></li>)}</ol>
+        {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={setPage} />}
+      </div>
+      {pending && <div ref={region} role="region" tabIndex={-1} aria-label={text('confirmSave')} className="ui-confirmation grid min-w-0 gap-3"><p>{text('globalWarning')}</p><label className="flex min-w-0 items-start gap-2"><input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} disabled={busy} />{text('confirmGlobal')}</label><div className="flex flex-wrap gap-3"><Button disabled={!confirmed || busy} onClick={() => void save()}>{text('confirmSave')}</Button><Button disabled={busy} onClick={() => setPending(null)}>{text('cancel')}</Button></div></div>}
+      {editor && list?.meta.can_manage && <WorkspaceEditor title={editor === 'new' ? text('create') : text('edit')}>
+        <MetricCatalogueForm key={editor === 'new' ? 'new' : editor.version} record={editor === 'new' ? null : editor} disabled={blocked} errors={error?.fieldErrors ?? {}} onCancel={() => setEditor(null)} onSubmit={propose} />
+      </WorkspaceEditor>}
       {history && <MetricHistory key={history.id} metric={history.id} disabled={blocked} onClose={() => setHistory(null)} />}
     </>}
   </section>

@@ -44,6 +44,7 @@ test('audit sensible : accès réservé, filtres et curseurs opaques sur mobile'
   await page.getByRole('button', { name: 'Accès suivants', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Lien temporaire de téléchargement créé', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Accès précédents', exact: true }).click()
+  await page.getByText('Filtres', { exact: true }).click()
   const form = page.getByRole('form', { name: 'Filtrer le journal', exact: true })
   await expect(form.getByLabel('Action', { exact: true })).toBeEnabled()
   await form.getByLabel('Action', { exact: true }).selectOption('tenant.export_read')

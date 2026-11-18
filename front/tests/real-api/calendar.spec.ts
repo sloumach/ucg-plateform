@@ -34,6 +34,7 @@ test('calendrier réel : indisponibilité, création, horaires et participants, 
 
   async function openCalendar() {
     await panel.getByRole('button', { name: 'Ouvrir le calendrier', exact: true }).click()
+    await panel.getByText('Filtres', { exact: true }).click()
     await filters.getByLabel('Du (inclus)').fill(from)
     await filters.getByLabel('Au (exclu)').fill(to)
     await filters.getByLabel('Fuseau d’affichage (facultatif)').fill('Asia/Tokyo')
@@ -61,7 +62,7 @@ test('calendrier réel : indisponibilité, création, horaires et participants, 
   await login(page, 'browser-calendar@example.test')
   await page.getByRole('button', { name: /Ouvrir Calendar Alpha/ }).click()
   await page.getByRole('link', { name: 'Calendrier', exact: true }).click()
-  await expect(page.getByText('Organisation active : Calendar Alpha')).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Contexte d’organisation' })).toHaveText('Calendar Alpha')
   await openCalendar()
   await expect(panel.getByText('Aucune activité accessible dans cette période.', { exact: true })).toBeVisible()
   await panel.getByRole('button', { name: 'Nouvelle activité', exact: true }).click()
@@ -110,7 +111,7 @@ test('calendrier réel : indisponibilité, création, horaires et participants, 
   const created = await approve(`${root}/activities`, 'POST', 201)
   expect(created.starts_at).toBe(`${from}T12:00:00+00:00`)
   expect(created.participants.map((person) => person.id)).toEqual([data.person])
-  const card = panel.getByRole('heading', { name: 'Activité calendrier réelle', exact: true }).locator('..')
+  const card = panel.getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'Activité calendrier réelle', exact: true }) })
   await expect(card).toContainText('21:00')
   await card.getByRole('button', { name: 'Modifier l’activité', exact: true }).click()
   await form.getByLabel('Début dans le fuseau d’origine').fill(`${from}T14:00`)
@@ -171,7 +172,7 @@ test('calendrier réel : indisponibilité, création, horaires et participants, 
 
   await page.getByRole('link', { name: 'Aperçu', exact: true }).click()
   await page.getByRole('button', { name: /Ouvrir Calendar Beta/ }).click()
-  await expect(page.getByText('Organisation active : Calendar Beta')).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Contexte d’organisation' })).toHaveText('Calendar Beta')
   await page.getByRole('link', { name: 'Calendrier', exact: true }).click()
   await openCalendar()
   await expect(panel.getByRole('heading', { name: 'Beta calendrier privé', exact: true })).toBeVisible()

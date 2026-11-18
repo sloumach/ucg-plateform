@@ -11,6 +11,7 @@ import { SelectField } from '../people/peopleForms'
 import { FormField } from '../FormField'
 import { Button } from '../Button'
 import { Alert } from '../feedback/Alert'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 type Props = { active: ActiveOrganization; root: string; item: ExternalCompetition; disabled: boolean; onInvalid: () => void; onClose: () => void }
 export function CompetitionDocuments({ active, root, item, disabled, onInvalid, onClose }: Props) {
   const [page, setPage] = useState(1), [refresh, setRefresh] = useState(0)
@@ -25,18 +26,22 @@ export function CompetitionDocuments({ active, root, item, disabled, onInvalid, 
   return <section aria-label={text('documents')} className="ui-editor grid min-w-0 gap-3 p-3"><h3 className="font-bold [overflow-wrap:anywhere]">{text('documents')} · {item.name}</h3>
     <p className="text-sm text-slate-400">{text('documentsHint')}</p><Button disabled={blocked} onClick={onClose}>{text('closeDocuments')}</Button>{mutation.feedback}
     {loading && <p role="status">{text('loading')}</p>}{error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-    {writable && <Button disabled={blocked} onClick={() => { setHistory(null); setEditor('new') }}>{text('createDocument')}</Button>}
-    {list?.data.length === 0 && <p>{text('emptyDocuments')}</p>}
-    <ol className="grid min-w-0 gap-3">{list?.data.map((document) => <li key={document.version} className="ui-card grid min-w-0 gap-3 p-3">
-      <DocumentContent document={document} zone={active.context!.timezone} />
-      <div className="flex flex-wrap gap-3">{writable && <Button disabled={blocked} onClick={() => { setHistory(null); setEditor(document) }}>{text('editDocument')}</Button>}
-        <Button disabled={blocked} onClick={() => { setEditor(null); setHistory(document) }}>{text('documentHistory')}</Button>
-        <DocumentDownload {...{ active, onInvalid }} disabled={blocked} path={path + '/' + document.document_id + '/versions/' + document.version + '/download'} version={document.version} />
-      </div>
-    </li>)}</ol>
-    {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(value) => { setEditor(null); setHistory(null); setPage(value) }} />}
-    {editor && writable && <DocumentForm key={editor === 'new' ? 'new' : editor.version} item={editor === 'new' ? null : editor} disabled={blocked} errors={mutation.errors(editPath)} onCancel={() => setEditor(null)}
-      onSubmit={(event, body) => mutation.propose(event, text('saveDocument'), editPath, { ...body, competition_version: item.version }, editor !== 'new')} />}
+    <div hidden={editor !== null} className="grid min-w-0 gap-4">
+      {writable && <Button disabled={blocked} onClick={() => { setHistory(null); setEditor('new') }}>{text('createDocument')}</Button>}
+      {list?.data.length === 0 && <p>{text('emptyDocuments')}</p>}
+      <ol className="grid min-w-0 gap-3">{list?.data.map((document) => <li key={document.version} className="ui-card grid min-w-0 gap-3 p-3">
+        <DocumentContent document={document} zone={active.context!.timezone} />
+        <div className="flex flex-wrap gap-3">{writable && <Button disabled={blocked} onClick={() => { setHistory(null); setEditor(document) }}>{text('editDocument')}</Button>}
+          <Button disabled={blocked} onClick={() => { setEditor(null); setHistory(document) }}>{text('documentHistory')}</Button>
+          <DocumentDownload {...{ active, onInvalid }} disabled={blocked} path={path + '/' + document.document_id + '/versions/' + document.version + '/download'} version={document.version} />
+        </div>
+      </li>)}</ol>
+      {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(value) => { setEditor(null); setHistory(null); setPage(value) }} />}
+    </div>
+    {editor && writable && <WorkspaceEditor title={editor === 'new' ? text('createDocument') : text('editDocument')}>
+      <DocumentForm key={editor === 'new' ? 'new' : editor.version} item={editor === 'new' ? null : editor} disabled={blocked} errors={mutation.errors(editPath)} onCancel={() => setEditor(null)}
+      onSubmit={(event, body) => mutation.propose(event, text('saveDocument'), editPath, { ...body, competition_version: item.version }, editor !== 'new')} />
+    </WorkspaceEditor>}
     {history && <DocumentHistory key={history.document_id} {...{ active, onInvalid }} disabled={blocked} path={path + '/' + history.document_id} onClose={() => setHistory(null)} />}
   </section>
 }

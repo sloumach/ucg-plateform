@@ -11,6 +11,7 @@ import { useAcademyPage } from './useAcademyPage'
 import { AcademySessionForm } from './AcademySessionForm'
 import { AcademyAttendancePanel } from './AcademyAttendancePanel'
 import { SessionTextArea } from './SessionTextArea'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 
 type Props = { active: ActiveOrganization; cohort: Cohort; cycle: AcademyCycle; disabled: boolean; onInvalid: () => void }
 export function AcademySessionsPanel({ active, cohort, cycle, disabled, onInvalid }: Props) {
@@ -31,24 +32,28 @@ export function AcademySessionsPanel({ active, cohort, cycle, disabled, onInvali
       <h4 className="font-bold [overflow-wrap:anywhere]">{cycle.name}</h4><p>{text('hint')}</p>
       {read.loading && <p role="status">{text('loading')}</p>}{read.error && <><Alert tone="error" title={read.error.message} /><Button onClick={() => setRefresh((value) => value + 1)}>{text('retry')}</Button></>}
       {mutation.feedback}
-      {manage && calendar && <Button variant="primary" disabled={blocked} onClick={() => { setEditor('new'); setCancelling(null); setSelectedId(null) }}>{text('create')}</Button>}
-      {read.result?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
-      <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-3 p-3 [overflow-wrap:anywhere]">
-        <h5 className="font-bold">{item.title}</h5><p>{text(item.status)} · {item.responsible_label ?? text('personUnavailable')}</p>
-        {item.starts_at && <p>{text('retainedPeriod')} : {item.starts_at} – {item.ends_at}</p>}
-        {item.activity && <p>{text('activity')} : {item.activity.label} · {item.activity.timezone}</p>}
-        {item.schedule_state !== 'current' && <Alert tone="warning" title={text(item.schedule_state === 'changed' ? 'scheduleChanged' : 'scheduleUnavailable')} />}
-        <ul>{item.exercises.map((exercise, index) => <li key={index} className="whitespace-pre-wrap">{exercise.title} · {exercise.minutes} min{exercise.instructions && <p>{exercise.instructions}</p>}</li>)}</ul>
-        {item.report && <p className="whitespace-pre-wrap">{item.report}</p>}
-        <Button disabled={blocked} onClick={() => { setSelectedId(item.id); setEditor(null); setCancelling(null) }}>{text('follow')} {item.title}</Button>
-        {manage && item.status !== 'cancelled' && <>
-          {calendar && item.activity && <Button disabled={blocked} onClick={() => { setEditor(item); setSelectedId(null); setCancelling(null) }}>{text('edit')} {item.title}</Button>}
-          <Button disabled={blocked} onClick={() => { setCancelling(item); setEditor(null); setSelectedId(null) }}>{text('cancel')} {item.title}</Button>
-        </>}
-        {item.status !== 'cancelled' && <ContextDiscussion {...{ active, onInvalid }} type="session" id={item.id} disabled={blocked} />}
-      </li>)}</ul>
-      {read.result && <Pagination currentPage={read.result.meta.current_page} totalPages={read.result.meta.last_page} disabled={blocked} onPageChange={(next) => { setPage(next); setEditor(null); setSelectedId(null); setCancelling(null) }} />}
-      {editor && manage && calendar && <AcademySessionForm key={editor === 'new' ? 'new' : editor.id + editor.version} active={active} cohort={cohort} cycle={cycle} session={editor === 'new' ? null : editor} disabled={blocked} onInvalid={onInvalid} errors={mutation.errors(base + (editor === 'new' ? '' : '/' + editor.id))} onCancel={() => setEditor(null)} onSubmit={(event, body) => mutation.propose(event, text('save'), base + (editor === 'new' ? '' : '/' + editor.id), body, editor !== 'new')} />}
+      <div hidden={editor !== null} className="grid min-w-0 gap-4">
+        {manage && calendar && <Button variant="primary" disabled={blocked} onClick={() => { setEditor('new'); setCancelling(null); setSelectedId(null) }}>{text('create')}</Button>}
+        {read.result?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+        <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-3 p-3 [overflow-wrap:anywhere]">
+          <h5 className="font-bold">{item.title}</h5><p>{text(item.status)} · {item.responsible_label ?? text('personUnavailable')}</p>
+          {item.starts_at && <p>{text('retainedPeriod')} : {item.starts_at} – {item.ends_at}</p>}
+          {item.activity && <p>{text('activity')} : {item.activity.label} · {item.activity.timezone}</p>}
+          {item.schedule_state !== 'current' && <Alert tone="warning" title={text(item.schedule_state === 'changed' ? 'scheduleChanged' : 'scheduleUnavailable')} />}
+          <ul>{item.exercises.map((exercise, index) => <li key={index} className="whitespace-pre-wrap">{exercise.title} · {exercise.minutes} min{exercise.instructions && <p>{exercise.instructions}</p>}</li>)}</ul>
+          {item.report && <p className="whitespace-pre-wrap">{item.report}</p>}
+          <Button disabled={blocked} onClick={() => { setSelectedId(item.id); setEditor(null); setCancelling(null) }}>{text('follow')} {item.title}</Button>
+          {manage && item.status !== 'cancelled' && <>
+            {calendar && item.activity && <Button disabled={blocked} onClick={() => { setEditor(item); setSelectedId(null); setCancelling(null) }}>{text('edit')} {item.title}</Button>}
+            <Button disabled={blocked} onClick={() => { setCancelling(item); setEditor(null); setSelectedId(null) }}>{text('cancel')} {item.title}</Button>
+          </>}
+          {item.status !== 'cancelled' && <ContextDiscussion {...{ active, onInvalid }} type="session" id={item.id} disabled={blocked} />}
+        </li>)}</ul>
+        {read.result && <Pagination currentPage={read.result.meta.current_page} totalPages={read.result.meta.last_page} disabled={blocked} onPageChange={(next) => { setPage(next); setEditor(null); setSelectedId(null); setCancelling(null) }} />}
+      </div>
+      {editor && manage && calendar && <WorkspaceEditor title={editor === 'new' ? text('create') : text('edit') + ' · ' + editor.title}>
+        <AcademySessionForm key={editor === 'new' ? 'new' : editor.id + editor.version} active={active} cohort={cohort} cycle={cycle} session={editor === 'new' ? null : editor} disabled={blocked} onInvalid={onInvalid} errors={mutation.errors(base + (editor === 'new' ? '' : '/' + editor.id))} onCancel={() => setEditor(null)} onSubmit={(event, body) => mutation.propose(event, text('save'), base + (editor === 'new' ? '' : '/' + editor.id), body, editor !== 'new')} />
+      </WorkspaceEditor>}
       {cancelling && <form aria-label={text('cancel')} className="grid min-w-0 gap-3" onSubmit={(event) => mutation.propose(event, text('cancel'), base + '/' + cancelling.id, { version: cancelling.version, status: 'cancelled', change_reason: String(new FormData(event.currentTarget).get('change_reason')) }, true)}><SessionTextArea label={text('reason')} name="change_reason" required minLength={10} maxLength={1000} disabled={blocked} /><Button type="submit" disabled={blocked}>{text('cancel')}</Button></form>}
       {selected && <AcademyAttendancePanel key={selected.id + selected.version} active={active} cohort={cohort} cycle={cycle} session={selected} disabled={blocked} onInvalid={onInvalid} onSaved={() => setRefresh((value) => value + 1)} />}
     </>}

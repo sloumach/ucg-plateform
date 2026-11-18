@@ -10,6 +10,7 @@ import { Alert } from '../feedback/Alert'
 import { usePeopleMutation } from '../people/usePeopleMutation'
 import { useAcademyPage } from './useAcademyPage'
 import { SessionTextArea } from './SessionTextArea'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 
 type Props = { active: ActiveOrganization; cohort: Cohort; cycle: AcademyCycle; session: AcademySession; disabled: boolean; onInvalid: () => void; onSaved: () => void }
 export function AcademyAttendancePanel({ active, cohort, cycle, session, disabled, onInvalid, onSaved }: Props) {
@@ -30,11 +31,15 @@ export function AcademyAttendancePanel({ active, cohort, cycle, session, disable
   return <section aria-label={text('attendanceTitle')} className="grid min-w-0 gap-3 border-t border-slate-700 pt-3">
     <h4 className="font-bold [overflow-wrap:anywhere]">{text('attendanceTitle')} · {session.title}</h4><p>{text('attendanceHint')}</p>
     {read.loading && <p role="status">{text('loading')}</p>}{read.error && <Alert tone="error" title={read.error.message} />}{mutation.feedback}
-    {canWrite && <Button disabled={blocked} onClick={() => setEditor('new')}>{text('addAttendance')}</Button>}
-    {read.result?.data.length === 0 && <p>{text('noAttendance')}</p>}
-    <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-2 p-3 [overflow-wrap:anywhere]"><p>{item.person_label ?? text('personUnavailable')} · {text(item.status)}{item.late_minutes !== null && ' · ' + item.late_minutes + ' min'}</p>{canWrite && <Button disabled={blocked} onClick={() => setEditor(item)}>{text('correctAttendance')} {item.person_label ?? text('personUnavailable')}</Button>}</li>)}</ul>
-    {read.result && <Pagination currentPage={read.result.meta.current_page} totalPages={read.result.meta.last_page} disabled={blocked} onPageChange={setPage} />}
-    {editor && canWrite && <AttendanceForm key={editor === 'new' ? 'new' : editor.id + editor.version} item={editor === 'new' ? null : editor} disabled={blocked || enrollments.loading} enrollments={enrollments.result?.data.filter((item) => item.status === 'active') ?? []} errors={mutation.errors(base + '/attendances' + (editor === 'new' ? '' : '/' + editor.id))} onSubmit={save} onCancel={() => setEditor(null)} />}
+    <div hidden={editor !== null} className="grid min-w-0 gap-4">
+      {canWrite && <Button disabled={blocked} onClick={() => setEditor('new')}>{text('addAttendance')}</Button>}
+      {read.result?.data.length === 0 && <p>{text('noAttendance')}</p>}
+      <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-2 p-3 [overflow-wrap:anywhere]"><p>{item.person_label ?? text('personUnavailable')} · {text(item.status)}{item.late_minutes !== null && ' · ' + item.late_minutes + ' min'}</p>{canWrite && <Button disabled={blocked} onClick={() => setEditor(item)}>{text('correctAttendance')} {item.person_label ?? text('personUnavailable')}</Button>}</li>)}</ul>
+      {read.result && <Pagination currentPage={read.result.meta.current_page} totalPages={read.result.meta.last_page} disabled={blocked} onPageChange={setPage} />}
+    </div>
+    {editor && canWrite && <WorkspaceEditor title={editor === 'new' ? text('addAttendance') : text('correctAttendance')}>
+      <AttendanceForm key={editor === 'new' ? 'new' : editor.id + editor.version} item={editor === 'new' ? null : editor} disabled={blocked || enrollments.loading} enrollments={enrollments.result?.data.filter((item) => item.status === 'active') ?? []} errors={mutation.errors(base + '/attendances' + (editor === 'new' ? '' : '/' + editor.id))} onSubmit={save} onCancel={() => setEditor(null)} />
+    </WorkspaceEditor>}
     {editor === 'new' && enrollments.error && <Alert tone="error" title={enrollments.error.message} />}
     {editor === 'new' && enrollments.result && <Pagination currentPage={enrollments.result.meta.current_page} totalPages={enrollments.result.meta.last_page} disabled={blocked || enrollments.loading} onPageChange={setEnrollmentPage} />}
     <Button disabled={blocked} onClick={() => setHistory((value) => !value)}>{text('history')}</Button>

@@ -11,6 +11,7 @@ import { AcademyCycleForm } from './AcademyCycleForm'
 import { AcademyEnrollments } from './AcademyEnrollments'
 import { AcademySessionsPanel } from './AcademySessionsPanel'
 import { AcademyObjectivesPanel } from './AcademyObjectivesPanel'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 
 type Props = { active: ActiveOrganization; cohort: Cohort; disabled: boolean; onInvalid: () => void; limited?: boolean }
 export function AcademyCohortDetail({ active, cohort, disabled, onInvalid, limited = false }: Props) {
@@ -33,18 +34,22 @@ export function AcademyCohortDetail({ active, cohort, disabled, onInvalid, limit
     {mutation.feedback}
     {read.result?.data.length === 0 && <p>{t('academy.emptyDetails')}</p>}
     {tab === 'cycles' && <>
-      {manage && <Button disabled={blocked} onClick={() => { setEditor('new'); setCycle(null) }}>{t('academy.createCycle')}</Button>}
-      <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => { const current = item as AcademyCycle; return <li key={current.id} className="ui-card grid min-w-0 gap-2 p-3 [overflow-wrap:anywhere]">
-        <h4 className="font-bold">{current.name}</h4><p>{current.starts_on} – {current.ends_on} · {current.timezone} · {t(current.status === 'active' ? 'academy.active' : 'academy.archived')}</p>
-        {current.timetable.length === 0 && <p>{t('academy.noSlots')}</p>}
-        <ul>{current.timetable.map((slot, index) => <li key={index}>{academyDay(slot.day)} : {slot.starts_at} – {slot.ends_at}</li>)}</ul>
-        <Button disabled={blocked} onClick={() => { setCycle(current); setEditor(null) }}>{t('academy.enrollments')} {current.name}</Button>
-        {manage && current.status === 'active' && <>
-          <Button disabled={blocked} onClick={() => { setEditor(current); setCycle(null) }}>{t('academy.edit')} {current.name}</Button>
-          <form onSubmit={(event) => mutation.propose(event, t('academy.archive'), base + '/cycles/' + current.id, { version: current.version, status: 'archived' }, true)}><Button disabled={blocked} type="submit">{t('academy.archive')} {current.name}</Button></form>
-        </>}
-      </li> })}</ul>
-      {editor && <AcademyCycleForm key={editor === 'new' ? 'new' : editor.id + editor.version} cycle={editor === 'new' ? null : editor} timezone={active.context!.timezone} disabled={blocked} errors={mutation.errors(base + '/cycles' + (editor === 'new' ? '' : '/' + editor.id))} onSubmit={save} onCancel={() => setEditor(null)} />}
+      <div hidden={editor !== null} className="grid min-w-0 gap-4">
+        {manage && <Button disabled={blocked} onClick={() => { setEditor('new'); setCycle(null) }}>{t('academy.createCycle')}</Button>}
+        <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => { const current = item as AcademyCycle; return <li key={current.id} className="ui-card grid min-w-0 gap-2 p-3 [overflow-wrap:anywhere]">
+          <h4 className="font-bold">{current.name}</h4><p>{current.starts_on} – {current.ends_on} · {current.timezone} · {t(current.status === 'active' ? 'academy.active' : 'academy.archived')}</p>
+          {current.timetable.length === 0 && <p>{t('academy.noSlots')}</p>}
+          <ul>{current.timetable.map((slot, index) => <li key={index}>{academyDay(slot.day)} : {slot.starts_at} – {slot.ends_at}</li>)}</ul>
+          <Button disabled={blocked} onClick={() => { setCycle(current); setEditor(null) }}>{t('academy.enrollments')} {current.name}</Button>
+          {manage && current.status === 'active' && <>
+            <Button disabled={blocked} onClick={() => { setEditor(current); setCycle(null) }}>{t('academy.edit')} {current.name}</Button>
+            <form onSubmit={(event) => mutation.propose(event, t('academy.archive'), base + '/cycles/' + current.id, { version: current.version, status: 'archived' }, true)}><Button disabled={blocked} type="submit">{t('academy.archive')} {current.name}</Button></form>
+          </>}
+        </li> })}</ul>
+      </div>
+      {editor && <WorkspaceEditor title={editor === 'new' ? t('academy.createCycle') : t('academy.edit') + ' · ' + editor.name}>
+        <AcademyCycleForm key={editor === 'new' ? 'new' : editor.id + editor.version} cycle={editor === 'new' ? null : editor} timezone={active.context!.timezone} disabled={blocked} errors={mutation.errors(base + '/cycles' + (editor === 'new' ? '' : '/' + editor.id))} onSubmit={save} onCancel={() => setEditor(null)} />
+      </WorkspaceEditor>}
       {cycle && <><AcademyEnrollments limited={limited} key={cycle.id + cycle.version} active={active} cohort={cohort} cycle={cycle} disabled={blocked} onInvalid={onInvalid} /><AcademySessionsPanel key={'sessions:' + cycle.id + cycle.version} active={active} cohort={cohort} cycle={cycle} disabled={blocked} onInvalid={onInvalid} /><AcademyObjectivesPanel key={'objectives:' + cycle.id + cycle.version} active={active} cohort={cohort} cycle={cycle} disabled={blocked} onInvalid={onInvalid} /></>}
     </>}
     {tab === 'history' && <ul className="grid min-w-0 gap-2">{read.result?.data.map((item) => { const revision = item as AcademyRevision; return <li key={revision.id} className="[overflow-wrap:anywhere]">{t(revision.kind === 'cohort' ? 'academy.cohort' : revision.kind === 'cycle' ? 'academy.cycle' : 'academy.enrollment')} · {revision.recorded_at} · {revision.resource_id}</li> })}</ul>}

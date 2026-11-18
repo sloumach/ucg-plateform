@@ -14,6 +14,8 @@ import { SelectField } from '../people/peopleForms'
 import { changedValues, isoDate, localDate } from '../people/peopleFormValues'
 import { usePartnershipList } from './usePartnershipList'
 import { usePeopleMutation } from '../people/usePeopleMutation'
+import { WorkspaceFilters } from '../layout/WorkspaceFilters'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 
 const SponsorshipAgreementsPanel = lazy(() => import('./SponsorshipAgreementsPanel').then((module) => ({ default: module.SponsorshipAgreementsPanel })))
 
@@ -40,25 +42,29 @@ export function PartnershipsPanel({ active, disabled, onInvalid, onCampaignChang
     <Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); setEditor(null); setSelected(null) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>
       {mutation.feedback}
-      <SearchForm status={status} statuses={sponsorStatuses} disabled={blocked} onSearch={(next, filter) => { setQuery(next); setStatus(filter); setPage(1); setSelected(null); setEditor(null) }} />
-      {canWrite && <Button disabled={blocked} onClick={() => { setSelected(null); setEditor('new') }}>{text('new')}</Button>}
-      {loading && <AsyncState variant="loading" title={text('loading')} />}
-      {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
-      <ul className="grid min-w-0 gap-3">{list?.data.map((sponsor) => <li key={sponsor.id} className="ui-card grid min-w-0 gap-2 p-3">
-        <h3 className="font-bold [overflow-wrap:anywhere]">{sponsor.name}</h3>
-        <p className="[overflow-wrap:anywhere]">{text('status.' + sponsor.status)}{sponsor.industry && ' · ' + sponsor.industry}</p>
-        <div className="flex flex-wrap gap-3">
-          <Button disabled={blocked} onClick={() => { setEditor(null); setSelected(sponsor) }}>{text('details')}</Button>
-          {canWrite && sponsor.status !== 'archived' && <Button disabled={blocked} onClick={() => { setSelected(null); setEditor(sponsor) }}>{text('edit')}</Button>}
-        </div>
-      </li>)}</ul>
-      {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={(next) => { setSelected(null); setEditor(null); setPage(next) }} />}
-      {editor && <RecordForm key={editor === 'new' ? 'new' : editor.id + editor.version} kind="sponsors" record={editor === 'new' ? null : editor} disabled={blocked}
+      <div hidden={editor !== null} className="grid min-w-0 gap-4">
+        <SearchForm status={status} statuses={sponsorStatuses} disabled={blocked} onSearch={(next, filter) => { setQuery(next); setStatus(filter); setPage(1); setSelected(null); setEditor(null) }} />
+        {canWrite && <Button disabled={blocked} onClick={() => { setSelected(null); setEditor('new') }}>{text('new')}</Button>}
+        {loading && <AsyncState variant="loading" title={text('loading')} />}
+        {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
+        {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+        <ul className="grid min-w-0 gap-3">{list?.data.map((sponsor) => <li key={sponsor.id} className="ui-card grid min-w-0 gap-2 p-3">
+          <h3 className="font-bold [overflow-wrap:anywhere]">{sponsor.name}</h3>
+          <p className="[overflow-wrap:anywhere]">{text('status.' + sponsor.status)}{sponsor.industry && ' · ' + sponsor.industry}</p>
+          <div className="flex flex-wrap gap-3">
+            <Button disabled={blocked} onClick={() => { setEditor(null); setSelected(sponsor) }}>{text('details')}</Button>
+            {canWrite && sponsor.status !== 'archived' && <Button disabled={blocked} onClick={() => { setSelected(null); setEditor(sponsor) }}>{text('edit')}</Button>}
+          </div>
+        </li>)}</ul>
+        {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={(next) => { setSelected(null); setEditor(null); setPage(next) }} />}
+      </div>
+      {editor && <WorkspaceEditor title={editor === 'new' ? text('new') : text('edit') + ' · ' + editor.name}>
+        <RecordForm key={editor === 'new' ? 'new' : editor.id + editor.version} kind="sponsors" record={editor === 'new' ? null : editor} disabled={blocked}
         errors={mutation.errors(path + (editor === 'new' ? '' : '/' + editor.id))} onCancel={() => setEditor(null)} onSubmit={(event) => {
           const record = editor === 'new' ? null : editor
           mutation.propose(event, text('save'), path + (record ? '/' + record.id : ''), { ...changedValues(event.currentTarget, record), ...(record ? { version: record.version } : {}) }, !!record)
-        }} />}
+        }} />
+      </WorkspaceEditor>}
       {selected && <SponsorDetails key={selected.id + selected.version} {...{ active, disabled: blocked, onInvalid, onCampaignChanged }} sponsor={selected} onClose={() => setSelected(null)} />}
       <p className="text-sm text-slate-400">{text('historyHint')}</p>
     </>}
@@ -88,44 +94,50 @@ function RelatedPanel({ active, sponsor, kind, link, disabled, onInvalid, onLink
   return <div className="grid min-w-0 gap-3">
     <h4 className="font-bold">{text(kind)}</h4>
     {mutation.feedback}
-    <SearchForm disabled={blocked} status={status} statuses={statuses} onSearch={(next, filter) => { setQuery(next); setStatus(filter); setPage(1); setEditor(null) }} />
-    {canWrite && <Button disabled={blocked} onClick={() => setEditor('new')}>{text('new.' + kind)}</Button>}
-    {loading && <AsyncState variant="loading" title={text('loading')} />}
-    {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-    {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
-    <ul className="grid min-w-0 gap-3">{list?.data.map((record) => <li key={record.id} className="ui-card grid min-w-0 gap-2 p-3">
-      {'summary' in record ? <>
-        <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{record.summary}</p>
-        <p className="[overflow-wrap:anywhere]">{text('channel.' + record.channel)} · {new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short', timeZone: active.context!.timezone }).format(new Date(record.occurred_at))}</p>
-      </> : <>
-        <p className="font-bold [overflow-wrap:anywhere]">{'name' in record ? record.name : record.title} · {text('status.' + record.status)}</p>
-        {'email' in record && <p className="[overflow-wrap:anywhere]">{[record.position, record.email, record.phone].filter(Boolean).join(' · ')}</p>}
-        {'description' in record && record.description && <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{record.description}</p>}
-        {canWrite && record.status !== 'archived' && <div className="flex flex-wrap gap-3">
-          <Button disabled={blocked} onClick={() => setEditor(record)}>{text('edit')}</Button>
-          <Button disabled={blocked} onClick={() => onLink({ field: kind === 'contacts' ? 'contact_id' : 'opportunity_id', id: record.id, name: 'name' in record ? record.name : record.title })}>{text('recordExchange')}</Button>
-        </div>}
-      </>}
-    </li>)}</ul>
-    {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={(next) => { setPage(next); setEditor(null) }} />}
-    {editor && <RecordForm key={editor === 'new' ? 'new' : editor.id} kind={kind} record={editor === 'new' || 'summary' in editor ? null : editor} link={link}
+    <div hidden={editor !== null} className="grid min-w-0 gap-4">
+      <SearchForm disabled={blocked} status={status} statuses={statuses} onSearch={(next, filter) => { setQuery(next); setStatus(filter); setPage(1); setEditor(null) }} />
+      {canWrite && <Button disabled={blocked} onClick={() => setEditor('new')}>{text('new.' + kind)}</Button>}
+      {loading && <AsyncState variant="loading" title={text('loading')} />}
+      {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
+      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      <ul className="grid min-w-0 gap-3">{list?.data.map((record) => <li key={record.id} className="ui-card grid min-w-0 gap-2 p-3">
+        {'summary' in record ? <>
+          <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{record.summary}</p>
+          <p className="[overflow-wrap:anywhere]">{text('channel.' + record.channel)} · {new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short', timeZone: active.context!.timezone }).format(new Date(record.occurred_at))}</p>
+        </> : <>
+          <p className="font-bold [overflow-wrap:anywhere]">{'name' in record ? record.name : record.title} · {text('status.' + record.status)}</p>
+          {'email' in record && <p className="[overflow-wrap:anywhere]">{[record.position, record.email, record.phone].filter(Boolean).join(' · ')}</p>}
+          {'description' in record && record.description && <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{record.description}</p>}
+          {canWrite && record.status !== 'archived' && <div className="flex flex-wrap gap-3">
+            <Button disabled={blocked} onClick={() => setEditor(record)}>{text('edit')}</Button>
+            <Button disabled={blocked} onClick={() => onLink({ field: kind === 'contacts' ? 'contact_id' : 'opportunity_id', id: record.id, name: 'name' in record ? record.name : record.title })}>{text('recordExchange')}</Button>
+          </div>}
+        </>}
+      </li>)}</ul>
+      {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={(next) => { setPage(next); setEditor(null) }} />}
+    </div>
+    {editor && <WorkspaceEditor title={editor === 'new' ? text('new.' + kind) : text('edit')}>
+      <RecordForm key={editor === 'new' ? 'new' : editor.id} kind={kind} record={editor === 'new' || 'summary' in editor ? null : editor} link={link}
       errors={mutation.errors(path + (editor === 'new' ? '' : '/' + editor.id))} disabled={blocked} onCancel={() => setEditor(null)} onSubmit={(event) => {
         const record = editor === 'new' ? null : editor
         const values = changedValues(event.currentTarget, record)
         if (kind === 'interactions') values.occurred_at = isoDate(String(values.occurred_at ?? ''))
         mutation.propose(event, text('save.' + kind), path + (record ? '/' + record.id : ''), { ...values, ...(record && 'version' in record ? { version: record.version } : {}) }, !!record)
-      }} />}
+      }} />
+    </WorkspaceEditor>}
   </div>
 }
 
 function SearchForm({ statuses, status, disabled, onSearch }: { statuses: readonly string[]; status: string; disabled: boolean; onSearch: (query: string, status: string) => void }) {
-  return <form aria-label={text('search')} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
-    event.preventDefault(); const data = new FormData(event.currentTarget); onSearch(String(data.get('q') ?? '').trim(), String(data.get('status') ?? ''))
-  }}>
-    <FormField name="q" label={text('search')} maxLength={80} disabled={disabled} />
-    {statuses.length > 0 && <SelectField name="status" title={text('status')} defaultValue={status} disabled={disabled}><option value="">{text('all')}</option>{statuses.map((option) => <option key={option} value={option}>{text('status.' + option)}</option>)}</SelectField>}
-    <Button type="submit" disabled={disabled}>{text('searchAction')}</Button>
-  </form>
+  return <WorkspaceFilters>
+    <form aria-label={text('search')} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
+      event.preventDefault(); const data = new FormData(event.currentTarget); onSearch(String(data.get('q') ?? '').trim(), String(data.get('status') ?? ''))
+    }}>
+      <FormField name="q" label={text('search')} maxLength={80} disabled={disabled} />
+      {statuses.length > 0 && <SelectField name="status" title={text('status')} defaultValue={status} disabled={disabled}><option value="">{text('all')}</option>{statuses.map((option) => <option key={option} value={option}>{text('status.' + option)}</option>)}</SelectField>}
+      <Button type="submit" disabled={disabled}>{text('searchAction')}</Button>
+    </form>
+  </WorkspaceFilters>
 }
 
 function RecordForm({ kind, record, link, disabled, errors, onSubmit, onCancel }: { kind: 'sponsors' | PartnershipKind; record: Editable | null; link?: ExchangeLink | null; disabled: boolean; errors: Record<string, string[]>; onSubmit: (event: FormEvent<HTMLFormElement>) => void; onCancel: () => void }) {

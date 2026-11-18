@@ -11,6 +11,8 @@ import { Alert } from '../feedback/Alert'
 import { apiError, changedValues, localDate, shouldReloadContext } from '../people/peopleFormValues'
 import { SelectField } from '../people/peopleForms'
 import { usePeopleMutation } from '../people/usePeopleMutation'
+import { WorkspaceFilters } from '../layout/WorkspaceFilters'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 
 type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
 export function ExternalOpponentsPanel({ active, disabled, onInvalid }: Props) {
@@ -58,33 +60,38 @@ export function ExternalOpponentsPanel({ active, disabled, onInvalid }: Props) {
       {loading && <p role="status">{text('loading')}</p>}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
       {mutation.feedback}
-      <form aria-label={text('search')} onSubmit={filter} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2">
-        <FormField name="q" label={text('q')} maxLength={80} disabled={blocked} />
-        <SelectField name="kind" title={text('kind')} disabled={blocked}><option value="">{text('all')}</option>{opponentKinds.map((kind) => <option key={kind} value={kind}>{text('kind.' + kind)}</option>)}</SelectField>
-        <SelectField name="status" title={text('status')} disabled={blocked}><option value="">{text('all')}</option>{(['active', 'archived'] as const).map((status) => <option key={status} value={status}>{text('status.' + status)}</option>)}</SelectField>
-        <SelectField name="game_id" title={text('game')} disabled={blocked}><option value="">{text('all')}</option>{games.map((game) => <option key={game.id} value={game.id}>{game.name}</option>)}</SelectField>
-        <SelectField name="sort" title={text('sort')} disabled={blocked}><option value="name">{text('sort.name')}</option><option value="newest">{text('sort.newest')}</option></SelectField>
-        <Button type="submit" disabled={blocked}>{text('search')}</Button>
-      </form>
-      {canManage && <Button variant="primary" disabled={blocked} onClick={() => { setHistory(null); setEditor('new') }}>{text('create')}</Button>}
-      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
-      {list && <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{list.data.map((opponent) => <li key={opponent.id} className="ui-card grid min-w-0 gap-2 p-3">
-        <h3 className="font-bold [overflow-wrap:anywhere]">{opponent.name}</h3>
-        <p className="[overflow-wrap:anywhere]">{text('kind.' + opponent.kind)} · {text('status.' + opponent.status)}{opponent.game_name && ' · ' + opponent.game_name}</p>
-        {opponent.organization_name && <p className="[overflow-wrap:anywhere]">{text('organization_name')} : {opponent.organization_name}</p>}
-        {opponent.short_name && <p className="[overflow-wrap:anywhere]">{opponent.short_name}</p>}
-        <Source data={opponent} />
-        <Button disabled={blocked} onClick={() => { setEditor(null); setHistory(opponent) }}>{text('history')}</Button>
-        {canManage && opponent.status === 'active' && <>
-          <Button disabled={blocked} onClick={() => { setHistory(null); setEditor(opponent) }}>{text('edit')}</Button>
-          <form aria-label={text('archive') + ' ' + opponent.name} onSubmit={(event) => mutation.propose(event, text('archive') + ' ' + opponent.name,
-            opponentsPath(org, opponent.id), { version: opponent.version, status: 'archived', confirm_public_data: true }, true)}>
-            <Button type="submit" disabled={blocked}>{text('archive')}</Button>
+      <div hidden={editor !== null || history !== null} className="grid min-w-0 gap-4">
+        <WorkspaceFilters>
+          <form aria-label={text('search')} onSubmit={filter} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2">
+            <FormField name="q" label={text('q')} maxLength={80} disabled={blocked} />
+            <SelectField name="kind" title={text('kind')} disabled={blocked}><option value="">{text('all')}</option>{opponentKinds.map((kind) => <option key={kind} value={kind}>{text('kind.' + kind)}</option>)}</SelectField>
+            <SelectField name="status" title={text('status')} disabled={blocked}><option value="">{text('all')}</option>{(['active', 'archived'] as const).map((status) => <option key={status} value={status}>{text('status.' + status)}</option>)}</SelectField>
+            <SelectField name="game_id" title={text('game')} disabled={blocked}><option value="">{text('all')}</option>{games.map((game) => <option key={game.id} value={game.id}>{game.name}</option>)}</SelectField>
+            <SelectField name="sort" title={text('sort')} disabled={blocked}><option value="name">{text('sort.name')}</option><option value="newest">{text('sort.newest')}</option></SelectField>
+            <Button type="submit" disabled={blocked}>{text('search')}</Button>
           </form>
-        </>}
-      </li>)}</ul>}
-      {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={setPage} />}
-      {editor && <OpponentForm key={editor === 'new' ? 'new' : editor.id + editor.version} opponent={editor === 'new' ? null : editor}
+        </WorkspaceFilters>
+        {canManage && <Button variant="primary" disabled={blocked} onClick={() => { setHistory(null); setEditor('new') }}>{text('create')}</Button>}
+        {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+        {list && <ul className="grid min-w-0 gap-3 sm:grid-cols-2">{list.data.map((opponent) => <li key={opponent.id} className="ui-card grid min-w-0 gap-2 p-3">
+          <h3 className="font-bold [overflow-wrap:anywhere]">{opponent.name}</h3>
+          <p className="[overflow-wrap:anywhere]">{text('kind.' + opponent.kind)} · {text('status.' + opponent.status)}{opponent.game_name && ' · ' + opponent.game_name}</p>
+          {opponent.organization_name && <p className="[overflow-wrap:anywhere]">{text('organization_name')} : {opponent.organization_name}</p>}
+          {opponent.short_name && <p className="[overflow-wrap:anywhere]">{opponent.short_name}</p>}
+          <Source data={opponent} />
+          <Button disabled={blocked} onClick={() => { setEditor(null); setHistory(opponent) }}>{text('history')}</Button>
+          {canManage && opponent.status === 'active' && <>
+            <Button disabled={blocked} onClick={() => { setHistory(null); setEditor(opponent) }}>{text('edit')}</Button>
+            <form aria-label={text('archive') + ' ' + opponent.name} onSubmit={(event) => mutation.propose(event, text('archive') + ' ' + opponent.name,
+              opponentsPath(org, opponent.id), { version: opponent.version, status: 'archived', confirm_public_data: true }, true)}>
+              <Button type="submit" disabled={blocked}>{text('archive')}</Button>
+            </form>
+          </>}
+        </li>)}</ul>}
+        {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={setPage} />}
+      </div>
+      {editor && <WorkspaceEditor title={editor === 'new' ? text('create') : text('edit') + ' · ' + editor.name}>
+        <OpponentForm key={editor === 'new' ? 'new' : editor.id + editor.version} opponent={editor === 'new' ? null : editor}
         games={games.filter((game) => game.enabled)} disabled={blocked} errors={mutation.errors(opponentsPath(org, editor === 'new' ? undefined : editor.id))}
         onCancel={() => setEditor(null)} onSubmit={(event) => {
           const opponent = editor === 'new' ? null : editor
@@ -96,7 +103,8 @@ export function ExternalOpponentsPanel({ active, disabled, onInvalid }: Props) {
           }
           mutation.propose(event, text('save'), opponentsPath(org, opponent?.id),
             { ...body, ...(opponent ? { version: opponent.version } : {}), confirm_public_data: new FormData(event.currentTarget).has('confirm_public_data') }, !!opponent)
-        }} />}
+        }} />
+      </WorkspaceEditor>}
       {history && <OpponentHistory key={history.id + history.version} active={active} opponent={history} disabled={blocked}
         onInvalid={onInvalid} onClose={() => setHistory(null)} />}
       <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('archiveHint')}</p>

@@ -33,10 +33,10 @@ export function ContextualModulesPanel({ active, disabled, onInvalid }: { active
   return <section aria-label={t('roles.limitedTitle')} className="ui-panel grid min-w-0 gap-3 p-4">
     <Button disabled={disabled} aria-expanded={open} onClick={() => { setPermissions(null); setFailure(null); setOpen((value) => !value) }}>{t('roles.limitedTitle')}</Button>
     {open && <>
-      <p>{t('roles.limitedHint')}</p>
+      <p className="text-sm text-muted">{t('roles.limitedHint')}</p>
       {failure && <Alert tone="error" title={failure.message} requestId={failure.requestId} />}
       {!failure && permissions === null && <p role="status">{t('roles.loading')}</p>}
-      {permissions?.length === 0 && <p>{t('roles.noLimited')}</p>}
+      {permissions?.length === 0 && <p className="ui-state">{t('roles.noLimited')}</p>}
       <Suspense fallback={<p role="status">{t('roles.loading')}</p>}>
         {permissions?.some((key) => key.startsWith('academy.')) && <AcademyPanel active={scoped('academy.')} disabled={disabled} onInvalid={onInvalid} limited />}
         {permissions?.some((key) => key.startsWith('calendar.')) && <CalendarPanel active={scoped('calendar.')} disabled={disabled} onInvalid={onInvalid} limited />}

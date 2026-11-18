@@ -9,6 +9,7 @@ import { FormField } from '../FormField'
 import { Button } from '../Button'
 import { Alert } from '../feedback/Alert'
 import { Pagination } from '../data/Pagination'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 
 type Props = { active: ActiveOrganization; item: MatchRecord; root: string; management: boolean; disabled: boolean;
   onInvalid: () => void; onClose: () => void }
@@ -39,18 +40,22 @@ export function MatchNotebook({ active, item, root, management, disabled, onInva
     </form>
     {loading && <p role="status">{text('loading')}</p>}
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-    {writable.length > 0 && <Button disabled={blocked} onClick={() => { setEditor('new'); setHistory(null) }}>{text('notebook.create')}</Button>}
-    {list?.data.length === 0 && <p>{text('notebook.empty')}</p>}
-    <ol className="grid min-w-0 gap-3">{list?.data.map((entry) => <li key={entry.entry_id} className="ui-card grid min-w-0 gap-2 p-3">
-      <NotebookContent entry={entry} zone={active.context!.timezone} />
-      <div className="flex flex-wrap gap-3">
-        {writable.includes(entry.audience) && <Button disabled={blocked} onClick={() => { setEditor(entry); setHistory(null) }}>{text('notebook.edit')}</Button>}
-        <Button disabled={blocked} onClick={() => { setHistory(entry); setEditor(null) }}>{text('notebook.history')}</Button>
-      </div>
-    </li>)}</ol>
-    {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(next) => { setPage(next); setEditor(null); setHistory(null) }} />}
-    {editor && writable.length > 0 && (editor === 'new' || writable.includes(editor.audience)) && <NotebookForm key={editor === 'new' ? 'new' : editor.version} item={editor === 'new' ? null : editor}
-      writable={writable} disabled={blocked} errors={mutation.errors(editPath)} onCancel={() => setEditor(null)} onSubmit={(event, body) => mutation.propose(event, text('notebook.save'), editPath, body, editor !== 'new')} />}
+    <div hidden={editor !== null} className="grid min-w-0 gap-4">
+      {writable.length > 0 && <Button disabled={blocked} onClick={() => { setEditor('new'); setHistory(null) }}>{text('notebook.create')}</Button>}
+      {list?.data.length === 0 && <p>{text('notebook.empty')}</p>}
+      <ol className="grid min-w-0 gap-3">{list?.data.map((entry) => <li key={entry.entry_id} className="ui-card grid min-w-0 gap-2 p-3">
+        <NotebookContent entry={entry} zone={active.context!.timezone} />
+        <div className="flex flex-wrap gap-3">
+          {writable.includes(entry.audience) && <Button disabled={blocked} onClick={() => { setEditor(entry); setHistory(null) }}>{text('notebook.edit')}</Button>}
+          <Button disabled={blocked} onClick={() => { setHistory(entry); setEditor(null) }}>{text('notebook.history')}</Button>
+        </div>
+      </li>)}</ol>
+      {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(next) => { setPage(next); setEditor(null); setHistory(null) }} />}
+    </div>
+    {editor && writable.length > 0 && (editor === 'new' || writable.includes(editor.audience)) && <WorkspaceEditor title={editor === 'new' ? text('notebook.create') : text('notebook.edit')}>
+      <NotebookForm key={editor === 'new' ? 'new' : editor.version} item={editor === 'new' ? null : editor}
+      writable={writable} disabled={blocked} errors={mutation.errors(editPath)} onCancel={() => setEditor(null)} onSubmit={(event, body) => mutation.propose(event, text('notebook.save'), editPath, body, editor !== 'new')} />
+    </WorkspaceEditor>}
     {history && <NotebookHistory key={history.entry_id} {...{ active, management, disabled: blocked, onInvalid }} path={path + '/' + history.entry_id + '/history'} onClose={() => setHistory(null)} />}
   </section>
 }

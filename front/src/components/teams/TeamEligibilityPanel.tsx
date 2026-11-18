@@ -12,6 +12,8 @@ import { apiError, isoDate, shouldReloadContext } from '../people/peopleFormValu
 import { usePeopleMutation } from '../people/usePeopleMutation'
 import { Pagination } from '../data/Pagination'
 import { Alert } from '../feedback/Alert'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
+import { t } from '../../i18n/fr'
 
 type Props = { active: ActiveOrganization; team: Team; disabled: boolean; onInvalid: () => void; onClose: () => void }
 
@@ -48,6 +50,8 @@ export function TeamEligibilityRulesPanel({ active, team, disabled, onInvalid, o
     <Button disabled={mutation.blocked} onClick={onClose}>{text('close')}</Button>
     {rules.loading && <p role="status">{text('loading')}</p>}
     {rules.error && <Alert tone="error" title={rules.error.message} requestId={rules.error.requestId} />}{mutation.feedback}
+    <div hidden={create} className="grid min-w-0 gap-3">
+    {manage && <Button variant="primary" className="justify-self-start" disabled={blocked} onClick={() => setCreate(true)}>{text('create')}</Button>}
     {rules.list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
     <ul className="grid min-w-0 grid-cols-1 gap-3">{rules.list?.data.map((rule) => <li key={rule.id} className="ui-card grid min-w-0 grid-cols-1 gap-2 p-3">
       <h5 className="font-bold [overflow-wrap:anywhere]">{rule.name} · {text(rule.status)}</h5>
@@ -60,15 +64,17 @@ export function TeamEligibilityRulesPanel({ active, team, disabled, onInvalid, o
       </form>}
     </li>)}</ul>
     {rules.list && <Pagination currentPage={rules.list.meta.current_page} totalPages={rules.list.meta.last_page} disabled={blocked} onPageChange={rules.setPage} />}
-    {manage && <Button variant="primary" disabled={blocked} onClick={() => setCreate((value) => !value)}>{text('create')}</Button>}
-    {create && <RulesForm active={active} team={team} disabled={blocked} errors={mutation.errors(path)} onInvalid={onInvalid}
-      onSubmit={(event, body) => mutation.propose(event, text('create'), path, body)} />}
+    </div>
+    {create && manage && <WorkspaceEditor title={text('create')}>
+      <RulesForm active={active} team={team} disabled={blocked} errors={mutation.errors(path)} onInvalid={onInvalid}
+        onSubmit={(event, body) => mutation.propose(event, text('create'), path, body)} onCancel={() => setCreate(false)} />
+    </WorkspaceEditor>}
   </section>
 }
 
-function RulesForm({ active, team, disabled, errors, onInvalid, onSubmit }: {
+function RulesForm({ active, team, disabled, errors, onInvalid, onSubmit, onCancel }: {
   active: ActiveOrganization; team: Team; disabled: boolean; errors: Record<string, string[]>; onInvalid: () => void
-  onSubmit: (event: React.FormEvent<HTMLFormElement>, body: Record<string, unknown>) => void
+  onSubmit: (event: React.FormEvent<HTMLFormElement>, body: Record<string, unknown>) => void; onCancel: () => void
 }) {
   const [game, setGame] = useState<OrganizationGameDetail | null>(null), [platform, setPlatform] = useState('')
   const [error, setError] = useState<ReturnType<typeof apiError> | null>(null)
@@ -104,7 +110,10 @@ function RulesForm({ active, team, disabled, errors, onInvalid, onSubmit }: {
     </fieldset><label className="grid min-w-0 grid-cols-1 gap-2">{text('ranks')}<textarea name="allowed_ranks" rows={3} maxLength={2592} disabled={disabled} className="ui-input" /></label></>}
     <FormField name="lock_at" label={text('lock')} type="datetime-local" step="1" disabled={disabled} error={errors.lock_at?.[0]} />
     {Object.entries(errors).filter(([key]) => key.includes('.')).map(([key, values]) => <p role="alert" key={key}>{values[0]}</p>)}
-    <Button variant="primary" type="submit" disabled={disabled || !game}>{text('create')}</Button>
+    <div className="flex flex-wrap gap-2">
+      <Button variant="primary" type="submit" disabled={disabled || !game}>{text('create')}</Button>
+      <Button disabled={disabled} onClick={onCancel}>{t('tenant.cancel')}</Button>
+    </div>
   </form>
 }
 

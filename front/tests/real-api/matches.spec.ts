@@ -45,7 +45,7 @@ test('match réel : compositions, scores, approbation indépendante, correction 
   await login(page, 'browser-match@example.test')
   await page.getByRole('button', { name: /Ouvrir Match Alpha/ }).click()
   await page.getByRole('link', { name: 'Matchs et compétitions', exact: true }).click()
-  await expect(page.getByText('Organisation active : Match Alpha')).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Contexte d’organisation' })).toHaveText('Match Alpha')
   await panel.getByRole('button', { name: 'Ouvrir les matchs', exact: true }).click()
   await panel.getByRole('button', { name: 'Nouveau match', exact: true }).click()
   const form = panel.getByRole('form', { name: 'Enregistrer le match', exact: true })
@@ -239,7 +239,7 @@ test('match réel : compositions, scores, approbation indépendante, correction 
   }
   await page.getByRole('link', { name: 'Aperçu', exact: true }).click()
   await page.getByRole('button', { name: /Ouvrir Match Beta/ }).click()
-  await expect(page.getByText('Organisation active : Match Beta')).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Contexte d’organisation' })).toHaveText('Match Beta')
   await page.getByRole('link', { name: 'Matchs et compétitions', exact: true }).click()
   await panel.getByRole('button', { name: 'Ouvrir les matchs', exact: true }).click()
   await expect(panel.getByRole('heading', { name: 'Beta match privé', exact: true })).toBeVisible()

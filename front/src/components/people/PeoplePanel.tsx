@@ -15,6 +15,8 @@ import { PersonField, SelectField } from './peopleForms'
 import { apiError, changedValues, label, personAdminFields, personSportsFields, personStatuses, shouldReloadContext } from './peopleFormValues'
 import { PersonLifecyclePanel } from './PersonLifecyclePanel'
 import { PersonImportsPanel } from './PersonImportsPanel'
+import { WorkspaceFilters } from '../layout/WorkspaceFilters'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 
 export function PeoplePanel({ active, disabled: parentDisabled, onInvalid }: {
   active: ActiveOrganization; disabled: boolean; onInvalid: () => void
@@ -74,7 +76,7 @@ export function PeoplePanel({ active, disabled: parentDisabled, onInvalid }: {
     void Promise.resolve().then(() => { if (!disposed) void load() })
     return () => { disposed = true; alive.current = false; cancelReads() }
   }, [load, refresh, cancelReads])
-  useEffect(() => { if (person || editing !== undefined) details.current?.focus() }, [person, editing])
+  useEffect(() => { if (person && editing === undefined) details.current?.focus() }, [person, editing])
 
   async function open(id: string) {
     if (!organizationId) return
@@ -124,44 +126,52 @@ export function PeoplePanel({ active, disabled: parentDisabled, onInvalid }: {
   return <section aria-labelledby={'people-' + organizationId} aria-busy={loading} className="ui-panel grid min-w-0 grid-cols-1 gap-4 p-5">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h3 id={'people-' + organizationId} className="text-xl font-bold">{t('people.title')}</h3>
-      {canRead && <Button disabled={disabled} onClick={() => setRefresh((value) => value + 1)}>{t('people.refresh')}</Button>}
-      {sportsWrite && <Button variant="primary" disabled={disabled} onClick={() => { setPerson(null); setEditing(null) }}>{t('people.create')}</Button>}
+      {editing === undefined && <div className="flex flex-wrap gap-2">
+        {canRead && <Button disabled={disabled} onClick={() => setRefresh((value) => value + 1)}>{t('people.refresh')}</Button>}
+        {sportsWrite && <Button variant="primary" disabled={disabled} onClick={() => { setPerson(null); setEditing(null) }}>{t('people.create')}</Button>}
+      </div>}
     </div>
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
     {mutation.feedback}
-    <PersonImportsPanel key={'imports-' + organizationId + revision} active={active} disabled={disabled} onInvalid={onInvalid} onImported={() => setRefresh((value) => value + 1)} />
-    {!canRead && <p>{t('people.noRead')}</p>}
-    {canRead && <form key={JSON.stringify(filters)} noValidate aria-label={t('people.apply')} onSubmit={apply} className="ui-filters grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
-      <SelectField name="view" title={label('view')} defaultValue={filters.view ?? 'general'} disabled={disabled}>
-        <option value="general">{label('general')}</option>{sports && <option value="sports">{label('sports')}</option>}{administrative && <option value="administrative">{label('administrative')}</option>}
-      </SelectField>
-      {sports && <>
-        <FormField name="q" label={label('search')} hint={label('searchHint')} defaultValue={filters.q ?? ''} error={error?.fieldErrors.q?.[0]} disabled={disabled} maxLength={80} />
-        <SelectField name="status" title={label('status')} defaultValue={filters.status ?? ''} disabled={disabled}><option value="">{label('all')}</option>{personStatuses.map((status) => <option key={status} value={status}>{label('status.' + status)}</option>)}</SelectField>
-        <FormField name="language" label={label('language')} defaultValue={filters.language ?? ''} disabled={disabled} error={error?.fieldErrors.language?.[0]} />
-        <SelectField name="game_key" title={label('game')} defaultValue={filters.game_key ?? ''} disabled={disabled}><option value="">{label('all')}</option>{catalogue?.games.map((game) => <option key={game.key} value={game.key}>{game.name}</option>)}</SelectField>
-        <SelectField name="platform_key" title={label('platform')} defaultValue={filters.platform_key ?? ''} disabled={disabled}><option value="">{label('all')}</option>{Array.from(new Map(catalogue?.games.flatMap((game) => game.platforms.map((platform) => [platform.key, platform] as const))).values()).map((platform) => <option key={platform.key} value={platform.key}>{platform.name}</option>)}</SelectField>
-      </>}
-      {administrative && <SelectField name="account_linked" title={label('accountFilter')} defaultValue={filters.account_linked ?? ''} disabled={disabled}><option value="">{label('all')}</option><option value="linked">{label('linked')}</option><option value="unlinked">{label('unlinked')}</option></SelectField>}
-      <SelectField name="sort" title={label('sort')} defaultValue={filters.sort ?? 'id'} disabled={disabled}><option value="id">{label('id')}</option>{sports && <><option value="pseudonym">{label('pseudonym')}</option><option value="status">{label('status')}</option></>}</SelectField>
-      <SelectField name="direction" title={label('direction')} defaultValue={filters.direction ?? 'asc'} disabled={disabled}><option value="asc">{label('asc')}</option><option value="desc">{label('desc')}</option></SelectField>
-      <div className="flex flex-wrap gap-3 md:col-span-2"><Button type="submit" disabled={disabled}>{label('apply')}</Button><Button disabled={disabled} onClick={() => { setPage(1); setFilters({ view: 'general', sort: 'id', direction: 'asc' }) }}>{label('reset')}</Button></div>
-    </form>}
-    {loading && <AsyncState variant="loading" title={label('loading')} />}
-    {data && <><DataTable caption={label('title')} columns={columns} rows={data.data} rowKey={(row) => row.id} emptyTitle={label('empty')} emptyDescription={label('emptyHint')} />
-      <Pagination currentPage={data.meta.current_page} totalPages={data.meta.last_page} disabled={disabled} onPageChange={setPage} /></>}
-    {(person || editing !== undefined) && <section ref={details} tabIndex={-1} aria-label={label('edit')} className="ui-editor grid min-w-0 gap-4 p-4">
+    <div hidden={editing !== undefined} className="grid min-w-0 gap-4">
+      <PersonImportsPanel key={'imports-' + organizationId + revision} active={active} disabled={disabled} onInvalid={onInvalid} onImported={() => setRefresh((value) => value + 1)} />
+      {!canRead && <p>{t('people.noRead')}</p>}
+      {canRead && <WorkspaceFilters>
+        <form key={JSON.stringify(filters)} noValidate aria-label={t('people.apply')} onSubmit={apply} className="ui-filters grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
+          <SelectField name="view" title={label('view')} defaultValue={filters.view ?? 'general'} disabled={disabled}>
+            <option value="general">{label('general')}</option>{sports && <option value="sports">{label('sports')}</option>}{administrative && <option value="administrative">{label('administrative')}</option>}
+          </SelectField>
+          {sports && <>
+            <FormField name="q" label={label('search')} hint={label('searchHint')} defaultValue={filters.q ?? ''} error={error?.fieldErrors.q?.[0]} disabled={disabled} maxLength={80} />
+            <SelectField name="status" title={label('status')} defaultValue={filters.status ?? ''} disabled={disabled}><option value="">{label('all')}</option>{personStatuses.map((status) => <option key={status} value={status}>{label('status.' + status)}</option>)}</SelectField>
+            <FormField name="language" label={label('language')} defaultValue={filters.language ?? ''} disabled={disabled} error={error?.fieldErrors.language?.[0]} />
+            <SelectField name="game_key" title={label('game')} defaultValue={filters.game_key ?? ''} disabled={disabled}><option value="">{label('all')}</option>{catalogue?.games.map((game) => <option key={game.key} value={game.key}>{game.name}</option>)}</SelectField>
+            <SelectField name="platform_key" title={label('platform')} defaultValue={filters.platform_key ?? ''} disabled={disabled}><option value="">{label('all')}</option>{Array.from(new Map(catalogue?.games.flatMap((game) => game.platforms.map((platform) => [platform.key, platform] as const))).values()).map((platform) => <option key={platform.key} value={platform.key}>{platform.name}</option>)}</SelectField>
+          </>}
+          {administrative && <SelectField name="account_linked" title={label('accountFilter')} defaultValue={filters.account_linked ?? ''} disabled={disabled}><option value="">{label('all')}</option><option value="linked">{label('linked')}</option><option value="unlinked">{label('unlinked')}</option></SelectField>}
+          <SelectField name="sort" title={label('sort')} defaultValue={filters.sort ?? 'id'} disabled={disabled}><option value="id">{label('id')}</option>{sports && <><option value="pseudonym">{label('pseudonym')}</option><option value="status">{label('status')}</option></>}</SelectField>
+          <SelectField name="direction" title={label('direction')} defaultValue={filters.direction ?? 'asc'} disabled={disabled}><option value="asc">{label('asc')}</option><option value="desc">{label('desc')}</option></SelectField>
+          <div className="flex flex-wrap gap-3 md:col-span-2"><Button type="submit" disabled={disabled}>{label('apply')}</Button><Button disabled={disabled} onClick={() => { setPage(1); setFilters({ view: 'general', sort: 'id', direction: 'asc' }) }}>{label('reset')}</Button></div>
+        </form>
+      </WorkspaceFilters>}
+      {loading && <AsyncState variant="loading" title={label('loading')} />}
+      {data && <><DataTable caption={label('title')} columns={columns} rows={data.data} rowKey={(row) => row.id} emptyTitle={label('empty')} emptyDescription={label('emptyHint')} />
+        <Pagination currentPage={data.meta.current_page} totalPages={data.meta.last_page} disabled={disabled} onPageChange={setPage} /></>}
+    </div>
+    {(person || editing !== undefined) && <section ref={details} tabIndex={-1} aria-label={label('edit')} className="grid min-w-0 scroll-mt-36 gap-4">
       <div className="flex flex-wrap gap-3"><Button disabled={disabled} onClick={() => { setPerson(null); setEditing(undefined) }}>{label('close')}</Button>
-        {person && ((sports && sportsWrite) || (administrative && administrativeWrite)) && <Button disabled={disabled} onClick={() => setEditing(person)}>{label('edit')}</Button>}
+        {person && editing === undefined && ((sports && sportsWrite) || (administrative && administrativeWrite)) && <Button disabled={disabled} onClick={() => setEditing(person)}>{label('edit')}</Button>}
       </div>
-      {editing !== undefined ? <form key={editing?.version ?? 'new'} noValidate aria-label={label('save')} className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2" onSubmit={(event) => {
+      {editing !== undefined ? <WorkspaceEditor title={editing ? label('edit') + ' · ' + editing.pseudonym : t('people.create')}>
+        <form key={editing?.version ?? 'new'} noValidate aria-label={label('save')} className="ui-editor grid p-4 min-w-0 grid-cols-1 gap-3 md:grid-cols-2" onSubmit={(event) => {
         const values = changedValues(event.currentTarget, editing)
         mutation.propose(event, label('save') + ' — ' + (editing?.pseudonym ?? values.pseudonym ?? editing?.id ?? ''), path, { ...values, ...(editing ? { version: editing.version } : {}) }, editing !== null)
       }}>
         {editorFields.map((name) => <PersonField key={name} name={name} value={editing?.[name]} language={context.language} timezone={context.timezone} disabled={disabled || (closed && editing !== null && ['status','user_id'].includes(name))} error={mutation.errors(path)[name]?.[0]} />)}
         <p className="text-sm text-slate-400 md:col-span-2">{label('statusHint')} {editorFields.includes('user_id') && label('linkHint')}</p>
         <div className="flex flex-wrap gap-3"><Button variant="primary" type="submit" disabled={disabled}>{label('save')}</Button><Button disabled={disabled} onClick={() => setEditing(undefined)}>{t('tenant.cancel')}</Button></div>
-      </form> : person && <>
+      </form>
+      </WorkspaceEditor> : person && <>
         <SelectField name="detail_view" title={label('view')} value={view} onChange={(value) => setView(value as PeopleView)} disabled={disabled}>
           <option value="general">{label('general')}</option>{sports && <option value="sports">{label('sports')}</option>}{administrative && <option value="administrative">{label('administrative')}</option>}
         </SelectField>

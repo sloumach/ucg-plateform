@@ -47,7 +47,7 @@ test('effectif : création et promotion confirmées, historique privé et mobile
   })
   await page.goto('/?rubrique=equipes')
   await page.getByRole('button', { name: 'Équipes de l’organisation' }).click()
-  const card = page.getByRole('heading', { name: 'Académie pilote', exact: true }).locator('..')
+  const card = page.getByRole('listitem').filter({ has: page.getByRole('heading', { name: 'Académie pilote', exact: true }) })
   await card.getByRole('button', { name: 'Effectif et historique', exact: true }).click()
   const panel = page.getByRole('region', { name: 'Effectif et historique Académie pilote', exact: true })
   await panel.getByRole('button', { name: 'Ajouter une appartenance' }).click()

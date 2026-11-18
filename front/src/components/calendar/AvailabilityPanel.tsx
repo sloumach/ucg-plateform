@@ -13,6 +13,8 @@ import { usePartnershipList } from '../partnerships/usePartnershipList'
 import { AvailabilityForm } from './AvailabilityForm'
 import { AvailabilityHistory } from './AvailabilityHistory'
 import { AvailabilityPersonSelect } from './AvailabilityPersonSelect'
+import { WorkspaceFilters } from '../layout/WorkspaceFilters'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 
 type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
 export function AvailabilityPanel({ active, disabled, onInvalid }: Props) {
@@ -35,48 +37,54 @@ export function AvailabilityPanel({ active, disabled, onInvalid }: Props) {
     <Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); setEditor(null); setHistory(null) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>
       {mutation.feedback}
-      <form aria-label={text('filter')} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
-        event.preventDefault(); const values = new FormData(event.currentTarget)
-        setFilters({ from: String(values.get('from_date') ?? ''), to: String(values.get('to_date') ?? ''), timezone: String(values.get('timezone') ?? '').trim(),
-          status: String(values.get('status') ?? ''), collective, person: collective ? person : '', cancelled: values.has('cancelled') })
-        setPage(1); setEditor(null); setHistory(null)
-      }}>
-        <FormField name="from_date" label={calendar('fromDate')} type="date" defaultValue={filters.from} required disabled={blocked} error={error?.fieldErrors.from_date?.[0]} />
-        <FormField name="to_date" label={calendar('toDate')} type="date" defaultValue={filters.to} required disabled={blocked} error={error?.fieldErrors.to_date?.[0]} />
-        <FormField name="timezone" label={calendar('displayTimezone')} defaultValue={filters.timezone} placeholder={meta?.viewer_timezone ?? active.context!.timezone} disabled={blocked} error={error?.fieldErrors.timezone?.[0]} />
-        <SelectField name="status" title={text('status')} defaultValue="" disabled={blocked}><option value="">{text('allStatuses')}</option>{availabilityStatuses.map((status) => <option key={status} value={status}>{text('status.' + status)}</option>)}</SelectField>
-        {canRead && <SelectField name="collective" title={text('mode')} value={collective ? '1' : '0'} disabled={blocked} onChange={(value) => setCollective(value === '1')}>
-          {canSelf && <option value="0">{text('mine')}</option>}<option value="1">{text('collective')}</option>
-        </SelectField>}
-        {collective && canRead && <AvailabilityPersonSelect {...{ active, root, onInvalid }} disabled={blocked} value={person} onChange={setPerson} error={error?.fieldErrors.person_id?.[0]} />}
-        <FormField name="cancelled" label={text('cancelledFilter')} type="checkbox" disabled={blocked} />
-        <p className="text-sm text-slate-400 sm:col-span-2">{calendar('windowHint')}</p>
-        <div className="flex flex-wrap gap-3 sm:col-span-2"><Button type="submit" disabled={blocked}>{calendar('filterAction')}</Button><Button disabled={blocked} onClick={() => setRefresh((n) => n + 1)}>{text('refresh')}</Button></div>
-      </form>
-      <p className="text-sm text-cyan-200 [overflow-wrap:anywhere]">{calendar('displayedIn')} : {timezone}</p>
-      {meta?.can_self && !meta.viewer_person_id && <p className="text-sm text-amber-200">{text('missingPerson')}</p>}
-      {canCreate && <Button disabled={blocked || loading} onClick={() => { setEditor('new'); setHistory(null) }}>{text('new')}</Button>}
-      {loading && <p role="status">{text('loading')}</p>}
-      {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
-      <ol className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-2 p-3">
-        <h3 className="font-bold [overflow-wrap:anywhere]">{item.person_label ?? text('unknownPerson')} · {text('status.' + item.status)}</h3>
-        <p className="[overflow-wrap:anywhere]">{date(item.starts_at, timezone)} → {date(item.ends_at, timezone)}</p>
-        <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('origin')} : {item.origin_timezone} · {date(item.starts_at, item.origin_timezone)} → {date(item.ends_at, item.origin_timezone)}</p>
-        {item.comment && <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{item.comment}</p>}
-        {item.cancelled_at && <p>{text('cancelled')}</p>}
-        <div className="flex flex-wrap gap-3">
-          {item.can_edit && <Button disabled={blocked || loading} onClick={() => { setEditor(item); setHistory(null) }}>{text('edit')}</Button>}
-          {item.can_cancel && <form onSubmit={(event) => mutation.propose(event, text('cancel'), root + '/availabilities/' + item.id, { version: item.version, cancel: true }, true)}><Button type="submit" disabled={blocked || loading}>{text('cancel')}</Button></form>}
-          {item.can_history && <Button disabled={blocked || loading} onClick={() => { setHistory(item.id); setEditor(null) }}>{text('history')}</Button>}
-        </div>
-      </li>)}</ol>
-      {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(next) => { setPage(next); setEditor(null); setHistory(null) }} />}
+      <div hidden={editor !== null} className="grid min-w-0 gap-4">
+        <WorkspaceFilters>
+          <form aria-label={text('filter')} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
+            event.preventDefault(); const values = new FormData(event.currentTarget)
+            setFilters({ from: String(values.get('from_date') ?? ''), to: String(values.get('to_date') ?? ''), timezone: String(values.get('timezone') ?? '').trim(),
+              status: String(values.get('status') ?? ''), collective, person: collective ? person : '', cancelled: values.has('cancelled') })
+            setPage(1); setEditor(null); setHistory(null)
+          }}>
+            <FormField name="from_date" label={calendar('fromDate')} type="date" defaultValue={filters.from} required disabled={blocked} error={error?.fieldErrors.from_date?.[0]} />
+            <FormField name="to_date" label={calendar('toDate')} type="date" defaultValue={filters.to} required disabled={blocked} error={error?.fieldErrors.to_date?.[0]} />
+            <FormField name="timezone" label={calendar('displayTimezone')} defaultValue={filters.timezone} placeholder={meta?.viewer_timezone ?? active.context!.timezone} disabled={blocked} error={error?.fieldErrors.timezone?.[0]} />
+            <SelectField name="status" title={text('status')} defaultValue="" disabled={blocked}><option value="">{text('allStatuses')}</option>{availabilityStatuses.map((status) => <option key={status} value={status}>{text('status.' + status)}</option>)}</SelectField>
+            {canRead && <SelectField name="collective" title={text('mode')} value={collective ? '1' : '0'} disabled={blocked} onChange={(value) => setCollective(value === '1')}>
+              {canSelf && <option value="0">{text('mine')}</option>}<option value="1">{text('collective')}</option>
+            </SelectField>}
+            {collective && canRead && <AvailabilityPersonSelect {...{ active, root, onInvalid }} disabled={blocked} value={person} onChange={setPerson} error={error?.fieldErrors.person_id?.[0]} />}
+            <FormField name="cancelled" label={text('cancelledFilter')} type="checkbox" disabled={blocked} />
+            <p className="text-sm text-slate-400 sm:col-span-2">{calendar('windowHint')}</p>
+            <div className="flex flex-wrap gap-3 sm:col-span-2"><Button type="submit" disabled={blocked}>{calendar('filterAction')}</Button><Button disabled={blocked} onClick={() => setRefresh((n) => n + 1)}>{text('refresh')}</Button></div>
+          </form>
+        </WorkspaceFilters>
+        <p className="text-sm text-cyan-200 [overflow-wrap:anywhere]">{calendar('displayedIn')} : {timezone}</p>
+        {meta?.can_self && !meta.viewer_person_id && <p className="text-sm text-amber-200">{text('missingPerson')}</p>}
+        {canCreate && <Button disabled={blocked || loading} onClick={() => { setEditor('new'); setHistory(null) }}>{text('new')}</Button>}
+        {loading && <p role="status">{text('loading')}</p>}
+        {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
+        {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+        <ol className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-2 p-3">
+          <h3 className="font-bold [overflow-wrap:anywhere]">{item.person_label ?? text('unknownPerson')} · {text('status.' + item.status)}</h3>
+          <p className="[overflow-wrap:anywhere]">{date(item.starts_at, timezone)} → {date(item.ends_at, timezone)}</p>
+          <p className="text-sm text-slate-400 [overflow-wrap:anywhere]">{text('origin')} : {item.origin_timezone} · {date(item.starts_at, item.origin_timezone)} → {date(item.ends_at, item.origin_timezone)}</p>
+          {item.comment && <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{item.comment}</p>}
+          {item.cancelled_at && <p>{text('cancelled')}</p>}
+          <div className="flex flex-wrap gap-3">
+            {item.can_edit && <Button disabled={blocked || loading} onClick={() => { setEditor(item); setHistory(null) }}>{text('edit')}</Button>}
+            {item.can_cancel && <form onSubmit={(event) => mutation.propose(event, text('cancel'), root + '/availabilities/' + item.id, { version: item.version, cancel: true }, true)}><Button type="submit" disabled={blocked || loading}>{text('cancel')}</Button></form>}
+            {item.can_history && <Button disabled={blocked || loading} onClick={() => { setHistory(item.id); setEditor(null) }}>{text('history')}</Button>}
+          </div>
+        </li>)}</ol>
+        {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(next) => { setPage(next); setEditor(null); setHistory(null) }} />}
+      </div>
       {history && <AvailabilityHistory key={history} {...{ active, timezone, onInvalid }} disabled={blocked} path={root + '/availabilities/' + history} onClose={() => setHistory(null)} />}
-      {editor && meta && <AvailabilityForm key={editor === 'new' ? 'new' : editor.id + editor.version} {...{ active, root, onInvalid }}
+      {editor && meta && <WorkspaceEditor title={editor === 'new' ? text('new') : text('edit')}>
+        <AvailabilityForm key={editor === 'new' ? 'new' : editor.id + editor.version} {...{ active, root, onInvalid }}
         item={editor === 'new' ? null : editor} disabled={blocked} viewerId={meta.viewer_person_id} defaultTimezone={meta.viewer_timezone} canSelf={meta.can_self} canManage={meta.can_manage}
         errors={mutation.errors(root + '/availabilities' + (editor === 'new' ? '' : '/' + editor.id))} onCancel={() => setEditor(null)}
-        onSubmit={(event, values) => mutation.propose(event, text('save'), root + '/availabilities' + (editor === 'new' ? '' : '/' + editor.id), { ...values, ...(editor === 'new' ? {} : { version: editor.version }) }, editor !== 'new')} />}
+        onSubmit={(event, values) => mutation.propose(event, text('save'), root + '/availabilities' + (editor === 'new' ? '' : '/' + editor.id), { ...values, ...(editor === 'new' ? {} : { version: editor.version }) }, editor !== 'new')} />
+      </WorkspaceEditor>}
       <p className="text-sm text-slate-400">{text('limits')}</p>
     </>}
   </section>

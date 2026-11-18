@@ -162,7 +162,7 @@ test('MFA réel : activation, TOTP, récupération à usage unique et révocatio
     await other.reload()
     await other.getByRole('link', { name: 'Organisations', exact: true }).click()
     await other.getByRole('button', { name: /Ouvrir MFA Alpha/ }).click()
-    await expect(other.getByText('Organisation active : MFA Alpha')).toBeVisible()
+    await expect(other.getByRole('group', { name: 'Contexte d’organisation' })).toHaveText('MFA Alpha')
     const activeResponse = await otherContext.request.get(`${api}/api/v1/active-organization`, { headers: plainHeaders })
     expect(activeResponse.ok()).toBe(true)
     expect((await activeResponse.json()).data.context.organization_id).toBe(fixture.mfa.organization)

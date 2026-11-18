@@ -12,6 +12,8 @@ import { SelectField } from '../people/peopleForms'
 import { changedValues, isoDate, localDate } from '../people/peopleFormValues'
 import { usePeopleMutation } from '../people/usePeopleMutation'
 import { usePartnershipList } from '../partnerships/usePartnershipList'
+import { WorkspaceFilters } from '../layout/WorkspaceFilters'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 
 type Props = { active: ActiveOrganization; disabled: boolean; onInvalid: () => void }
 export function MediaPanel({ active, disabled, onInvalid }: Props) {
@@ -31,42 +33,48 @@ export function MediaPanel({ active, disabled, onInvalid }: Props) {
     <Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); setEditor(null) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>
       {mutation.feedback}
-      <form aria-label={text('search')} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
-        event.preventDefault(); const values = new FormData(event.currentTarget)
-        setFilters({ q: String(values.get('q') ?? '').trim(), kind: String(values.get('kind') ?? ''), status: String(values.get('status') ?? ''), archived: String(values.get('archived') ?? '') })
-        setPage(1); setEditor(null)
-      }}>
-        <FormField name="q" label={text('search')} maxLength={80} disabled={blocked} />
-        <SelectField name="kind" title={text('kind')} defaultValue="" disabled={blocked}><option value="">{text('all')}</option>{mediaKinds.map((kind) => <option key={kind} value={kind}>{text('kind.' + kind)}</option>)}</SelectField>
-        <SelectField name="status" title={text('status')} defaultValue="" disabled={blocked}><option value="">{text('all')}</option>{mediaStatuses.map((status) => <option key={status} value={status}>{text('status.' + status)}</option>)}</SelectField>
-        {canWrite && <SelectField name="archived" title={text('archiveFilter')} defaultValue="" disabled={blocked}><option value="">{text('active')}</option><option value="1">{text('archived')}</option></SelectField>}
-        <div className="flex flex-wrap gap-3 sm:col-span-2"><Button type="submit" disabled={blocked}>{text('searchAction')}</Button><Button disabled={blocked} onClick={() => setRefresh((n) => n + 1)}>{text('refresh')}</Button></div>
-      </form>
-      {canWrite && <Button disabled={blocked} onClick={() => setEditor('new')}>{text('new')}</Button>}
-      {loading && <AsyncState variant="loading" title={text('loading')} />}
-      {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
-      <ul className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-2 p-3">
-        <h3 className="font-bold [overflow-wrap:anywhere]">{item.title}</h3>
-        {item.context_type && <p className="[overflow-wrap:anywhere]">{text('context.' + item.context_type)} : {item.context_label}</p>}
-        <p className="[overflow-wrap:anywhere]">{text('kind.' + item.kind)} · {item.provider === 'youtube' ? 'YouTube' : 'Twitch'} · {item.team_label ?? text('teamUnavailable')}</p>
-        <p>{text('status.' + item.status)} · {text('manual')}</p>
-        <p className="text-sm text-slate-400">{text('observed')} : {date(item.status_observed_at, active)}</p>
-        <p>{text('visibility.' + item.effective_visibility)}{item.is_scrim && ' · ' + text('scrim')}</p>
-        {item.publish_at && <p>{text('publish_at')} : {date(item.publish_at, active)}</p>}
-        {item.archived_at && <p>{text('archived')}</p>}
-        {!item.archived_at && safeMediaUrl(item.url) && <a className="w-fit text-cyan-300 underline [overflow-wrap:anywhere]" href={safeMediaUrl(item.url)!} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">{text('external')}</a>}
-        {canWrite && !item.archived_at && <div className="flex flex-wrap gap-3">
-          <Button disabled={blocked} onClick={() => setEditor(item)}>{text('edit')}</Button>
-          <form onSubmit={(event) => mutation.propose(event, text('archive'), root + '/' + item.id, { version: item.version, archive: true }, true)}><Button type="submit" disabled={blocked}>{text('archive')}</Button></form>
-        </div>}
-      </li>)}</ul>
-      {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={(next) => { setPage(next); setEditor(null) }} />}
-      {editor && <MediaForm key={editor === 'new' ? 'new' : editor.id + editor.version} {...{ active, onInvalid }} root={root} item={editor === 'new' ? null : editor} disabled={blocked}
+      <div hidden={editor !== null} className="grid min-w-0 gap-4">
+        <WorkspaceFilters>
+          <form aria-label={text('search')} className="ui-filters grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
+            event.preventDefault(); const values = new FormData(event.currentTarget)
+            setFilters({ q: String(values.get('q') ?? '').trim(), kind: String(values.get('kind') ?? ''), status: String(values.get('status') ?? ''), archived: String(values.get('archived') ?? '') })
+            setPage(1); setEditor(null)
+          }}>
+            <FormField name="q" label={text('search')} maxLength={80} disabled={blocked} />
+            <SelectField name="kind" title={text('kind')} defaultValue="" disabled={blocked}><option value="">{text('all')}</option>{mediaKinds.map((kind) => <option key={kind} value={kind}>{text('kind.' + kind)}</option>)}</SelectField>
+            <SelectField name="status" title={text('status')} defaultValue="" disabled={blocked}><option value="">{text('all')}</option>{mediaStatuses.map((status) => <option key={status} value={status}>{text('status.' + status)}</option>)}</SelectField>
+            {canWrite && <SelectField name="archived" title={text('archiveFilter')} defaultValue="" disabled={blocked}><option value="">{text('active')}</option><option value="1">{text('archived')}</option></SelectField>}
+            <div className="flex flex-wrap gap-3 sm:col-span-2"><Button type="submit" disabled={blocked}>{text('searchAction')}</Button><Button disabled={blocked} onClick={() => setRefresh((n) => n + 1)}>{text('refresh')}</Button></div>
+          </form>
+        </WorkspaceFilters>
+        {canWrite && <Button disabled={blocked} onClick={() => setEditor('new')}>{text('new')}</Button>}
+        {loading && <AsyncState variant="loading" title={text('loading')} />}
+        {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
+        {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+        <ul className="grid min-w-0 gap-3">{list?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-2 p-3">
+          <h3 className="font-bold [overflow-wrap:anywhere]">{item.title}</h3>
+          {item.context_type && <p className="[overflow-wrap:anywhere]">{text('context.' + item.context_type)} : {item.context_label}</p>}
+          <p className="[overflow-wrap:anywhere]">{text('kind.' + item.kind)} · {item.provider === 'youtube' ? 'YouTube' : 'Twitch'} · {item.team_label ?? text('teamUnavailable')}</p>
+          <p>{text('status.' + item.status)} · {text('manual')}</p>
+          <p className="text-sm text-slate-400">{text('observed')} : {date(item.status_observed_at, active)}</p>
+          <p>{text('visibility.' + item.effective_visibility)}{item.is_scrim && ' · ' + text('scrim')}</p>
+          {item.publish_at && <p>{text('publish_at')} : {date(item.publish_at, active)}</p>}
+          {item.archived_at && <p>{text('archived')}</p>}
+          {!item.archived_at && safeMediaUrl(item.url) && <a className="w-fit text-cyan-300 underline [overflow-wrap:anywhere]" href={safeMediaUrl(item.url)!} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">{text('external')}</a>}
+          {canWrite && !item.archived_at && <div className="flex flex-wrap gap-3">
+            <Button disabled={blocked} onClick={() => setEditor(item)}>{text('edit')}</Button>
+            <form onSubmit={(event) => mutation.propose(event, text('archive'), root + '/' + item.id, { version: item.version, archive: true }, true)}><Button type="submit" disabled={blocked}>{text('archive')}</Button></form>
+          </div>}
+        </li>)}</ul>
+        {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={(next) => { setPage(next); setEditor(null) }} />}
+      </div>
+      {editor && <WorkspaceEditor title={editor === 'new' ? text('new') : text('edit')}>
+        <MediaForm key={editor === 'new' ? 'new' : editor.id + editor.version} {...{ active, onInvalid }} root={root} item={editor === 'new' ? null : editor} disabled={blocked}
         errors={mutation.errors(root + (editor === 'new' ? '' : '/' + editor.id))} onCancel={() => setEditor(null)} onSubmit={(event, values) => {
           const record = editor === 'new' ? null : editor
           mutation.propose(event, text('save'), root + (record ? '/' + record.id : ''), { ...values, ...(record ? { version: record.version } : {}) }, !!record)
-        }} />}
+        }} />
+      </WorkspaceEditor>}
       <p className="text-sm text-slate-400">{text('limits')}</p>
     </>}
   </section>

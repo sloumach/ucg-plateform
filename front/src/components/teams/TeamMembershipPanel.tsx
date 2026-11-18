@@ -11,6 +11,8 @@ import { Alert } from '../feedback/Alert'
 import { SelectField } from '../people/peopleForms'
 import { apiError, isoDate, localDate, shouldReloadContext } from '../people/peopleFormValues'
 import { usePeopleMutation } from '../people/usePeopleMutation'
+import { WorkspaceFilters } from '../layout/WorkspaceFilters'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 type Action = 'close' | 'cancel' | 'transfer' | 'promotion'
 type Editor = 'new' | { period: TeamMembership; action: Action } | null
 export function TeamMembershipPanel({ active, team, disabled, onInvalid, onClose }: {
@@ -58,32 +60,38 @@ export function TeamMembershipPanel({ active, team, disabled, onInvalid, onClose
     <Button disabled={mutation.blocked} onClick={onClose}>{text('closePanel')}</Button>
     {loading && <p role="status">{text('loading')}</p>}
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}{mutation.feedback}
-    <form aria-label={text('filter')} onSubmit={search} className="ui-filters grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-      <SelectField name="role_key" title={text('role')} disabled={blocked}><option value="">{text('all')}</option>{sportingRoles.map((role) => <option key={role} value={role}>{text('role.' + role)}</option>)}</SelectField>
-      <FormField name="at" label={text('at')} type="datetime-local" step="1" disabled={blocked} />
-      <Button type="submit" disabled={blocked}>{text('filter')}</Button>
-    </form>
-    {manage && <Button disabled={blocked} onClick={() => setEditor('new')}>{text('add')}</Button>}
-    {!manage && <p>{text('readOnly')}</p>}
-    {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
-    {list && <ul className="grid min-w-0 grid-cols-1 gap-3">{list.data.map((period) => {
-      const future = new Date(period.starts_at).getTime() > clock
-      const editable = period.status === 'active' && (!period.ends_at || new Date(period.ends_at).getTime() > clock)
-      return <li key={period.id} className="ui-card grid min-w-0 grid-cols-1 gap-2 p-3">
-        <h4 className="font-bold [overflow-wrap:anywhere]">{period.pseudonym ?? period.person_id} · {text('role.' + period.role_key)}</h4>
-        <p className="[overflow-wrap:anywhere]">{new Date(period.starts_at).toLocaleString('fr')} → {period.ends_at ? new Date(period.ends_at).toLocaleString('fr') : text('noEnd')}</p>
-        <p>{text('status.' + period.status)} · {period.effective ? text('effective') : text('notEffective')}</p>
-        {manage && editable && <div className="flex flex-wrap gap-2">
-          <Button disabled={blocked} onClick={() => setEditor({ period, action: future ? 'cancel' : 'close' })}>{text(future ? 'cancel' : 'close')}</Button>
-          {!future && <Button disabled={blocked} onClick={() => setEditor({ period, action: 'transfer' })}>{text('transfer')}</Button>}
-          {!future && team.kind === 'academy' && <Button disabled={blocked} onClick={() => setEditor({ period, action: 'promotion' })}>{text('promotion')}</Button>}
-        </div>}
-      </li>
-    })}</ul>}
-    {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={setPage} />}
-    {editor && manage && <MembershipForm key={editor === 'new' ? 'new' : editor.period.id + editor.action} editor={editor} team={team} active={active} disabled={blocked}
+    <div hidden={editor !== null} className="grid min-w-0 gap-4">
+      <WorkspaceFilters>
+        <form aria-label={text('filter')} onSubmit={search} className="ui-filters grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+          <SelectField name="role_key" title={text('role')} disabled={blocked}><option value="">{text('all')}</option>{sportingRoles.map((role) => <option key={role} value={role}>{text('role.' + role)}</option>)}</SelectField>
+          <FormField name="at" label={text('at')} type="datetime-local" step="1" disabled={blocked} />
+          <Button type="submit" disabled={blocked}>{text('filter')}</Button>
+        </form>
+      </WorkspaceFilters>
+      {manage && <Button disabled={blocked} onClick={() => setEditor('new')}>{text('add')}</Button>}
+      {!manage && <p>{text('readOnly')}</p>}
+      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      {list && <ul className="grid min-w-0 grid-cols-1 gap-3">{list.data.map((period) => {
+        const future = new Date(period.starts_at).getTime() > clock
+        const editable = period.status === 'active' && (!period.ends_at || new Date(period.ends_at).getTime() > clock)
+        return <li key={period.id} className="ui-card grid min-w-0 grid-cols-1 gap-2 p-3">
+          <h4 className="font-bold [overflow-wrap:anywhere]">{period.pseudonym ?? period.person_id} · {text('role.' + period.role_key)}</h4>
+          <p className="[overflow-wrap:anywhere]">{new Date(period.starts_at).toLocaleString('fr')} → {period.ends_at ? new Date(period.ends_at).toLocaleString('fr') : text('noEnd')}</p>
+          <p>{text('status.' + period.status)} · {period.effective ? text('effective') : text('notEffective')}</p>
+          {manage && editable && <div className="flex flex-wrap gap-2">
+            <Button disabled={blocked} onClick={() => setEditor({ period, action: future ? 'cancel' : 'close' })}>{text(future ? 'cancel' : 'close')}</Button>
+            {!future && <Button disabled={blocked} onClick={() => setEditor({ period, action: 'transfer' })}>{text('transfer')}</Button>}
+            {!future && team.kind === 'academy' && <Button disabled={blocked} onClick={() => setEditor({ period, action: 'promotion' })}>{text('promotion')}</Button>}
+          </div>}
+        </li>
+      })}</ul>}
+      {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={setPage} />}
+    </div>
+    {editor && manage && <WorkspaceEditor title={editor === 'new' ? text('add') : text(editor.action)}>
+      <MembershipForm key={editor === 'new' ? 'new' : editor.period.id + editor.action} editor={editor} team={team} active={active} disabled={blocked}
       onInvalid={onInvalid} errors={mutation.errors(path + '/memberships' + (editor === 'new' ? '' : '/' + editor.period.id))} onCancel={() => setEditor(null)}
-      onSubmit={(event, body) => mutation.propose(event, text(editor === 'new' ? 'add' : editor.action), path + '/memberships' + (editor === 'new' ? '' : '/' + editor.period.id), body, editor !== 'new')} />}
+      onSubmit={(event, body) => mutation.propose(event, text(editor === 'new' ? 'add' : editor.action), path + '/memberships' + (editor === 'new' ? '' : '/' + editor.period.id), body, editor !== 'new')} />
+    </WorkspaceEditor>}
     <h4 className="font-bold">{text('history')}</h4>
     {events?.data.length === 0 && <p>{text('noHistory')}</p>}
     {events && <ul className="grid min-w-0 grid-cols-1 gap-2">{events.data.map((movement) => <li className="text-sm [overflow-wrap:anywhere]" key={movement.id}>

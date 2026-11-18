@@ -54,8 +54,10 @@ describe('Fiches et recherche de personnes', () => {
     expect(request).not.toHaveBeenCalled()
   })
   it('un lecteur administratif ne recherche pas les données sportives et ne charge pas les profils', async () => {
+    const user = userEvent.setup()
     show(['administrative.read'])
     await screen.findByRole('button', { name: 'Ouvrir la fiche Camille' })
+    await user.click(screen.getByText('Filtres', { exact: true }))
     expect(screen.queryByLabelText('Début du pseudonyme')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Ajouter une personne' })).not.toBeInTheDocument()
     expect(request.mock.calls.some(([path]) => path.includes('catalogue') || path.includes('game-profiles'))).toBe(false)
@@ -79,6 +81,7 @@ describe('Fiches et recherche de personnes', () => {
     show(['sports.read'])
     await user.click(await screen.findByRole('button', { name: 'Page 2' }))
     await waitFor(() => expect(request.mock.calls.some(([path]) => path.includes('page=2'))).toBe(true))
+    await user.click(screen.getByText('Filtres', { exact: true }))
     await user.type(screen.getByLabelText('Début du pseudonyme'), 'Ca%_')
     await user.click(screen.getByRole('button', { name: 'Appliquer les filtres' }))
     await waitFor(() => expect(request.mock.calls.some(([path]) => path.includes('page=1') && path.includes('q=Ca%25_'))).toBe(true))

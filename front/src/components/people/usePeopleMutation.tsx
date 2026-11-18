@@ -57,7 +57,7 @@ export function usePeopleMutation<T = unknown>(active: ActiveOrganization, onSav
   }
   const feedback = <>
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
-    {pending && <div ref={region} tabIndex={-1} role="region" aria-label={t('tenant.confirmTitle')} className="grid min-w-0 grid-cols-1 gap-3 rounded-xl border border-amber-400/40 bg-amber-400/10 p-4">
+    {pending && <div ref={region} tabIndex={-1} role="region" aria-label={t('tenant.confirmTitle')} className="ui-confirmation grid min-w-0 grid-cols-1 gap-3">
       <p className="[overflow-wrap:anywhere]">{t('tenant.confirmMessage', { action: pending.label, name: active.context?.name ?? '' })}</p>
       <div className="flex flex-wrap gap-3">
         <Button variant="primary" isLoading={busy} loadingLabel={t('tenant.busy')} onClick={() => void save()}>{t('tenant.confirm')}</Button>

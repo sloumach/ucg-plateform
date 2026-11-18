@@ -62,6 +62,7 @@ test('catalogue commun : création, désactivation, carte et confirmation global
   await form.getByRole('button', { name: 'Enregistrer la référence' }).click()
   const approval = page.getByRole('region', { name: 'Confirmer le catalogue commun' })
   await expect(approval).toBeFocused()
+  await expect(approval).toContainText('sera ajoutée au catalogue commun')
   await expect(approval.getByRole('button', { name: 'Appliquer au catalogue commun' })).toBeDisabled()
   expect(writes).toBe(0)
   const confirm = async () => {

@@ -9,6 +9,7 @@ import { usePeopleMutation } from '../people/usePeopleMutation'
 import { useAcademyPage } from './useAcademyPage'
 import { AcademyObjectiveForm } from './AcademyObjectiveForm'
 import { AcademyFeedbackPanel } from './AcademyFeedbackPanel'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 
 type Props = { active: ActiveOrganization; cohort: Cohort; cycle: AcademyCycle; disabled: boolean; onInvalid: () => void }
 export function AcademyObjectivesPanel({ active, cohort, cycle, disabled, onInvalid }: Props) {
@@ -27,20 +28,24 @@ export function AcademyObjectivesPanel({ active, cohort, cycle, disabled, onInva
     <Button disabled={disabled || mutation.blocked} aria-expanded={open} onClick={() => { setOpen((value) => !value); setDetail(null); setEditor(null) }}>{open ? text('close') : text('panel')}</Button>
     {open && <><h4 className="font-bold">{cycle.name}</h4><p>{text('hint')}</p>{mutation.feedback}
       {read.loading && <p role="status">{text('loading')}</p>}{read.error && <><Alert tone="error" title={read.error.message} requestId={read.error.requestId} /><Button onClick={() => setRefresh((value) => value + 1)}>{text('retry')}</Button></>}
-      {manage && <Button variant="primary" disabled={blocked} onClick={() => { setEditor('new'); setDetail(null) }}>{text('create')}</Button>}{read.result?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
-      <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-3 p-3 [overflow-wrap:anywhere]">
-        <h5 className="font-bold">{item.title}</h5><p>{text(item.scope)} · {text(item.status)} · {text('deadline')} : {item.due_on}</p>
-        <p>{text('responsible')} : {item.responsible_label ?? text('unavailable')}{item.scope === 'individual' && ' · ' + (item.target_label ?? text('unavailable'))}</p>
-        {item.description && <p className="whitespace-pre-wrap">{item.description}</p>}
-        <div className="flex flex-wrap gap-2">
-          <Button disabled={blocked} onClick={() => { setDetail({ id: item.id, mode: 'shared' }); setEditor(null) }}>{text('feedback')} {item.title}</Button>
-          {notes && <Button disabled={blocked} onClick={() => { setDetail({ id: item.id, mode: 'internal' }); setEditor(null) }}>{text('notes')} {item.title}</Button>}
-          <Button disabled={blocked} onClick={() => { setDetail({ id: item.id, mode: 'history' }); setEditor(null) }}>{text('history')} {item.title}</Button>
-          {manage && item.status === 'active' && <Button disabled={blocked} onClick={() => { setEditor(item); setDetail(null) }}>{text('editObjective')} {item.title}</Button>}
-        </div>
-      </li>)}</ul>
-      {read.result && <Pagination currentPage={read.result.meta.current_page} totalPages={read.result.meta.last_page} disabled={blocked} onPageChange={(next) => { setPage(next); setEditor(null); setDetail(null) }} />}
-      {editor && manage && <AcademyObjectiveForm key={editor === 'new' ? 'new' : editor.id + editor.version} active={active} cohort={cohort} cycle={cycle} item={editor === 'new' ? null : editor} disabled={blocked} errors={mutation.errors(base + (editor === 'new' ? '' : '/' + editor.id))} onInvalid={onInvalid} onCancel={() => setEditor(null)} onSubmit={(event, body) => mutation.propose(event, text('saveObjective'), base + (editor === 'new' ? '' : '/' + editor.id), body, editor !== 'new')} />}
+      <div hidden={editor !== null} className="grid min-w-0 gap-4">
+        {manage && <Button variant="primary" disabled={blocked} onClick={() => { setEditor('new'); setDetail(null) }}>{text('create')}</Button>}{read.result?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+        <ul className="grid min-w-0 gap-3">{read.result?.data.map((item) => <li key={item.id} className="ui-card grid min-w-0 gap-3 p-3 [overflow-wrap:anywhere]">
+          <h5 className="font-bold">{item.title}</h5><p>{text(item.scope)} · {text(item.status)} · {text('deadline')} : {item.due_on}</p>
+          <p>{text('responsible')} : {item.responsible_label ?? text('unavailable')}{item.scope === 'individual' && ' · ' + (item.target_label ?? text('unavailable'))}</p>
+          {item.description && <p className="whitespace-pre-wrap">{item.description}</p>}
+          <div className="flex flex-wrap gap-2">
+            <Button disabled={blocked} onClick={() => { setDetail({ id: item.id, mode: 'shared' }); setEditor(null) }}>{text('feedback')} {item.title}</Button>
+            {notes && <Button disabled={blocked} onClick={() => { setDetail({ id: item.id, mode: 'internal' }); setEditor(null) }}>{text('notes')} {item.title}</Button>}
+            <Button disabled={blocked} onClick={() => { setDetail({ id: item.id, mode: 'history' }); setEditor(null) }}>{text('history')} {item.title}</Button>
+            {manage && item.status === 'active' && <Button disabled={blocked} onClick={() => { setEditor(item); setDetail(null) }}>{text('editObjective')} {item.title}</Button>}
+          </div>
+        </li>)}</ul>
+        {read.result && <Pagination currentPage={read.result.meta.current_page} totalPages={read.result.meta.last_page} disabled={blocked} onPageChange={(next) => { setPage(next); setEditor(null); setDetail(null) }} />}
+      </div>
+      {editor && manage && <WorkspaceEditor title={editor === 'new' ? text('create') : text('editObjective') + ' · ' + editor.title}>
+        <AcademyObjectiveForm key={editor === 'new' ? 'new' : editor.id + editor.version} active={active} cohort={cohort} cycle={cycle} item={editor === 'new' ? null : editor} disabled={blocked} errors={mutation.errors(base + (editor === 'new' ? '' : '/' + editor.id))} onInvalid={onInvalid} onCancel={() => setEditor(null)} onSubmit={(event, body) => mutation.propose(event, text('saveObjective'), base + (editor === 'new' ? '' : '/' + editor.id), body, editor !== 'new')} />
+      </WorkspaceEditor>}
       {selected && detail?.mode === 'history' && <CoachingHistory key={selected.id} active={active} path={base + '/' + selected.id + '/history'} onInvalid={onInvalid} disabled={blocked} />}
       {selected && detail && detail.mode !== 'history' && (detail.mode !== 'internal' || notes) && <AcademyFeedbackPanel key={selected.id + detail.mode} active={active} base={base + '/' + selected.id + (detail.mode === 'internal' ? '/notes' : '/feedback')} title={selected.title} mode={detail.mode} writable={writable && selected.status !== 'cancelled'} disabled={blocked} onInvalid={onInvalid} />}
     </>}

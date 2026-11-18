@@ -83,6 +83,7 @@ test('report motivé, historique, messages internes et annulation définitive su
   await expect(inbox.getByRole('heading', { name: 'Activité annulée · ' + activity.title })).toBeVisible()
   await expect(inbox.getByText('Ce message décrit un changement passé. Consultez le planning actuel.')).toBeVisible()
   await expect(inbox.getByText(/Personnes concernées/)).toHaveCount(0)
+  await panel.getByText('Filtres', { exact: true }).click()
   const filters = panel.getByRole('form', { name: 'Filtres du calendrier' })
   await filters.getByLabel('Périmètre de consultation').selectOption('1'); await filters.getByLabel('Afficher les archives en mode gestion').check()
   await filters.getByRole('button', { name: 'Afficher la période' }).click()

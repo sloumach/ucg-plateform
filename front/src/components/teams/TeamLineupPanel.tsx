@@ -13,6 +13,8 @@ import { Pagination } from '../data/Pagination'
 import { Alert } from '../feedback/Alert'
 import { TeamEligibilityRulesPanel, LineupEligibilityPanel } from './TeamEligibilityPanel'
 import { eligibilityText } from '../../api/teamEligibility'
+import { WorkspaceFilters } from '../layout/WorkspaceFilters'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 
 export function TeamLineupPanel({ active, team, disabled, onInvalid, onClose }: {
   active: ActiveOrganization; team: Team; disabled: boolean; onInvalid: () => void; onClose: () => void
@@ -50,42 +52,48 @@ export function TeamLineupPanel({ active, team, disabled, onInvalid, onClose }: 
     <Button disabled={mutation.blocked} onClick={onClose}>{text('close')}</Button>
     {loading && <p role="status">{text('loading')}</p>}
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}{mutation.feedback}
-    <form aria-label={text('filter')} className="ui-filters grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2" onSubmit={(event) => {
-      event.preventDefault(); setFilters(Object.fromEntries([...new FormData(event.currentTarget)].filter(([, value]) => value !== '').map(([key, value]) => [key, String(value)]))); setPage(1)
-    }}>
-      <SelectField name="status" title={text('status')} disabled={blocked}><option value="">{text('all')}</option>{['draft', 'finalized', 'cancelled'].map((status) => <option key={status} value={status}>{text('status.' + status)}</option>)}</SelectField>
-      <SelectField name="purpose" title={text('purpose')} disabled={blocked}><option value="">{text('all')}</option>{['match', 'registration'].map((purpose) => <option key={purpose} value={purpose}>{text('purpose.' + purpose)}</option>)}</SelectField>
-      <Button type="submit" disabled={blocked}>{text('filter')}</Button>
-    </form>
-    {edit && <Button variant="primary" disabled={blocked} onClick={() => setEditor('new')}>{text('create')}</Button>}
-    <Button disabled={blocked} onClick={() => setRulesOpen((value) => !value)}>{eligibilityText('title')}</Button>
-    {rulesOpen && <TeamEligibilityRulesPanel active={active} team={team} disabled={blocked} onInvalid={onInvalid} onClose={() => setRulesOpen(false)} />}
-    {!manage && <p>{text('readOnly')}</p>}
-    {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
-    {list && <ul className="grid min-w-0 grid-cols-1 gap-3">{list.data.map((lineup) => <li key={lineup.id} className="ui-card grid min-w-0 grid-cols-1 gap-3 p-3">
-      <h4 className="font-bold [overflow-wrap:anywhere]">{lineup.label}</h4>
-      <p>{text('purpose.' + lineup.purpose)} · {text('status.' + lineup.status)} · {new Date(lineup.effective_at).toLocaleString('fr')}</p>
-      <p className="[overflow-wrap:anywhere]">{lineup.team_name} · {lineup.game_name} · {lineup.season}</p>
-      <ol className="grid min-w-0 grid-cols-1 gap-2">{lineup.entries.map((entry) => <li className="[overflow-wrap:anywhere]" key={entry.id}>{entry.position}. {entry.pseudonym} · {text('slot.' + entry.slot_key)}</li>)}</ol>
-      {lineup.finalized_at && <p className="text-sm">{text('finalizedBy')} {lineup.finalized_by} · {new Date(lineup.finalized_at).toLocaleString('fr')}</p>}
-      <p className="[overflow-wrap:anywhere]">{lineup.ruleset_name ?? eligibilityText('noRule')} · {eligibilityText(lineup.eligibility_status ?? 'unassessed')}</p>
-      <Button disabled={blocked} onClick={() => setEligibilityId((current) => current === lineup.id ? null : lineup.id)}>{eligibilityText('reports')}</Button>
-      {eligibilityId === lineup.id && <LineupEligibilityPanel key={lineup.id + lineup.version} active={active} team={team} lineup={lineup} disabled={blocked}
-        onInvalid={onInvalid} onClose={() => setEligibilityId(null)} onBound={() => setRefresh((value) => value + 1)} />}
-      {manage && lineup.status === 'draft' && <>
-        {edit && <Button disabled={blocked} onClick={() => setEditor(lineup)}>{text('edit')}</Button>}
-        {edit && <form aria-label={text('finalize') + ' ' + lineup.label} onSubmit={(event) => mutation.propose(event, text('finalize') + ' ' + lineup.label, path + '/' + lineup.id, { version: lineup.version, action: 'finalize', team_version: team.version }, true)}>
-          <p className="text-sm text-amber-200">{text('finalizeHint')}</p><Button type="submit" disabled={blocked}>{text('finalize')}</Button>
-        </form>}
-        <form aria-label={text('cancel') + ' ' + lineup.label} onSubmit={(event) => mutation.propose(event, text('cancel') + ' ' + lineup.label, path + '/' + lineup.id, { version: lineup.version, action: 'cancel' }, true)}>
-          <Button type="submit" disabled={blocked}>{text('cancel')}</Button>
+    <div hidden={editor !== null} className="grid min-w-0 gap-4">
+      <WorkspaceFilters>
+        <form aria-label={text('filter')} className="ui-filters grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2" onSubmit={(event) => {
+          event.preventDefault(); setFilters(Object.fromEntries([...new FormData(event.currentTarget)].filter(([, value]) => value !== '').map(([key, value]) => [key, String(value)]))); setPage(1)
+        }}>
+          <SelectField name="status" title={text('status')} disabled={blocked}><option value="">{text('all')}</option>{['draft', 'finalized', 'cancelled'].map((status) => <option key={status} value={status}>{text('status.' + status)}</option>)}</SelectField>
+          <SelectField name="purpose" title={text('purpose')} disabled={blocked}><option value="">{text('all')}</option>{['match', 'registration'].map((purpose) => <option key={purpose} value={purpose}>{text('purpose.' + purpose)}</option>)}</SelectField>
+          <Button type="submit" disabled={blocked}>{text('filter')}</Button>
         </form>
-      </>}
-    </li>)}</ul>}
-    {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={setPage} />}
-    {editor && edit && <LineupForm key={editor === 'new' ? 'new' : editor.id + editor.version} active={active} team={team} lineup={editor === 'new' ? null : editor} disabled={blocked}
+      </WorkspaceFilters>
+      {edit && <Button variant="primary" disabled={blocked} onClick={() => setEditor('new')}>{text('create')}</Button>}
+      <Button disabled={blocked} onClick={() => setRulesOpen((value) => !value)}>{eligibilityText('title')}</Button>
+      {rulesOpen && <TeamEligibilityRulesPanel active={active} team={team} disabled={blocked} onInvalid={onInvalid} onClose={() => setRulesOpen(false)} />}
+      {!manage && <p>{text('readOnly')}</p>}
+      {list?.data.length === 0 && <p className="ui-state text-sm">{text('empty')}</p>}
+      {list && <ul className="grid min-w-0 grid-cols-1 gap-3">{list.data.map((lineup) => <li key={lineup.id} className="ui-card grid min-w-0 grid-cols-1 gap-3 p-3">
+        <h4 className="font-bold [overflow-wrap:anywhere]">{lineup.label}</h4>
+        <p>{text('purpose.' + lineup.purpose)} · {text('status.' + lineup.status)} · {new Date(lineup.effective_at).toLocaleString('fr')}</p>
+        <p className="[overflow-wrap:anywhere]">{lineup.team_name} · {lineup.game_name} · {lineup.season}</p>
+        <ol className="grid min-w-0 grid-cols-1 gap-2">{lineup.entries.map((entry) => <li className="[overflow-wrap:anywhere]" key={entry.id}>{entry.position}. {entry.pseudonym} · {text('slot.' + entry.slot_key)}</li>)}</ol>
+        {lineup.finalized_at && <p className="text-sm">{text('finalizedBy')} {lineup.finalized_by} · {new Date(lineup.finalized_at).toLocaleString('fr')}</p>}
+        <p className="[overflow-wrap:anywhere]">{lineup.ruleset_name ?? eligibilityText('noRule')} · {eligibilityText(lineup.eligibility_status ?? 'unassessed')}</p>
+        <Button disabled={blocked} onClick={() => setEligibilityId((current) => current === lineup.id ? null : lineup.id)}>{eligibilityText('reports')}</Button>
+        {eligibilityId === lineup.id && <LineupEligibilityPanel key={lineup.id + lineup.version} active={active} team={team} lineup={lineup} disabled={blocked}
+          onInvalid={onInvalid} onClose={() => setEligibilityId(null)} onBound={() => setRefresh((value) => value + 1)} />}
+        {manage && lineup.status === 'draft' && <>
+          {edit && <Button disabled={blocked} onClick={() => setEditor(lineup)}>{text('edit')}</Button>}
+          {edit && <form aria-label={text('finalize') + ' ' + lineup.label} onSubmit={(event) => mutation.propose(event, text('finalize') + ' ' + lineup.label, path + '/' + lineup.id, { version: lineup.version, action: 'finalize', team_version: team.version }, true)}>
+            <p className="text-sm text-amber-200">{text('finalizeHint')}</p><Button type="submit" disabled={blocked}>{text('finalize')}</Button>
+          </form>}
+          <form aria-label={text('cancel') + ' ' + lineup.label} onSubmit={(event) => mutation.propose(event, text('cancel') + ' ' + lineup.label, path + '/' + lineup.id, { version: lineup.version, action: 'cancel' }, true)}>
+            <Button type="submit" disabled={blocked}>{text('cancel')}</Button>
+          </form>
+        </>}
+      </li>)}</ul>}
+      {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={setPage} />}
+    </div>
+    {editor && edit && <WorkspaceEditor title={editor === 'new' ? text('create') : text('edit') + ' · ' + editor.label}>
+      <LineupForm key={editor === 'new' ? 'new' : editor.id + editor.version} active={active} team={team} lineup={editor === 'new' ? null : editor} disabled={blocked}
       onInvalid={onInvalid} onCancel={() => setEditor(null)} errors={mutation.errors(path + (editor === 'new' ? '' : '/' + editor.id))}
-      onSubmit={(event, body) => mutation.propose(event, text('save'), path + (editor === 'new' ? '' : '/' + editor.id), body, editor !== 'new')} />}
+      onSubmit={(event, body) => mutation.propose(event, text('save'), path + (editor === 'new' ? '' : '/' + editor.id), body, editor !== 'new')} />
+    </WorkspaceEditor>}
   </section>
 }
 

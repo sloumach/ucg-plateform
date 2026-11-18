@@ -12,6 +12,7 @@ import { Button } from '../Button'
 import { Alert } from '../feedback/Alert'
 import { Pagination } from '../data/Pagination'
 import { CompetitionOutcomeForm } from './CompetitionOutcomeForm'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 type Props = { active: ActiveOrganization; root: string; item: ExternalCompetition; stream: OutcomeStream; disabled: boolean; onInvalid: () => void; onClose: () => void }
 export function CompetitionOutcomePanel({ active, root, item, stream, disabled, onInvalid, onClose }: Props) {
   const [record, setRecord] = useState<CompetitionOutcome | null>(null), [loaded, setLoaded] = useState(false), [editing, setEditing] = useState(false), [history, setHistory] = useState(false), [refresh, setRefresh] = useState(0)
@@ -34,7 +35,9 @@ export function CompetitionOutcomePanel({ active, root, item, stream, disabled, 
     <Button disabled={blocked} onClick={() => { setEditing(false); setHistory(false); setRefresh((n) => n + 1) }}>{text('refresh')}</Button>
     {loaded && !record && <p className="ui-state text-sm">{text('empty')}</p>}{record && <OutcomeView key={record.version + ':' + refresh} record={record} active={active} path={path} onInvalid={onInvalid} disabled={blocked} />}
     {loaded && writable && !editing && <Button disabled={blocked} onClick={() => { setEditing(true); setHistory(false) }}>{text('edit')}</Button>}
-    {editing && loaded && writable && <CompetitionOutcomeForm key={record?.version ?? 'new'} {...{ active, path, stream, record, onInvalid }} disabled={blocked} errors={mutation.errors(path)} onCancel={() => setEditing(false)} onSubmit={(event, body) => mutation.propose(event, text('save'), path, { ...body, competition_version: item.version }, true)} />}
+    {editing && loaded && writable && <WorkspaceEditor title={text('edit')}>
+      <CompetitionOutcomeForm key={record?.version ?? 'new'} {...{ active, path, stream, record, onInvalid }} disabled={blocked} errors={mutation.errors(path)} onCancel={() => setEditing(false)} onSubmit={(event, body) => mutation.propose(event, text('save'), path, { ...body, competition_version: item.version }, true)} />
+    </WorkspaceEditor>}
     {record && <Button disabled={blocked} onClick={() => { setEditing(false); setHistory(!history) }}>{text('history')}</Button>}{history && <OutcomeHistory {...{ active, path, onInvalid }} disabled={blocked} />}
   </section>
 }

@@ -96,7 +96,7 @@ test('accord sponsor réel : événement et média, approbation indépendante, p
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.getByRole('link', { name: 'Aperçu', exact: true }).click()
   await page.getByRole('button', { name: /Ouvrir Sponsor Beta/ }).click()
-  await expect(page.getByText('Organisation active : Sponsor Beta')).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Contexte d’organisation' })).toHaveText('Sponsor Beta')
   await page.getByRole('link', { name: 'Contrats et partenariats', exact: true }).click()
   const hidden = await context.request.get(api + root.replace(data.alpha, data.beta) + '/exposures', { headers: await headers(context, data.beta) })
   expect(hidden.status()).toBe(404)

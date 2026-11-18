@@ -8,6 +8,7 @@ import { FormField } from '../FormField'
 import { Pagination } from '../data/Pagination'
 import { Alert } from '../feedback/Alert'
 import { AsyncState } from '../feedback/AsyncState'
+import { WorkspaceEditor } from '../layout/WorkspaceEditor'
 import { SelectField } from './peopleForms'
 import { apiError, changedValues, label, localDate, shouldReloadContext } from './peopleFormValues'
 import { usePeopleMutation } from './usePeopleMutation'
@@ -67,9 +68,12 @@ export function GameProfilesPanel({ active, personId, catalogue, disabled: paren
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
     {mutation.feedback}
     {loading && <AsyncState variant="loading" title={t('people.loading')} />}
-    {canWrite && (catalogue?.games.length ?? 0) > 0 && <Button disabled={disabled} onClick={() => { setProfileEditor(null); setAccountEditor(undefined) }}>{label('addProfile')}</Button>}
-    {profileEditor !== undefined && <ProfileEditor key={profileEditor?.version ?? 'new'} profile={profileEditor} catalogue={catalogue} disabled={disabled} errors={mutation.errors(profilePath)} onCancel={() => setProfileEditor(undefined)} onSubmit={(event, values) => mutation.propose(event, label('saveProfile'), profilePath, { ...values, ...(profileEditor ? { version: profileEditor.version } : {}) }, profileEditor !== null)} />}
-    {profiles?.data.length === 0 && <p>{label('profilesEmpty')}</p>}
+    {profileEditor !== undefined && <WorkspaceEditor title={label(profileEditor ? 'editProfile' : 'addProfile')}>
+      <ProfileEditor key={profileEditor?.version ?? 'new'} profile={profileEditor} catalogue={catalogue} disabled={disabled} errors={mutation.errors(profilePath)} onCancel={() => setProfileEditor(undefined)} onSubmit={(event, values) => mutation.propose(event, label('saveProfile'), profilePath, { ...values, ...(profileEditor ? { version: profileEditor.version } : {}) }, profileEditor !== null)} />
+    </WorkspaceEditor>}
+    <div hidden={profileEditor !== undefined || accountEditor !== undefined} className="grid min-w-0 gap-3">
+    {canWrite && (catalogue?.games.length ?? 0) > 0 && <Button variant="primary" className="justify-self-start" disabled={disabled} onClick={() => { setProfileEditor(null); setAccountEditor(undefined) }}>{label('addProfile')}</Button>}
+    {profiles?.data.length === 0 && <p className="ui-state">{label('profilesEmpty')}</p>}
     {profiles?.data.map((profile) => <article key={profile.id} className="ui-card grid min-w-0 gap-3 p-4">
       <p className="break-words font-semibold">{catalogue?.games.find((game) => game.key === profile.game_key)?.name ?? profile.game_key} · {context(profile)?.name ?? profile.platform_key} · {profile.region_key} · {label(profile.status ?? 'active')}</p>
       <p className="whitespace-pre-wrap break-words">{label('rank')}: {profile.rank ?? label('none')} · {label('game_role')}: {profile.game_role ?? label('none')}</p>
@@ -82,11 +86,15 @@ export function GameProfilesPanel({ active, personId, catalogue, disabled: paren
       </div>
     </article>)}
     {profiles && <Pagination currentPage={profiles.meta.current_page} totalPages={profiles.meta.last_page} disabled={disabled} onPageChange={(page) => { setProfilePage(page); setSelected(null); setAccountEditor(undefined); setProfileEditor(undefined) }} />}
-    {selected && <section aria-label={label('accounts')} className="ui-panel grid min-w-0 gap-3 p-4">
+    </div>
+    {selected && <section hidden={profileEditor !== undefined} aria-label={label('accounts')} className="ui-panel grid min-w-0 gap-3 p-4">
       <h5 className="font-semibold">{label('accounts')} · {selected.game_key} / {selected.platform_key} / {selected.region_key}</h5>
-      {canWrite && selected.status === 'active' && (context(selected)?.providers.length ?? 0) > 0 && <Button disabled={disabled} onClick={() => setAccountEditor(null)}>{label('addAccount')}</Button>}
-      {accountEditor !== undefined && <AccountEditor key={accountEditor?.version ?? 'new'} account={accountEditor} profile={selected} catalogue={catalogue} disabled={disabled} errors={mutation.errors(accountPath)} onCancel={() => setAccountEditor(undefined)} onSubmit={(event, values) => mutation.propose(event, label('saveAccount'), accountPath, { ...values, ...(accountEditor ? { version: accountEditor.version } : {}) }, accountEditor !== null)} />}
-      {accounts?.data.length === 0 && <p>{label('accountsEmpty')}</p>}
+      {accountEditor !== undefined && <WorkspaceEditor title={label(accountEditor ? 'editAccount' : 'addAccount')}>
+        <AccountEditor key={accountEditor?.version ?? 'new'} account={accountEditor} profile={selected} catalogue={catalogue} disabled={disabled} errors={mutation.errors(accountPath)} onCancel={() => setAccountEditor(undefined)} onSubmit={(event, values) => mutation.propose(event, label('saveAccount'), accountPath, { ...values, ...(accountEditor ? { version: accountEditor.version } : {}) }, accountEditor !== null)} />
+      </WorkspaceEditor>}
+      <div hidden={accountEditor !== undefined} className="grid min-w-0 gap-3">
+      {canWrite && selected.status === 'active' && (context(selected)?.providers.length ?? 0) > 0 && <Button variant="primary" className="justify-self-start" disabled={disabled} onClick={() => setAccountEditor(null)}>{label('addAccount')}</Button>}
+      {accounts?.data.length === 0 && <p className="ui-state">{label('accountsEmpty')}</p>}
       {accounts?.data.map((account) => <article key={account.id} className="ui-card grid min-w-0 gap-2 p-4">
         <p className="break-words font-semibold">{account.provider_key} · {account.display_name ?? label('none')} · {label(account.status ?? 'active')}</p>
         <p className="break-all">{label('external_id')}: {account.external_id ?? label('none')}</p>
@@ -94,6 +102,7 @@ export function GameProfilesPanel({ active, personId, catalogue, disabled: paren
         {canWrite && <Button disabled={disabled} onClick={() => setAccountEditor(account)}>{label('editAccount')} · {account.display_name ?? account.id}</Button>}
       </article>)}
       {accounts && <Pagination currentPage={accounts.meta.current_page} totalPages={accounts.meta.last_page} disabled={disabled} onPageChange={(page) => { setAccountEditor(undefined); setAccountPage(page) }} />}
+      </div>
     </section>}
   </section>
 }
