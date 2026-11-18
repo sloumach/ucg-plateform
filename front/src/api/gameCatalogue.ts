@@ -16,7 +16,7 @@ export type CataloguePage = Page<CatalogueEntry> & { meta: { catalogue_version: 
 export type GameChoices = Record<RestrictionKind, Choice[]>
 export type GameRestrictions = Partial<Record<RestrictionKind, string[]>>
 export type OrganizationGame = Choice & {
-  id: string; available: boolean; enabled: boolean; configured_enabled: boolean; restrictions: GameRestrictions; version: string | null
+  id: string; available: boolean; enabled: boolean; configured_enabled: boolean; restrictions: GameRestrictions | []; version: string | null
 }
 export type OrganizationGameDetail = OrganizationGame & { options: GameChoices; effective_options: GameChoices; catalogue_version: string }
 export type GlobalChoices = { games: CatalogueEntry[]; platforms: CatalogueEntry[]; providers: CatalogueEntry[]; regions: CatalogueEntry[] }

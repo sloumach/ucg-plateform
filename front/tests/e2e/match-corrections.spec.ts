@@ -82,6 +82,7 @@ test('correction auditée, recalcul en attente, reprise et nouvelle validation i
   await submit.getByRole('button', { name: 'Soumettre le résultat' }).click(); await resultsPanel.getByRole('button', { name: 'Confirmer et continuer' }).click()
   await expect(resultsPanel).toHaveCount(0)
   actor = 45; confirmed = false; await page.reload(); await panel.getByRole('button', { name: 'Ouvrir les matchs' }).click(); await panel.getByRole('button', { name: 'Résultats et validation', exact: true }).click()
+  await resultsPanel.getByRole('button', { name: 'Approuver le résultat', exact: true }).click()
   const approve = resultsPanel.getByRole('form', { name: 'Approuver le résultat' })
   await approve.getByLabel('J’ai personnellement consulté la preuve et vérifié le résultat proposé.').check(); await approve.getByLabel('Motif de la proposition ou de la décision').fill('Nouvelle preuve consultée et corrections vérifiées.')
   await approve.getByRole('button', { name: 'Approuver le résultat' }).click(); await resultsPanel.getByRole('button', { name: 'Confirmer et continuer' }).click()

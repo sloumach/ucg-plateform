@@ -64,9 +64,10 @@ test('invitations réelles : expiration, révocation, acceptation, rôle limité
     await page.getByRole('button', { name: /Ouvrir Invitation Alpha/ }).click()
     await page.getByRole('link', { name: 'Membres et accès', exact: true }).click()
     await page.getByRole('link', { name: 'Invitations', exact: true }).click()
-    await expect(page.getByText('Organisation active : Invitation Alpha')).toBeVisible()
+    await expect(page.getByLabel('Contexte d’organisation')).toHaveText('Invitation Alpha')
     const form = page.getByRole('heading', { name: 'Inviter un membre', exact: true }).locator('..')
     async function invite() {
+      await page.getByRole('button', { name: 'Inviter un membre', exact: true }).click()
       await form.getByLabel('E-mail de la personne invitée').fill('BROWSER-INVITEE@example.test')
       await form.getByLabel(/^Rôle dans cette organisation/).selectOption('member')
       await expect(form.locator('option[value="administrator"]')).toHaveCount(0)

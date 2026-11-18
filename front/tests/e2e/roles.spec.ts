@@ -97,6 +97,9 @@ test('création de rôle confirmée, permissions explicites et affichage mobile'
   expect(created).toBe(true)
   await page.getByRole('link', { name: 'Affectations', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Créer un rôle' })).toHaveCount(0)
+  await expect(page.getByText('Aucune affectation de rôle.')).toBeVisible()
+  await expect(page.getByRole('form', { name: 'Affecter un rôle' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Nouvelle affectation' }).click()
   await expect(page.getByRole('form', { name: 'Affecter un rôle' }).getByRole('option', { name: 'Coach', exact: true })).toHaveCount(1)
   for (const width of [375, 320]) {
     await page.setViewportSize({ width, height: 812 })
@@ -134,4 +137,5 @@ test('création de rôle confirmée, permissions explicites et affichage mobile'
   expect(assignedTo).toBeUndefined()
   await confirmation.getByRole('button', { name: 'Confirmer et continuer' }).click()
   await expect.poll(() => assignedTo).toBe('44')
+  await expect(page.getByRole('form', { name: 'Affecter un rôle' })).toHaveCount(0)
 })

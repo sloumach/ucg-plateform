@@ -60,6 +60,9 @@ describe('soumission et validation des résultats', () => {
   })
   it('approuve uniquement après déclaration de vérification et confirmation du tenant', async () => {
     show(); const user = userEvent.setup()
+    const open = await screen.findByRole('button', { name: 'Approuver le résultat' })
+    expect(screen.queryByRole('form', { name: 'Approuver le résultat' })).not.toBeInTheDocument()
+    await user.click(open)
     const form = await screen.findByRole('form', { name: 'Approuver le résultat' })
     await user.click(within(form).getByLabelText('J’ai personnellement consulté la preuve et vérifié le résultat proposé.'))
     await user.type(within(form).getByLabelText('Motif de la proposition ou de la décision'), 'Preuve personnellement vérifiée et conforme.')
@@ -68,6 +71,7 @@ describe('soumission et validation des résultats', () => {
   })
   it('conteste avec motif sans réaffirmer une vérification de preuve', async () => {
     show(); const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Contester le résultat' }))
     const form = await screen.findByRole('form', { name: 'Contester le résultat' })
     await user.type(within(form).getByLabelText('Motif de la proposition ou de la décision'), 'Le rapport et les scores doivent être revus.')
     fireEvent.submit(form); await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))
@@ -79,6 +83,7 @@ describe('soumission et validation des résultats', () => {
     await screen.findByRole('region', { name: 'Proposition courante' }); expect(screen.queryByRole('form')).toBeNull(); view.unmount()
     request.mockImplementation(async (target) => page(result, target.includes('page=2') ? 2 : 1))
     show(); const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Approuver le résultat' }))
     await screen.findByRole('form', { name: 'Approuver le résultat' })
     await user.click(screen.getByRole('button', { name: 'Page suivante' }))
     await screen.findByRole('region', { name: 'Proposition courante' }); expect(screen.queryByRole('form')).toBeNull()
@@ -103,6 +108,7 @@ describe('soumission et validation des résultats', () => {
       return impl(target, options)
     })
     show(); const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Approuver le résultat' }))
     const form = await screen.findByRole('form', { name: 'Approuver le résultat' })
     await user.type(within(form).getByLabelText('Motif de la proposition ou de la décision'), 'Décision retenue après consultation.')
     fireEvent.submit(form); await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))

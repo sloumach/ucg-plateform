@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent, type Ref } from 'react'
 import type { ApiFieldErrors, ApiSuccessResponse } from '../../api/contracts'
 import { ApiClientError, isAbortError } from '../../api/errors'
 import {
@@ -106,11 +106,13 @@ export function TenantWorkspace({ userId, onContextChange }: {
   const [error, setError] = useState<ApiClientError | null>(null)
   const [errorTarget, setErrorTarget] = useState<string | null>(null)
   const [action, setAction] = useState<Action | null>(null)
+  const [accessEditor, setAccessEditor] = useState<string | null>(null)
   const generation = useRef(0)
   const readController = useRef<AbortController | null>(null)
   const confirmRegion = useRef<HTMLDivElement>(null)
   const previousFocus = useRef<HTMLElement | null>(null)
   const sectionTitle = useRef<HTMLHeadingElement>(null)
+  const accessEditorTitle = useRef<HTMLHeadingElement>(null)
   const focusSectionTitle = useRef(false)
   const { notify } = useNotifications()
   const active = workspace?.active
@@ -130,6 +132,7 @@ export function TenantWorkspace({ userId, onContextChange }: {
       setWorkspace(null)
       onContextChange?.(null)
       setAction(null)
+      setAccessEditor(null)
       setError(null)
       setErrorTarget(null)
     }
@@ -222,6 +225,7 @@ export function TenantWorkspace({ userId, onContextChange }: {
   useEffect(() => {
     const onHistoryChange = () => {
       focusSectionTitle.current = true
+      setAccessEditor(null)
       setRequested(requestedSection())
     }
     window.addEventListener('popstate', onHistoryChange)
@@ -232,12 +236,22 @@ export function TenantWorkspace({ userId, onContextChange }: {
     if (action || busy) return
     window.history.pushState(null, '', organizationUrl(next, tool))
     focusSectionTitle.current = true
+    setAccessEditor(null)
     setRequested(requestedSection())
   }
 
   function cancelAction() {
     setAction(null)
   }
+
+  function closeAccessEditor() {
+    setAccessEditor(null)
+    setError(null)
+    setErrorTarget(null)
+    sectionTitle.current?.focus()
+  }
+
+  useEffect(() => { if (accessEditor) accessEditorTitle.current?.focus() }, [accessEditor])
 
   async function selectOrganization(id: string) {
     setBusy(true)
@@ -442,8 +456,8 @@ export function TenantWorkspace({ userId, onContextChange }: {
           )}
           {selected && (tool?.id === 'membres' || tool?.id === 'invitations') && (
             <>
-              {tool.id === 'invitations' && workspace.invitations && <form noValidate className="ui-editor grid gap-4 p-5 md:grid-cols-2" onSubmit={invite}>
-                <h3 className="text-xl font-bold md:col-span-2">{t('tenant.invite')}</h3>
+              {tool.id === 'invitations' && workspace.invitations && accessEditor === 'invite' && <form noValidate className="ui-editor grid items-start gap-4 p-5 md:grid-cols-2" onSubmit={invite}>
+                <h3 ref={accessEditorTitle} tabIndex={-1} className="scroll-mt-28 text-xl font-bold md:col-span-2">{t('tenant.invite')}</h3>
                 <FormField name="email" type="email" required label={t('tenant.email')} disabled={disabled} error={errorTarget?.endsWith('/invitations') ? error?.fieldErrors.email?.[0] : undefined} />
                 <label className="grid gap-2">{t('tenant.role')}<select name="role" className={selectClass} disabled={disabled}>
                   <option value="member">{t('tenant.role.member')}</option>
@@ -451,19 +465,31 @@ export function TenantWorkspace({ userId, onContextChange }: {
                 </select></label>
                 <FormField name="starts_at" type="datetime-local" step="1" label={t('tenant.start')} hint={t('tenant.dateHint')} disabled={disabled} error={errorTarget?.endsWith('/invitations') ? error?.fieldErrors.starts_at?.[0] : undefined} />
                 <FormField name="ends_at" type="datetime-local" step="1" label={t('tenant.end')} disabled={disabled} error={errorTarget?.endsWith('/invitations') ? error?.fieldErrors.ends_at?.[0] : undefined} />
-                <Button type="submit" variant="primary" disabled={disabled}>{t('tenant.send')}</Button>
+                <div className="flex flex-wrap gap-2 md:col-span-2">
+                  <Button type="submit" variant="primary" disabled={disabled}>{t('tenant.send')}</Button>
+                  <Button disabled={disabled} onClick={closeAccessEditor}>{t('tenant.cancel')}</Button>
+                </div>
               </form>}
               {tool.id === 'membres' && workspace.memberships && <div className="grid gap-3">
-                <h3 className="text-xl font-bold">{t('tenant.members')}</h3>
-                {workspace.memberships.data.length === 0 && <p className="text-slate-400">{t('tenant.noMembers')}</p>}
-                {workspace.memberships.data.map((member) => (
-                  <MembershipEditor key={member.id} membership={member} active={workspace.active} disabled={disabled} errors={errorTarget?.endsWith('/memberships/' + member.id) ? error?.fieldErrors ?? {} : {}} onAction={setAction} />
-                ))}
-                <Pagination currentPage={workspace.memberships.meta.current_page} totalPages={workspace.memberships.meta.last_page} disabled={disabled} onPageChange={(page) => changePage('memberships', page)} />
+                {!accessEditor && <h3 className="text-xl font-bold">{t('tenant.members')}</h3>}
+                {!accessEditor && workspace.memberships.data.length === 0 && <p className="ui-state">{t('tenant.noMembers')}</p>}
+                {workspace.memberships.data.map((member) => accessEditor === member.id ? (
+                  <MembershipEditor key={member.id} titleRef={accessEditorTitle} membership={member} active={workspace.active} disabled={disabled} errors={errorTarget?.endsWith('/memberships/' + member.id) ? error?.fieldErrors ?? {} : {}} onAction={setAction} onCancel={closeAccessEditor} />
+                ) : !accessEditor && <article key={member.id} className="ui-card flex flex-wrap items-center justify-between gap-3 p-4">
+                  <div className="grid min-w-0 gap-1">
+                    <p className="font-semibold">{t('tenant.account', { id: member.user_id })} · {roleNames(member.roles)} · {t(`tenant.status.${member.status}`)}</p>
+                    <Period start={member.starts_at} end={member.ends_at} />
+                  </div>
+                  {(selected.is_owner || !member.roles.includes('administrator')) && <Button disabled={disabled} aria-label={t('tenant.editMembershipFor', { id: member.user_id })} onClick={() => setAccessEditor(member.id)}>{t('tenant.editMembership')}</Button>}
+                </article>)}
+                {!accessEditor && <Pagination currentPage={workspace.memberships.meta.current_page} totalPages={workspace.memberships.meta.last_page} disabled={disabled} onPageChange={(page) => changePage('memberships', page)} />}
               </div>}
-              {tool.id === 'invitations' && workspace.invitations && <div className="grid gap-3">
-                <h3 className="text-xl font-bold">{t('tenant.manageInvitations')}</h3>
-                {workspace.invitations.data.length === 0 && <p className="text-slate-400">{t('tenant.noInvitations')}</p>}
+              {tool.id === 'invitations' && workspace.invitations && !accessEditor && <div className="grid gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h3 className="text-xl font-bold">{t('tenant.manageInvitations')}</h3>
+                  <Button variant="primary" disabled={disabled} onClick={() => setAccessEditor('invite')}>{t('tenant.invite')}</Button>
+                </div>
+                {workspace.invitations.data.length === 0 && <p className="ui-state">{t('tenant.noInvitations')}</p>}
                 {workspace.invitations.data.map((invitation) => (
                   <div key={invitation.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 p-4">
                     <p className="min-w-0 break-all">{invitation.email} · {roleNames(invitation.roles)} · {t(`tenant.status.${invitation.status}`)}</p>
@@ -485,8 +511,9 @@ export function TenantWorkspace({ userId, onContextChange }: {
   )
 }
 
-function MembershipEditor({ membership, active, disabled, errors, onAction }: {
+function MembershipEditor({ membership, active, disabled, errors, onAction, onCancel, titleRef }: {
   membership: Membership; active: ActiveOrganization; disabled: boolean; errors: ApiFieldErrors; onAction: (action: Action) => void
+  onCancel: () => void; titleRef: Ref<HTMLHeadingElement>
 }) {
   const context = active.context
   const canEdit = context?.is_owner || !membership.roles.includes('administrator')
@@ -504,8 +531,8 @@ function MembershipEditor({ membership, active, disabled, errors, onAction }: {
     })
   }
   return (
-    <form noValidate aria-label={t('tenant.account', { id: membership.user_id })} onSubmit={submit} className="ui-editor grid gap-3 p-4 md:grid-cols-2">
-      <p className="font-semibold md:col-span-2">{t('tenant.account', { id: membership.user_id })} · {roleNames(membership.roles)} · {t(`tenant.status.${membership.status}`)}</p>
+    <form noValidate aria-label={t('tenant.account', { id: membership.user_id })} onSubmit={submit} className="ui-editor grid items-start gap-3 p-4 md:grid-cols-2">
+      <h3 ref={titleRef} tabIndex={-1} className="scroll-mt-28 font-semibold md:col-span-2">{t('tenant.editMembershipFor', { id: membership.user_id })}</h3>
       {canEdit ? <>
         <label className="grid gap-2">{t('tenant.role')}<select name="role" className={selectClass} defaultValue={primaryRole} disabled={disabled || !context?.is_owner}>
           <option value="member">{t('tenant.role.member')}</option>
@@ -516,8 +543,11 @@ function MembershipEditor({ membership, active, disabled, errors, onAction }: {
         </select></label>
         <FormField name="starts_at" type="datetime-local" step="1" required label={t('tenant.start')} defaultValue={toLocalDate(membership.starts_at)} disabled={disabled} error={errors.starts_at?.[0]} />
         <FormField name="ends_at" type="datetime-local" step="1" label={t('tenant.end')} defaultValue={membership.ends_at ? toLocalDate(membership.ends_at) : ''} disabled={disabled} error={errors.ends_at?.[0]} />
-        <Button type="submit" disabled={disabled}>{t('tenant.update')}</Button>
       </> : <Period start={membership.starts_at} end={membership.ends_at} />}
+      <div className="flex flex-wrap gap-2 md:col-span-2">
+        {canEdit && <Button type="submit" variant="primary" disabled={disabled}>{t('tenant.update')}</Button>}
+        <Button disabled={disabled} onClick={onCancel}>{t('tenant.cancel')}</Button>
+      </div>
     </form>
   )
 }
@@ -528,7 +558,7 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat('fr', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value))
 }
 function Period({ start, end }: { start: string; end: string | null }) {
-  return <p className="text-sm text-slate-400">{t('tenant.until', { start: formatDate(start), end: end ? formatDate(end) : t('tenant.noEnd') })}</p>
+  return <p className="text-sm text-slate-400">{t(end ? 'tenant.until' : 'tenant.since', { start: formatDate(start), end: end ? formatDate(end) : '' })}</p>
 }
 function toIso(value: FormDataEntryValue | null) {
   return value ? new Date(String(value)).toISOString().replace('.000Z', '+00:00') : null

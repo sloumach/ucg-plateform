@@ -27,6 +27,7 @@ test('IAM réel : attribuer les quatre périmètres, modifier une cohorte limit�
   await page.getByRole('link', { name: 'Affectations', exact: true }).click()
   const grants: { id: string; role_id: string; scope_type: string; scope_id: string; starts_at: string; ends_at: null; version: string }[] = []
   for (const type of ['team', 'game', 'cohort', 'event'] as const) {
+    await page.getByRole('button', { name: 'Nouvelle affectation', exact: true }).click()
     const form = page.getByRole('form', { name: 'Affecter un rôle', exact: true })
     await form.getByRole('combobox', { name: 'Périmètre', exact: true }).selectOption(type)
     await expect(form.getByRole('option', { name: 'Responsable limité ' + type, exact: true })).toHaveCount(1)

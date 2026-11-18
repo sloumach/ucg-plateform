@@ -68,7 +68,9 @@ describe('TenantWorkspace', () => {
   it('demande un consentement ciblé avant confirmation de contexte puis mutation avec la même révision', async () => {
     const user = userEvent.setup()
     mount()
-    await screen.findByRole('heading', { name: 'Inviter un membre' })
+    const invite = await screen.findByRole('button', { name: 'Inviter un membre' })
+    expect(screen.queryByLabelText('E-mail de la personne invitée')).not.toBeInTheDocument()
+    await user.click(invite)
     await user.type(screen.getByLabelText('E-mail de la personne invitée'), 'new@example.test')
     await user.click(screen.getByRole('button', { name: 'Envoyer l’invitation' }))
     const confirmation = screen.getByRole('region', { name: 'Confirmer l’action' })
@@ -152,6 +154,7 @@ describe('TenantWorkspace', () => {
   it('conserve une saisie et sa confirmation quand les accès sont identiques au retour du focus', async () => {
     const user = userEvent.setup()
     mount()
+    await user.click(await screen.findByRole('button', { name: 'Inviter un membre' }))
     const email = await screen.findByLabelText('E-mail de la personne invitée')
     await user.type(email, 'brouillon@example.test')
     selection = active(alpha)
@@ -173,6 +176,7 @@ describe('TenantWorkspace', () => {
 
   it('efface le formulaire si un droit disparaît sans changement de révision', async () => {
     mount()
+    await userEvent.click(await screen.findByRole('button', { name: 'Inviter un membre' }))
     const email = await screen.findByLabelText('E-mail de la personne invitée')
     await userEvent.type(email, 'brouillon@example.test')
     selection = active(alpha)
@@ -256,6 +260,8 @@ describe('TenantWorkspace', () => {
     const user = userEvent.setup()
     mount()
     await user.click(await screen.findByRole('link', { name: /^Membres$/ }))
+    expect(screen.queryByRole('form', { name: 'Compte 7' })).not.toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'Modifier l’adhésion du compte 7' }))
     const form = await screen.findByRole('form', { name: 'Compte 7' })
     await user.selectOptions(within(form).getByLabelText('Statut de l’adhésion'), 'suspended')
     await user.click(within(form).getByRole('button', { name: 'Enregistrer l’adhésion' }))

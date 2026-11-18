@@ -53,6 +53,7 @@ test('sélection tenant, droits rechargés et confirmation explicite dans le nav
   await expect(page.getByText('Organisation active : Alpha')).toBeVisible()
   await page.getByRole('link', { name: 'Membres et accès' }).click()
   await page.getByRole('link', { name: 'Invitations', exact: true }).click()
+  await page.getByRole('button', { name: 'Inviter un membre' }).click()
   const email = page.getByLabel('E-mail de la personne invitée')
   await email.fill('member@example.test')
   const accessCheck = page.waitForResponse((response) => response.url().endsWith('/active-organization') && response.request().method() === 'GET')

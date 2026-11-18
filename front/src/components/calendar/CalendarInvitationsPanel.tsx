@@ -11,27 +11,29 @@ import { AsyncState } from '../feedback/AsyncState'
 import { SelectField } from '../people/peopleForms'
 import { usePeopleMutation } from '../people/usePeopleMutation'
 import { usePartnershipList } from '../partnerships/usePartnershipList'
+import { t } from '../../i18n/fr'
 
 type Props = { active: ActiveOrganization; root: string; disabled: boolean; onInvalid: () => void; activity?: CalendarActivity }
 export function CalendarInvitationsPanel({ active, root, disabled, onInvalid, activity }: Props) {
   const [open, setOpen] = useState(false), [page, setPage] = useState(1), [refresh, setRefresh] = useState(0), [history, setHistory] = useState<string | null>(null)
+  const [answering, setAnswering] = useState<string | null>(null)
   const permissions = active.context?.permissions ?? []
   const canManage = permissions.includes('calendar.write') && permissions.includes('calendar.invitations.manage')
   const canRespond = permissions.includes('calendar.invitations.respond')
   const path = activity ? root + '/activities/' + activity.id + '/invitations' : root + '/invitations'
-  const mutation = usePeopleMutation(active, () => { setPage(1); setRefresh((value) => value + 1) }, onInvalid)
+  const mutation = usePeopleMutation(active, () => { setAnswering(null); setPage(1); setRefresh((value) => value + 1) }, onInvalid)
   const { list, loading, error } = usePartnershipList<CalendarInvitation, CalendarInvitationPage>(path + '?page=' + page + '&per_page=10', active, open && permissions.includes('calendar.read') && (!activity || canManage), onInvalid, refresh)
   const blocked = disabled || mutation.blocked, timezone = active.context!.timezone
   if (!permissions.includes('calendar.read') || (activity && !canManage)) return null
   const currentIssued = list?.data.some((item) => item.activity_version === activity?.version)
   return <section aria-label={activity ? text('management') : text('inbox')} className="ui-panel grid min-w-0 gap-3 p-3">
     <h3 className="font-bold">{activity ? text('management') : text('inbox')}</h3>
-    <Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); setHistory(null) }}>{text(open ? 'close' : 'open')}</Button>
+    <Button disabled={blocked} aria-expanded={open} onClick={() => { setOpen(!open); setHistory(null); setAnswering(null) }}>{text(open ? 'close' : 'open')}</Button>
     {open && <>
       <p className="text-sm text-slate-400">{text('hint')}</p>
       {mutation.feedback}
       {list?.calendar_invitations?.delivery_enabled === false && <Alert tone="warning" title={text('deliveryDisabled')} />}
-      <Button disabled={blocked || loading} onClick={() => setRefresh((value) => value + 1)}>{text('refresh')}</Button>
+      <Button disabled={blocked || loading} onClick={() => { setAnswering(null); setRefresh((value) => value + 1) }}>{text('refresh')}</Button>
       {loading && <AsyncState variant="loading" title={text('loading')} />}
       {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
       {activity && page === 1 && list && !loading && !error && !currentIssued && !activity.archived_at && <form aria-label={text('issue')} className="grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
@@ -60,19 +62,22 @@ export function CalendarInvitationsPanel({ active, root, disabled, onInvalid, ac
         <p>{text('response')} : {text(item.response)}</p>
         <p>{!item.current ? text('obsolete') : item.expired ? text('expired') : item.blocked_reason ? text(item.blocked_reason) : item.sent_at ? text('delivered') : text('queued')}</p>
         <p>{text('deliveries')} : {item.delivery_count}</p>
-        {item.can_respond && canRespond && <form aria-label={text('answer')} className="grid min-w-0 gap-3 sm:grid-cols-2" onSubmit={(event) => {
+        {item.can_respond && canRespond && (answering === item.id ? <form aria-label={text('answer')} className="ui-editor grid min-w-0 gap-3 p-3" onSubmit={(event) => {
           const data = new FormData(event.currentTarget)
           mutation.propose(event, text('answer'), root + '/invitations/' + item.id, { version: item.version, response: data.get('response') }, true)
         }}>
           <SelectField name="response" title={text('response')} defaultValue={item.response} disabled={blocked}>
             {(['pending', 'present', 'absent'] as const).map((value) => <option key={value} value={value}>{text(value)}</option>)}
           </SelectField>
-          <Button type="submit" disabled={blocked}>{text('answer')}</Button>
-        </form>}
-        <Button disabled={blocked} onClick={() => setHistory(history === item.id ? null : item.id)}>{text('history')}</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" variant="primary" disabled={blocked}>{text('answer')}</Button>
+            <Button disabled={blocked} onClick={() => setAnswering(null)}>{t('tenant.cancel')}</Button>
+          </div>
+        </form> : <Button className="justify-self-start" disabled={blocked} onClick={() => { setHistory(null); setAnswering(item.id) }}>{text('openAnswer')}</Button>)}
+        <Button className="justify-self-start" disabled={blocked} onClick={() => { setAnswering(null); setHistory(history === item.id ? null : item.id) }}>{text('history')}</Button>
         {history === item.id && <InvitationHistory key={item.id} {...{ active, root, timezone, onInvalid }} id={item.id} disabled={blocked} />}
       </li>)}</ol>
-      {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(value) => { setPage(value); setHistory(null) }} />}
+      {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(value) => { setPage(value); setHistory(null); setAnswering(null) }} />}
     </>}
   </section>
 }

@@ -218,6 +218,7 @@ test('contrat réel : préparation, confidentialité financière, approbation in
   const pendingArchive = await context.request.post(`${url}/transitions`, { headers: await headers(context), data: { version: persisted.version, status: 'archived' } })
   expect(pendingArchive.status()).toBe(409)
   expect((await pendingArchive.json()).code).toBe('CONTRACT_PENDING_OBLIGATIONS')
+  await detail(page).getByRole('button', { name: 'Modifier le suivi · Contrôle du rapport fictif', exact: true }).click()
   const obligation = detail(page).getByRole('form', { name: 'Obligation Contrôle du rapport fictif', exact: true })
   await obligation.getByLabel('État de l’obligation').selectOption('completed')
   await obligation.getByRole('button', { name: 'Enregistrer le suivi de l’obligation', exact: true }).click()

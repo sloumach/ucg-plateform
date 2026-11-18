@@ -17,9 +17,10 @@ export function SponsorshipDeliverablesPanel({ active, agreement, campaign, path
   const [page, setPage] = useState(1), [status, setStatus] = useState(''), [editor, setEditor] = useState<SponsorshipDeliverable | 'new' | null>(null)
   const [delivery, setDelivery] = useState<SponsorshipDeliverable | null>(null)
   const [deliveryOpenedAt, setDeliveryOpenedAt] = useState('')
+  const [reviewing, setReviewing] = useState<string | null>(null)
   const params = new URLSearchParams({ per_page: '10', page: String(page), ...(status ? { status } : {}) })
   const { list, loading, error } = usePartnershipList<SponsorshipDeliverable>(path + '?' + params, active, true, onInvalid)
-  const mutation = usePeopleMutation(active, onChanged, onInvalid), permissions = active.context!.permissions
+  const mutation = usePeopleMutation(active, () => { setReviewing(null); onChanged() }, onInvalid), permissions = active.context!.permissions
   const writable = !readOnly && permissions.includes('partnerships.write') && campaign.status === 'active' && agreement.status !== 'archived'
   const editable = writable && ['draft', 'approved'].includes(agreement.status), validator = writable && permissions.includes('partnerships.validate')
   const blocked = disabled || mutation.blocked, timezone = active.context!.timezone
@@ -27,12 +28,12 @@ export function SponsorshipDeliverablesPanel({ active, agreement, campaign, path
   return <section aria-label={text('deliverables')} className="grid min-w-0 gap-3">
     <h5 className="font-bold">{text('deliverables')}</h5>
     {mutation.feedback}
-    <SelectField name="deliverable_status_filter" title={text('filter')} value={status} onChange={(value) => { setStatus(value); setPage(1); setEditor(null); setDelivery(null) }} disabled={blocked}>
+    <SelectField name="deliverable_status_filter" title={text('filter')} value={status} onChange={(value) => { setStatus(value); setPage(1); setEditor(null); setDelivery(null); setReviewing(null) }} disabled={blocked}>
       <option value="">{text('all')}</option>{deliverableStatuses.map((value) => <option key={value} value={value}>{text('status.' + value)}</option>)}
     </SelectField>
     {loading && <p role="status">{text('loading')}</p>}{error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
     {list?.data.length === 0 && <p>{text('noDeliverables')}</p>}
-    {editable && <Button disabled={blocked} onClick={() => { setEditor('new'); setDelivery(null) }}>{text('newDeliverable')}</Button>}
+    {editable && <Button disabled={blocked} onClick={() => { setEditor('new'); setDelivery(null); setReviewing(null) }}>{text('newDeliverable')}</Button>}
     <ul className="grid min-w-0 gap-3">{list?.data.map((record) => {
       const own = [record.prepared_by, record.responsible_user_id, record.delivered_by].includes(active.context!.actor_user_id)
       const transition = (event: React.FormEvent<HTMLFormElement>, target: string) => mutation.propose(event, text(target === 'promised' ? 'reopen' : target === 'cancelled' ? 'cancelDeliverable' : 'validate'), path + '/' + record.id + '/transitions', {
@@ -48,18 +49,23 @@ export function SponsorshipDeliverablesPanel({ active, agreement, campaign, path
         {record.proof_reference && <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{text('proof_reference')} : {record.proof_reference}</p>}
         {record.validated_at && <p>{text('validatedAt')} : {campaignDate(record.validated_at, timezone)}</p>}
         {record.status === 'validated' && record.validation_matches_agreement === false && <p className="text-amber-200">{text('oldValidation')}</p>}
-        {editable && record.status === 'promised' && <Button disabled={blocked} onClick={() => { setEditor(record); setDelivery(null) }}>{text('editDeliverable')}</Button>}
-        {writable && record.status === 'promised' && <Button disabled={blocked} onClick={() => { setDeliveryOpenedAt(new Date().toISOString()); setDelivery(record); setEditor(null) }}>{text('deliver')}</Button>}
-        {validator && record.status === 'delivered' && (own ? <p>{text('independent')}</p> : agreement.status === 'approved' ? <form aria-label={text('validate')} className="grid min-w-0 gap-2" onSubmit={(event) => transition(event, 'validated')}>
+        {editable && record.status === 'promised' && <Button disabled={blocked} onClick={() => { setEditor(record); setDelivery(null); setReviewing(null) }}>{text('editDeliverable')}</Button>}
+        {writable && record.status === 'promised' && <Button disabled={blocked} onClick={() => { setDeliveryOpenedAt(new Date().toISOString()); setDelivery(record); setEditor(null); setReviewing(null) }}>{text('deliver')}</Button>}
+        {validator && record.status === 'delivered' && own && <p>{text('independent')}</p>}
+        {validator && record.status === 'delivered' && !own && agreement.status !== 'approved' && <p>{text('approvalRequired')}</p>}
+        {validator && record.status === 'delivered' && !own && agreement.status === 'approved' && (reviewing === record.id ? <form aria-label={text('validate')} className="ui-editor grid min-w-0 gap-3 p-3" onSubmit={(event) => transition(event, 'validated')}>
           <label className="flex items-start gap-3"><input type="checkbox" name="confirm_evidence" disabled={blocked} /><span>{text('confirmEvidence')}</span></label>
           {mutation.errors(path + '/' + record.id + '/transitions').confirm_evidence && <p role="alert">{mutation.errors(path + '/' + record.id + '/transitions').confirm_evidence[0]}</p>}
-          <Button type="submit" disabled={blocked}>{text('validate')}</Button>
-        </form> : <p>{text('approvalRequired')}</p>)}
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" variant="primary" disabled={blocked}>{text('validate')}</Button>
+            <Button disabled={blocked} onClick={() => setReviewing(null)}>{text('cancel')}</Button>
+          </div>
+        </form> : <Button className="justify-self-start" disabled={blocked} onClick={() => { setEditor(null); setDelivery(null); setReviewing(record.id) }}>{text('validate')}</Button>)}
         {validator && ['delivered', 'validated'].includes(record.status) && <form aria-label={text('reopen')} onSubmit={(event) => transition(event, 'promised')}><Button type="submit" disabled={blocked}>{text('reopen')}</Button></form>}
         {writable && ['promised', 'delivered'].includes(record.status) && <form aria-label={text('cancelDeliverable')} onSubmit={(event) => transition(event, 'cancelled')}><Button type="submit" disabled={blocked}>{text('cancelDeliverable')}</Button></form>}
       </li>
     })}</ul>
-    {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={(next) => { setPage(next); setEditor(null); setDelivery(null) }} />}
+    {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked} onPageChange={(next) => { setPage(next); setEditor(null); setDelivery(null); setReviewing(null) }} />}
     {editor && <PromiseForm key={editor === 'new' ? 'new' : editor.id} {...{ active, campaign, path, onInvalid, disabled: blocked }} record={editor === 'new' ? null : editor}
       errors={mutation.errors(path + (editor === 'new' ? '' : '/' + editor.id))} onCancel={() => setEditor(null)} onSubmit={(event) => {
         const record = editor === 'new' ? null : editor, body = changedValues(event.currentTarget, record, ['due_at'])

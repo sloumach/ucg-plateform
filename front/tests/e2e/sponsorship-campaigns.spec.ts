@@ -107,6 +107,7 @@ test('campagne partenaire : retard, preuve privée puis validation indépendante
   actor = 44; confirmed = false
   await page.reload(); await openAgreement()
   await page.getByRole('button', { name: 'Ouvrir la campagne' }).click()
+  await page.getByRole('button', { name: 'Valider la preuve', exact: true }).click()
   const validationForm = page.getByRole('form', { name: 'Valider la preuve' })
   await validationForm.getByRole('checkbox').check()
   await validationForm.getByRole('button', { name: 'Valider la preuve' }).click(); await confirm()

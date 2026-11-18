@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import type { GameRestrictions, OrganizationGameDetail } from '../../src/api/gameCatalogue'
 
 const org = '11111111-1111-4111-8111-111111111111', revision = '22222222-2222-4222-8222-222222222222'
 const id = '33333333-3333-4333-8333-333333333333', nextVersion = '44444444-4444-4444-8444-444444444444'
@@ -98,8 +99,8 @@ test('jeux tenant : sélection locale et confirmation de l’organisation sur mo
   page.on('pageerror', (error) => errors.push(error.message))
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()) })
   let confirmed = false, writes = 0
-  let game = { id, key: 'valorant', name: 'VALORANT', available: true, enabled: true, configured_enabled: true, restrictions: {}, version: null as string | null,
-    catalogue_version: revision, options: { platform: [{ key: 'pc', name: 'PC' }], provider: [], region: [{ key: 'eu', name: 'Europe' }], mode: [], role: [], map: [], release: [] },
+  let game: OrganizationGameDetail = { id, key: 'valorant', name: 'VALORANT', available: true, enabled: true, configured_enabled: true, restrictions: [], version: null,
+    catalogue_version: revision, options: { platform: [{ key: 'pc', name: 'PC' }], provider: [], region: [{ key: 'eu', name: 'Europe' }], mode: [], role: [], map: [{ key: 'ascent', name: 'Ascent' }], release: [] },
     effective_options: { platform: [], provider: [], region: [], mode: [], role: [], map: [], release: [] } }
   await mockWorkspace(page, false, (path, method, body, headers) => {
     if (path === 'active-organization/confirmation') confirmed = true
@@ -107,8 +108,8 @@ test('jeux tenant : sélection locale et confirmation de l’organisation sur mo
     if (path === 'tenants/' + org + '/games/' + id) {
       if (method === 'PATCH') {
         expect(confirmed).toBe(true); expect(headers['x-tenant-revision']).toBe(revision)
-        expect(body).toEqual({ enabled: true, restrictions: { region: ['eu'] }, version: null, catalogue_version: revision })
-        game = { ...game, restrictions: body.restrictions as Record<string, string[]>, version: nextVersion }; writes++
+        expect(body).toEqual({ enabled: true, restrictions: { region: ['eu'], map: ['ascent'] }, version: null, catalogue_version: revision })
+        game = { ...game, restrictions: body.restrictions as GameRestrictions, version: nextVersion }; writes++
       }
       return game
     }
@@ -122,6 +123,11 @@ test('jeux tenant : sélection locale et confirmation de l’organisation sur mo
   const panel = page.getByRole('region', { name: 'Jeux de l’organisation', exact: true })
   await panel.getByRole('button', { name: 'Modifier' }).click()
   const form = page.getByRole('form', { name: 'Enregistrer les choix du jeu' })
+  const maps = form.getByRole('group', { name: 'Cartes' })
+  const inheritMaps = maps.getByLabel('Utiliser tous les choix disponibles')
+  await expect(inheritMaps).toBeChecked()
+  await inheritMaps.uncheck()
+  await maps.getByLabel('Ascent', { exact: true }).check()
   const regions = form.getByRole('group', { name: 'Régions de contexte' })
   await regions.getByLabel('Utiliser tous les choix disponibles').uncheck()
   await regions.getByLabel('Europe', { exact: true }).check()
@@ -136,5 +142,8 @@ test('jeux tenant : sélection locale et confirmation de l’organisation sur mo
   await expect(confirmation).toContainText('Alpha')
   await confirmation.getByRole('button', { name: 'Confirmer et continuer' }).click()
   await expect.poll(() => writes).toBe(1)
+  await panel.getByRole('button', { name: 'Jeux de l’organisation', exact: true }).click()
+  await panel.getByRole('button', { name: 'Modifier' }).click()
+  await expect(maps.getByLabel('Ascent', { exact: true })).toBeChecked()
   expect(errors).toEqual([])
 })

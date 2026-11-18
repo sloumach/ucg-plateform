@@ -96,7 +96,7 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
   const [data, setData] = useState<Data | null>(null)
   const [error, setError] = useState<ApiClientError | null>(null)
   const [errorTarget, setErrorTarget] = useState<string | null>(null)
-  const [initialStart] = useState(() => localDate(new Date().toISOString()))
+  const [initialStart, setInitialStart] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [scopeType, setScopeType] = useState<ScopeType>('organization')
@@ -104,11 +104,14 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
   const [assignmentPage, setAssignmentPage] = useState(1)
   const [memberRequired, setMemberRequired] = useState(false)
   const [editing, setEditing] = useState<OrganizationRole | null | undefined>(undefined)
+  const [assignmentEditor, setAssignmentEditor] = useState<string | null>(null)
   const [pending, setPending] = useState<Pending | null>(null)
   const generation = useRef(0)
   const readController = useRef<AbortController | null>(null)
   const alive = useRef(true)
   const confirmRegion = useRef<HTMLDivElement>(null)
+  const panelHeading = useRef<HTMLHeadingElement>(null)
+  const editorHeading = useRef<HTMLHeadingElement>(null)
   const returnFocus = useRef<HTMLElement | null>(null)
   const { notify } = useNotifications()
   const revision = active.revision ?? undefined
@@ -118,7 +121,7 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
     readController.current?.abort()
     const controller = new AbortController()
     readController.current = controller
-    setLoading(true); setData(null); setError(null)
+    setLoading(true); setError(null)
     const prefix = 'tenants/' + orgId + '/'
     const options = { signal: controller.signal, revision }
     try {
@@ -129,7 +132,11 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
       ])
       if (alive.current && current === generation.current && !controller.signal.aborted) setData({ assignments, roles, catalogue: catalogue?.data ?? null })
     } catch (failure) {
-      if (alive.current && current === generation.current && !controller.signal.aborted && !isAbortError(failure)) setError(apiError(failure))
+      if (alive.current && current === generation.current && !controller.signal.aborted && !isAbortError(failure)) {
+        setData(null)
+        setAssignmentEditor(null)
+        setError(apiError(failure))
+      }
     } finally {
       if (alive.current && current === generation.current && !controller.signal.aborted) setLoading(false)
     }
@@ -143,6 +150,7 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
     return () => { disposed = true; alive.current = false; cancelReads() }
   }, [load, cancelReads])
   useEffect(() => { if (pending) confirmRegion.current?.focus() }, [pending])
+  useEffect(() => { if (assignmentEditor || editing !== undefined) editorHeading.current?.focus() }, [assignmentEditor, editing])
   useEffect(() => { if (!busy && !pending) returnFocus.current?.focus() }, [busy, pending, error])
   if (!context) return null
   const disabled = parentDisabled || loading || busy || pending !== null
@@ -162,7 +170,7 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
       const response = await tenancyRequest<ApiSuccessResponse<unknown>>(action.path, { method: action.method, body: action.body, revision })
       if (!alive.current) return
       if (response.notification) notify(response.notification)
-      setPending(null); setEditing(undefined)
+      setPending(null); setEditing(undefined); setAssignmentEditor(null)
       onChanged()
     } catch (failure) {
       if (!alive.current) return
@@ -182,11 +190,39 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
   }
   const fieldError = (name: string, path: string) => path === errorTarget ? error?.fieldErrors[name]?.[0] : undefined
   const assignmentsPath = 'tenants/' + orgId + '/role-assignments'
+  const assignments = data?.assignments
+  const editedAssignment = assignments?.data.find(({ id }) => id === assignmentEditor)
 
-  return <section aria-labelledby={'roles-title-' + orgId} className="ui-panel grid min-w-0 grid-cols-1 gap-4 p-5">
+  function openAssignment(editor: string) {
+    setError(null)
+    setErrorTarget(null)
+    setMemberRequired(false)
+    setScopeType('organization')
+    setInitialStart(localDate(new Date().toISOString()))
+    setAssignmentEditor(editor)
+  }
+
+  function closeAssignment() {
+    setAssignmentEditor(null)
+    setError(null)
+    setErrorTarget(null)
+    panelHeading.current?.focus()
+  }
+
+  function closeRole() {
+    setEditing(undefined)
+    setError(null)
+    setErrorTarget(null)
+    panelHeading.current?.focus()
+  }
+
+  return <section aria-labelledby={'roles-title-' + orgId} className="ui-panel grid min-w-0 grid-cols-1 gap-4 p-3 sm:p-5">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <h3 id={'roles-title-' + orgId} className="text-xl font-bold">{title}</h3>
-      <Button disabled={disabled} onClick={() => void load()}>{t(showingRoles ? 'roles.refresh' : 'roles.refreshAssignments')}</Button>
+      <h3 id={'roles-title-' + orgId} ref={panelHeading} tabIndex={-1} className="text-xl font-bold">{title}</h3>
+      <div className="flex flex-wrap gap-2">
+        {!assignmentEditor && editing === undefined && <Button disabled={disabled} onClick={() => void load()}>{t(showingRoles ? 'roles.refresh' : 'roles.refreshAssignments')}</Button>}
+        {assignments && canAssign && !assignmentEditor && <Button variant="primary" disabled={disabled} onClick={() => openAssignment('new')}>{t('roles.newAssignment')}</Button>}
+      </div>
     </div>
     {!showingRoles && <p className="text-slate-400">{t('roles.description')}</p>}
     {error && <Alert tone="error" title={error.message} requestId={error.requestId} />}
@@ -197,10 +233,13 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
       <Button disabled={busy} onClick={cancel}>{t('tenant.cancel')}</Button>
     </div>}
     {showingRoles && data && <>
-      {data.catalogue?.can_manage && <Button variant="primary" className="justify-self-start" disabled={disabled} onClick={() => setEditing(null)}>{t('roles.create')}</Button>}
-      {editing !== undefined && data.catalogue?.can_manage && <RoleEditor key={editing?.id ?? 'new'} role={editing} catalogue={data.catalogue} disabled={disabled}
-        errors={errorTarget?.includes('/roles') ? error?.fieldErrors ?? {} : {}} onCancel={() => setEditing(undefined)} onSubmit={(event, body) => propose(event, t('roles.saveRole'), 'tenants/' + orgId + '/roles' + (editing ? '/' + editing.id : ''), editing ? 'PUT' : 'POST', body)} />}
-      {data.roles && <>
+      {editing === undefined && data.catalogue?.can_manage && <Button variant="primary" className="justify-self-start" disabled={disabled} onClick={() => setEditing(null)}>{t('roles.create')}</Button>}
+      {editing !== undefined && data.catalogue?.can_manage && <>
+        <h4 ref={editorHeading} tabIndex={-1} className="scroll-mt-28 font-semibold">{editing ? t('roles.edit', { name: editing.name }) : t('roles.create')}</h4>
+        <RoleEditor key={editing?.id ?? 'new'} role={editing} catalogue={data.catalogue} disabled={disabled}
+          errors={errorTarget?.includes('/roles') ? error?.fieldErrors ?? {} : {}} onCancel={closeRole} onSubmit={(event, body) => propose(event, t('roles.saveRole'), 'tenants/' + orgId + '/roles' + (editing ? '/' + editing.id : ''), editing ? 'PUT' : 'POST', body)} />
+      </>}
+      {editing === undefined && data.roles && <>
         <h4 className="font-semibold">{t('roles.catalogue')}</h4>
         {data.roles.data.length === 0 && <p>{t('roles.noRoles')}</p>}
         {data.roles.data.map((role) => <div key={role.id} className="ui-card grid gap-2 p-4">
@@ -215,8 +254,8 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
         <Pagination currentPage={data.roles.meta.current_page} totalPages={data.roles.meta.last_page} disabled={disabled} onPageChange={(page) => { setEditing(undefined); setRolePage(page) }} />
       </>}
     </>}
-    {data?.assignments && <>
-      {canAssign && data.roles && data.catalogue && <form noValidate aria-label={t('roles.assign')} className="ui-editor grid min-w-0 grid-cols-1 items-start gap-3 p-4 md:grid-cols-2" onSubmit={(event) => {
+    {assignments && <>
+      {canAssign && assignmentEditor === 'new' && data.roles && data.catalogue && <form noValidate aria-label={t('roles.assign')} className="ui-editor grid min-w-0 grid-cols-1 items-start gap-3 p-3 sm:p-4 md:grid-cols-2" onSubmit={(event) => {
         event.preventDefault()
         if (disabled) return
         const member = event.currentTarget.querySelector<HTMLInputElement>('input[name="user_id"]:checked, input[name="user_id"][type="hidden"]')
@@ -232,7 +271,7 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
           starts_at: iso(form.get('starts_at')), ends_at: iso(form.get('ends_at')),
         }, member.dataset.memberLabel)
       }}>
-        <h4 className="font-semibold md:col-span-2">{t('roles.assign')}</h4>
+        <h4 ref={editorHeading} tabIndex={-1} className="scroll-mt-28 font-semibold md:col-span-2">{t('roles.assign')}</h4>
         <RoleAssignmentMemberPicker key={orgId + ':' + revision} organizationId={context.organization_id} revision={revision} disabled={disabled}
           error={memberRequired ? t('roles.memberRequired') : fieldError('user_id', assignmentsPath)} onSelectionChange={() => setMemberRequired(false)} />
         <label className="grid content-start gap-2 text-sm leading-5 font-semibold">{t('roles.role')}<select name="role_id" required className={`${selectClass} text-base font-normal`} disabled={disabled}>
@@ -250,31 +289,51 @@ export function RoleManagementPanel({ active, disabled: parentDisabled, onChange
         <FormField name="starts_at" type="datetime-local" step="1" defaultValue={initialStart} label={t('roles.start')} required disabled={disabled} error={error?.fieldErrors.starts_at?.[0]} />
         <FormField name="ends_at" type="datetime-local" step="1" label={t('roles.end')} disabled={disabled} error={error?.fieldErrors.ends_at?.[0]} />
         <p className="text-sm text-slate-400 md:col-span-2">{t('roles.delegationHint')}</p>
-        <Button type="submit" disabled={disabled}>{t('roles.assign')}</Button>
+        <div className="flex flex-wrap gap-2 md:col-span-2">
+          <Button type="submit" variant="primary" disabled={disabled}>{t('roles.assign')}</Button>
+          <Button disabled={disabled} onClick={closeAssignment}>{t('tenant.cancel')}</Button>
+        </div>
       </form>}
-      {data.assignments.data.length === 0 && <p>{t('roles.noAssignments')}</p>}
-      {data.assignments.data.map((assignment) => <form key={assignment.id} noValidate className="ui-editor grid min-w-0 grid-cols-1 gap-3 p-4 md:grid-cols-2" aria-label={t('roles.assignment', { name: assignment.role_name, id: assignment.user_id })}
+      {canAssign && editedAssignment && editedAssignment.status !== 'revoked' && <form key={editedAssignment.id} noValidate className="ui-editor grid min-w-0 grid-cols-1 items-start gap-3 p-3 sm:p-4 md:grid-cols-2" aria-label={assignmentLabel(editedAssignment)}
         onSubmit={(event) => {
           const form = new FormData(event.currentTarget)
-          propose(event, t('roles.saveAssignment'), 'tenants/' + orgId + '/role-assignments/' + assignment.id, 'PUT', {
-            role_id: assignment.role_id, user_id: assignment.user_id, scope_type: assignment.scope_type, scope_id: assignment.scope_id,
-            status: form.get('status'), starts_at: iso(form.get('starts_at')), ends_at: iso(form.get('ends_at')), version: assignment.version,
+          propose(event, t('roles.saveAssignment'), assignmentsPath + '/' + editedAssignment.id, 'PUT', {
+            role_id: editedAssignment.role_id, user_id: editedAssignment.user_id, scope_type: editedAssignment.scope_type, scope_id: editedAssignment.scope_id,
+            status: form.get('status'), starts_at: iso(form.get('starts_at')), ends_at: iso(form.get('ends_at')), version: editedAssignment.version,
           })
         }}>
-        <p className="font-semibold md:col-span-2">{assignment.role_name} · {t('tenant.account', { id: assignment.user_id })} · {scopeName(assignment.scope_type)} · {t('tenant.status.' + assignment.status as Parameters<typeof t>[0])}</p>
-        {assignment.scope_type !== 'organization' && <p className="text-sm text-slate-400 md:col-span-2">{assignment.scope_id}</p>}
-        {canAssign && assignment.status !== 'revoked' ? <>
-          <label className="grid gap-2">{t('roles.assignmentStatus')}<select name="status" className={selectClass} defaultValue={assignment.status} disabled={disabled}>
-            {(['active', 'suspended', 'revoked'] as const).map((status) => <option key={status} value={status}>{t('tenant.status.' + status as Parameters<typeof t>[0])}</option>)}
-          </select></label>
-          <FormField name="starts_at" type="datetime-local" step="1" defaultValue={localDate(assignment.starts_at)} label={t('roles.start')} required disabled={disabled} error={fieldError('starts_at', 'tenants/' + orgId + '/role-assignments/' + assignment.id)} />
-          <FormField name="ends_at" type="datetime-local" step="1" defaultValue={assignment.ends_at ? localDate(assignment.ends_at) : ''} label={t('roles.end')} disabled={disabled} error={fieldError('ends_at', 'tenants/' + orgId + '/role-assignments/' + assignment.id)} />
-          <Button type="submit" disabled={disabled}>{t('roles.saveAssignment')}</Button>
-        </> : <p className="text-sm text-slate-400 md:col-span-2">{t('tenant.until', { start: new Date(assignment.starts_at).toLocaleString('fr'), end: assignment.ends_at ? new Date(assignment.ends_at).toLocaleString('fr') : t('tenant.noEnd') })}</p>}
-      </form>)}
-      <Pagination currentPage={data.assignments.meta.current_page} totalPages={data.assignments.meta.last_page} disabled={disabled} onPageChange={setAssignmentPage} />
+        <h4 ref={editorHeading} tabIndex={-1} className="scroll-mt-28 font-semibold md:col-span-2">{assignmentLabel(editedAssignment)}</h4>
+        <p className="text-sm text-muted md:col-span-2">{scopeName(editedAssignment.scope_type)}{editedAssignment.scope_type !== 'organization' && ` · ${editedAssignment.scope_id}`}</p>
+        <label className="grid content-start gap-2 md:col-span-2">{t('roles.assignmentStatus')}<select name="status" className={selectClass} defaultValue={editedAssignment.status} disabled={disabled}>
+          {(['active', 'suspended', 'revoked'] as const).map((status) => <option key={status} value={status}>{t('tenant.status.' + status as Parameters<typeof t>[0])}</option>)}
+        </select></label>
+        <FormField name="starts_at" type="datetime-local" step="1" defaultValue={localDate(editedAssignment.starts_at)} label={t('roles.start')} required disabled={disabled} error={fieldError('starts_at', assignmentsPath + '/' + editedAssignment.id)} />
+        <FormField name="ends_at" type="datetime-local" step="1" defaultValue={editedAssignment.ends_at ? localDate(editedAssignment.ends_at) : ''} label={t('roles.end')} disabled={disabled} error={fieldError('ends_at', assignmentsPath + '/' + editedAssignment.id)} />
+        <div className="flex flex-wrap gap-2 md:col-span-2">
+          <Button type="submit" variant="primary" disabled={disabled}>{t('roles.saveAssignment')}</Button>
+          <Button disabled={disabled} onClick={closeAssignment}>{t('tenant.cancel')}</Button>
+        </div>
+      </form>}
+      {!assignmentEditor && <>
+        {assignments.data.length === 0 && <p className="ui-state">{t('roles.noAssignments')}</p>}
+        {assignments.data.length > 0 && <ul className="grid min-w-0 gap-2">
+          {assignments.data.map((assignment) => <li key={assignment.id} className="ui-card flex flex-wrap items-center justify-between gap-3 p-4">
+            <div className="grid min-w-0 gap-1">
+              <p className="font-semibold">{assignment.role_name} · {t('tenant.account', { id: assignment.user_id })} · {t('tenant.status.' + assignment.status as Parameters<typeof t>[0])}</p>
+              <p className="text-sm text-muted">{scopeName(assignment.scope_type)}{assignment.scope_type !== 'organization' && ` · ${assignment.scope_id}`}</p>
+              <p className="text-sm text-muted">{t(assignment.ends_at ? 'tenant.until' : 'tenant.since', { start: new Date(assignment.starts_at).toLocaleString('fr'), end: assignment.ends_at ? new Date(assignment.ends_at).toLocaleString('fr') : '' })}</p>
+            </div>
+            {canAssign && assignment.status !== 'revoked' && <Button disabled={disabled} aria-label={t('roles.editAssignmentFor', { name: assignment.role_name, id: assignment.user_id })} onClick={() => openAssignment(assignment.id)}>{t('roles.editAssignment')}</Button>}
+          </li>)}
+        </ul>}
+        <Pagination currentPage={assignments.meta.current_page} totalPages={assignments.meta.last_page} disabled={disabled} onPageChange={setAssignmentPage} />
+      </>}
     </>}
   </section>
+}
+
+function assignmentLabel(assignment: RoleAssignment) {
+  return t('roles.assignment', { name: assignment.role_name, id: assignment.user_id })
 }
 
 function RoleEditor({ role, catalogue, disabled, errors, onCancel, onSubmit }: {

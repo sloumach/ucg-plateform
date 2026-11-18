@@ -129,6 +129,8 @@ describe('contrats administratifs', () => {
   it('permet la régularisation d’une obligation après résiliation avec les deux versions courantes', async () => {
     record = { ...base, status: 'terminated', available_transitions: ['archived'] }; rows = [record]
     const user = userEvent.setup(); show({ ...active, confirmed: true }); await open(user); await detail(user)
+    expect(screen.queryByRole('form', { name: 'Obligation Restitution' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Modifier le suivi · Restitution' }))
     const form = screen.getByRole('form', { name: 'Obligation Restitution' })
     await user.selectOptions(within(form).getByLabelText('État de l’obligation'), 'waived')
     await user.click(within(form).getByRole('button', { name: 'Enregistrer le suivi de l’obligation' })); await approve(user)

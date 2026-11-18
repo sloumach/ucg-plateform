@@ -69,7 +69,8 @@ function OrganizationGameForm({ game, disabled, errors, onCancel, onSubmit }: {
   game: OrganizationGameDetail; disabled: boolean; errors: Record<string, string[]>; onCancel: () => void
   onSubmit: (event: FormEvent<HTMLFormElement>, body: Record<string, unknown>) => void
 }) {
-  const [restrictions, setRestrictions] = useState<GameRestrictions>(game.restrictions)
+  // Laravel returns [] when there are no restrictions. Its map property is Array.prototype.map.
+  const [restrictions, setRestrictions] = useState<GameRestrictions>(() => Array.isArray(game.restrictions) ? {} : game.restrictions)
   function submit(event: FormEvent<HTMLFormElement>) {
     const form = new FormData(event.currentTarget)
     onSubmit(event, { enabled: form.get('enabled') === 'yes', restrictions, version: game.version, catalogue_version: game.catalogue_version })

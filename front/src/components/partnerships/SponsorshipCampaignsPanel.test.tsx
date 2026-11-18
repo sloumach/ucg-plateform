@@ -94,6 +94,7 @@ describe('campagnes et livrables', () => {
   it('requires an explicit evidence confirmation for an independent validator', async () => {
     promises = [{ ...promise, status: 'delivered', overdue: false, delivered_by: 41, delivered_at: '2026-10-16T10:00:00Z', proof_reference: 'Preuve vérifiée' }]
     const user = userEvent.setup(); show(); await open(user)
+    await user.click(screen.getByRole('button', { name: 'Valider la preuve' }))
     const form = screen.getByRole('form', { name: 'Valider la preuve' })
     await user.click(within(form).getByRole('checkbox'))
     await user.click(within(form).getByRole('button', { name: 'Valider la preuve' }))

@@ -67,6 +67,7 @@ test('convocations : confirmation, réponse personnelle et historique sur mobile
   expect(issues).toBe(1)
   const inbox = calendar.getByRole('region', { name: 'Mes convocations', exact: true })
   await inbox.getByRole('button', { name: 'Consulter les convocations' }).click()
+  await inbox.getByRole('button', { name: 'Répondre à la convocation', exact: true }).click()
   const answer = inbox.getByRole('form', { name: 'Enregistrer ma réponse' })
   await answer.getByLabel('Réponse', { exact: true }).selectOption('present')
   await answer.getByRole('button', { name: 'Enregistrer ma réponse' }).click()

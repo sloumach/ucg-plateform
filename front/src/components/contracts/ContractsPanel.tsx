@@ -28,6 +28,7 @@ export function ContractsPanel({ active, disabled, onInvalid }: Props) {
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [list, setList] = useState<Page<ContractRecord> | null>(null), [detailId, setDetailId] = useState<string | null>(null)
   const [detail, setDetail] = useState<ContractRecord | null>(null), [editing, setEditing] = useState(false)
+  const [obligationEditor, setObligationEditor] = useState<string | null>(null)
   const [creating, setCreating] = useState(false), [loading, setLoading] = useState(false), [detailLoading, setDetailLoading] = useState(false)
   const [error, setError] = useState<ReturnType<typeof apiError> | null>(null)
   const invalidate = useCallback(() => { setDetail(null); setDetailId(null); setEditing(false); setCreating(false); setRefresh((value) => value + 1); onInvalid() }, [onInvalid])
@@ -116,14 +117,27 @@ export function ContractsPanel({ active, disabled, onInvalid }: Props) {
         <p>{text('starts_on')} : {detail.starts_on ?? '—'} · {text('ends_on')} : {detail.ends_on ?? '—'}</p>
         {detail.signed_on && <p className="[overflow-wrap:anywhere]">{text('signature')} : {detail.signed_on} · {detail.signature_reference}. {text('signatureHint')}</p>}
         {detail.parties?.map((party) => <p key={party.id} className="[overflow-wrap:anywhere]">{text('party')} : {party.name}</p>)}
-        {detail.obligations?.map((item) => <form key={item.id + item.version} aria-label={text('obligation') + ' ' + item.title} className="ui-editor grid min-w-0 gap-2 p-3"
-          onSubmit={(event) => mutation.propose(event, text('obligationSave') + ' ' + item.title, detailPath + '/obligations/' + item.id,
-            { version: item.version, contract_version: detail.version, status: new FormData(event.currentTarget).get('status') }, true)}>
-          <p className="[overflow-wrap:anywhere]">{item.title}{item.due_on && ' · ' + item.due_on} · {text('obligation.' + item.status)}</p>
-          {manage && detail.status !== 'archived' && <><SelectField name="status" title={text('obligationStatus')} defaultValue={item.status} disabled={blocked}>
-            {(['pending', 'completed', 'waived'] as const).map((status) => <option value={status} key={status}>{text('obligation.' + status)}</option>)}
-          </SelectField><Button type="submit" disabled={blocked}>{text('obligationSave')}</Button></>}
-        </form>)}
+        {detail.obligations?.map((item) => {
+          const editorKey = `${item.id}:${item.version}`
+          const isEditing = obligationEditor === editorKey
+          return <div key={editorKey} className="ui-card grid min-w-0 gap-3 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="min-w-0 wrap-anywhere">{item.title}{item.due_on && ' · ' + item.due_on} · {text('obligation.' + item.status)}</p>
+              {manage && detail.status !== 'archived' && !isEditing && <Button disabled={blocked} aria-label={text('obligationEdit') + ' · ' + item.title} onClick={() => setObligationEditor(editorKey)}>{text('obligationEdit')}</Button>}
+            </div>
+            {manage && detail.status !== 'archived' && isEditing && <form aria-label={text('obligation') + ' ' + item.title} className="ui-editor grid min-w-0 gap-3 p-3"
+              onSubmit={(event) => mutation.propose(event, text('obligationSave') + ' ' + item.title, detailPath + '/obligations/' + item.id,
+                { version: item.version, contract_version: detail.version, status: new FormData(event.currentTarget).get('status') }, true)}>
+              <SelectField name="status" title={text('obligationStatus')} defaultValue={item.status} disabled={blocked}>
+                {(['pending', 'completed', 'waived'] as const).map((status) => <option value={status} key={status}>{text('obligation.' + status)}</option>)}
+              </SelectField>
+              <div className="flex flex-wrap gap-2">
+                <Button type="submit" variant="primary" disabled={blocked}>{text('obligationSave')}</Button>
+                <Button disabled={blocked} onClick={() => setObligationEditor(null)}>{t('tenant.cancel')}</Button>
+              </div>
+            </form>}
+          </div>
+        })}
         {manage && detail.status !== 'archived' && <Button disabled={blocked} onClick={() => setEditing((value) => !value)}>{text('edit')}</Button>}
         {editing && <ContractForm key={detail.id + detail.version} active={active} record={detail} disabled={blocked} errors={mutation.errors(detailPath)} onInvalid={invalidate} onCancel={() => setEditing(false)} onSave={save} />}
         {manage && detail.status !== 'archived' && <TransitionForm key={'transition:' + detail.version} record={detail} actor={active.context!.actor_user_id} validate={validate} permissions={active.context!.permissions}

@@ -165,6 +165,7 @@ test('match réel : compositions, scores, approbation indépendante, correction 
       const reviewerCard = reviewerPanel.getByRole('heading', { name: created.title, exact: true }).locator('..')
       await expect(reviewerCard.getByRole('button', { name: 'Changer le statut du match', exact: true })).toHaveCount(0)
       await reviewerCard.getByRole('button', { name: 'Résultats et validation', exact: true }).click()
+      await reviewerPanel.getByRole('button', { name: 'Approuver le résultat', exact: true }).click()
       const decision = reviewerPanel.getByRole('form', { name: 'Approuver le résultat', exact: true })
       await decision.getByLabel('J’ai personnellement consulté la preuve et vérifié le résultat proposé.', { exact: true }).check()
       await decision.getByLabel('Motif de la proposition ou de la décision').fill('Lecture indépendante du rapport fictif et des scores.')

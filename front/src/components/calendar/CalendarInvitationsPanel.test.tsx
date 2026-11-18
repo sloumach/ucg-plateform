@@ -66,6 +66,9 @@ describe('convocations du calendrier', () => {
     rows = [{ ...invitation }]
     const user = userEvent.setup(), { container } = show()
     await user.click(screen.getByRole('button', { name: 'Consulter les convocations' }))
+    const answer = await screen.findByRole('button', { name: 'Répondre à la convocation' })
+    expect(screen.queryByRole('form', { name: 'Enregistrer ma réponse' })).not.toBeInTheDocument()
+    await user.click(answer)
     const form = within(await screen.findByRole('form', { name: 'Enregistrer ma réponse' }))
     expect(screen.getByRole('heading', { name: '<script>Activité</script>' })).toBeInTheDocument()
     expect(container.querySelector('script,img')).toBeNull()
@@ -91,6 +94,7 @@ describe('convocations du calendrier', () => {
     })
     const user = userEvent.setup(); show(undefined, { ...active, confirmed: true })
     await user.click(screen.getByRole('button', { name: 'Consulter les convocations' }))
+    await user.click(await screen.findByRole('button', { name: 'Répondre à la convocation' }))
     const form = within(await screen.findByRole('form', { name: 'Enregistrer ma réponse' }))
     await user.selectOptions(form.getByLabelText('Réponse'), 'present'); await user.click(form.getByRole('button', { name: 'Enregistrer ma réponse' }))
     await user.click(screen.getByRole('button', { name: 'Confirmer et continuer' }))

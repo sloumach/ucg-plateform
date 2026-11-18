@@ -136,6 +136,11 @@ body {
     background: var(--color-field);
   }
 
+  form.ui-editor,
+  form.ui-filters {
+    align-items: start;
+  }
+
   .ui-input {
     min-width: 0;
     width: 100%;

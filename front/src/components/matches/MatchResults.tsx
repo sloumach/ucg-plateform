@@ -10,11 +10,13 @@ import { FormField } from '../FormField'
 import { Button } from '../Button'
 import { Alert } from '../feedback/Alert'
 import { Pagination } from '../data/Pagination'
+import { t } from '../../i18n/fr'
 
 type Props = { active: ActiveOrganization; item: MatchRecord; root: string; management: boolean; disabled: boolean;
   onInvalid: () => void; onSaved: () => void; onClose: () => void }
 export function MatchResults({ active, item, root, management, disabled, onInvalid, onSaved, onClose }: Props) {
   const [page, setPage] = useState(1), [outcome, setOutcome] = useState<MatchResultOutcome>(item.status === 'confirmed' ? 'forfeit' : 'played')
+  const [reviewAction, setReviewAction] = useState<'approve' | 'dispute' | null>(null)
   const path = root + '/' + item.id + '/results'
   const { list, loading, error } = usePartnershipList<MatchResultEvent, MatchResultPage>(path + '?page=' + page + '&per_page=10' + (management ? '&management=1' : ''), active, true, onInvalid)
   const mutation = usePeopleMutation<MatchResult>(active, onSaved, onInvalid)
@@ -60,17 +62,25 @@ export function MatchResults({ active, item, root, management, disabled, onInval
       {shared && <FormField name="confirm_sharing" label={text('results.sharing')} type="checkbox" required disabled={blocked} error={errors.confirm_sharing?.[0]} />}
       <Button type="submit" disabled={blocked}>{text('results.submit')}</Button>
     </form>}
-    {(['approve', 'dispute'] as const).filter((action) => actions.includes(action)).map((action) => <form key={action} aria-label={text('results.' + action)} className="ui-editor grid min-w-0 gap-3 p-3" onSubmit={(event) => {
+    {!reviewAction && (actions.includes('approve') || actions.includes('dispute')) && <div className="flex flex-wrap gap-2">
+      {(['approve', 'dispute'] as const).filter((action) => actions.includes(action)).map((action) => (
+        <Button key={action} disabled={blocked} onClick={() => setReviewAction(action)}>{text('results.' + action)}</Button>
+      ))}
+    </div>}
+    {reviewAction && actions.includes(reviewAction) && <form key={reviewAction} aria-label={text('results.' + reviewAction)} className="ui-editor grid min-w-0 gap-3 p-3" onSubmit={(event) => {
       const values = new FormData(event.currentTarget)
-      mutation.propose(event, text('results.' + action), path + (action === 'approve' ? '/approvals' : '/disputes'), { ...common(values), submission_id: result?.submission?.id,
-        ...(action === 'approve' ? { confirm_evidence: values.has('confirm_evidence') } : {}) })
+      mutation.propose(event, text('results.' + reviewAction), path + (reviewAction === 'approve' ? '/approvals' : '/disputes'), { ...common(values), submission_id: result?.submission?.id,
+        ...(reviewAction === 'approve' ? { confirm_evidence: values.has('confirm_evidence') } : {}) })
     }}>
-      <h4 className="font-bold">{text('results.' + action)}</h4>
-      {action === 'approve' && <FormField name="confirm_evidence" label={text('results.confirmEvidence')} type="checkbox" required disabled={blocked} error={mutation.errors(path + '/approvals').confirm_evidence?.[0]} />}
-      <FormField name="reason" label={text('results.reason')} minLength={10} maxLength={1000} required disabled={blocked} error={mutation.errors(path + (action === 'approve' ? '/approvals' : '/disputes')).reason?.[0]} />
+      <h4 className="font-bold">{text('results.' + reviewAction)}</h4>
+      {reviewAction === 'approve' && <FormField name="confirm_evidence" label={text('results.confirmEvidence')} type="checkbox" required disabled={blocked} error={mutation.errors(path + '/approvals').confirm_evidence?.[0]} />}
+      <FormField name="reason" label={text('results.reason')} minLength={10} maxLength={1000} required disabled={blocked} error={mutation.errors(path + (reviewAction === 'approve' ? '/approvals' : '/disputes')).reason?.[0]} />
       {shared && <FormField name="confirm_sharing" label={text('results.sharing')} type="checkbox" required disabled={blocked} />}
-      <Button type="submit" disabled={blocked}>{text('results.' + action)}</Button>
-    </form>)}
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" variant="primary" disabled={blocked}>{text('results.' + reviewAction)}</Button>
+        <Button disabled={blocked} onClick={() => setReviewAction(null)}>{t('tenant.cancel')}</Button>
+      </div>
+    </form>}
     {list?.data.length === 0 && <p>{text('results.empty')}</p>}
     <ol className="grid min-w-0 gap-3">{list?.data.map((event) => <li key={event.id} className="ui-card grid min-w-0 gap-2 p-3">
       <h4 className="font-bold">#{event.number} · {text('results.action.' + event.action)}</h4>
@@ -79,6 +89,6 @@ export function MatchResults({ active, item, root, management, disabled, onInval
       <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{event.reason}</p>
       {event.proof_reference && <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{text('results.proof')} : {event.proof_reference}</p>}
     </li>)}</ol>
-    {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={setPage} />}
+    {list && <Pagination currentPage={list.meta.current_page} totalPages={list.meta.last_page} disabled={blocked || loading} onPageChange={(next) => { setReviewAction(null); setPage(next) }} />}
   </section>
 }

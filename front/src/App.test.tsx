@@ -73,6 +73,25 @@ describe('App', () => {
     expect(tenancyRequest).not.toHaveBeenCalled()
   })
 
+  it('affiche une seule demande de vérification MFA après la saisie des identifiants', async () => {
+    const user = userEvent.setup()
+    loginMock.mockResolvedValue({
+      id: 42, name: 'Admin', email: 'admin@ucg.test', email_verified: true,
+      mfa: { required: true, enabled: true, verified: false },
+    })
+
+    render(<App />)
+    await user.type(await screen.findByLabelText('Adresse e-mail'), 'admin@ucg.test')
+    await user.type(screen.getByLabelText('Mot de passe'), 'fixture-password')
+    await user.click(screen.getByRole('button', { name: 'Se connecter' }))
+
+    const challenge = await screen.findByRole('region', { name: 'Authentification à deux facteurs' })
+    const instruction = 'Confirmez votre connexion avec un deuxième facteur.'
+    expect(within(challenge).getByText(instruction)).toBeVisible()
+    expect(screen.getAllByText(instruction)).toHaveLength(1)
+    expect(screen.queryByText('Connexion réussie.')).not.toBeInTheDocument()
+  })
+
   it('ouvre le formulaire client depuis le menu du super admin', async () => {
     getCurrentUserMock.mockResolvedValue({
       id: 42, name: 'Super admin', email: 'superadmin@example.test', email_verified: true, can_provision_clients: true,

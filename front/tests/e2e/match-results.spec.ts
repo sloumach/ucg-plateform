@@ -74,6 +74,7 @@ test('deux comptes, proposition, approbation, contestation, nouvelle preuve et c
   await expect(results.getByRole('button', { name: 'Approuver le résultat', exact: true })).toHaveCount(0)
   actor = 45; confirmed = false; await page.reload(); await open()
   const approve = async () => {
+    await results.getByRole('button', { name: 'Approuver le résultat', exact: true }).click()
     const form = results.getByRole('form', { name: 'Approuver le résultat' })
     await form.getByLabel('J’ai personnellement consulté la preuve et vérifié le résultat proposé.').check()
     await form.getByLabel('Motif de la proposition ou de la décision').fill('Preuve consultée et résultat conforme.')
@@ -81,6 +82,7 @@ test('deux comptes, proposition, approbation, contestation, nouvelle preuve et c
   }
   await approve(); await expect(results).toHaveCount(0)
   await panel.getByRole('button', { name: 'Résultats et validation', exact: true }).click()
+  await results.getByRole('button', { name: 'Contester le résultat', exact: true }).click()
   const dispute = results.getByRole('form', { name: 'Contester le résultat' })
   await dispute.getByLabel('Motif de la proposition ou de la décision').fill('La preuve doit être complétée et vérifiée de nouveau.')
   await dispute.getByRole('button', { name: 'Contester le résultat' }).click(); await results.getByRole('button', { name: 'Confirmer et continuer' }).click(); await expect(results).toHaveCount(0)
