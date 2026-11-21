@@ -5,7 +5,17 @@
 
 ## Point de reprise
 
-- Dernière mise à jour : **10 novembre 2026**.
+- Dernière mise à jour : **21 novembre 2026**.
+- **Préparation locale des comptes UCG — 21/11.** Les six comptes métier déjà
+  présents hors coach/manager et six nouveaux joueurs ont rejoint Ultra Cyber Game
+  par douze invitations acceptées. Six rôles ont été créés selon le PDF d’exemple
+  et affectés aux douze comptes. L’équipe MLBB existante, saison 2027, compte
+  sept joueurs : cinq titulaires et deux remplaçants. Comptes, rôles et affectations
+  coach/manager conservés, vérifiés par empreintes. Aucun MFA préconfiguré pour les
+  nouveaux comptes ; activation individuelle requise. Seeder local relançable
+  `LocalUcgTestAccountsSeeder`, secrets dans un fichier privé ignoré par Git,
+  jamais dans le code. Sauvegarde locale préalable ; 13 tests / 66 assertions,
+  Pint et analyse statique ciblée validés. Aucun push ni déploiement effectué.
 - **CI de `42846d4` sur `staging` validée par l’utilisateur.** Ce commit de
   bilan regroupe les cinq lots de recette navigateur, le
   correctif de saisie sur conflit de slug et la mise à jour de l’aide du
